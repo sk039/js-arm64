@@ -32,8 +32,8 @@
 
 #include "jit/arm64/Instructions-arm64.h"
 
-#include "jit/arm64/VIXL-Globals.h"
-#include "jit/arm64/VIXL-Utils.h"
+#include "jit/arm64/VIXL-Globals-arm64.h"
+#include "jit/arm64/VIXL-Utils-arm64.h"
 
 #include <list>
 

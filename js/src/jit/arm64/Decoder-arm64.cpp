@@ -1,3 +1,6 @@
+// -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 2 -*-
+// vim: set ts=8 sts=2 et sw=2 tw=99:
+//
 // Copyright 2013, ARM Limited
 // All rights reserved.
 //
@@ -24,11 +27,13 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "globals.h"
-#include "utils.h"
-#include "a64/decoder-a64.h"
+#include "jit/arm64/Decoder-arm64.h"
+
+#include "jit/arm64/VIXL-Globals-arm64.h"
+#include "jit/arm64/VIXL-Utils-arm64.h"
 
 namespace vixl {
+
 // Top-level instruction decode function.
 void Decoder::Decode(Instruction *instr) {
   if (instr->Bits(28, 27) == 0) {

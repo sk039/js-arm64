@@ -1,3 +1,6 @@
+// -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 2 -*-
+// vim: set ts=8 sts=2 et sw=2 tw=99:
+//
 // Copyright 2013, ARM Limited
 // All rights reserved.
 //
@@ -27,11 +30,10 @@
 #ifndef VIXL_A64_DECODER_A64_H_
 #define VIXL_A64_DECODER_A64_H_
 
+#include "jit/arm64/VIXL-Globals-arm64.h"
+#include "jit/arm64/Instructions-arm64.h"
+
 #include <list>
-
-#include "globals.h"
-#include "a64/instructions-a64.h"
-
 
 // List macro containing all visitors needed by the decoder class.
 

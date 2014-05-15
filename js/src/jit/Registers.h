@@ -16,6 +16,8 @@
 # include "jit/x64/Architecture-x64.h"
 #elif defined(JS_CODEGEN_ARM)
 # include "jit/arm/Architecture-arm.h"
+#elif defined(JS_CODEGEN_ARM64)
+# include "jit/arm64/Architecture-arm64.h"
 #elif defined(JS_CODEGEN_MIPS)
 # include "jit/mips/Architecture-mips.h"
 #else
