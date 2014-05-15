@@ -2160,7 +2160,7 @@ js::RecomputeStackLimit(JSRuntime *rt, StackKind kind)
         JSRuntime::AutoLockForInterrupt lock(rt);
         if (rt->mainThread.jitStackLimit != uintptr_t(-1)) {
             rt->mainThread.jitStackLimit = rt->mainThread.nativeStackLimit[kind];
-#if defined(JS_ARM_SIMULATOR) || defined(JS_MIPS_SIMULATOR)
+#if defined(JS_ARM_SIMULATOR) || defined(JS_ARM64_SIMULATOR) || defined(JS_MIPS_SIMULATOR)
             rt->mainThread.jitStackLimit = jit::Simulator::StackLimit();
 #endif
         }
