@@ -3226,6 +3226,17 @@ MOZ_ARG_ENABLE_BOOL(arm-simulator,
 [  --enable-arm-simulator Enable ARM simulator for JIT code],
     JS_ARM_SIMULATOR=1,
     JS_ARM_SIMULATOR= )
+
+dnl ========================================================
+dnl = Use ARM64 JIT code simulator. Requires an x86_64 build.
+dnl ========================================================
+dnl Also define JS_CODEGEN_ARM64 in this case. If the simulator is not used,
+dnl JS_CODEGEN_foo is defined if JS_CPU_foo is defined.
+MOZ_ARG_ENABLE_BOOL(arm64-simulator,
+[  --enable-arm64-simulator Enable ARM64 simulator for JIT code],
+    JS_ARM64_SIMULATOR=1,
+    JS_ARM64_SIMULATOR= )
+
 if test -n "$JS_ARM_SIMULATOR"; then
     if test "$CPU_ARCH" != "x86"; then
         AC_MSG_ERROR([The ARM simulator only works on x86.])
@@ -3233,6 +3244,13 @@ if test -n "$JS_ARM_SIMULATOR"; then
     AC_DEFINE(JS_ARM_SIMULATOR)
     AC_DEFINE(JS_CODEGEN_ARM)
     JS_CODEGEN_ARM=1
+elif test -n "$JS_ARM64_SIMULATOR"; then
+    if test "$CPU_ARCH" != "x86_64"; then
+        AC_MSG_ERROR([The ARM64 simuator only works on x86_64.])
+    fi
+    AC_DEFINE(JS_ARM64_SIMULATOR)
+    AC_DEFINE(JS_CODEGEN_ARM64)
+    JS_CODEGEN_ARM64=1
 elif test "$CPU_ARCH" = "x86"; then
     AC_DEFINE(JS_CODEGEN_X86)
     JS_CODEGEN_X86=1
@@ -3242,10 +3260,15 @@ elif test "$CPU_ARCH" = "x86_64"; then
 elif test "$CPU_ARCH" = "arm"; then
     AC_DEFINE(JS_CODEGEN_ARM)
     JS_CODEGEN_ARM=1
+elif test "$CPU_ARCH" = "arm64"; then dnl FIXME -- is this the right string? Test with hardware.
+    AC_DEFINE(JS_CODEGEN_ARM64)
+    JS_CODEGEN_ARM64=1
 fi
 
 AC_SUBST(JS_ARM_SIMULATOR)
 AC_SUBST(JS_CODEGEN_ARM)
+AC_SUBST(JS_ARM64_SIMULATOR)
+AC_SUBST(JS_CODEGEN_ARM64)
 AC_SUBST(JS_CODEGEN_X86)
 AC_SUBST(JS_CODEGEN_X64)
 
