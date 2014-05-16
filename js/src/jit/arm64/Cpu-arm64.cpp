@@ -78,8 +78,8 @@ uint32_t CPU::GetCacheType() {
 
 void CPU::EnsureIAndDCacheCoherency(void *address, size_t length) {
 #ifdef USE_SIMULATOR
-  USE(address);
-  USE(length);
+  USEARG(address);
+  USEARG(length);
   // TODO: consider adding cache simulation to ensure every address run has been
   // synchronised.
 #else

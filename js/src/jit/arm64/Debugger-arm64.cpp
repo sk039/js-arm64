@@ -883,7 +883,7 @@ static bool StringToInt64(int64_t* value, const char* line, int base = 10) {
 
 
 uint8_t* Token::ToAddress(Debugger* debugger) const {
-  USE(debugger);
+  USEARG(debugger);
   VIXL_UNREACHABLE();
   return NULL;
 }
@@ -1042,7 +1042,7 @@ Token* IdentifierToken::Tokenize(const char* arg) {
 
 
 uint8_t* AddressToken::ToAddress(Debugger* debugger) const {
-  USE(debugger);
+  USEARG(debugger);
   return value();
 }
 
@@ -1245,7 +1245,7 @@ void DebugCommand::PrintHelp(const char** aliases,
 
 bool HelpCommand::Run(Debugger* debugger) {
   VIXL_ASSERT(debugger->IsDebuggerRunning());
-  USE(debugger);
+  USEARG(debugger);
 
   #define PRINT_HELP(Command)                     \
     DebugCommand::PrintHelp(Command::kAliases,    \
@@ -1559,7 +1559,7 @@ UnknownCommand::~UnknownCommand() {
 
 bool UnknownCommand::Run(Debugger* debugger) {
   VIXL_ASSERT(debugger->IsDebuggerRunning());
-  USE(debugger);
+  USEARG(debugger);
 
   printf(" ** Unknown Command:");
   const int size = args_.size();
@@ -1583,7 +1583,7 @@ InvalidCommand::~InvalidCommand() {
 
 bool InvalidCommand::Run(Debugger* debugger) {
   VIXL_ASSERT(debugger->IsDebuggerRunning());
-  USE(debugger);
+  USEARG(debugger);
 
   printf(" ** Invalid Command:");
   const int size = args_.size();

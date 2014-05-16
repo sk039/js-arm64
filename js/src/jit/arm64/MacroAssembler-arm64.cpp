@@ -948,8 +948,8 @@ void MacroAssembler::PrepareForPush(int count, int size) {
 
 
 void MacroAssembler::PrepareForPop(int count, int size) {
-  USE(count);
-  USE(size);
+  USEARG(count);
+  USEARG(size);
   if (sp.Is(StackPointer())) {
     // If the current stack pointer is sp, then it must be aligned to 16 bytes
     // on entry and the total size of the specified registers must also be a
@@ -1314,8 +1314,8 @@ void MacroAssembler::Trace(TraceParameters parameters, TraceCommand command) {
   dc32(command);
 #else
   // Emit nothing on real hardware.
-  USE(parameters);
-  USE(command);
+  USEARG(parameters);
+  USEARG(command);
 #endif
 }
 
@@ -1339,7 +1339,7 @@ void MacroAssembler::Log(TraceParameters parameters) {
   dc32(parameters);
 #else
   // Emit nothing on real hardware.
-  USE(parameters);
+  USEARG(parameters);
 #endif
 }
 

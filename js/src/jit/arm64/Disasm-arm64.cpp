@@ -1507,7 +1507,7 @@ int Disassembler::SubstituteBitfieldImmediateField(Instruction* instr,
 int Disassembler::SubstituteLiteralField(Instruction* instr,
                                          const char* format) {
   VIXL_ASSERT(strncmp(format, "LValue", 6) == 0);
-  USE(format);
+  USEARG(format);
 
   switch (instr->Mask(LoadLiteralMask)) {
     case LDR_w_lit:
@@ -1567,7 +1567,7 @@ int Disassembler::SubstituteConditionField(Instruction* instr,
 
 int Disassembler::SubstitutePCRelAddressField(Instruction* instr,
                                               const char* format) {
-  USE(format);
+  USEARG(format);
   VIXL_ASSERT(strncmp(format, "AddrPCRel", 9) == 0);
 
   int offset = instr->ImmPCRel();
@@ -1618,7 +1618,7 @@ int Disassembler::SubstituteExtendField(Instruction* instr,
                                         const char* format) {
   VIXL_ASSERT(strncmp(format, "Ext", 3) == 0);
   VIXL_ASSERT(instr->ExtendMode() <= 7);
-  USE(format);
+  USEARG(format);
 
   const char* extend_mode[] = { "uxtb", "uxth", "uxtw", "uxtx",
                                 "sxtb", "sxth", "sxtw", "sxtx" };
@@ -1646,7 +1646,7 @@ int Disassembler::SubstituteLSRegOffsetField(Instruction* instr,
   VIXL_ASSERT(strncmp(format, "Offsetreg", 9) == 0);
   const char* extend_mode[] = { "undefined", "undefined", "uxtw", "lsl",
                                 "undefined", "undefined", "sxtw", "sxtx" };
-  USE(format);
+  USEARG(format);
 
   unsigned shift = instr->ImmShiftLS();
   Extend ext = static_cast<Extend>(instr->ExtendMode());
@@ -1673,7 +1673,7 @@ int Disassembler::SubstituteLSRegOffsetField(Instruction* instr,
 int Disassembler::SubstitutePrefetchField(Instruction* instr,
                                           const char* format) {
   VIXL_ASSERT(format[0] == 'P');
-  USE(format);
+  USEARG(format);
 
   int prefetch_mode = instr->PrefetchMode();
 
@@ -1688,7 +1688,7 @@ int Disassembler::SubstitutePrefetchField(Instruction* instr,
 int Disassembler::SubstituteBarrierField(Instruction* instr,
                                          const char* format) {
   VIXL_ASSERT(format[0] == 'M');
-  USE(format);
+  USEARG(format);
 
   static const char* options[4][4] = {
     { "sy (0b0000)", "oshld", "oshst", "osh" },

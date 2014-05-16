@@ -1517,14 +1517,14 @@ class Assembler {
   static inline Instr ImmS(unsigned imms, unsigned reg_size) {
     VIXL_ASSERT(((reg_size == kXRegSize) && is_uint6(imms)) ||
            ((reg_size == kWRegSize) && is_uint5(imms)));
-    USE(reg_size);
+    USEARG(reg_size);
     return imms << ImmS_offset;
   }
 
   static inline Instr ImmR(unsigned immr, unsigned reg_size) {
     VIXL_ASSERT(((reg_size == kXRegSize) && is_uint6(immr)) ||
            ((reg_size == kWRegSize) && is_uint5(immr)));
-    USE(reg_size);
+    USEARG(reg_size);
     VIXL_ASSERT(is_uint6(immr));
     return immr << ImmR_offset;
   }
@@ -1533,7 +1533,7 @@ class Assembler {
     VIXL_ASSERT((reg_size == kWRegSize) || (reg_size == kXRegSize));
     VIXL_ASSERT(is_uint6(imms));
     VIXL_ASSERT((reg_size == kXRegSize) || is_uint6(imms + 3));
-    USE(reg_size);
+    USEARG(reg_size);
     return imms << ImmSetBits_offset;
   }
 
@@ -1541,7 +1541,7 @@ class Assembler {
     VIXL_ASSERT((reg_size == kWRegSize) || (reg_size == kXRegSize));
     VIXL_ASSERT(((reg_size == kXRegSize) && is_uint6(immr)) ||
            ((reg_size == kWRegSize) && is_uint5(immr)));
-    USE(reg_size);
+    USEARG(reg_size);
     return immr << ImmRotate_offset;
   }
 
@@ -1553,7 +1553,7 @@ class Assembler {
   static inline Instr BitN(unsigned bitn, unsigned reg_size) {
     VIXL_ASSERT((reg_size == kWRegSize) || (reg_size == kXRegSize));
     VIXL_ASSERT((reg_size == kXRegSize) || (bitn == 0));
-    USE(reg_size);
+    USEARG(reg_size);
     return bitn << BitN_offset;
   }
 

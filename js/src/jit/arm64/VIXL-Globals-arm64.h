@@ -70,9 +70,10 @@ const int MBytes = 1024 * KBytes;
 #define VIXL_UNIMPLEMENTED() JS_ASSERT(!"VIXL Unimplemented")
 #define VIXL_UNREACHABLE() MOZ_ASSUME_UNREACHABLE("VIXL Unreachable")
 #define VIXL_STATIC_ASSERT(condition) JS_STATIC_ASSERT(condition)
-
-template <typename T> inline void USE(T) {}
-
 #define VIXL_ALIGNMENT_EXCEPTION() printf("ALIGNMENT EXCEPTION\t"); VIXL_ABORT()
+
+// Unfortunately, assembler/wtf/Platform.h defines USE() as a
+// WTF feature-detection macro already. Renaming to USEARG().
+template <typename T> inline void USEARG(T) {}
 
 #endif  // VIXL_GLOBALS_H
