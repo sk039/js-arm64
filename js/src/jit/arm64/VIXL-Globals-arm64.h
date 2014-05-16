@@ -43,6 +43,9 @@
 #define __STDC_FORMAT_MACROS
 #endif
 
+#include "js/Utility.h"
+#include "mozilla/Assertions.h"
+
 #include "jit/arm64/VIXL-Platform-arm64.h"
 
 #include <stdint.h>
@@ -61,25 +64,12 @@ const int KBytes = 1024;
 const int MBytes = 1024 * KBytes;
 
 #define VIXL_ABORT() printf("in %s, line %i", __FILE__, __LINE__); abort()
-#ifdef DEBUG
-  #define VIXL_ASSERT(condition) assert(condition)
-  #define VIXL_CHECK(condition) VIXL_ASSERT(condition)
-  #define VIXL_UNIMPLEMENTED() printf("UNIMPLEMENTED\t"); VIXL_ABORT()
-  #define VIXL_UNREACHABLE() printf("UNREACHABLE\t"); VIXL_ABORT()
-#else
-  #define VIXL_ASSERT(condition) ((void) 0)
-  #define VIXL_CHECK(condition) assert(condition)
-  #define VIXL_UNIMPLEMENTED() ((void) 0)
-  #define VIXL_UNREACHABLE() ((void) 0)
-#endif
-// This is not as powerful as template based assertions, but it is simple.
-// It assumes that the descriptions are unique. If this starts being a problem,
-// we can switch to a different implemention.
-#define VIXL_CONCAT(a, b) a##b
-#define VIXL_STATIC_ASSERT_LINE(line, condition) \
-  typedef char VIXL_CONCAT(STATIC_ASSERT_LINE_, line)[(condition) ? 1 : -1] \
-  __attribute__((unused))
-#define VIXL_STATIC_ASSERT(condition) VIXL_STATIC_ASSERT_LINE(__LINE__, condition) //NOLINT
+
+#define VIXL_ASSERT(condition) JS_ASSERT(condition)
+#define VIXL_CHECK(condition) JS_ASSERT(condition)
+#define VIXL_UNIMPLEMENTED() JS_ASSERT(!"VIXL Unimplemented")
+#define VIXL_UNREACHABLE() MOZ_ASSUME_UNREACHABLE("VIXL Unreachable")
+#define VIXL_STATIC_ASSERT(condition) JS_STATIC_ASSERT(condition)
 
 template <typename T> inline void USE(T) {}
 
