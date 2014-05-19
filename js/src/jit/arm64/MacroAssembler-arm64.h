@@ -48,16 +48,41 @@
 namespace js {
 namespace jit {
 
-class MacroAssemblerARM64 : public Assembler
+class MacroAssemblerARM64 : public vixl::Assembler
 {
   protected:
     uint32_t framePushed_;
 
   public:
-    MacroAssemblerARM64() { }
+    MacroAssemblerARM64()
+      : Assembler(NULL, 0) // FIXME: Integrate the Assembler with some buffer.
+    { }
+
+    // FIXME: Can we just use the non-VIXL version?
+    enum Condition {
+        Equal               = vixl::eq,
+        NotEqual            = vixl::ne,
+        Above               = vixl::hi,
+        AboveOrEqual        = vixl::hs,
+        Below               = vixl::lo,
+        BelowOrEqual        = vixl::ls,
+        GreaterThan         = vixl::gt,
+        GreaterThanOrEqual  = vixl::ge,
+        LessThan            = vixl::lt,
+        LessThanOrEqual     = vixl::le,
+        Overflow            = vixl::vs,
+        Signed              = vixl::mi,
+        NotSigned           = vixl::pl,
+        Zero                = vixl::eq,
+        NonZero             = vixl::ne,
+        Always              = vixl::al,
+
+        // ARM64-specific codes.
+        NoOverflow = vixl::vc
+    };
 };
 
-typedef MacroAssemberARM64 MacroAssemblerSpecific;
+typedef MacroAssemblerARM64 MacroAssemblerSpecific;
 
 } // namespace jit
 } // namespace js
