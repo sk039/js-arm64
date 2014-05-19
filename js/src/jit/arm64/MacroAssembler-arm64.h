@@ -30,6 +30,9 @@
 #ifndef VIXL_A64_MACRO_ASSEMBLER_A64_H_
 #define VIXL_A64_MACRO_ASSEMBLER_A64_H_
 
+#include "jit/IonFrames.h"
+#include "jit/MoveResolver.h"
+
 #include "jit/arm64/VIXL-Globals-arm64.h"
 #include "jit/arm64/Assembler-arm64.h"
 #include "jit/arm64/Debugger-arm64.h"
@@ -80,6 +83,9 @@ class MacroAssemblerARM64 : public vixl::Assembler
         // ARM64-specific codes.
         NoOverflow = vixl::vc
     };
+
+  protected:
+    MoveResolver moveResolver_;
 };
 
 typedef MacroAssemblerARM64 MacroAssemblerSpecific;
