@@ -45,6 +45,23 @@
   V(Str, CPURegister&, rt, StoreOpFor(rt))                    \
   V(Ldrsw, Register&, rt, LDRSW_x)
 
+namespace js {
+namespace jit {
+
+class MacroAssemblerARM64 : public Assembler
+{
+  protected:
+    uint32_t framePushed_;
+
+  public:
+    MacroAssemblerARM64() { }
+};
+
+typedef MacroAssemberARM64 MacroAssemblerSpecific;
+
+} // namespace jit
+} // namespace js
+
 namespace vixl {
 
 enum BranchType {
