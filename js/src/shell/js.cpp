@@ -6207,7 +6207,7 @@ main(int argc, char **argv, char **envp)
                              "simulator.")
         || !op.addIntOption('\0', "arm-sim-stop-at", "NUMBER", "Stop the ARM simulator after the given "
                             "NUMBER of instructions.", -1)
-#if defined(JS_ARM64_SIMULATOR)
+#elif defined(JS_ARM64_SIMULATOR)
         || !op.addBoolOption('\0', "arm64-sim-icache-checks", "Enable icache flush checks in the ARM64 "
                              "simulator.")
         || !op.addIntOption('\0', "arm64-sim-stop-at", "NUMBER", "Stop the ARM64 simulator after "
