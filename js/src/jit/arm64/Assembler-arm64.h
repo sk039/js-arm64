@@ -31,9 +31,9 @@
 #define VIXL_A64_ASSEMBLER_A64_H_
 
 #include "jit/arm64/Instructions-arm64.h"
-
 #include "jit/arm64/VIXL-Globals-arm64.h"
 #include "jit/arm64/VIXL-Utils-arm64.h"
+#include "jit/shared/Assembler-shared.h"
 
 #include <list>
 

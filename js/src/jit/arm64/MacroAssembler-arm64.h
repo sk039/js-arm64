@@ -51,6 +51,64 @@
 namespace js {
 namespace jit {
 
+struct ImmShiftedTag : public ImmWord
+{
+    ImmShiftedTag(JSValueShiftedTag shtag)
+      : ImmWord((uintptr_t)shtag)
+    { }
+
+    ImmShiftedTag(JSValueType type)
+      : ImmWord(uintptr_t(JSValueShiftedTag(JSVAL_TYPE_TO_SHIFTED_TAG(type))))
+    { }
+};
+
+struct ImmTag : public Imm32
+{
+    ImmTag(JSValueTag tag)
+      : Imm32(tag)
+    { }
+};
+
+class Operand
+{
+  public:
+    enum Kind {
+      REG,
+      FPREG,
+      MEM
+    };
+
+  private:
+    Kind kind_ : 2;
+    int32_t reg_ : 5;
+    int32_t offset_;
+
+  public:
+    explicit Operand(Register reg)
+      : kind_(REG),
+        reg_(reg.code())
+    { }
+    explicit Operand(FloatRegister fpreg)
+      : kind_(REG),
+        reg_(fpreg.code())
+    { }
+    explicit Operand(Register base, Imm32 offset)
+      : kind_(MEM),
+        reg_(base.code()),
+        offset_(offset.value)
+    { }
+    explicit Operand(Register base, int32_t offset)
+      : kind_(MEM),
+        reg_(base.code()),
+        offset_(offset)
+    { }
+    explicit Operand(const Address &addr)
+      : kind_(MEM),
+        reg_(addr.base.code()),
+        offset_(addr.offset)
+    { }
+};
+
 class MacroAssemblerARM64 : public vixl::Assembler
 {
   protected:
@@ -86,6 +144,580 @@ class MacroAssemblerARM64 : public vixl::Assembler
 
   protected:
     MoveResolver moveResolver_;
+
+  public:
+    // FIXME: This is the size of the buffer -- should really be in Assembler.
+    int32_t size() const {
+        JS_ASSERT(0 && "size");
+        return 0;
+    }
+    bool oom() const {
+        JS_ASSERT(0 && "oom");
+        return false;
+    }
+
+  public:
+    template <typename T>
+    void Push(const T &t) {
+        JS_ASSERT(0 && "Push()");
+    }
+
+    template <typename T>
+    void Pop(const T &t) {
+        JS_ASSERT(0 && "Pop()");
+    }
+
+    void implicitPop(uint32_t args) {
+        JS_ASSERT(0 && "implicitPop");
+    }
+    uint32_t framePushed() const {
+        JS_ASSERT(0 && "framePushed");
+        return 0;
+    }
+    void setFramePushed(uint32_t framePushed) {
+        JS_ASSERT(0 && "setFramePushed");
+    }
+
+    Register extractTag(const Address &address, Register scratch) {
+        JS_ASSERT(0 && "extractTag()");
+        return scratch;
+    }
+    Register extractTag(const ValueOperand &value, Register scratch) {
+        JS_ASSERT(0 && "extractTag()");
+        return scratch;
+    }
+    Register extractObject(const Address &address, Register scratch) {
+        JS_ASSERT(0 && "extractObject()");
+        return scratch;
+    }
+    Register extractObject(const ValueOperand &value, Register scratch) {
+        JS_ASSERT(0 && "extractObject()");
+        return scratch;
+    }
+    Register extractInt32(const ValueOperand &value, Register scratch) {
+        JS_ASSERT(0 && "extractInt32()");
+        return scratch;
+    }
+    Register extractBoolean(const ValueOperand &value, Register scratch) {
+        JS_ASSERT(0 && "extractBoolean()");
+        return scratch;
+    }
+
+    // If source is a double, load into dest.
+    // If source is int32, convert to double and store in dest.
+    // Else, branch to failure.
+    void ensureDouble(const ValueOperand &source, FloatRegister dest, Label *failure) {
+        JS_ASSERT(0 && "ensureDouble()");
+    }
+
+    // TODO: This should probably go into the Assembler.
+    // Or we could just have this InvertCondition be a synonym of the vixl version.
+    static Condition InvertCondition(Condition cond) {
+        vixl::Condition vcond = (vixl::Condition)cond;
+        return (Condition)vixl::InvertCondition(vcond);
+    }
+
+    void movePtr(Register src, Register dest) {
+        JS_ASSERT(0 && "movePtr");
+    }
+    void movePtr(Register src, const Operand &dest) {
+        JS_ASSERT(0 && "movePtr");
+    }
+    void movePtr(ImmWord imm, Register dest) {
+        JS_ASSERT(0 && "movePtr");
+    }
+    void movePtr(ImmPtr imm, Register dest) {
+        JS_ASSERT(0 && "movePtr");
+    }
+    void movePtr(AsmJSImmPtr imm, Register dest) {
+        JS_ASSERT(0 && "movePtr");
+    }
+    void movePtr(ImmGCPtr imm, Register dest) {
+        JS_ASSERT(0 && "movePtr");
+    }
+    void loadPtr(AbsoluteAddress address, Register dest) {
+        JS_ASSERT(0 && "loadPtr");
+    }
+    void loadPtr(const Address &address, Register dest) {
+        JS_ASSERT(0 && "loadPtr");
+    }
+    void loadPtr(const Operand &src, Register dest) {
+        JS_ASSERT(0 && "loadPtr");
+    }
+    void loadPtr(const BaseIndex &src, Register dest) {
+        JS_ASSERT(0 && "loadPtr");
+    }
+    void loadPrivate(const Address &src, Register dest) {
+        JS_ASSERT(0 && "loadPrivate");
+    }
+    void load32(AbsoluteAddress address, Register dest) {
+        JS_ASSERT(0 && "load32");
+    }
+    void storePtr(ImmWord imm, const Address &address) {
+        JS_ASSERT(0 && "storePtr");
+    }
+    void storePtr(ImmPtr imm, const Address &address) {
+        JS_ASSERT(0 && "storePtr");
+    }
+    void storePtr(ImmGCPtr imm, const Address &address) {
+        JS_ASSERT(0 && "storePtr");
+    }
+    void storePtr(Register src, const Address &address) {
+        JS_ASSERT(0 && "storePtr");
+    }
+    void storePtr(Register src, const BaseIndex &address) {
+        JS_ASSERT(0 && "storePtr");
+    }
+    void storePtr(Register src, const Operand &dest) {
+        JS_ASSERT(0 && "storePtr");
+    }
+    void storePtr(Register src, AbsoluteAddress address) {
+        JS_ASSERT(0 && "storePtr");
+    }
+    void store32(Register src, AbsoluteAddress address) {
+        JS_ASSERT(0 && "store32");
+    }
+    void rshiftPtr(Imm32 imm, Register dest) {
+        JS_ASSERT(0 && "rshiftPtr");
+    }
+    void rshiftPtrArithmetic(Imm32 imm, Register dest) {
+        JS_ASSERT(0 && "rshiftPtrArithmetic");
+    }
+    void lshiftPtr(Imm32 imm, Register dest) {
+        JS_ASSERT(0 && "lshiftPtr");
+    }
+    void xorPtr(Imm32 imm, Register dest) {
+        JS_ASSERT(0 && "xorPtr");
+    }
+    void xorPtr(Register src, Register dest) {
+        JS_ASSERT(0 && "xorPtr");
+    }
+    void orPtr(Imm32 imm, Register dest) {
+        JS_ASSERT(0 && "orPtr");
+    }
+    void orPtr(Register src, Register dest) {
+        JS_ASSERT(0 && "orPtr");
+    }
+    void andPtr(Imm32 imm, Register dest) {
+        JS_ASSERT(0 && "andPtr");
+    }
+    void andPtr(Register src, Register dest) {
+        JS_ASSERT(0 && "andPtr");
+    }
+
+    void splitTag(Register src, Register dest) {
+        JS_ASSERT(0 && "splitTag");
+    }
+    void splitTag(const ValueOperand &operand, Register dest) {
+        JS_ASSERT(0 && "void ");
+    }
+    void splitTag(const Operand &operand, Register dest) {
+        JS_ASSERT(0 && "splitTag");
+    }
+    void splitTag(const Address &operand, Register dest) {
+        JS_ASSERT(0 && "splitTag");
+    }
+    void splitTag(const BaseIndex &operand, Register dest) {
+        JS_ASSERT(0 && "splitTag");
+    }
+
+    // Extracts the tag of a value and places it in ScratchReg.
+    Register splitTagForTest(const ValueOperand &value) {
+        JS_ASSERT(0 && "splitTagForTest");
+        return Register::FromCode(Registers::x0);
+    }
+    void cmpTag(const ValueOperand &operand, ImmTag tag) {
+        JS_ASSERT(0 && "cmpTag");
+    }
+
+    template <typename T, typename S>
+    void branchPtr(Condition cond, T lhs, S ptr, Label *label) {
+        JS_ASSERT(0 && "branchPtr");
+    }
+    void branchTestPtr(Condition cond, Register lhs, Register rhs, Label *label) {
+        JS_ASSERT(0 && "branchTestPtr");
+    }
+    void branchTestPtr(Condition cond, Register lhs, Imm32 imm, Label *label) {
+        JS_ASSERT(0 && "branchTestPtr");
+    }
+    void branchTestPtr(Condition cond, const Address &lhs, Imm32 imm, Label *label) {
+        JS_ASSERT(0 && "branchTestPtr");
+    }
+    void decBranchPtr(Condition cond, Register lhs, Imm32 imm, Label *label) {
+        JS_ASSERT(0 && "decBranchPtr");
+    }
+
+    void branchTestUndefined(Condition cond, Register tag, Label *label) {
+        JS_ASSERT(0 && "branchTestUndefined()");
+    }
+    void branchTestInt32(Condition cond, Register tag, Label *label) {
+        JS_ASSERT(0 && "branchTestInt32");
+    }
+    void branchTestDouble(Condition cond, Register tag, Label *label) {
+        JS_ASSERT(0 && "branchTestDouble");
+    }
+    void branchTestBoolean(Condition cond, Register tag, Label *label) {
+        JS_ASSERT(0 && "branchTestBoolean");
+    }
+    void branchTestNull(Condition cond, Register tag, Label *label) {
+        JS_ASSERT(0 && "branchTestNull");
+    }
+    void branchTestString(Condition cond, Register tag, Label *label) {
+        JS_ASSERT(0 && "branchTestString");
+    }
+    void branchTestObject(Condition cond, Register tag, Label *label) {
+        JS_ASSERT(0 && "branchTestObject");
+    }
+    void branchTestNumber(Condition cond, Register tag, Label *label) {
+        JS_ASSERT(0 && "branchTestNumber");
+    }
+
+    // ARM64 can test for certain types directly from memory when the payload
+    // of the type is limited to 32 bits. This avoids loading into a register,
+    // accesses half as much memory, and removes a right-shift.
+    void branchTestUndefined(Condition cond, const Operand &operand, Label *label) {
+        JS_ASSERT(0 && "branchTestUndefined");
+    }
+    void branchTestUndefined(Condition cond, const Address &address, Label *label) {
+        JS_ASSERT(0 && "branchTestUndefined");
+    }
+    void branchTestInt32(Condition cond, const Operand &operand, Label *label) {
+        JS_ASSERT(0 && "branchTestInt32");
+    }
+    void branchTestInt32(Condition cond, const Address &address, Label *label) {
+        JS_ASSERT(0 && "branchTestInt32");
+    }
+    void branchTestDouble(Condition cond, const Operand &operand, Label *label) {
+        JS_ASSERT(0 && "branchTestDouble");
+    }
+    void branchTestDouble(Condition cond, const Address &address, Label *label) {
+        JS_ASSERT(0 && "branchTestDouble");
+    }
+    void branchTestBoolean(Condition cond, const Operand &operand, Label *label) {
+        JS_ASSERT(0 && "branchTestBoolean");
+    }
+    void branchTestNull(Condition cond, const Operand &operand, Label *label) {
+        JS_ASSERT(0 && "branchTestNull");
+    }
+
+    // Perform a type-test on a full Value loaded into a register.
+    // Clobbers the ScratchReg.
+    void branchTestUndefined(Condition cond, const ValueOperand &src, Label *label) {
+        JS_ASSERT(0 && "branchTestUndefined");
+    }
+    void branchTestInt32(Condition cond, const ValueOperand &src, Label *label) {
+        JS_ASSERT(0 && "branchTestInt32");
+    }
+    void branchTestBoolean(Condition cond, const ValueOperand &src, Label *label) {
+        JS_ASSERT(0 && "branchTestBoolean");
+    }
+    void branchTestDouble(Condition cond, const ValueOperand &src, Label *label) {
+        JS_ASSERT(0 && "branchTestDouble");
+    }
+    void branchTestNull(Condition cond, const ValueOperand &src, Label *label) {
+        JS_ASSERT(0 && "branchTestNull");
+    }
+    void branchTestString(Condition cond, const ValueOperand &src, Label *label) {
+        JS_ASSERT(0 && "branchTestString");
+    }
+    void branchTestObject(Condition cond, const ValueOperand &src, Label *label) {
+        JS_ASSERT(0 && "branchTestObject");
+    }
+    void branchTestNumber(Condition cond, const ValueOperand &src, Label *label) {
+        JS_ASSERT(0 && "branchTestNumber");
+    }
+
+    // Perform a type-test on a Value addressed by BaseIndex.
+    // Clobbers the ScratchReg.
+    void branchTestUndefined(Condition cond, const BaseIndex &address, Label *label) {
+        JS_ASSERT(0 && "branchTestUndefined");
+    }
+    void branchTestInt32(Condition cond, const BaseIndex &address, Label *label) {
+        JS_ASSERT(0 && "branchTestInt32");
+    }
+    void branchTestBoolean(Condition cond, const BaseIndex &address, Label *label) {
+        JS_ASSERT(0 && "branchTestBoolean");
+    }
+    void branchTestDouble(Condition cond, const BaseIndex &address, Label *label) {
+        JS_ASSERT(0 && "branchTestDouble");
+    }
+    void branchTestNull(Condition cond, const BaseIndex &address, Label *label) {
+        JS_ASSERT(0 && "branchTestNull");
+    }
+    void branchTestString(Condition cond, const BaseIndex &address, Label *label) {
+        JS_ASSERT(0 && "branchTestString");
+    }
+    void branchTestObject(Condition cond, const BaseIndex &address, Label *label) {
+        JS_ASSERT(0 && "branchTestObject");
+    }
+    template <typename T>
+    void branchTestGCThing(Condition cond, const T &src, Label *label) {
+        JS_ASSERT(0 && "branchTestGCThing");
+    }
+    template <typename T>
+    void branchTestPrimitive(Condition cond, const T &t, Label *label) {
+        JS_ASSERT(0 && "branchTestPrimitive");
+    }
+    template <typename T>
+    void branchTestMagic(Condition cond, const T &t, Label *label) {
+        JS_ASSERT(0 && "branchTestMagic");
+    }
+    void branchTestMagicValue(Condition cond, const ValueOperand &val, JSWhyMagic why, Label *label) {
+        JS_ASSERT(0 && "branchTestMagicValue");
+    }
+    Condition testMagic(Condition cond, const ValueOperand &src) {
+        JS_ASSERT(0 && "testMagic");
+        return Equal;
+    }
+    Condition testError(Condition cond, const ValueOperand &src) {
+        JS_ASSERT(0 && "testError");
+        return Equal;
+    }
+    void branchTestValue(Condition cond, const ValueOperand &value, const Value &v, Label *label) {
+        JS_ASSERT(0 && "branchTestValue");
+    }
+    void branchTestValue(Condition cond, const Address &valaddr, const ValueOperand &value,
+                         Label *label)
+    {
+        JS_ASSERT(0 && "branchTestValue");
+    }
+
+    void testNullSet(Condition cond, const ValueOperand &value, Register dest) {
+        JS_ASSERT(0 && "testNullSet");
+    }
+    void testUndefinedSet(Condition cond, const ValueOperand &value, Register dest) {
+        JS_ASSERT(0 && "testUndefinedSet");
+    }
+
+    void boxDouble(FloatRegister src, const ValueOperand &dest) {
+        JS_ASSERT(0 && "boxDouble");
+    }
+    void boxNonDouble(JSValueType type, Register src, const ValueOperand &dest) {
+        JS_ASSERT(0 && "boxNonDouble");
+    }
+
+    // Note that the |dest| register here may be ScratchReg, so we shouldn't
+    // use it.
+    void unboxInt32(const ValueOperand &src, Register dest) {
+        JS_ASSERT(0 && "unboxInt32");
+    }
+    void unboxInt32(const Operand &src, Register dest) {
+        JS_ASSERT(0 && "unboxInt32");
+    }
+    void unboxInt32(const Address &src, Register dest) {
+        JS_ASSERT(0 && "unboxInt32");
+    }
+    void unboxDouble(const Address &src, FloatRegister dest) {
+        JS_ASSERT(0 && "unboxDouble");
+    }
+
+    void unboxArgObjMagic(const ValueOperand &src, Register dest) {
+        JS_ASSERT(0 && "unboxArgObjMagic");
+    }
+    void unboxArgObjMagic(const Operand &src, Register dest) {
+        JS_ASSERT(0 && "unboxArgObjMagic");
+    }
+    void unboxArgObjMagic(const Address &src, Register dest) {
+        JS_ASSERT(0 && "unboxArgObjMagic");
+    }
+
+    void unboxBoolean(const ValueOperand &src, Register dest) {
+        JS_ASSERT(0 && "unboxBoolean");
+    }
+    void unboxBoolean(const Operand &src, Register dest) {
+        JS_ASSERT(0 && "unboxBoolean");
+    }
+    void unboxBoolean(const Address &src, Register dest) {
+        JS_ASSERT(0 && "unboxBoolean");
+    }
+
+    void unboxMagic(const ValueOperand &src, Register dest) {
+        JS_ASSERT(0 && "unboxMagic");
+    }
+
+    void unboxDouble(const ValueOperand &src, FloatRegister dest) {
+        JS_ASSERT(0 && "unboxDouble");
+    }
+    void unboxPrivate(const ValueOperand &src, const Register dest) {
+        JS_ASSERT(0 && "unboxPrivate");
+    }
+
+    void notBoolean(const ValueOperand &val) {
+        JS_ASSERT(0 && "notBoolean");
+    }
+
+    // Unbox any non-double value into dest. Prefer unboxInt32 or unboxBoolean
+    // instead if the source type is known.
+    void unboxNonDouble(const ValueOperand &src, Register dest) {
+        JS_ASSERT(0 && "unboxNonDouble");
+    }
+    void unboxNonDouble(const Operand &src, Register dest) {
+        // Explicitly permits |dest| to be used in |src|.
+        JS_ASSERT(0 && "unboxNonDouble");
+    }
+
+    void unboxValue(const ValueOperand &src, AnyRegister dest) {
+        JS_ASSERT(0 && "unboxValue");
+    }
+
+    // These two functions use the low 32-bits of the full value register.
+    void boolValueToDouble(const ValueOperand &operand, FloatRegister dest) {
+        JS_ASSERT(0 && "boolValueToDouble");
+    }
+    void int32ValueToDouble(const ValueOperand &operand, FloatRegister dest) {
+        JS_ASSERT(0 && "int32ValueToDouble");
+    }
+
+    void boolValueToFloat32(const ValueOperand &operand, FloatRegister dest) {
+        JS_ASSERT(0 && "boolValueToFloat32");
+    }
+    void int32ValueToFloat32(const ValueOperand &operand, FloatRegister dest) {
+        JS_ASSERT(0 && "int32ValueToFloat32");
+    }
+
+    void loadConstantDouble(double d, FloatRegister dest) {
+        JS_ASSERT(0 && "loadConstantDouble");
+    }
+    void loadConstantFloat32(float f, FloatRegister dest) {
+        JS_ASSERT(0 && "loadConstantFloat32");
+    }
+
+    void branchTruncateDouble(FloatRegister src, Register dest, Label *fail) {
+        JS_ASSERT(0 && "branchTruncateDouble");
+    }
+    void branchTruncateFloat32(FloatRegister src, Register dest, Label *fail) {
+        JS_ASSERT(0 && "branchTruncateFloat32");
+    }
+
+    Condition testInt32Truthy(bool truthy, const ValueOperand &operand) {
+        JS_ASSERT(0 && "testInt32Truthy");
+        return Zero;
+    }
+    void branchTestInt32Truthy(bool truthy, const ValueOperand &operand, Label *label) {
+        JS_ASSERT(0 && "branchTestInt32Truthy");
+    }
+    void branchTestBooleanTruthy(bool truthy, const ValueOperand &operand, Label *label) {
+        JS_ASSERT(0 && "branchTestBooleanTruthy");
+    }
+    Condition testStringTruthy(bool truthy, const ValueOperand &value) {
+        JS_ASSERT(0 && "testStringTruthy");
+        return Zero;
+    }
+    void branchTestStringTruthy(bool truthy, const ValueOperand &value, Label *label) {
+        JS_ASSERT(0 && "branchTestStringTruthy");
+    }
+
+    void loadInt32OrDouble(const Operand &operand, FloatRegister dest) {
+        JS_ASSERT(0 && "loadInt32OrDouble");
+    }
+
+    template <typename T>
+    void loadUnboxedValue(const T &src, MIRType type, AnyRegister dest) {
+        JS_ASSERT(0 && "loadUnboxedValue");
+    }
+
+    void loadInstructionPointerAfterCall(Register dest) {
+        JS_ASSERT(0 && "loadInstructionPointerAfterCall");
+    }
+
+    // Setup a call to C/C++ code, given the number of general arguments it
+    // takes. Note that this only supports cdecl.
+    //
+    // In order for alignment to work correctly, the MacroAssembler must have a
+    // consistent view of the stack displacement. It is okay to call "push"
+    // manually, however, if the stack alignment were to change, the macro
+    // assembler should be notified before starting a call.
+    void setupAlignedABICall(uint32_t args) {
+        JS_ASSERT(0 && "setupAlignedABICall");
+    }
+
+    // Sets up an ABI call for when the alignment is not known. This may need a
+    // scratch register.
+    void setupUnalignedABICall(uint32_t args, Register scratch) {
+        JS_ASSERT(0 && "setupUnalignedABICall");
+    }
+
+    // Arguments must be assigned to a C/C++ call in order. They are moved
+    // in parallel immediately before performing the call. This process may
+    // temporarily use more stack, in which case esp-relative addresses will be
+    // automatically adjusted. It is extremely important that esp-relative
+    // addresses are computed *after* setupABICall(). Furthermore, no
+    // operations should be emitted while setting arguments.
+    void passABIArg(const MoveOperand &from, MoveOp::Type type) {
+        JS_ASSERT(0 && "passABIArg");
+    }
+    void passABIArg(Register reg) {
+        JS_ASSERT(0 && "passABIArg");
+    }
+    void passABIArg(FloatRegister reg, MoveOp::Type type) {
+        JS_ASSERT(0 && "passABIArg");
+    }
+
+  private:
+    void callWithABIPre(uint32_t *stackAdjust) {
+        JS_ASSERT(0 && "callWithABIPre");
+    }
+    void callWithABIPost(uint32_t stackAdjust, MoveOp::Type result) {
+        JS_ASSERT(0 && "callWithABIPost");
+    }
+
+  public:
+    // Emits a call to a C/C++ function, resolving all argument moves.
+    void callWithABI(void *fun, MoveOp::Type result = MoveOp::GENERAL) {
+        JS_ASSERT(0 && "callWithABI");
+    }
+    void callWithABI(AsmJSImmPtr imm, MoveOp::Type result = MoveOp::GENERAL) {
+        JS_ASSERT(0 && "callWithABI");
+    }
+    void callWithABI(Address fun, MoveOp::Type result = MoveOp::GENERAL) {
+        JS_ASSERT(0 && "callWithABI");
+    }
+
+    void handleFailureWithHandler(void *handler) {
+        JS_ASSERT(0 && "handleFailureWithHandler");
+    }
+    void handleFailureWithHandlerTail() {
+        JS_ASSERT(0 && "handleFailureWithHandlerTail");
+    }
+
+    void makeFrameDescriptor(Register frameSizeReg, FrameType type) {
+        JS_ASSERT(0 && "makeFrameDescriptor");
+    }
+
+    // Save an exit frame (which must be aligned to the stack pointer) to
+    // PerThreadData::jitTop of the main thread.
+    void linkExitFrame() {
+        JS_ASSERT(0 && "linkExitFrame");
+    }
+
+    void callWithExitFrame(JitCode *target, Register dynStack) {
+        JS_ASSERT(0 && "callWithExitFrame");
+    }
+
+    // Save an exit frame to the thread data of the current thread, given a
+    // register that holds a PerThreadData *.
+    void linkParallelExitFrame(Register pt) {
+        JS_ASSERT(0 && "linkParallelExitFrame");
+    }
+
+    // FIXME: See CodeGeneratorX64 calls to noteAsmJSGlobalAccess.
+    void patchAsmJSGlobalAccess(CodeOffsetLabel patchAt, uint8_t *code, uint8_t *globalData,
+                                unsigned globalDataOffset)
+    {
+        JS_ASSERT(0 && "patchAsmJSGlobalAccess");
+    }
+    void memIntToValue(Address Source, Address Dest) {
+        JS_ASSERT(0 && "memIntToValue");
+    }
+
+#ifdef JSGC_GENERATIONAL
+    void branchPtrInNurseryRange(Condition cond, Register ptr, Register temp, Label *label) {
+        JS_ASSERT(0 && "branchPtrInNurseryRange");
+    }
+    void branchValueIsNurseryObject(Condition cond, ValueOperand value, Register temp, Label *label) {
+        JS_ASSERT(0 && "branchValueIsNurseryObject");
+    }
+#endif
 };
 
 typedef MacroAssemblerARM64 MacroAssemblerSpecific;

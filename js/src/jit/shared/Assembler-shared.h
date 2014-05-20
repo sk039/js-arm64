@@ -18,11 +18,12 @@
 #include "jit/Registers.h"
 #include "jit/RegisterSets.h"
 
-#if defined(JS_CODEGEN_X64) || defined(JS_CODEGEN_ARM)
+#if defined(JS_CODEGEN_X64) || defined(JS_CODEGEN_ARM) || defined(JS_CODEGEN_ARM64)
 // JS_SMALL_BRANCH means the range on a branch instruction
 // is smaller than the whole address space
-#    define JS_SMALL_BRANCH
+# define JS_SMALL_BRANCH
 #endif
+
 namespace js {
 namespace jit {
 
