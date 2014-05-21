@@ -1924,4 +1924,12 @@ class BlockLiteralPoolScope {
 };
 }  // namespace vixl
 
+namespace js {
+namespace jit {
+
+static MOZ_CONSTEXPR_VAR FloatRegister ScratchFloatReg = { FloatRegisters::d31 };
+
+}; // namespace jit
+}; // namespace js
+
 #endif  // VIXL_A64_ASSEMBLER_A64_H_
