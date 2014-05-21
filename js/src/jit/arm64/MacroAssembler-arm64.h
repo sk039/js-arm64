@@ -187,6 +187,13 @@ class MacroAssemblerARM64 : public vixl::Assembler
         JS_ASSERT(0 && "ensureDouble()");
     }
 
+    void convertFloat32ToDouble(FloatRegister src, FloatRegister dest) {
+        JS_ASSERT(0 && "convertFloat32ToDouble");
+    }
+    void convertDoubleToFloat32(FloatRegister src, FloatRegister dest) {
+        JS_ASSERT(0 && "convertDoubleToFloat32");
+    }
+
     // TODO: This should probably go into the Assembler.
     // Or we could just have this InvertCondition be a synonym of the vixl version.
     static Condition InvertCondition(Condition cond) {
