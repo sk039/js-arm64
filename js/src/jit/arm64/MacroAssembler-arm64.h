@@ -155,6 +155,76 @@ class MacroAssemblerARM64 : public vixl::Assembler
         JS_ASSERT(0 && "setFramePushed");
     }
 
+    void reserveStack(uint32_t amount) {
+        JS_ASSERT(0 && "reserveStack");
+    }
+    void freeStack(uint32_t amount) {
+        JS_ASSERT(0 && "freeStack");
+    }
+    void freeStack(Register amount) {
+        JS_ASSERT(0 && "freeStack");
+    }
+
+    void storeValue(ValueOperand val, Operand dest) {
+        JS_ASSERT(0 && "storeValue");
+    }
+    void storeValue(ValueOperand val, const Address &dest) {
+        JS_ASSERT(0 && "storeValue");
+    }
+    template <typename T>
+    void storeValue(JSValueType type, Register reg, const T &dest) {
+        JS_ASSERT(0 && "storeValue");
+    }
+    template <typename T>
+    void storeValue(const Value &val, const T &dest) {
+        JS_ASSERT(0 && "storeValue");
+    }
+    void storeValue(ValueOperand val, BaseIndex dest) {
+        JS_ASSERT(0 && "storeValue");
+    }
+    void loadValue(Operand src, ValueOperand val) {
+        JS_ASSERT(0 && "loadValue");
+    }
+    void loadValue(Address src, ValueOperand val) {
+        JS_ASSERT(0 && "loadValue");
+    }
+    void loadValue(const BaseIndex &src, ValueOperand val) {
+        JS_ASSERT(0 && "loadValue");
+    }
+    void tagValue(JSValueType type, Register payload, ValueOperand dest) {
+        JS_ASSERT(0 && "tagValue");
+    }
+    void pushValue(ValueOperand val) {
+        JS_ASSERT(0 && "pushValue");
+    }
+    void Push(const ValueOperand &val) {
+        JS_ASSERT(0 && "Push");
+    }
+    void popValue(ValueOperand val) {
+        JS_ASSERT(0 && "popValue");
+    }
+    void pushValue(const Value &val) {
+        JS_ASSERT(0 && "pushValue");
+    }
+    void pushValue(JSValueType type, Register reg) {
+        JS_ASSERT(0 && "pushValue");
+    }
+    void pushValue(const Address &addr) {
+        JS_ASSERT(0 && "pushValue");
+    }
+    void moveValue(const Value &val, Register dest) {
+        JS_ASSERT(0 && "moveValue");
+    }
+    void moveValue(const Value &src, const ValueOperand &dest) {
+        JS_ASSERT(0 && "moveValue");
+    }
+    void moveValue(const ValueOperand &src, const ValueOperand &dest) {
+        JS_ASSERT(0 && "moveValue");
+    }
+    void boxValue(JSValueType type, Register src, Register dest) {
+        JS_ASSERT(0 && "boxValue");
+    }
+
     Register extractTag(const Address &address, Register scratch) {
         JS_ASSERT(0 && "extractTag()");
         return scratch;
@@ -199,6 +269,23 @@ class MacroAssemblerARM64 : public vixl::Assembler
     static Condition InvertCondition(Condition cond) {
         vixl::Condition vcond = (vixl::Condition)cond;
         return (Condition)vixl::InvertCondition(vcond);
+    }
+
+    void jump(Label *label) {
+        JS_ASSERT(0 && "jump");
+    }
+    void jump(RepatchLabel *label) {
+        JS_ASSERT(0 && "jump");
+    }
+    void jump(Register reg) {
+        JS_ASSERT(0 && "jump");
+    }
+    void jump(const Address &addr) {
+        JS_ASSERT(0 && "jump");
+    }
+
+    void align(int alignment) {
+        JS_ASSERT(0 && "align");
     }
 
     void movePtr(Register src, Register dest) {
@@ -289,6 +376,55 @@ class MacroAssemblerARM64 : public vixl::Assembler
         JS_ASSERT(0 && "andPtr");
     }
 
+    void loadDouble(const Address &src, FloatRegister dest) {
+        JS_ASSERT(0 && "loadDouble");
+    }
+    void loadDouble(const BaseIndex &src, FloatRegister dest) {
+        JS_ASSERT(0 && "loadDouble");
+    }
+    void loadDouble(const Operand &src, FloatRegister dest) {
+        JS_ASSERT(0 && "loadDouble");
+    }
+    void storeDouble(FloatRegister src, const Address &dest) {
+        JS_ASSERT(0 && "storeDouble");
+    }
+    void storeDouble(FloatRegister src, const BaseIndex &dest) {
+        JS_ASSERT(0 && "storeDouble");
+    }
+    void storeDouble(FloatRegister src, const Operand &dest) {
+        JS_ASSERT(0 && "storeDouble");
+    }
+    void moveDouble(FloatRegister src, FloatRegister dest) {
+        JS_ASSERT(0 && "moveDouble");
+    }
+    void zeroDouble(FloatRegister reg) {
+        JS_ASSERT(0 && "zeroDouble");
+    }
+    void zeroFloat32(FloatRegister reg) {
+        JS_ASSERT(0 && "zeroFloat32");
+    }
+    void negateDouble(FloatRegister reg) {
+        JS_ASSERT(0 && "negateDouble");
+    }
+    void negateFloat(FloatRegister reg) {
+        JS_ASSERT(0 && "negateFloat");
+    }
+    void addDouble(FloatRegister src, FloatRegister dest) {
+        JS_ASSERT(0 && "addDouble");
+    }
+    void subDouble(FloatRegister src, FloatRegister dest) {
+        JS_ASSERT(0 && "subDouble");
+    }
+    void mulDouble(FloatRegister src, FloatRegister dest) {
+        JS_ASSERT(0 && "mulDouble");
+    }
+    void divDouble(FloatRegister src, FloatRegister dest) {
+        JS_ASSERT(0 && "divDouble");
+    }
+    void moveFloatAsDouble(Register src, FloatRegister dest) {
+        JS_ASSERT(0 && "moveFloatAsDouble");
+    }
+
     void splitTag(Register src, Register dest) {
         JS_ASSERT(0 && "splitTag");
     }
@@ -322,6 +458,27 @@ class MacroAssemblerARM64 : public vixl::Assembler
     }
     void load32(const Operand &src, Register dst) {
         JS_ASSERT(0 && "load32");
+    }
+
+    template <typename S, typename T>
+    void store32(const S &src, const T &dest) {
+        JS_ASSERT(0 && "store32");
+    }
+
+    void add32(Register src, Register dest) {
+        JS_ASSERT(0 && "add32");
+    }
+    void add32(Imm32 imm, Register dest) {
+        JS_ASSERT(0 && "add32");
+    }
+    void add32(Imm32 imm, const Address &dest) {
+        JS_ASSERT(0 && "add32");
+    }
+    void sub32(Imm32 imm, Register dest) {
+        JS_ASSERT(0 && "sub32");
+    }
+    void sub32(Register src, Register dest) {
+        JS_ASSERT(0 && "sub32");
     }
 
     void branch16(Condition cond, Register lhs, Register rhs, Label *label) {
@@ -648,6 +805,31 @@ class MacroAssemblerARM64 : public vixl::Assembler
         JS_ASSERT(0 && "loadInstructionPointerAfterCall");
     }
 
+    // Emit a JMP that can be toggled to a CMP. See ToggleToJmp(), ToggleToCmp().
+    CodeOffsetLabel toggledJump(Label *label) {
+        JS_ASSERT(0 && "OffsetLabel ");
+        CodeOffsetLabel offset(size());
+        return offset;
+    }
+
+    void bind(Label *label) {
+        JS_ASSERT(0 && "bind");
+    }
+    void writeDataRelocation(const Value &val) {
+        JS_ASSERT(0 && "writeDataRelocation");
+    }
+    void writeDataRelocation(ImmGCPtr ptr) {
+        JS_ASSERT(0 && "writeDataRelocation");
+    }
+    void writePrebarrierOffset(CodeOffsetLabel label) {
+        JS_ASSERT(0 && "writePrebarrierOffset");
+    }
+
+    template <typename T>
+    void computeEffectiveAddress(const T &address, Register dest) {
+        JS_ASSERT(0 && "computeEffectiveAddress");
+    }
+
     // Setup a call to C/C++ code, given the number of general arguments it
     // takes. Note that this only supports cdecl.
     //
@@ -746,6 +928,45 @@ class MacroAssemblerARM64 : public vixl::Assembler
         JS_ASSERT(0 && "branchValueIsNurseryObject");
     }
 #endif
+
+    // Builds an exit frame on the stack, with a return address to an internal
+    // non-function. Returns offset to be passed to markSafepointAt().
+    bool buildFakeExitFrame(Register scratch, uint32_t *offset) {
+        JS_ASSERT(0 && "buildFakeExitFrame");
+        return false;
+    }
+    void callWithExitFrame(JitCode *target) {
+        JS_ASSERT(0 && "callWithExitFrame");
+    }
+
+    void callIon(Register callee) {
+        JS_ASSERT(0 && "callIon");
+    }
+
+    void appendCallSite(const CallSiteDesc &desc) {
+        JS_ASSERT(0 && "appendCallSite");
+    }
+
+    void call(const CallSiteDesc &desc, Label *label) {
+        JS_ASSERT(0 && "call");
+    }
+    void call(const CallSiteDesc &desc, Register reg) {
+        JS_ASSERT(0 && "call");
+    }
+    void call(JitCode *target) {
+        JS_ASSERT(0 && "call");
+    }
+    void callIonFromAsmJS(Register reg) {
+        JS_ASSERT(0 && "callIonFromAsmJS");
+    }
+
+    void checkStackAlignment() {
+        JS_ASSERT(0 && "checkStackAlignment");
+    }
+
+    void abiret() {
+        JS_ASSERT(0 && "abiret");
+    }
 };
 
 typedef MacroAssemblerARM64 MacroAssemblerSpecific;

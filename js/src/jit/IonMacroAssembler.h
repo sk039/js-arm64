@@ -476,22 +476,22 @@ class MacroAssembler : public MacroAssemblerSpecific
         if (dest.typeReg() == JSReturnReg_Data) {
             if (dest.payloadReg() == JSReturnReg_Type) {
                 // swap the two registers.
-                mov(JSReturnReg_Type, ReturnReg);
-                mov(JSReturnReg_Data, JSReturnReg_Type);
-                mov(ReturnReg, JSReturnReg_Data);
+                move32(JSReturnReg_Type, ReturnReg);
+                move32(JSReturnReg_Data, JSReturnReg_Type);
+                move32(ReturnReg, JSReturnReg_Data);
             } else {
-                mov(JSReturnReg_Data, dest.payloadReg());
-                mov(JSReturnReg_Type, dest.typeReg());
+                move32(JSReturnReg_Data, dest.payloadReg());
+                move32(JSReturnReg_Type, dest.typeReg());
             }
         } else {
-            mov(JSReturnReg_Type, dest.typeReg());
-            mov(JSReturnReg_Data, dest.payloadReg());
+            move32(JSReturnReg_Type, dest.typeReg());
+            move32(JSReturnReg_Data, dest.payloadReg());
         }
 #elif defined(JS_PUNBOX64)
         if (dest.valueReg() != JSReturnReg)
             movePtr(JSReturnReg, dest.valueReg());
 #else
-#error "Bad architecture"
+# error "Bad architecture"
 #endif
     }
 
@@ -760,7 +760,7 @@ class MacroAssembler : public MacroAssemblerSpecific
     Register extractTag(const TypedOrValueRegister &reg, Register scratch) {
         if (reg.hasValue())
             return extractTag(reg.valueReg(), scratch);
-        mov(ImmWord(MIRTypeToTag(reg.type())), scratch);
+        movePtr(ImmWord(MIRTypeToTag(reg.type())), scratch);
         return scratch;
     }
 
