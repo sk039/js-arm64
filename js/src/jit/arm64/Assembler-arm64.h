@@ -672,6 +672,34 @@ class Assembler {
     return UpdateAndGetByteOffsetTo(label) >> kInstructionSizeLog2;
   }
 
+  // Condition codes.
+  enum Condition {
+    Equal               =  0, eq =  0,
+    Zero                =  0,
+    NotEqual            =  1, ne =  1,
+    NonZero             =  1,
+    AboveOrEqual        =  2, hs =  2,
+    Below               =  3, lo =  3,
+    Signed              =  4, mi =  4,
+    NotSigned           =  5, pl =  5,
+    Overflow            =  6, vs =  6,
+    NoOverflow          =  7, vc =  7, // AArch64-specific.
+    Above               =  8, hi =  8,
+    BelowOrEqual        =  9, ls =  9,
+    GreaterThanOrEqual  = 10, ge = 10,
+    LessThan            = 11, lt = 11,
+    GreaterThan         = 12, gt = 12,
+    LessThanOrEqual     = 13, le = 13,
+    Always              = 14, al = 14,
+    Never               = 15, nv = 15  // Behaves as always/al.
+  };
+
+  inline Condition InvertCondition(Condition cond) {
+    // Conditions al and nv behave identically, as "always true". They can't be
+    // inverted, because there is no "always false" condition.
+    VIXL_ASSERT((cond != al) && (cond != nv));
+    return static_cast<Condition>(cond ^ 1);
+  }
 
   // Instruction set functions.
 

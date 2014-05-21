@@ -119,29 +119,6 @@ class MacroAssemblerARM64 : public vixl::Assembler
       : Assembler(NULL, 0) // FIXME: Integrate the Assembler with some buffer.
     { }
 
-    // FIXME: Can we just use the non-VIXL version?
-    enum Condition {
-        Equal               = vixl::eq,
-        NotEqual            = vixl::ne,
-        Above               = vixl::hi,
-        AboveOrEqual        = vixl::hs,
-        Below               = vixl::lo,
-        BelowOrEqual        = vixl::ls,
-        GreaterThan         = vixl::gt,
-        GreaterThanOrEqual  = vixl::ge,
-        LessThan            = vixl::lt,
-        LessThanOrEqual     = vixl::le,
-        Overflow            = vixl::vs,
-        Signed              = vixl::mi,
-        NotSigned           = vixl::pl,
-        Zero                = vixl::eq,
-        NonZero             = vixl::ne,
-        Always              = vixl::al,
-
-        // ARM64-specific codes.
-        NoOverflow = vixl::vc
-    };
-
   protected:
     MoveResolver moveResolver_;
 
@@ -330,6 +307,50 @@ class MacroAssemblerARM64 : public vixl::Assembler
         JS_ASSERT(0 && "cmpTag");
     }
 
+    void load32(const Address &address, Register dest) {
+        JS_ASSERT(0 && "load32");
+    }
+    void load32(const BaseIndex &src, Register dest) {
+        JS_ASSERT(0 && "load32");
+    }
+    void load32(const Operand &src, Register dst) {
+        JS_ASSERT(0 && "load32");
+    }
+
+    void branch16(Condition cond, Register lhs, Register rhs, Label *label) {
+        JS_ASSERT(0 && "branch16");
+    }
+    void branch32(Condition cond, const Operand &lhs, Register rhs, Label *label) {
+        JS_ASSERT(0 && "branch32");
+    }
+    void branch32(Condition cond, const Operand &lhs, Imm32 rhs, Label *label) {
+        JS_ASSERT(0 && "branch32");
+    }
+    void branch32(Condition cond, const Address &lhs, Register rhs, Label *label) {
+        JS_ASSERT(0 && "branch32");
+    }
+    void branch32(Condition cond, const Address &lhs, Imm32 imm, Label *label) {
+        JS_ASSERT(0 && "branch32");
+    }
+    void branch32(Condition cond, Register lhs, Imm32 imm, Label *label) {
+        JS_ASSERT(0 && "branch32");
+    }
+    void branch32(Condition cond, Register lhs, Register rhs, Label *label) {
+        JS_ASSERT(0 && "branch32");
+    }
+    void branchTest16(Condition cond, Register lhs, Register rhs, Label *label) {
+        JS_ASSERT(0 && "branchTest16");
+    }
+    void branchTest32(Condition cond, Register lhs, Register rhs, Label *label) {
+        JS_ASSERT(0 && "branchTest32");
+    }
+    void branchTest32(Condition cond, Register lhs, Imm32 imm, Label *label) {
+        JS_ASSERT(0 && "branchTest32");
+    }
+    void branchTest32(Condition cond, const Address &address, Imm32 imm, Label *label) {
+        JS_ASSERT(0 && "branchTest32");
+    }
+
     template <typename T, typename S>
     void branchPtr(Condition cond, T lhs, S ptr, Label *label) {
         JS_ASSERT(0 && "branchPtr");
@@ -467,11 +488,11 @@ class MacroAssemblerARM64 : public vixl::Assembler
     }
     Condition testMagic(Condition cond, const ValueOperand &src) {
         JS_ASSERT(0 && "testMagic");
-        return Equal;
+        return Condition::Equal;
     }
     Condition testError(Condition cond, const ValueOperand &src) {
         JS_ASSERT(0 && "testError");
-        return Equal;
+        return Condition::Equal;
     }
     void branchTestValue(Condition cond, const ValueOperand &value, const Value &v, Label *label) {
         JS_ASSERT(0 && "branchTestValue");
@@ -591,7 +612,7 @@ class MacroAssemblerARM64 : public vixl::Assembler
 
     Condition testInt32Truthy(bool truthy, const ValueOperand &operand) {
         JS_ASSERT(0 && "testInt32Truthy");
-        return Zero;
+        return Condition::Zero;
     }
     void branchTestInt32Truthy(bool truthy, const ValueOperand &operand, Label *label) {
         JS_ASSERT(0 && "branchTestInt32Truthy");
@@ -601,7 +622,7 @@ class MacroAssemblerARM64 : public vixl::Assembler
     }
     Condition testStringTruthy(bool truthy, const ValueOperand &value) {
         JS_ASSERT(0 && "testStringTruthy");
-        return Zero;
+        return Condition::Zero;
     }
     void branchTestStringTruthy(bool truthy, const ValueOperand &value, Label *label) {
         JS_ASSERT(0 && "branchTestStringTruthy");

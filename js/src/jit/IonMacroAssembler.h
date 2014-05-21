@@ -71,7 +71,7 @@ class MacroAssembler : public MacroAssemblerSpecific
       public:
         Branch()
           : init_(false),
-            cond_(Equal),
+            cond_(Condition::Equal),
             jump_(nullptr),
             reg_(Register::FromCode(0))      // Quell compiler warnings.
         { }
