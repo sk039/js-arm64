@@ -1933,8 +1933,7 @@ static MOZ_CONSTEXPR_VAR Register InvalidReg = { Registers::invalid_reg };
 static MOZ_CONSTEXPR_VAR FloatRegister InvalidFloatReg = { FloatRegisters::invalid_fpreg };
 
 static MOZ_CONSTEXPR_VAR Register ReturnReg = { Registers::x0 };
-static MOZ_CONSTEXPR_VAR Register JSReturnReg_Type = { Registers::w3 };
-static MOZ_CONSTEXPR_VAR Register JSReturnReg_Data = { Registers::w2 };
+static MOZ_CONSTEXPR_VAR Register JSReturnReg = { Registers::x2 };
 static MOZ_CONSTEXPR_VAR Register FramePointer = { Registers::fp };
 static MOZ_CONSTEXPR_VAR Register StackPointer = { Registers::sp };
 static MOZ_CONSTEXPR_VAR FloatRegister ReturnFloatReg = { FloatRegisters::d0 };

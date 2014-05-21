@@ -448,7 +448,7 @@ class MacroAssembler : public MacroAssemblerSpecific
 
     void storeCallResult(Register reg) {
         if (reg != ReturnReg)
-            mov(ReturnReg, reg);
+            movePtr(ReturnReg, reg);
     }
 
     void storeCallFloatResult(FloatRegister reg) {
@@ -489,7 +489,7 @@ class MacroAssembler : public MacroAssemblerSpecific
         }
 #elif defined(JS_PUNBOX64)
         if (dest.valueReg() != JSReturnReg)
-            movq(JSReturnReg, dest.valueReg());
+            movePtr(JSReturnReg, dest.valueReg());
 #else
 #error "Bad architecture"
 #endif
