@@ -33,13 +33,13 @@
 namespace vixl {
 
 const unsigned kNumberOfRegisters = 32;
-const unsigned kNumberOfFPRegisters = 32;
+const unsigned kNumberOfFloatRegisters = 32;
 // Callee saved registers are x21-x30(lr).
 const int kNumberOfCalleeSavedRegisters = 10;
 const int kFirstCalleeSavedRegisterIndex = 21;
 // Callee saved FP registers are d8-d15.
-const int kNumberOfCalleeSavedFPRegisters = 8;
-const int kFirstCalleeSavedFPRegisterIndex = 8;
+const int kNumberOfCalleeSavedFloatRegisters = 8;
+const int kFirstCalleeSavedFloatRegisterIndex = 8;
 
 #define REGISTER_CODE_LIST(R)                                                  \
 R(0)  R(1)  R(2)  R(3)  R(4)  R(5)  R(6)  R(7)                                 \

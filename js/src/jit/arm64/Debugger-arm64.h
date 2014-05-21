@@ -164,13 +164,13 @@ class Debugger : public Simulator {
   void PrintRegister(const Register& target_reg,
                      const char* name,
                      const FormatToken* format);
-  void PrintFPRegister(const FPRegister& target_fpreg,
+  void PrintFloatRegister(const FloatRegister& target_fpreg,
                        const FormatToken* format);
 
  private:
   void LogSystemRegisters();
   void LogRegisters();
-  void LogFPRegisters();
+  void LogFloatRegisters();
   void LogProcessorState();
   char* ReadCommandLine(const char* prompt, char* buffer, int length);
   void RunDebuggerShell();

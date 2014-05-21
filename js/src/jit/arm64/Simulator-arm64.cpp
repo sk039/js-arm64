@@ -105,7 +105,7 @@ void Simulator::ResetState() {
   for (unsigned i = 0; i < kNumberOfRegisters; i++) {
     set_xreg(i, 0xbadbeef);
   }
-  for (unsigned i = 0; i < kNumberOfFPRegisters; i++) {
+  for (unsigned i = 0; i < kNumberOfFloatRegisters; i++) {
     // Set FP registers to a value that is NaN in both 32-bit and 64-bit FP.
     set_dreg(i, kFP64SignallingNaN);
   }
@@ -193,19 +193,19 @@ const char* Simulator::XRegNameForCode(unsigned code, Reg31Mode mode) {
 
 
 const char* Simulator::SRegNameForCode(unsigned code) {
-  VIXL_ASSERT(code < kNumberOfFPRegisters);
+  VIXL_ASSERT(code < kNumberOfFloatRegisters);
   return sreg_names[code];
 }
 
 
 const char* Simulator::DRegNameForCode(unsigned code) {
-  VIXL_ASSERT(code < kNumberOfFPRegisters);
+  VIXL_ASSERT(code < kNumberOfFloatRegisters);
   return dreg_names[code];
 }
 
 
 const char* Simulator::VRegNameForCode(unsigned code) {
-  VIXL_ASSERT(code < kNumberOfFPRegisters);
+  VIXL_ASSERT(code < kNumberOfFloatRegisters);
   return vreg_names[code];
 }
 
@@ -448,14 +448,14 @@ void Simulator::PrintRegisters(bool print_all_regs) {
 }
 
 
-void Simulator::PrintFPRegisters(bool print_all_regs) {
+void Simulator::PrintFloatRegisters(bool print_all_regs) {
   static bool first_run = true;
-  static uint64_t last_regs[kNumberOfFPRegisters];
+  static uint64_t last_regs[kNumberOfFloatRegisters];
 
   // Print as many rows of registers as necessary, keeping each individual
   // register in the same column each time (to make it easy to visually scan
   // for changes).
-  for (unsigned i = 0; i < kNumberOfFPRegisters; i++) {
+  for (unsigned i = 0; i < kNumberOfFloatRegisters; i++) {
     if (print_all_regs || first_run || (last_regs[i] != dreg_bits(i))) {
       fprintf(stream_,
               "# %s%4s:%s 0x%016" PRIx64 "%s (%s%s:%s %g%s %s:%s %g%s)\n",
@@ -484,7 +484,7 @@ void Simulator::PrintFPRegisters(bool print_all_regs) {
 void Simulator::PrintProcessorState() {
   PrintSystemRegisters();
   PrintRegisters();
-  PrintFPRegisters();
+  PrintFloatRegisters();
 }
 
 

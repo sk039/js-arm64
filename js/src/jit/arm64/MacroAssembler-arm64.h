@@ -985,16 +985,16 @@ class MacroAssembler : public Assembler {
     PopSizeRegList(regs, kWRegSize);
   }
   inline void PushDRegList(RegList regs) {
-    PushSizeRegList(regs, kDRegSize, CPURegister::kFPRegister);
+    PushSizeRegList(regs, kDRegSize, CPURegister::kFloatRegister);
   }
   inline void PopDRegList(RegList regs) {
-    PopSizeRegList(regs, kDRegSize, CPURegister::kFPRegister);
+    PopSizeRegList(regs, kDRegSize, CPURegister::kFloatRegister);
   }
   inline void PushSRegList(RegList regs) {
-    PushSizeRegList(regs, kSRegSize, CPURegister::kFPRegister);
+    PushSizeRegList(regs, kSRegSize, CPURegister::kFloatRegister);
   }
   inline void PopSRegList(RegList regs) {
-    PopSizeRegList(regs, kSRegSize, CPURegister::kFPRegister);
+    PopSizeRegList(regs, kSRegSize, CPURegister::kFloatRegister);
   }
 
   // Push the specified register 'count' times.
@@ -1230,114 +1230,114 @@ class MacroAssembler : public Assembler {
     VIXL_ASSERT(!rm.IsZero());
     extr(rd, rn, rm, lsb);
   }
-  void Fabs(const FPRegister& fd, const FPRegister& fn) {
+  void Fabs(const FloatRegister& fd, const FloatRegister& fn) {
     VIXL_ASSERT(allow_macro_instructions_);
     fabs(fd, fn);
   }
-  void Fadd(const FPRegister& fd, const FPRegister& fn, const FPRegister& fm) {
+  void Fadd(const FloatRegister& fd, const FloatRegister& fn, const FloatRegister& fm) {
     VIXL_ASSERT(allow_macro_instructions_);
     fadd(fd, fn, fm);
   }
-  void Fccmp(const FPRegister& fn,
-             const FPRegister& fm,
+  void Fccmp(const FloatRegister& fn,
+             const FloatRegister& fm,
              StatusFlags nzcv,
              Condition cond) {
     VIXL_ASSERT(allow_macro_instructions_);
     VIXL_ASSERT((cond != al) && (cond != nv));
     fccmp(fn, fm, nzcv, cond);
   }
-  void Fcmp(const FPRegister& fn, const FPRegister& fm) {
+  void Fcmp(const FloatRegister& fn, const FloatRegister& fm) {
     VIXL_ASSERT(allow_macro_instructions_);
     fcmp(fn, fm);
   }
-  void Fcmp(const FPRegister& fn, double value);
-  void Fcsel(const FPRegister& fd,
-             const FPRegister& fn,
-             const FPRegister& fm,
+  void Fcmp(const FloatRegister& fn, double value);
+  void Fcsel(const FloatRegister& fd,
+             const FloatRegister& fn,
+             const FloatRegister& fm,
              Condition cond) {
     VIXL_ASSERT(allow_macro_instructions_);
     VIXL_ASSERT((cond != al) && (cond != nv));
     fcsel(fd, fn, fm, cond);
   }
-  void Fcvt(const FPRegister& fd, const FPRegister& fn) {
+  void Fcvt(const FloatRegister& fd, const FloatRegister& fn) {
     VIXL_ASSERT(allow_macro_instructions_);
     fcvt(fd, fn);
   }
-  void Fcvtas(const Register& rd, const FPRegister& fn) {
+  void Fcvtas(const Register& rd, const FloatRegister& fn) {
     VIXL_ASSERT(allow_macro_instructions_);
     VIXL_ASSERT(!rd.IsZero());
     fcvtas(rd, fn);
   }
-  void Fcvtau(const Register& rd, const FPRegister& fn) {
+  void Fcvtau(const Register& rd, const FloatRegister& fn) {
     VIXL_ASSERT(allow_macro_instructions_);
     VIXL_ASSERT(!rd.IsZero());
     fcvtau(rd, fn);
   }
-  void Fcvtms(const Register& rd, const FPRegister& fn) {
+  void Fcvtms(const Register& rd, const FloatRegister& fn) {
     VIXL_ASSERT(allow_macro_instructions_);
     VIXL_ASSERT(!rd.IsZero());
     fcvtms(rd, fn);
   }
-  void Fcvtmu(const Register& rd, const FPRegister& fn) {
+  void Fcvtmu(const Register& rd, const FloatRegister& fn) {
     VIXL_ASSERT(allow_macro_instructions_);
     VIXL_ASSERT(!rd.IsZero());
     fcvtmu(rd, fn);
   }
-  void Fcvtns(const Register& rd, const FPRegister& fn) {
+  void Fcvtns(const Register& rd, const FloatRegister& fn) {
     VIXL_ASSERT(allow_macro_instructions_);
     VIXL_ASSERT(!rd.IsZero());
     fcvtns(rd, fn);
   }
-  void Fcvtnu(const Register& rd, const FPRegister& fn) {
+  void Fcvtnu(const Register& rd, const FloatRegister& fn) {
     VIXL_ASSERT(allow_macro_instructions_);
     VIXL_ASSERT(!rd.IsZero());
     fcvtnu(rd, fn);
   }
-  void Fcvtzs(const Register& rd, const FPRegister& fn) {
+  void Fcvtzs(const Register& rd, const FloatRegister& fn) {
     VIXL_ASSERT(allow_macro_instructions_);
     VIXL_ASSERT(!rd.IsZero());
     fcvtzs(rd, fn);
   }
-  void Fcvtzu(const Register& rd, const FPRegister& fn) {
+  void Fcvtzu(const Register& rd, const FloatRegister& fn) {
     VIXL_ASSERT(allow_macro_instructions_);
     VIXL_ASSERT(!rd.IsZero());
     fcvtzu(rd, fn);
   }
-  void Fdiv(const FPRegister& fd, const FPRegister& fn, const FPRegister& fm) {
+  void Fdiv(const FloatRegister& fd, const FloatRegister& fn, const FloatRegister& fm) {
     VIXL_ASSERT(allow_macro_instructions_);
     fdiv(fd, fn, fm);
   }
-  void Fmax(const FPRegister& fd, const FPRegister& fn, const FPRegister& fm) {
+  void Fmax(const FloatRegister& fd, const FloatRegister& fn, const FloatRegister& fm) {
     VIXL_ASSERT(allow_macro_instructions_);
     fmax(fd, fn, fm);
   }
-  void Fmaxnm(const FPRegister& fd,
-              const FPRegister& fn,
-              const FPRegister& fm) {
+  void Fmaxnm(const FloatRegister& fd,
+              const FloatRegister& fn,
+              const FloatRegister& fm) {
     VIXL_ASSERT(allow_macro_instructions_);
     fmaxnm(fd, fn, fm);
   }
-  void Fmin(const FPRegister& fd, const FPRegister& fn, const FPRegister& fm) {
+  void Fmin(const FloatRegister& fd, const FloatRegister& fn, const FloatRegister& fm) {
     VIXL_ASSERT(allow_macro_instructions_);
     fmin(fd, fn, fm);
   }
-  void Fminnm(const FPRegister& fd,
-              const FPRegister& fn,
-              const FPRegister& fm) {
+  void Fminnm(const FloatRegister& fd,
+              const FloatRegister& fn,
+              const FloatRegister& fm) {
     VIXL_ASSERT(allow_macro_instructions_);
     fminnm(fd, fn, fm);
   }
-  void Fmov(FPRegister fd, FPRegister fn) {
+  void Fmov(FloatRegister fd, FloatRegister fn) {
     VIXL_ASSERT(allow_macro_instructions_);
     // Only emit an instruction if fd and fn are different, and they are both D
     // registers. fmov(s0, s0) is not a no-op because it clears the top word of
     // d0. Technically, fmov(d0, d0) is not a no-op either because it clears
-    // the top of q0, but FPRegister does not currently support Q registers.
+    // the top of q0, but FloatRegister does not currently support Q registers.
     if (!fd.Is(fn) || !fd.Is64Bits()) {
       fmov(fd, fn);
     }
   }
-  void Fmov(FPRegister fd, Register rn) {
+  void Fmov(FloatRegister fd, Register rn) {
     VIXL_ASSERT(allow_macro_instructions_);
     VIXL_ASSERT(!rn.IsZero());
     fmov(fd, rn);
@@ -1346,76 +1346,76 @@ class MacroAssembler : public Assembler {
   // than relying on implicit C++ casts. This allows signalling NaNs to be
   // preserved when the immediate matches the format of fd. Most systems convert
   // signalling NaNs to quiet NaNs when converting between float and double.
-  void Fmov(FPRegister fd, double imm);
-  void Fmov(FPRegister fd, float imm);
+  void Fmov(FloatRegister fd, double imm);
+  void Fmov(FloatRegister fd, float imm);
   // Provide a template to allow other types to be converted automatically.
   template<typename T>
-  void Fmov(FPRegister fd, T imm) {
+  void Fmov(FloatRegister fd, T imm) {
     VIXL_ASSERT(allow_macro_instructions_);
     Fmov(fd, static_cast<double>(imm));
   }
-  void Fmov(Register rd, FPRegister fn) {
+  void Fmov(Register rd, FloatRegister fn) {
     VIXL_ASSERT(allow_macro_instructions_);
     VIXL_ASSERT(!rd.IsZero());
     fmov(rd, fn);
   }
-  void Fmul(const FPRegister& fd, const FPRegister& fn, const FPRegister& fm) {
+  void Fmul(const FloatRegister& fd, const FloatRegister& fn, const FloatRegister& fm) {
     VIXL_ASSERT(allow_macro_instructions_);
     fmul(fd, fn, fm);
   }
-  void Fmadd(const FPRegister& fd,
-             const FPRegister& fn,
-             const FPRegister& fm,
-             const FPRegister& fa) {
+  void Fmadd(const FloatRegister& fd,
+             const FloatRegister& fn,
+             const FloatRegister& fm,
+             const FloatRegister& fa) {
     VIXL_ASSERT(allow_macro_instructions_);
     fmadd(fd, fn, fm, fa);
   }
-  void Fmsub(const FPRegister& fd,
-             const FPRegister& fn,
-             const FPRegister& fm,
-             const FPRegister& fa) {
+  void Fmsub(const FloatRegister& fd,
+             const FloatRegister& fn,
+             const FloatRegister& fm,
+             const FloatRegister& fa) {
     VIXL_ASSERT(allow_macro_instructions_);
     fmsub(fd, fn, fm, fa);
   }
-  void Fnmadd(const FPRegister& fd,
-              const FPRegister& fn,
-              const FPRegister& fm,
-              const FPRegister& fa) {
+  void Fnmadd(const FloatRegister& fd,
+              const FloatRegister& fn,
+              const FloatRegister& fm,
+              const FloatRegister& fa) {
     VIXL_ASSERT(allow_macro_instructions_);
     fnmadd(fd, fn, fm, fa);
   }
-  void Fnmsub(const FPRegister& fd,
-              const FPRegister& fn,
-              const FPRegister& fm,
-              const FPRegister& fa) {
+  void Fnmsub(const FloatRegister& fd,
+              const FloatRegister& fn,
+              const FloatRegister& fm,
+              const FloatRegister& fa) {
     VIXL_ASSERT(allow_macro_instructions_);
     fnmsub(fd, fn, fm, fa);
   }
-  void Fneg(const FPRegister& fd, const FPRegister& fn) {
+  void Fneg(const FloatRegister& fd, const FloatRegister& fn) {
     VIXL_ASSERT(allow_macro_instructions_);
     fneg(fd, fn);
   }
-  void Frinta(const FPRegister& fd, const FPRegister& fn) {
+  void Frinta(const FloatRegister& fd, const FloatRegister& fn) {
     VIXL_ASSERT(allow_macro_instructions_);
     frinta(fd, fn);
   }
-  void Frintm(const FPRegister& fd, const FPRegister& fn) {
+  void Frintm(const FloatRegister& fd, const FloatRegister& fn) {
     VIXL_ASSERT(allow_macro_instructions_);
     frintm(fd, fn);
   }
-  void Frintn(const FPRegister& fd, const FPRegister& fn) {
+  void Frintn(const FloatRegister& fd, const FloatRegister& fn) {
     VIXL_ASSERT(allow_macro_instructions_);
     frintn(fd, fn);
   }
-  void Frintz(const FPRegister& fd, const FPRegister& fn) {
+  void Frintz(const FloatRegister& fd, const FloatRegister& fn) {
     VIXL_ASSERT(allow_macro_instructions_);
     frintz(fd, fn);
   }
-  void Fsqrt(const FPRegister& fd, const FPRegister& fn) {
+  void Fsqrt(const FloatRegister& fd, const FloatRegister& fn) {
     VIXL_ASSERT(allow_macro_instructions_);
     fsqrt(fd, fn);
   }
-  void Fsub(const FPRegister& fd, const FPRegister& fn, const FPRegister& fm) {
+  void Fsub(const FloatRegister& fd, const FloatRegister& fn, const FloatRegister& fm) {
     VIXL_ASSERT(allow_macro_instructions_);
     fsub(fd, fn, fm);
   }
@@ -1451,7 +1451,7 @@ class MacroAssembler : public Assembler {
   // than relying on implicit C++ casts. This allows signalling NaNs to be
   // preserved when the immediate matches the format of fd. Most systems convert
   // signalling NaNs to quiet NaNs when converting between float and double.
-  void Ldr(const FPRegister& ft, double imm) {
+  void Ldr(const FloatRegister& ft, double imm) {
     VIXL_ASSERT(allow_macro_instructions_);
     if (ft.Is64Bits()) {
       ldr(ft, imm);
@@ -1459,7 +1459,7 @@ class MacroAssembler : public Assembler {
       ldr(ft, static_cast<float>(imm));
     }
   }
-  void Ldr(const FPRegister& ft, float imm) {
+  void Ldr(const FloatRegister& ft, float imm) {
     VIXL_ASSERT(allow_macro_instructions_);
     if (ft.Is32Bits()) {
       ldr(ft, imm);
@@ -1617,7 +1617,7 @@ class MacroAssembler : public Assembler {
     VIXL_ASSERT(!rn.IsZero());
     sbfx(rd, rn, lsb, width);
   }
-  void Scvtf(const FPRegister& fd, const Register& rn, unsigned fbits = 0) {
+  void Scvtf(const FloatRegister& fd, const Register& rn, unsigned fbits = 0) {
     VIXL_ASSERT(allow_macro_instructions_);
     VIXL_ASSERT(!rn.IsZero());
     scvtf(fd, rn, fbits);
@@ -1723,7 +1723,7 @@ class MacroAssembler : public Assembler {
     VIXL_ASSERT(!rn.IsZero());
     ubfx(rd, rn, lsb, width);
   }
-  void Ucvtf(const FPRegister& fd, const Register& rn, unsigned fbits = 0) {
+  void Ucvtf(const FloatRegister& fd, const Register& rn, unsigned fbits = 0) {
     VIXL_ASSERT(allow_macro_instructions_);
     VIXL_ASSERT(!rn.IsZero());
     ucvtf(fd, rn, fbits);
@@ -1828,7 +1828,7 @@ class MacroAssembler : public Assembler {
   // Like printf, but print at run-time from generated code.
   //
   // The caller must ensure that arguments for floating-point placeholders
-  // (such as %e, %f or %g) are FPRegisters, and that arguments for integer
+  // (such as %e, %f or %g) are FloatRegisters, and that arguments for integer
   // placeholders are Registers.
   //
   // At the moment it is only possible to print the value of sp if it is the
@@ -1986,7 +1986,7 @@ class UseScratchRegisterScope {
         old_available_(available_->list()),
         old_availablefp_(availablefp_->list()) {
     VIXL_ASSERT(available_->type() == CPURegister::kRegister);
-    VIXL_ASSERT(availablefp_->type() == CPURegister::kFPRegister);
+    VIXL_ASSERT(availablefp_->type() == CPURegister::kFloatRegister);
   }
 
 
@@ -2000,12 +2000,12 @@ class UseScratchRegisterScope {
   // automatically when the scope ends.
   Register AcquireW() { return AcquireNextAvailable(available_).W(); }
   Register AcquireX() { return AcquireNextAvailable(available_).X(); }
-  FPRegister AcquireS() { return AcquireNextAvailable(availablefp_).S(); }
-  FPRegister AcquireD() { return AcquireNextAvailable(availablefp_).D(); }
+  FloatRegister AcquireS() { return AcquireNextAvailable(availablefp_).S(); }
+  FloatRegister AcquireD() { return AcquireNextAvailable(availablefp_).D(); }
 
 
   Register AcquireSameSizeAs(const Register& reg);
-  FPRegister AcquireSameSizeAs(const FPRegister& reg);
+  FloatRegister AcquireSameSizeAs(const FloatRegister& reg);
 
 
   // Explicitly release an acquired (or excluded) register, putting it back in
@@ -2020,10 +2020,10 @@ class UseScratchRegisterScope {
                const Register& reg2 = NoReg,
                const Register& reg3 = NoReg,
                const Register& reg4 = NoReg);
-  void Include(const FPRegister& reg1,
-               const FPRegister& reg2 = NoFPReg,
-               const FPRegister& reg3 = NoFPReg,
-               const FPRegister& reg4 = NoFPReg);
+  void Include(const FloatRegister& reg1,
+               const FloatRegister& reg2 = NoFPReg,
+               const FloatRegister& reg3 = NoFPReg,
+               const FloatRegister& reg4 = NoFPReg);
 
 
   // Make sure that the specified registers are not available in this scope.
@@ -2034,10 +2034,10 @@ class UseScratchRegisterScope {
                const Register& reg2 = NoReg,
                const Register& reg3 = NoReg,
                const Register& reg4 = NoReg);
-  void Exclude(const FPRegister& reg1,
-               const FPRegister& reg2 = NoFPReg,
-               const FPRegister& reg3 = NoFPReg,
-               const FPRegister& reg4 = NoFPReg);
+  void Exclude(const FloatRegister& reg1,
+               const FloatRegister& reg2 = NoFPReg,
+               const FloatRegister& reg3 = NoFPReg,
+               const FloatRegister& reg4 = NoFPReg);
   void Exclude(const CPURegister& reg1,
                const CPURegister& reg2 = NoCPUReg,
                const CPURegister& reg3 = NoCPUReg,
@@ -2064,11 +2064,11 @@ class UseScratchRegisterScope {
 
   // Available scratch registers.
   CPURegList* available_;     // kRegister
-  CPURegList* availablefp_;   // kFPRegister
+  CPURegList* availablefp_;   // kFloatRegister
 
   // The state of the available lists at the start of this scope.
   RegList old_available_;     // kRegister
-  RegList old_availablefp_;   // kFPRegister
+  RegList old_availablefp_;   // kFloatRegister
 };
 
 

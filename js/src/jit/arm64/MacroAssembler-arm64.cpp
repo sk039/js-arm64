@@ -533,11 +533,11 @@ void MacroAssembler::Cmp(const Register& rn, const Operand& operand) {
 }
 
 
-void MacroAssembler::Fcmp(const FPRegister& fn, double value) {
+void MacroAssembler::Fcmp(const FloatRegister& fn, double value) {
   VIXL_ASSERT(allow_macro_instructions_);
   if (value != 0.0) {
     UseScratchRegisterScope temps(this);
-    FPRegister tmp = temps.AcquireSameSizeAs(fn);
+    FloatRegister tmp = temps.AcquireSameSizeAs(fn);
     Fmov(tmp, value);
     fcmp(fn, tmp);
   } else {
@@ -546,7 +546,7 @@ void MacroAssembler::Fcmp(const FPRegister& fn, double value) {
 }
 
 
-void MacroAssembler::Fmov(FPRegister fd, double imm) {
+void MacroAssembler::Fmov(FloatRegister fd, double imm) {
   VIXL_ASSERT(allow_macro_instructions_);
   if (fd.Is32Bits()) {
     Fmov(fd, static_cast<float>(imm));
@@ -564,7 +564,7 @@ void MacroAssembler::Fmov(FPRegister fd, double imm) {
 }
 
 
-void MacroAssembler::Fmov(FPRegister fd, float imm) {
+void MacroAssembler::Fmov(FloatRegister fd, float imm) {
   VIXL_ASSERT(allow_macro_instructions_);
   if (fd.Is64Bits()) {
     Fmov(fd, static_cast<double>(imm));
@@ -1095,7 +1095,7 @@ void MacroAssembler::PrintfNoPreserve(const char * format,
   static const CPURegList kPCSVarargs =
       CPURegList(CPURegister::kRegister, kXRegSize, 1, arg_count);
   static const CPURegList kPCSVarargsFP =
-      CPURegList(CPURegister::kFPRegister, kDRegSize, 0, arg_count - 1);
+      CPURegList(CPURegister::kFloatRegister, kDRegSize, 0, arg_count - 1);
 
   // We can use caller-saved registers as scratch values, except for the
   // arguments and the PCS registers where they might need to go.
@@ -1121,7 +1121,7 @@ void MacroAssembler::PrintfNoPreserve(const char * format,
       // We might only need a W register here. We need to know the size of the
       // argument so we can properly encode it for the simulator call.
       if (args[i].Is32Bits()) pcs[i] = pcs[i].W();
-    } else if (args[i].IsFPRegister()) {
+    } else if (args[i].IsFloatRegister()) {
       // In C, floats are always cast to doubles for varargs calls.
       pcs[i] = pcs_varargs_fp.PopLowestIndex().D();
     } else {
@@ -1143,8 +1143,8 @@ void MacroAssembler::PrintfNoPreserve(const char * format,
         Mov(new_arg, old_arg);
         args[i] = new_arg;
       } else {
-        FPRegister old_arg = FPRegister(args[i]);
-        FPRegister new_arg = temps.AcquireSameSizeAs(old_arg);
+        FloatRegister old_arg = FloatRegister(args[i]);
+        FloatRegister new_arg = temps.AcquireSameSizeAs(old_arg);
         Fmov(new_arg, old_arg);
         args[i] = new_arg;
       }
@@ -1158,11 +1158,11 @@ void MacroAssembler::PrintfNoPreserve(const char * format,
     if (pcs[i].IsRegister()) {
       Mov(Register(pcs[i]), Register(args[i]), kDiscardForSameWReg);
     } else {
-      VIXL_ASSERT(pcs[i].IsFPRegister());
+      VIXL_ASSERT(pcs[i].IsFloatRegister());
       if (pcs[i].size() == args[i].size()) {
-        Fmov(FPRegister(pcs[i]), FPRegister(args[i]));
+        Fmov(FloatRegister(pcs[i]), FloatRegister(args[i]));
       } else {
-        Fcvt(FPRegister(pcs[i]), FPRegister(args[i]));
+        Fcvt(FloatRegister(pcs[i]), FloatRegister(args[i]));
       }
     }
   }
@@ -1387,16 +1387,16 @@ Register UseScratchRegisterScope::AcquireSameSizeAs(const Register& reg) {
 }
 
 
-FPRegister UseScratchRegisterScope::AcquireSameSizeAs(const FPRegister& reg) {
+FloatRegister UseScratchRegisterScope::AcquireSameSizeAs(const FloatRegister& reg) {
   int code = AcquireNextAvailable(availablefp_).code();
-  return FPRegister(code, reg.SizeInBits());
+  return FloatRegister(code, reg.SizeInBits());
 }
 
 
 void UseScratchRegisterScope::Release(const CPURegister& reg) {
   if (reg.IsRegister()) {
     ReleaseByCode(available_, reg.code());
-  } else if (reg.IsFPRegister()) {
+  } else if (reg.IsFloatRegister()) {
     ReleaseByCode(availablefp_, reg.code());
   } else {
     VIXL_ASSERT(reg.IsNone());
@@ -1409,7 +1409,7 @@ void UseScratchRegisterScope::Include(const CPURegList& list) {
     // Make sure that neither sp nor xzr are included the list.
     IncludeByRegList(available_, list.list() & ~(xzr.Bit() | sp.Bit()));
   } else {
-    VIXL_ASSERT(list.type() == CPURegister::kFPRegister);
+    VIXL_ASSERT(list.type() == CPURegister::kFloatRegister);
     IncludeByRegList(availablefp_, list.list());
   }
 }
@@ -1427,10 +1427,10 @@ void UseScratchRegisterScope::Include(const Register& reg1,
 }
 
 
-void UseScratchRegisterScope::Include(const FPRegister& reg1,
-                                      const FPRegister& reg2,
-                                      const FPRegister& reg3,
-                                      const FPRegister& reg4) {
+void UseScratchRegisterScope::Include(const FloatRegister& reg1,
+                                      const FloatRegister& reg2,
+                                      const FloatRegister& reg3,
+                                      const FloatRegister& reg4) {
   RegList include = reg1.Bit() | reg2.Bit() | reg3.Bit() | reg4.Bit();
   IncludeByRegList(availablefp_, include);
 }
@@ -1440,7 +1440,7 @@ void UseScratchRegisterScope::Exclude(const CPURegList& list) {
   if (list.type() == CPURegister::kRegister) {
     ExcludeByRegList(available_, list.list());
   } else {
-    VIXL_ASSERT(list.type() == CPURegister::kFPRegister);
+    VIXL_ASSERT(list.type() == CPURegister::kFloatRegister);
     ExcludeByRegList(availablefp_, list.list());
   }
 }
@@ -1455,10 +1455,10 @@ void UseScratchRegisterScope::Exclude(const Register& reg1,
 }
 
 
-void UseScratchRegisterScope::Exclude(const FPRegister& reg1,
-                                      const FPRegister& reg2,
-                                      const FPRegister& reg3,
-                                      const FPRegister& reg4) {
+void UseScratchRegisterScope::Exclude(const FloatRegister& reg1,
+                                      const FloatRegister& reg2,
+                                      const FloatRegister& reg3,
+                                      const FloatRegister& reg4) {
   RegList excludefp = reg1.Bit() | reg2.Bit() | reg3.Bit() | reg4.Bit();
   ExcludeByRegList(availablefp_, excludefp);
 }
@@ -1476,7 +1476,7 @@ void UseScratchRegisterScope::Exclude(const CPURegister& reg1,
   for (unsigned i = 0; i < (sizeof(regs) / sizeof(regs[0])); i++) {
     if (regs[i].IsRegister()) {
       exclude |= regs[i].Bit();
-    } else if (regs[i].IsFPRegister()) {
+    } else if (regs[i].IsFloatRegister()) {
       excludefp |= regs[i].Bit();
     } else {
       VIXL_ASSERT(regs[i].IsNone());

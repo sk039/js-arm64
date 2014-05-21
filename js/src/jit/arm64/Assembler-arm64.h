@@ -45,10 +45,10 @@ static const int kRegListSizeInBits = sizeof(RegList) * 8;
 
 // Registers.
 
-// Some CPURegister methods can return Register and FPRegister types, so we
+// Some CPURegister methods can return Register and FloatRegister types, so we
 // need to declare them in advance.
 class Register;
-class FPRegister;
+class FloatRegister;
 
 
 class CPURegister {
@@ -58,7 +58,7 @@ class CPURegister {
     // which are always zero-initialized before any constructors are called.
     kInvalid = 0,
     kRegister,
-    kFPRegister,
+    kFloatRegister,
     kNoRegister
   };
 
@@ -114,7 +114,7 @@ class CPURegister {
   }
 
   bool IsValid() const {
-    if (IsValidRegister() || IsValidFPRegister()) {
+    if (IsValidRegister() || IsValidFloatRegister()) {
       VIXL_ASSERT(!IsNone());
       return true;
     } else {
@@ -129,10 +129,10 @@ class CPURegister {
            ((code_ < kNumberOfRegisters) || (code_ == kSPRegInternalCode));
   }
 
-  bool IsValidFPRegister() const {
-    return IsFPRegister() &&
+  bool IsValidFloatRegister() const {
+    return IsFloatRegister() &&
            ((size_ == kSRegSize) || (size_ == kDRegSize)) &&
-           (code_ < kNumberOfFPRegisters);
+           (code_ < kNumberOfFloatRegisters);
   }
 
   bool IsNone() const {
@@ -167,14 +167,14 @@ class CPURegister {
     return type_ == kRegister;
   }
 
-  inline bool IsFPRegister() const {
-    return type_ == kFPRegister;
+  inline bool IsFloatRegister() const {
+    return type_ == kFloatRegister;
   }
 
   const Register& W() const;
   const Register& X() const;
-  const FPRegister& S() const;
-  const FPRegister& D() const;
+  const FloatRegister& S() const;
+  const FloatRegister& D() const;
 
   inline bool IsSameSizeAndType(const CPURegister& other) const {
     return (size_ == other.size_) && (type_ == other.type_);
@@ -220,39 +220,39 @@ class Register : public CPURegister {
 };
 
 
-class FPRegister : public CPURegister {
+class FloatRegister : public CPURegister {
  public:
-  inline FPRegister() : CPURegister() {}
-  inline explicit FPRegister(const CPURegister& other)
+  inline FloatRegister() : CPURegister() {}
+  inline explicit FloatRegister(const CPURegister& other)
       : CPURegister(other.code(), other.size(), other.type()) {
-    VIXL_ASSERT(IsValidFPRegister());
+    VIXL_ASSERT(IsValidFloatRegister());
   }
-  inline FPRegister(unsigned code, unsigned size)
-      : CPURegister(code, size, kFPRegister) {}
+  inline FloatRegister(unsigned code, unsigned size)
+      : CPURegister(code, size, kFloatRegister) {}
 
   bool IsValid() const {
-    VIXL_ASSERT(IsFPRegister() || IsNone());
-    return IsValidFPRegister();
+    VIXL_ASSERT(IsFloatRegister() || IsNone());
+    return IsValidFloatRegister();
   }
 
-  static const FPRegister& SRegFromCode(unsigned code);
-  static const FPRegister& DRegFromCode(unsigned code);
+  static const FloatRegister& SRegFromCode(unsigned code);
+  static const FloatRegister& DRegFromCode(unsigned code);
 
   // V8 compatibility.
-  static const int kNumRegisters = kNumberOfFPRegisters;
-  static const int kNumAllocatableRegisters = kNumberOfFPRegisters - 1;
+  static const int kNumRegisters = kNumberOfFloatRegisters;
+  static const int kNumAllocatableRegisters = kNumberOfFloatRegisters - 1;
 
  private:
-  static const FPRegister sregisters[];
-  static const FPRegister dregisters[];
+  static const FloatRegister sregisters[];
+  static const FloatRegister dregisters[];
 };
 
 
 // No*Reg is used to indicate an unused argument, or an error case. Note that
-// these all compare equal (using the Is() method). The Register and FPRegister
+// these all compare equal (using the Is() method). The Register and FloatRegister
 // variants are provided for convenience.
 const Register NoReg;
-const FPRegister NoFPReg;
+const FloatRegister NoFPReg;
 const CPURegister NoCPUReg;
 
 
@@ -266,8 +266,8 @@ const Register sp(kSPRegInternalCode, kXRegSize);
 
 
 #define DEFINE_FPREGISTERS(N)  \
-const FPRegister s##N(N, kSRegSize);  \
-const FPRegister d##N(N, kDRegSize);
+const FloatRegister s##N(N, kSRegSize);  \
+const FloatRegister d##N(N, kDRegSize);
 REGISTER_CODE_LIST(DEFINE_FPREGISTERS)
 #undef DEFINE_FPREGISTERS
 
@@ -329,8 +329,8 @@ class CPURegList {
       : size_(size), type_(type) {
     VIXL_ASSERT(((type == CPURegister::kRegister) &&
                  (last_reg < kNumberOfRegisters)) ||
-                ((type == CPURegister::kFPRegister) &&
-                 (last_reg < kNumberOfFPRegisters)));
+                ((type == CPURegister::kFloatRegister) &&
+                 (last_reg < kNumberOfFloatRegisters)));
     VIXL_ASSERT(last_reg >= first_reg);
     list_ = (UINT64_C(1) << (last_reg + 1)) - 1;
     list_ &= ~((UINT64_C(1) << first_reg) - 1);
@@ -1193,10 +1193,10 @@ class Assembler {
   void ldr(const Register& rt, uint64_t imm);
 
   // Load double precision floating point literal to FP register.
-  void ldr(const FPRegister& ft, double imm);
+  void ldr(const FloatRegister& ft, double imm);
 
   // Load single precision floating point literal to FP register.
-  void ldr(const FPRegister& ft, float imm);
+  void ldr(const FloatRegister& ft, float imm);
 
   // Move instructions. The default shift of -1 indicates that the move
   // instruction will calculate an appropriate 16-bit immediate and left shift
@@ -1263,144 +1263,144 @@ class Assembler {
 
   // FP instructions.
   // Move double precision immediate to FP register.
-  void fmov(const FPRegister& fd, double imm);
+  void fmov(const FloatRegister& fd, double imm);
 
   // Move single precision immediate to FP register.
-  void fmov(const FPRegister& fd, float imm);
+  void fmov(const FloatRegister& fd, float imm);
 
   // Move FP register to register.
-  void fmov(const Register& rd, const FPRegister& fn);
+  void fmov(const Register& rd, const FloatRegister& fn);
 
   // Move register to FP register.
-  void fmov(const FPRegister& fd, const Register& rn);
+  void fmov(const FloatRegister& fd, const Register& rn);
 
   // Move FP register to FP register.
-  void fmov(const FPRegister& fd, const FPRegister& fn);
+  void fmov(const FloatRegister& fd, const FloatRegister& fn);
 
   // FP add.
-  void fadd(const FPRegister& fd, const FPRegister& fn, const FPRegister& fm);
+  void fadd(const FloatRegister& fd, const FloatRegister& fn, const FloatRegister& fm);
 
   // FP subtract.
-  void fsub(const FPRegister& fd, const FPRegister& fn, const FPRegister& fm);
+  void fsub(const FloatRegister& fd, const FloatRegister& fn, const FloatRegister& fm);
 
   // FP multiply.
-  void fmul(const FPRegister& fd, const FPRegister& fn, const FPRegister& fm);
+  void fmul(const FloatRegister& fd, const FloatRegister& fn, const FloatRegister& fm);
 
   // FP fused multiply and add.
-  void fmadd(const FPRegister& fd,
-             const FPRegister& fn,
-             const FPRegister& fm,
-             const FPRegister& fa);
+  void fmadd(const FloatRegister& fd,
+             const FloatRegister& fn,
+             const FloatRegister& fm,
+             const FloatRegister& fa);
 
   // FP fused multiply and subtract.
-  void fmsub(const FPRegister& fd,
-             const FPRegister& fn,
-             const FPRegister& fm,
-             const FPRegister& fa);
+  void fmsub(const FloatRegister& fd,
+             const FloatRegister& fn,
+             const FloatRegister& fm,
+             const FloatRegister& fa);
 
   // FP fused multiply, add and negate.
-  void fnmadd(const FPRegister& fd,
-              const FPRegister& fn,
-              const FPRegister& fm,
-              const FPRegister& fa);
+  void fnmadd(const FloatRegister& fd,
+              const FloatRegister& fn,
+              const FloatRegister& fm,
+              const FloatRegister& fa);
 
   // FP fused multiply, subtract and negate.
-  void fnmsub(const FPRegister& fd,
-              const FPRegister& fn,
-              const FPRegister& fm,
-              const FPRegister& fa);
+  void fnmsub(const FloatRegister& fd,
+              const FloatRegister& fn,
+              const FloatRegister& fm,
+              const FloatRegister& fa);
 
   // FP divide.
-  void fdiv(const FPRegister& fd, const FPRegister& fn, const FPRegister& fm);
+  void fdiv(const FloatRegister& fd, const FloatRegister& fn, const FloatRegister& fm);
 
   // FP maximum.
-  void fmax(const FPRegister& fd, const FPRegister& fn, const FPRegister& fm);
+  void fmax(const FloatRegister& fd, const FloatRegister& fn, const FloatRegister& fm);
 
   // FP minimum.
-  void fmin(const FPRegister& fd, const FPRegister& fn, const FPRegister& fm);
+  void fmin(const FloatRegister& fd, const FloatRegister& fn, const FloatRegister& fm);
 
   // FP maximum number.
-  void fmaxnm(const FPRegister& fd, const FPRegister& fn, const FPRegister& fm);
+  void fmaxnm(const FloatRegister& fd, const FloatRegister& fn, const FloatRegister& fm);
 
   // FP minimum number.
-  void fminnm(const FPRegister& fd, const FPRegister& fn, const FPRegister& fm);
+  void fminnm(const FloatRegister& fd, const FloatRegister& fn, const FloatRegister& fm);
 
   // FP absolute.
-  void fabs(const FPRegister& fd, const FPRegister& fn);
+  void fabs(const FloatRegister& fd, const FloatRegister& fn);
 
   // FP negate.
-  void fneg(const FPRegister& fd, const FPRegister& fn);
+  void fneg(const FloatRegister& fd, const FloatRegister& fn);
 
   // FP square root.
-  void fsqrt(const FPRegister& fd, const FPRegister& fn);
+  void fsqrt(const FloatRegister& fd, const FloatRegister& fn);
 
   // FP round to integer (nearest with ties to away).
-  void frinta(const FPRegister& fd, const FPRegister& fn);
+  void frinta(const FloatRegister& fd, const FloatRegister& fn);
 
   // FP round to integer (toward minus infinity).
-  void frintm(const FPRegister& fd, const FPRegister& fn);
+  void frintm(const FloatRegister& fd, const FloatRegister& fn);
 
   // FP round to integer (nearest with ties to even).
-  void frintn(const FPRegister& fd, const FPRegister& fn);
+  void frintn(const FloatRegister& fd, const FloatRegister& fn);
 
   // FP round to integer (towards zero).
-  void frintz(const FPRegister& fd, const FPRegister& fn);
+  void frintz(const FloatRegister& fd, const FloatRegister& fn);
 
   // FP compare registers.
-  void fcmp(const FPRegister& fn, const FPRegister& fm);
+  void fcmp(const FloatRegister& fn, const FloatRegister& fm);
 
   // FP compare immediate.
-  void fcmp(const FPRegister& fn, double value);
+  void fcmp(const FloatRegister& fn, double value);
 
   // FP conditional compare.
-  void fccmp(const FPRegister& fn,
-             const FPRegister& fm,
+  void fccmp(const FloatRegister& fn,
+             const FloatRegister& fm,
              StatusFlags nzcv,
              Condition cond);
 
   // FP conditional select.
-  void fcsel(const FPRegister& fd,
-             const FPRegister& fn,
-             const FPRegister& fm,
+  void fcsel(const FloatRegister& fd,
+             const FloatRegister& fn,
+             const FloatRegister& fm,
              Condition cond);
 
   // Common FP Convert function.
   void FPConvertToInt(const Register& rd,
-                      const FPRegister& fn,
+                      const FloatRegister& fn,
                       FPIntegerConvertOp op);
 
   // FP convert between single and double precision.
-  void fcvt(const FPRegister& fd, const FPRegister& fn);
+  void fcvt(const FloatRegister& fd, const FloatRegister& fn);
 
   // Convert FP to signed integer (nearest with ties to away).
-  void fcvtas(const Register& rd, const FPRegister& fn);
+  void fcvtas(const Register& rd, const FloatRegister& fn);
 
   // Convert FP to unsigned integer (nearest with ties to away).
-  void fcvtau(const Register& rd, const FPRegister& fn);
+  void fcvtau(const Register& rd, const FloatRegister& fn);
 
   // Convert FP to signed integer (round towards -infinity).
-  void fcvtms(const Register& rd, const FPRegister& fn);
+  void fcvtms(const Register& rd, const FloatRegister& fn);
 
   // Convert FP to unsigned integer (round towards -infinity).
-  void fcvtmu(const Register& rd, const FPRegister& fn);
+  void fcvtmu(const Register& rd, const FloatRegister& fn);
 
   // Convert FP to signed integer (nearest with ties to even).
-  void fcvtns(const Register& rd, const FPRegister& fn);
+  void fcvtns(const Register& rd, const FloatRegister& fn);
 
   // Convert FP to unsigned integer (nearest with ties to even).
-  void fcvtnu(const Register& rd, const FPRegister& fn);
+  void fcvtnu(const Register& rd, const FloatRegister& fn);
 
   // Convert FP to signed integer (round towards zero).
-  void fcvtzs(const Register& rd, const FPRegister& fn);
+  void fcvtzs(const Register& rd, const FloatRegister& fn);
 
   // Convert FP to unsigned integer (round towards zero).
-  void fcvtzu(const Register& rd, const FPRegister& fn);
+  void fcvtzu(const Register& rd, const FloatRegister& fn);
 
   // Convert signed integer or fixed point to FP.
-  void scvtf(const FPRegister& fd, const Register& rn, unsigned fbits = 0);
+  void scvtf(const FloatRegister& fd, const Register& rn, unsigned fbits = 0);
 
   // Convert unsigned integer or fixed point to FP.
-  void ucvtf(const FPRegister& fd, const Register& rn, unsigned fbits = 0);
+  void ucvtf(const FloatRegister& fd, const Register& rn, unsigned fbits = 0);
 
   // Emit generic instructions.
   // Emit raw instructions into the instruction stream.
@@ -1682,7 +1682,7 @@ class Assembler {
   static Instr ImmFP64(double imm);
 
   // FP register type.
-  static Instr FPType(FPRegister fd) {
+  static Instr FPType(FloatRegister fd) {
     return fd.Is64Bits() ? FP64 : FP32;
   }
 
@@ -1840,17 +1840,17 @@ class Assembler {
                              const Register& rm,
                              const Register& ra,
                              DataProcessing3SourceOp op);
-  void FPDataProcessing1Source(const FPRegister& fd,
-                               const FPRegister& fn,
+  void FPDataProcessing1Source(const FloatRegister& fd,
+                               const FloatRegister& fn,
                                FPDataProcessing1SourceOp op);
-  void FPDataProcessing2Source(const FPRegister& fd,
-                               const FPRegister& fn,
-                               const FPRegister& fm,
+  void FPDataProcessing2Source(const FloatRegister& fd,
+                               const FloatRegister& fn,
+                               const FloatRegister& fm,
                                FPDataProcessing2SourceOp op);
-  void FPDataProcessing3Source(const FPRegister& fd,
-                               const FPRegister& fn,
-                               const FPRegister& fm,
-                               const FPRegister& fa,
+  void FPDataProcessing3Source(const FloatRegister& fd,
+                               const FloatRegister& fn,
+                               const FloatRegister& fm,
+                               const FloatRegister& fa,
                                FPDataProcessing3SourceOp op);
 
   void RecordLiteral(int64_t imm, unsigned size);

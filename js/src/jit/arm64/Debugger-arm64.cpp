@@ -50,7 +50,7 @@ class Token {
 
   // Token type.
   virtual bool IsRegister() const { return false; }
-  virtual bool IsFPRegister() const { return false; }
+  virtual bool IsFloatRegister() const { return false; }
   virtual bool IsIdentifier() const { return false; }
   virtual bool IsAddress() const { return false; }
   virtual bool IsInteger() const { return false; }
@@ -103,18 +103,18 @@ class RegisterToken : public ValueToken<const Register> {
 
 // Floating point registers (D or S).
 // Format: sn or dn with 0 <= n < 32.
-class FPRegisterToken : public ValueToken<const FPRegister> {
+class FloatRegisterToken : public ValueToken<const FloatRegister> {
  public:
-  explicit FPRegisterToken(const FPRegister fpreg)
-      : ValueToken<const FPRegister>(fpreg) {}
+  explicit FloatRegisterToken(const FloatRegister fpreg)
+      : ValueToken<const FloatRegister>(fpreg) {}
 
-  virtual bool IsFPRegister() const { return true; }
+  virtual bool IsFloatRegister() const { return true; }
   virtual void Print(FILE* out = stdout) const ;
 
   static Token* Tokenize(const char* arg);
-  static FPRegisterToken* Cast(Token* tok) {
-    VIXL_ASSERT(tok->IsFPRegister());
-    return reinterpret_cast<FPRegisterToken*>(tok);
+  static FloatRegisterToken* Cast(Token* tok) {
+    VIXL_ASSERT(tok->IsFloatRegister());
+    return reinterpret_cast<FloatRegisterToken*>(tok);
   }
 };
 
@@ -622,7 +622,7 @@ void Debugger::PrintRegister(const Register& target_reg,
 }
 
 
-void Debugger::PrintFPRegister(const FPRegister& target_fpreg,
+void Debugger::PrintFloatRegister(const FloatRegister& target_fpreg,
                                const FormatToken* format) {
   const uint64_t fpreg_size = target_fpreg.SizeInBits();
   const uint64_t format_size = format->SizeOf() * 8;
@@ -680,15 +680,15 @@ void Debugger::LogRegisters() {
 }
 
 
-void Debugger::LogFPRegisters() {
-  if (log_parameters_ & LOG_FP_REGS) PrintFPRegisters();
+void Debugger::LogFloatRegisters() {
+  if (log_parameters_ & LOG_FP_REGS) PrintFloatRegisters();
 }
 
 
 void Debugger::LogProcessorState() {
   LogSystemRegisters();
   LogRegisters();
-  LogFPRegisters();
+  LogFloatRegisters();
 }
 
 
@@ -826,7 +826,7 @@ void Debugger::DoLog(Instruction* instr) {
   // Print the requested information.
   if (parameters & LOG_SYS_REGS) PrintSystemRegisters(true);
   if (parameters & LOG_REGS) PrintRegisters(true);
-  if (parameters & LOG_FP_REGS) PrintFPRegisters(true);
+  if (parameters & LOG_FP_REGS) PrintFloatRegisters(true);
 
   set_pc(instr->InstructionAtOffset(kLogLength));
 }
@@ -902,7 +902,7 @@ Token* Token::Tokenize(const char* arg) {
     return token;
   }
 
-  token = FPRegisterToken::Tokenize(arg);
+  token = FloatRegisterToken::Tokenize(arg);
   if (token != NULL) {
     return token;
   }
@@ -971,14 +971,14 @@ Token* RegisterToken::Tokenize(const char* arg) {
 }
 
 
-void FPRegisterToken::Print(FILE* out) const {
+void FloatRegisterToken::Print(FILE* out) const {
   VIXL_ASSERT(value().IsValid());
   char prefix = value().Is32Bits() ? 's' : 'd';
-  fprintf(out, "[FPRegister %c%" PRIu32 "]", prefix, value().code());
+  fprintf(out, "[FloatRegister %c%" PRIu32 "]", prefix, value().code());
 }
 
 
-Token* FPRegisterToken::Tokenize(const char* arg) {
+Token* FloatRegisterToken::Tokenize(const char* arg) {
   if (strlen(arg) < 2) {
     return NULL;
   }
@@ -992,18 +992,18 @@ Token* FPRegisterToken::Tokenize(const char* arg) {
         return NULL;
       }
 
-      if (code > kNumberOfFPRegisters) {
+      if (code > kNumberOfFloatRegisters) {
         return NULL;
       }
 
-      FPRegister fpreg = NoFPReg;
+      FloatRegister fpreg = NoFPReg;
       switch (*arg) {
-        case 's': fpreg = FPRegister::SRegFromCode(code); break;
-        case 'd': fpreg = FPRegister::DRegFromCode(code); break;
+        case 's': fpreg = FloatRegister::SRegFromCode(code); break;
+        case 'd': fpreg = FloatRegister::DRegFromCode(code); break;
         default: VIXL_UNREACHABLE();
       }
 
-      return new FPRegisterToken(fpreg);
+      return new FloatRegisterToken(fpreg);
   }
 
   return NULL;
@@ -1369,7 +1369,7 @@ bool PrintCommand::Run(Debugger* debugger) {
     if (strcmp(identifier, "regs") == 0) {
       debugger->PrintRegisters(true);
     } else if (strcmp(identifier, "fpregs") == 0) {
-      debugger->PrintFPRegisters(true);
+      debugger->PrintFloatRegisters(true);
     } else if (strcmp(identifier, "sysregs") == 0) {
       debugger->PrintSystemRegisters(true);
     } else if (strcmp(identifier, "pc") == 0) {
@@ -1396,9 +1396,9 @@ bool PrintCommand::Run(Debugger* debugger) {
     return false;
   }
 
-  if (tok->IsFPRegister()) {
-    FPRegister fpreg = FPRegisterToken::Cast(tok)->value();
-    debugger->PrintFPRegister(fpreg, format_tok);
+  if (tok->IsFloatRegister()) {
+    FloatRegister fpreg = FloatRegisterToken::Cast(tok)->value();
+    debugger->PrintFloatRegister(fpreg, format_tok);
     return false;
   }
 
@@ -1414,7 +1414,7 @@ DebugCommand* PrintCommand::Build(std::vector<Token*> args) {
 
   Token* target = args[1];
   if (!target->IsRegister() &&
-      !target->IsFPRegister() &&
+      !target->IsFloatRegister() &&
       !target->IsIdentifier()) {
     return new InvalidCommand(args, 1, "expects reg or identifier");
   }
@@ -1424,8 +1424,8 @@ DebugCommand* PrintCommand::Build(std::vector<Token*> args) {
   if (target->IsRegister()) {
     Register reg = RegisterToken::Cast(target)->value();
     target_size = reg.SizeInBytes();
-  } else if (target->IsFPRegister()) {
-    FPRegister fpreg = FPRegisterToken::Cast(target)->value();
+  } else if (target->IsFloatRegister()) {
+    FloatRegister fpreg = FloatRegisterToken::Cast(target)->value();
     target_size = fpreg.SizeInBytes();
   }
   // If the target is an identifier there must be no format. This is checked
@@ -1439,7 +1439,7 @@ DebugCommand* PrintCommand::Build(std::vector<Token*> args) {
           case 8: format = new Format<uint64_t>("%016" PRIx64, 'x'); break;
           default: VIXL_UNREACHABLE();
         }
-      } else if (target->IsFPRegister()) {
+      } else if (target->IsFloatRegister()) {
         switch (target_size) {
           case 4: format = new Format<float>("%8g", 'f'); break;
           case 8: format = new Format<double>("%8g", 'f'); break;

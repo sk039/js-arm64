@@ -61,7 +61,7 @@ enum ReverseByteMode {
 // The interface is as follows:
 //    x0: The format string
 // x1-x7: Optional arguments, if type == CPURegister::kRegister
-// d0-d7: Optional arguments, if type == CPURegister::kFPRegister
+// d0-d7: Optional arguments, if type == CPURegister::kFloatRegister
 const Instr kPrintfOpcode = 0xdeb1;
 const unsigned kPrintfArgCountOffset = 1 * kInstructionSize;
 const unsigned kPrintfArgPatternListOffset = 2 * kInstructionSize;
@@ -163,7 +163,7 @@ class SimRegisterBase {
   uint8_t value_[kSizeInBytes];
 };
 typedef SimRegisterBase<kXRegSizeInBytes> SimRegister;      // r0-r31
-typedef SimRegisterBase<kDRegSizeInBytes> SimFPRegister;    // v0-v31
+typedef SimRegisterBase<kDRegSizeInBytes> SimFloatRegister;    // v0-v31
 
 
 class Simulator : public DecoderVisitor {
@@ -304,7 +304,7 @@ class Simulator : public DecoderVisitor {
     unsigned size_in_bytes = size / 8;
     VIXL_ASSERT(size_in_bytes <= sizeof(T));
     VIXL_ASSERT((size == kDRegSize) || (size == kSRegSize));
-    VIXL_ASSERT(code < kNumberOfFPRegisters);
+    VIXL_ASSERT(code < kNumberOfFloatRegisters);
     return fpregisters_[code].Get<T>(size_in_bytes);
   }
 
@@ -347,7 +347,7 @@ class Simulator : public DecoderVisitor {
   inline void set_fpreg(unsigned code, T value) {
     VIXL_ASSERT((sizeof(value) == kDRegSizeInBytes) ||
            (sizeof(value) == kSRegSizeInBytes));
-    VIXL_ASSERT(code < kNumberOfFPRegisters);
+    VIXL_ASSERT(code < kNumberOfFloatRegisters);
     fpregisters_[code].Set(value, sizeof(value));
   }
 
@@ -383,7 +383,7 @@ class Simulator : public DecoderVisitor {
   // Debug helpers
   void PrintSystemRegisters(bool print_all = false);
   void PrintRegisters(bool print_all_regs = false);
-  void PrintFPRegisters(bool print_all_regs = false);
+  void PrintFloatRegisters(bool print_all_regs = false);
   void PrintProcessorState();
 
   static const char* WRegNameForCode(unsigned code,
@@ -601,7 +601,7 @@ class Simulator : public DecoderVisitor {
   SimRegister registers_[kNumberOfRegisters];
 
   // Floating point registers
-  SimFPRegister fpregisters_[kNumberOfFPRegisters];
+  SimFloatRegister fpregisters_[kNumberOfFloatRegisters];
 
   // Program Status Register.
   // bits[31, 27]: Condition flags N, Z, C, and V.
