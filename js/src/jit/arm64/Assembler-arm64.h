@@ -694,11 +694,40 @@ class Assembler {
     Never               = 15, nv = 15  // Behaves as always/al.
   };
 
-  inline Condition InvertCondition(Condition cond) {
+  // Bit set when a DoubleCondition does not map to a single ARM condition.
+  // The MacroAssemlber must special-case these conditions, or else
+  // ConditionFromDoubleCondition will complain.
+  static const int DoubleConditionBitSpecial = 0x100;
+
+  enum DoubleCondition {
+    DoubleOrdered                        = Condition::vc,
+    DoubleEqual                          = Condition::eq,
+    DoubleNotEqual                       = Condition::ne | DoubleConditionBitSpecial,
+    DoubleGreaterThan                    = Condition::gt,
+    DoubleGreaterThanOrEqual             = Condition::ge,
+    DoubleLessThan                       = Condition::lo, // Could also use Condition::mi.
+    DoubleLessThanOrEqual                = Condition::ls,
+
+    // If either operand is NaN, these conditions always evaluate to true.
+    DoubleUnordered                      = Condition::vs,
+    DoubleEqualOrUnordered               = Condition::eq | DoubleConditionBitSpecial,
+    DoubleNotEqualOrUnordered            = Condition::ne,
+    DoubleGreaterThanOrUnordered         = Condition::hi,
+    DoubleGreaterThanOrEqualOrUnordered  = Condition::hs,
+    DoubleLessThanOrUnordered            = Condition::lt,
+    DoubleLessThanOrEqualOrUnordered     = Condition::le
+  };
+
+  static inline Condition InvertCondition(Condition cond) {
     // Conditions al and nv behave identically, as "always true". They can't be
     // inverted, because there is no "always false" condition.
     VIXL_ASSERT((cond != al) && (cond != nv));
     return static_cast<Condition>(cond ^ 1);
+  }
+
+  static inline Condition ConditionFromDoubleCondition(DoubleCondition cond) {
+    JS_ASSERT(!(cond & DoubleConditionBitSpecial));
+    return static_cast<Condition>(cond);
   }
 
   // Instruction set functions.
