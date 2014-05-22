@@ -663,6 +663,10 @@ class Assembler {
   // called before executing or copying code from the buffer.
   void FinalizeCode();
 
+  void trace(JSTracer *trc) {
+    JS_ASSERT(0 && "Assembler::trace()");
+  }
+
   // Label.
   // Bind a label to the current PC.
   void bind(Label* label);

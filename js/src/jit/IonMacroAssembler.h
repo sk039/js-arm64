@@ -33,6 +33,8 @@
 namespace js {
 namespace jit {
 
+class MDefinition;
+
 // The public entrypoint for emitting assembly. Note that a MacroAssembler can
 // use cx->lifoAlloc, so take care not to interleave masm use with other
 // lifoAlloc use if one will be destroyed before the other.
