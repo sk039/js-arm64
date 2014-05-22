@@ -35,7 +35,8 @@
 #include "jit/arm64/Instructions-arm64.h"
 #include "jit/arm64/Decoder-arm64.h"
 
-namespace vixl {
+namespace js {
+namespace jit {
 
 class Disassembler: public DecoderVisitor {
  public:
@@ -108,6 +109,8 @@ class PrintDisassembler: public Disassembler {
  private:
   FILE *stream_;
 };
-}  // namespace vixl
+
+} // namespace jit
+} // namespace js
 
 #endif  // VIXL_A64_DISASM_A64_H

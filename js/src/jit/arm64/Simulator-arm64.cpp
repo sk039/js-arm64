@@ -32,7 +32,8 @@
 #include <string.h>
 #include <math.h>
 
-namespace vixl {
+namespace js {
+namespace jit {
 
 const Instruction* Simulator::kEndOfSimAddress = NULL;
 
@@ -2495,4 +2496,5 @@ void Simulator::DoPrintf(Instruction* instr) {
   delete[] format;
 }
 
-}  // namespace vixl
+} // namespace jit
+} // namespace js

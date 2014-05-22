@@ -37,7 +37,8 @@
 #include "jit/arm64/Disasm-arm64.h"
 #include "jit/arm64/Instrument-arm64.h"
 
-namespace vixl {
+namespace js {
+namespace jit {
 
 enum ReverseByteMode {
   Reverse16 = 0,
@@ -666,6 +667,8 @@ class Simulator : public DecoderVisitor {
   // Indicates whether the instruction instrumentation is active.
   bool instruction_stats_;
 };
-}  // namespace vixl
+
+}  // namespace jit
+}  // namespace js
 
 #endif  // VIXL_A64_SIMULATOR_A64_H_

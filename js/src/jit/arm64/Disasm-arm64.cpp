@@ -29,7 +29,8 @@
 
 #include "jit/arm64/Disasm-arm64.h"
 
-namespace vixl {
+namespace js {
+namespace jit {
 
 Disassembler::Disassembler() {
   buffer_size_ = 256;
@@ -1723,4 +1724,6 @@ void PrintDisassembler::ProcessOutput(Instruction* instr) {
           instr->InstructionBits(),
           GetOutput());
 }
-}  // namespace vixl
+
+}  // namespace jit
+}  // namespace js

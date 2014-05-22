@@ -83,7 +83,8 @@
   V(Unallocated)                    \
   V(Unimplemented)
 
-namespace vixl {
+namespace js {
+namespace jit {
 
 // The Visitor interface. Disassembler and simulator (and other tools)
 // must provide implementations for all of these functions.
@@ -195,6 +196,8 @@ class Decoder: public DecoderVisitor {
   // On entry, instruction bits 27:25 = 0x7.
   void DecodeAdvSIMDDataProcessing(Instruction* instr);
 };
-}  // namespace vixl
+
+} // namespace jit
+} // namespace js
 
 #endif  // VIXL_A64_DECODER_A64_H_

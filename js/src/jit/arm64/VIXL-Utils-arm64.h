@@ -35,7 +35,8 @@
 #include <math.h>
 #include <string.h>
 
-namespace vixl {
+namespace js {
+namespace jit {
 
 // Check number width.
 inline bool is_intn(unsigned n, int64_t x) {
@@ -188,7 +189,7 @@ T AlignDown(T pointer, size_t alignment) {
   return reinterpret_cast<T>(pointer_raw - align_step);
 }
 
-
-}  // namespace vixl
+} // namespace jit
+} // namespace js
 
 #endif  // VIXL_UTILS_H

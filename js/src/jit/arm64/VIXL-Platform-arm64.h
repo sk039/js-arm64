@@ -27,18 +27,22 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef PLATFORM_H
-#define PLATFORM_H
+#ifndef VIXL_PLATFORM_H
+#define VIXL_PLATFORM_H
 
 // Define platform specific functionalities.
 
-namespace vixl {
+namespace js {
+namespace jit {
+
 #ifdef USE_SIMULATOR
 // Currently we assume running the simulator implies running on x86 hardware.
 inline void HostBreakpoint() { asm("int3"); }
 #else
 inline void HostBreakpoint() { asm("brk"); }
 #endif
-}  // namespace vixl
 
-#endif
+} // namespace jit
+} // namespace js
+
+#endif // VIXL_PLATFORM_H

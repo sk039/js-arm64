@@ -31,8 +31,8 @@
 
 #include "jit/arm64/Assembler-arm64.h"
 
-namespace vixl {
-
+namespace js {
+namespace jit {
 
 static uint64_t RotateRight(uint64_t value,
                             unsigned int rotate,
@@ -238,5 +238,6 @@ void Instruction::SetImmLLiteral(Instruction* source) {
 
   SetInstructionBits(Mask(~mask) | imm);
 }
-}  // namespace vixl
 
+}  // namespace jit
+}  // namespace js

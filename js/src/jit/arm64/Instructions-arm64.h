@@ -34,7 +34,9 @@
 #include "jit/arm64/VIXL-Utils-arm64.h"
 #include "jit/arm64/Constants-arm64.h"
 
-namespace vixl {
+namespace js {
+namespace jit {
+
 // ISA constants. --------------------------------------------------------------
 
 typedef uint32_t Instr;
@@ -358,6 +360,8 @@ class Instruction {
   void SetPCRelImmTarget(Instruction* target);
   void SetBranchImmTarget(Instruction* target);
 };
-}  // namespace vixl
+
+} // namespace jit
+} // namespace js
 
 #endif  // VIXL_A64_INSTRUCTIONS_A64_H_

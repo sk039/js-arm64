@@ -31,7 +31,8 @@
 
 #include "jit/arm64/Debugger-arm64.h"
 
-namespace vixl {
+namespace js {
+namespace jit {
 
 // List of commands supported by the debugger.
 #define DEBUG_COMMAND_LIST(C)  \
@@ -1603,6 +1604,7 @@ bool InvalidCommand::Run(Debugger* debugger) {
   return false;
 }
 
-}  // namespace vixl
+} // namespace jit
+} // namespace js
 
 #endif  // USE_SIMULATOR

@@ -31,7 +31,8 @@
 
 #include <cmath>
 
-namespace vixl {
+namespace js {
+namespace jit {
 
 // CPURegList utilities.
 CPURegister CPURegList::PopLowestIndex() {
@@ -2299,4 +2300,5 @@ bool AreSameSizeAndType(const CPURegister& reg1, const CPURegister& reg2,
 }
 
 
-}  // namespace vixl
+} // namespace jit
+} // namespace js

@@ -37,7 +37,8 @@
 
 #include <list>
 
-namespace vixl {
+namespace js {
+namespace jit {
 
 typedef uint64_t RegList;
 static const int kRegListSizeInBits = sizeof(RegList) * 8;
@@ -699,7 +700,7 @@ class Assembler {
   };
 
   // Bit set when a DoubleCondition does not map to a single ARM condition.
-  // The MacroAssemlber must special-case these conditions, or else
+  // The MacroAssembler must special-case these conditions, or else
   // ConditionFromDoubleCondition will complain.
   static const int DoubleConditionBitSpecial = 0x100;
 
@@ -1955,10 +1956,6 @@ class BlockLiteralPoolScope {
  private:
   Assembler* assm_;
 };
-}  // namespace vixl
-
-namespace js {
-namespace jit {
 
 static MOZ_CONSTEXPR_VAR Register ScratchRegister = { Registers::ip0 };
 

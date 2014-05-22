@@ -32,7 +32,8 @@
 
 #include "jit/arm64/VIXL-Globals-arm64.h"
 
-namespace vixl {
+namespace js {
+namespace jit {
 
 class CPU {
  public:
@@ -54,6 +55,7 @@ class CPU {
   static unsigned dcache_line_size_;
 };
 
-}  // namespace vixl
+} // namespace jit
+} // namespace js
 
 #endif  // VIXL_CPU_A64_H

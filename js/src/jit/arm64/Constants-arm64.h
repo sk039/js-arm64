@@ -30,7 +30,8 @@
 #ifndef VIXL_A64_CONSTANTS_A64_H_
 #define VIXL_A64_CONSTANTS_A64_H_
 
-namespace vixl {
+namespace js {
+namespace jit {
 
 const unsigned kNumberOfRegisters = 32;
 const unsigned kNumberOfFloatRegisters = 32;
@@ -1134,6 +1135,7 @@ enum UnallocatedOp {
   UnallocatedFMask = 0x00000000
 };
 
-}  // namespace vixl
+} // namespace jit
+} // namespace js
 
 #endif  // VIXL_A64_CONSTANTS_A64_H_

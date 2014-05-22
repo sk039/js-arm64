@@ -31,7 +31,8 @@
 
 #include <stdio.h>
 
-namespace vixl {
+namespace js {
+namespace jit {
 
 uint32_t float_to_rawbits(float value) {
   uint32_t bits = 0;
@@ -128,4 +129,6 @@ int CountSetBits(uint64_t value, int width) {
 
   return value;
 }
-}  // namespace vixl
+
+} // namespace jit
+} // namespace js

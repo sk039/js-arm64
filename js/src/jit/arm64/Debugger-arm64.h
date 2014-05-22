@@ -40,7 +40,8 @@
 #include "jit/arm64/Constants-arm64.h"
 #include "jit/arm64/Simulator-arm64.h"
 
-namespace vixl {
+namespace js {
+namespace jit {
 
 // Debug instructions.
 //
@@ -191,6 +192,7 @@ class Debugger : public Simulator {
   static const int kMaxDebugShellLine = 256;
 };
 
-}  // namespace vixl
+} // namespace jit
+} // namespace js
 
 #endif  // VIXL_A64_DEBUGGER_A64_H_
