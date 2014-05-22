@@ -1956,6 +1956,17 @@ class BlockLiteralPoolScope {
 namespace js {
 namespace jit {
 
+static MOZ_CONSTEXPR_VAR Register ScratchRegister = { Registers::ip0 };
+
+static MOZ_CONSTEXPR_VAR Register OsrFrameReg = { Registers::x3 };
+static MOZ_CONSTEXPR_VAR Register ArgumentsRectifierReg = { Registers::x8 };
+static MOZ_CONSTEXPR_VAR Register CallTempReg0 = { Registers::x5 };
+static MOZ_CONSTEXPR_VAR Register CallTempReg1 = { Registers::x6 };
+static MOZ_CONSTEXPR_VAR Register CallTempReg2 = { Registers::x7 };
+static MOZ_CONSTEXPR_VAR Register CallTempReg3 = { Registers::x8 };
+static MOZ_CONSTEXPR_VAR Register CallTempReg4 = { Registers::x0 };
+static MOZ_CONSTEXPR_VAR Register CallTempReg5 = { Registers::x1 };
+
 static MOZ_CONSTEXPR_VAR Register PreBarrierReg = { Registers::x1 };
 
 static MOZ_CONSTEXPR_VAR Register InvalidReg = { Registers::invalid_reg };

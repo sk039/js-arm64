@@ -119,6 +119,8 @@ class MacroAssemblerARM64 : public vixl::Assembler
       : Assembler(NULL, 0) // FIXME: Integrate the Assembler with some buffer.
     { }
 
+    typedef vixl::Assembler Assembler;
+
   protected:
     MoveResolver moveResolver_;
 
@@ -138,10 +140,30 @@ class MacroAssemblerARM64 : public vixl::Assembler
     void Push(const T &t) {
         JS_ASSERT(0 && "Push()");
     }
+    CodeOffsetLabel PushWithPatch(ImmWord word) {
+        JS_ASSERT(0 && "PushWithPatch");
+        return CodeOffsetLabel(0x0);
+    }
+    CodeOffsetLabel PushWithPatch(ImmPtr ptr) {
+        JS_ASSERT(0 && "PushWithPatch");
+        return CodeOffsetLabel(0x0);
+    }
+
+    // FIXME: Should be in assembler, or IonMacroAssembler shouldn't use.
+    template <typename T>
+    void push(const T &t) {
+        JS_ASSERT(0 && "push");
+    }
 
     template <typename T>
     void Pop(const T &t) {
         JS_ASSERT(0 && "Pop()");
+    }
+
+    // FIXME: Should be in assembler, or IonMacroAssembler shouldn't use.
+    template <typename T>
+    void pop(const T &t) {
+        JS_ASSERT(0 && "pop");
     }
 
     void implicitPop(uint32_t args) {
@@ -255,6 +277,25 @@ class MacroAssemblerARM64 : public vixl::Assembler
     // Else, branch to failure.
     void ensureDouble(const ValueOperand &source, FloatRegister dest, Label *failure) {
         JS_ASSERT(0 && "ensureDouble()");
+    }
+
+    void convertInt32ToDouble(Register src, FloatRegister dest) {
+        JS_ASSERT(0 && "convertInt32ToDouble");
+    }
+    void convertInt32ToDouble(const Address &src, FloatRegister dest) {
+        JS_ASSERT(0 && "convertInt32ToDouble");
+    }
+    void convertInt32ToDouble(const Operand &src, FloatRegister dest) {
+        JS_ASSERT(0 && "convertInt32ToDouble");
+    }
+    void convertInt32ToFloat32(Register src, FloatRegister dest) {
+        JS_ASSERT(0 && "convertInt32ToFloat32");
+    }
+    void convertInt32ToFloat32(const Address &src, FloatRegister dest) {
+        JS_ASSERT(0 && "convertInt32ToFloat32");
+    }
+    void convertInt32ToFloat32(const Operand &src, FloatRegister dest) {
+        JS_ASSERT(0 && "convertInt32ToFloat32");
     }
 
     void convertFloat32ToDouble(FloatRegister src, FloatRegister dest) {
@@ -481,6 +522,40 @@ class MacroAssemblerARM64 : public vixl::Assembler
         JS_ASSERT(0 && "sub32");
     }
 
+    void addPtr(Register src, Register dest) {
+        JS_ASSERT(0 && "addPtr");
+    }
+    void addPtr(Imm32 imm, Register dest) {
+        JS_ASSERT(0 && "addPtr");
+    }
+    void addPtr(Imm32 imm, const Address &dest) {
+        JS_ASSERT(0 && "addPtr");
+    }
+    void addPtr(Imm32 imm, const Operand &dest) {
+        JS_ASSERT(0 && "addPtr");
+    }
+    void addPtr(ImmWord imm, Register dest) {
+        JS_ASSERT(0 && "addPtr");
+    }
+    void addPtr(ImmPtr imm, Register dest) {
+        JS_ASSERT(0 && "addPtr");
+    }
+    void addPtr(const Address &src, Register dest) {
+        JS_ASSERT(0 && "addPtr");
+    }
+    void subPtr(Imm32 imm, Register dest) {
+        JS_ASSERT(0 && "subPtr");
+    }
+    void subPtr(Register src, Register dest) {
+        JS_ASSERT(0 && "subPtr");
+    }
+    void subPtr(const Address &addr, Register dest) {
+        JS_ASSERT(0 && "subPtr");
+    }
+    void subPtr(Register src, const Address &dest) {
+        JS_ASSERT(0 && "subPtr");
+    }
+
     void branch16(Condition cond, Register lhs, Register rhs, Label *label) {
         JS_ASSERT(0 && "branch16");
     }
@@ -500,6 +575,12 @@ class MacroAssemblerARM64 : public vixl::Assembler
         JS_ASSERT(0 && "branch32");
     }
     void branch32(Condition cond, Register lhs, Register rhs, Label *label) {
+        JS_ASSERT(0 && "branch32");
+    }
+    void branch32(Condition cond, AbsoluteAddress lhs, Imm32 rhs, Label *label) {
+        JS_ASSERT(0 && "branch32");
+    }
+    void branch32(Condition cond, AbsoluteAddress lhs, Register rhs, Label *label) {
         JS_ASSERT(0 && "branch32");
     }
     void branchTest16(Condition cond, Register lhs, Register rhs, Label *label) {
@@ -672,6 +753,27 @@ class MacroAssemblerARM64 : public vixl::Assembler
     }
     void testUndefinedSet(Condition cond, const ValueOperand &value, Register dest) {
         JS_ASSERT(0 && "testUndefinedSet");
+    }
+
+    void compareDouble(DoubleCondition cond, FloatRegister lhs, FloatRegister rhs) {
+        JS_ASSERT(0 && "compareDouble");
+    }
+    void branchDouble(DoubleCondition cond, FloatRegister lhs, FloatRegister rhs, Label *label) {
+        JS_ASSERT(0 && "branchDouble");
+    }
+
+    void compareFloat(DoubleCondition cond, FloatRegister lhs, FloatRegister rhs) {
+        JS_ASSERT(0 && "compareFloat");
+    }
+    void branchFloat(DoubleCondition cond, FloatRegister lhs, FloatRegister rhs, Label *label) {
+        JS_ASSERT(0 && "branchFloat");
+    }
+
+    void branchNegativeZero(FloatRegister reg, Register scratch, Label *label) {
+        JS_ASSERT(0 && "branchNegativeZero");
+    }
+    void branchNegativeZeroFloat32(FloatRegister reg, Register scratch, Label *label) {
+        JS_ASSERT(0 && "branchNegativeZeroFloat32");
     }
 
     void boxDouble(FloatRegister src, const ValueOperand &dest) {
@@ -916,6 +1018,18 @@ class MacroAssemblerARM64 : public vixl::Assembler
     {
         JS_ASSERT(0 && "patchAsmJSGlobalAccess");
     }
+
+    // FIXME: These guys probably shouldn't be in other arch's Assemblers...
+    // FIXME: Also, they should be capitalized, being static.
+    static void patchDataWithValueCheck(CodeLocationLabel data, PatchedImmPtr newData,
+                                        PatchedImmPtr expectedData)
+    {
+        JS_ASSERT(0 && "patchDataWithValueCheck");
+    }
+    static void patchDataWithValueCheck(CodeLocationLabel data, ImmPtr newData, ImmPtr expectedData) {
+        JS_ASSERT(0 && "patchDataWithValueCheck");
+    }
+
     void memIntToValue(Address Source, Address Dest) {
         JS_ASSERT(0 && "memIntToValue");
     }
@@ -966,6 +1080,18 @@ class MacroAssemblerARM64 : public vixl::Assembler
 
     void abiret() {
         JS_ASSERT(0 && "abiret");
+    }
+
+    // FIXME: Should be in Assembler?
+    // FIXME: Should be const?
+    uint32_t currentOffset() {
+        JS_ASSERT(0 && "currentOffset");
+        return 0;
+    }
+
+  protected:
+    bool buildOOLFakeExitFrame(void *fakeReturnAddr) {
+        JS_ASSERT(0 && "buildOOLFakeExitFrame");
     }
 };
 

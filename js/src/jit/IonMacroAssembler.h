@@ -1410,24 +1410,24 @@ class MacroAssembler : public MacroAssemblerSpecific
     }
 };
 
-static inline Assembler::DoubleCondition
+static inline MacroAssembler::DoubleCondition
 JSOpToDoubleCondition(JSOp op)
 {
     switch (op) {
       case JSOP_EQ:
       case JSOP_STRICTEQ:
-        return Assembler::DoubleEqual;
+        return MacroAssembler::DoubleEqual;
       case JSOP_NE:
       case JSOP_STRICTNE:
-        return Assembler::DoubleNotEqualOrUnordered;
+        return MacroAssembler::DoubleNotEqualOrUnordered;
       case JSOP_LT:
-        return Assembler::DoubleLessThan;
+        return MacroAssembler::DoubleLessThan;
       case JSOP_LE:
-        return Assembler::DoubleLessThanOrEqual;
+        return MacroAssembler::DoubleLessThanOrEqual;
       case JSOP_GT:
-        return Assembler::DoubleGreaterThan;
+        return MacroAssembler::DoubleGreaterThan;
       case JSOP_GE:
-        return Assembler::DoubleGreaterThanOrEqual;
+        return MacroAssembler::DoubleGreaterThanOrEqual;
       default:
         MOZ_ASSUME_UNREACHABLE("Unexpected comparison operation");
     }
@@ -1436,25 +1436,25 @@ JSOpToDoubleCondition(JSOp op)
 // Note: the op may have been inverted during lowering (to put constants in a
 // position where they can be immediates), so it is important to use the
 // lir->jsop() instead of the mir->jsop() when it is present.
-static inline Assembler::Condition
+static inline MacroAssembler::Condition
 JSOpToCondition(JSOp op, bool isSigned)
 {
     if (isSigned) {
         switch (op) {
           case JSOP_EQ:
           case JSOP_STRICTEQ:
-            return Assembler::Equal;
+            return MacroAssembler::Equal;
           case JSOP_NE:
           case JSOP_STRICTNE:
-            return Assembler::NotEqual;
+            return MacroAssembler::NotEqual;
           case JSOP_LT:
-            return Assembler::LessThan;
+            return MacroAssembler::LessThan;
           case JSOP_LE:
-            return Assembler::LessThanOrEqual;
+            return MacroAssembler::LessThanOrEqual;
           case JSOP_GT:
-            return Assembler::GreaterThan;
+            return MacroAssembler::GreaterThan;
           case JSOP_GE:
-            return Assembler::GreaterThanOrEqual;
+            return MacroAssembler::GreaterThanOrEqual;
           default:
             MOZ_ASSUME_UNREACHABLE("Unrecognized comparison operation");
         }
@@ -1462,18 +1462,18 @@ JSOpToCondition(JSOp op, bool isSigned)
         switch (op) {
           case JSOP_EQ:
           case JSOP_STRICTEQ:
-            return Assembler::Equal;
+            return MacroAssembler::Equal;
           case JSOP_NE:
           case JSOP_STRICTNE:
-            return Assembler::NotEqual;
+            return MacroAssembler::NotEqual;
           case JSOP_LT:
-            return Assembler::Below;
+            return MacroAssembler::Below;
           case JSOP_LE:
-            return Assembler::BelowOrEqual;
+            return MacroAssembler::BelowOrEqual;
           case JSOP_GT:
-            return Assembler::Above;
+            return MacroAssembler::Above;
           case JSOP_GE:
-            return Assembler::AboveOrEqual;
+            return MacroAssembler::AboveOrEqual;
           default:
             MOZ_ASSUME_UNREACHABLE("Unrecognized comparison operation");
         }
