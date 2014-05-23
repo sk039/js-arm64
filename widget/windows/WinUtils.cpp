@@ -208,6 +208,14 @@ WinUtils::LogToPhysFactor()
     HDC hdc = ::GetDC(nullptr);
     double result = ::GetDeviceCaps(hdc, LOGPIXELSY) / 96.0;
     ::ReleaseDC(nullptr, hdc);
+
+    if (result == 0) {
+      // Bug 1012487 - This can occur when the Screen DC is used off the
+      // main thread on windows. For now just assume a 100% DPI for this
+      // drawing call.
+      // XXX - fixme!
+      result = 1.0;
+    }
     return result;
   }
 }
@@ -1117,7 +1125,7 @@ nsresult FaviconHelper::GetOutputIconPath(nsCOMPtr<nsIURI> aFaviconPageURI,
   NS_ENSURE_SUCCESS(rv, rv);
 
   // Append the icon extension
-  inputURIHash.Append(".ico");
+  inputURIHash.AppendLiteral(".ico");
   rv = aICOFile->AppendNative(inputURIHash);
 
   return rv;
