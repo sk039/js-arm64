@@ -172,10 +172,10 @@ class CPURegister {
     return type_ == kFloatRegister;
   }
 
-  const Register& W() const;
-  const Register& X() const;
-  const FloatRegister& S() const;
-  const FloatRegister& D() const;
+  Register W() const;
+  Register X() const;
+  FloatRegister S() const;
+  FloatRegister D() const;
 
   inline bool IsSameSizeAndType(const CPURegister& other) const {
     return (size_ == other.size_) && (type_ == other.type_);
@@ -208,8 +208,8 @@ class Register : public CPURegister {
     return IsValidRegister();
   }
 
-  static const Register& WRegFromCode(unsigned code);
-  static const Register& XRegFromCode(unsigned code);
+  static Register WRegFromCode(unsigned code);
+  static Register XRegFromCode(unsigned code);
 
   // V8 compatibility.
   static const int kNumRegisters = kNumberOfRegisters;
@@ -236,8 +236,8 @@ class FloatRegister : public CPURegister {
     return IsValidFloatRegister();
   }
 
-  static const FloatRegister& SRegFromCode(unsigned code);
-  static const FloatRegister& DRegFromCode(unsigned code);
+  static FloatRegister SRegFromCode(unsigned code);
+  static FloatRegister DRegFromCode(unsigned code);
 
   // V8 compatibility.
   static const int kNumRegisters = kNumberOfFloatRegisters;
@@ -554,8 +554,8 @@ class MemOperand {
                       const Operand& offset,
                       AddrMode addrmode = Offset);
 
-  const Register& base() const { return base_; }
-  const Register& regoffset() const { return regoffset_; }
+  Register base() const { return base_; }
+  Register regoffset() const { return regoffset_; }
   ptrdiff_t offset() const { return offset_; }
   AddrMode addrmode() const { return addrmode_; }
   Shift shift() const { return shift_; }
@@ -739,13 +739,13 @@ class Assembler {
 
   // Branch / Jump instructions.
   // Branch to register.
-  void br(const Register& xn);
+  void br(Register xn);
 
   // Branch with link to register.
-  void blr(const Register& xn);
+  void blr(Register xn);
 
   // Branch to register with return hint.
-  void ret(const Register& xn = lr);
+  void ret(Register xn = lr);
 
   // Unconditional branch to label.
   void b(Label* label);
@@ -766,173 +766,173 @@ class Assembler {
   void bl(int imm26);
 
   // Compare and branch to label if zero.
-  void cbz(const Register& rt, Label* label);
+  void cbz(Register rt, Label* label);
 
   // Compare and branch to PC offset if zero.
-  void cbz(const Register& rt, int imm19);
+  void cbz(Register rt, int imm19);
 
   // Compare and branch to label if not zero.
-  void cbnz(const Register& rt, Label* label);
+  void cbnz(Register rt, Label* label);
 
   // Compare and branch to PC offset if not zero.
-  void cbnz(const Register& rt, int imm19);
+  void cbnz(Register rt, int imm19);
 
   // Test bit and branch to label if zero.
-  void tbz(const Register& rt, unsigned bit_pos, Label* label);
+  void tbz(Register rt, unsigned bit_pos, Label* label);
 
   // Test bit and branch to PC offset if zero.
-  void tbz(const Register& rt, unsigned bit_pos, int imm14);
+  void tbz(Register rt, unsigned bit_pos, int imm14);
 
   // Test bit and branch to label if not zero.
-  void tbnz(const Register& rt, unsigned bit_pos, Label* label);
+  void tbnz(Register rt, unsigned bit_pos, Label* label);
 
   // Test bit and branch to PC offset if not zero.
-  void tbnz(const Register& rt, unsigned bit_pos, int imm14);
+  void tbnz(Register rt, unsigned bit_pos, int imm14);
 
   // Address calculation instructions.
   // Calculate a PC-relative address. Unlike for branches the offset in adr is
   // unscaled (i.e. the result can be unaligned).
 
   // Calculate the address of a label.
-  void adr(const Register& rd, Label* label);
+  void adr(Register rd, Label* label);
 
   // Calculate the address of a PC offset.
-  void adr(const Register& rd, int imm21);
+  void adr(Register rd, int imm21);
 
   // Data Processing instructions.
   // Add.
-  void add(const Register& rd,
-           const Register& rn,
+  void add(Register rd,
+           Register rn,
            const Operand& operand);
 
   // Add and update status flags.
-  void adds(const Register& rd,
-            const Register& rn,
+  void adds(Register rd,
+            Register rn,
             const Operand& operand);
 
   // Compare negative.
-  void cmn(const Register& rn, const Operand& operand);
+  void cmn(Register rn, const Operand& operand);
 
   // Subtract.
-  void sub(const Register& rd,
-           const Register& rn,
+  void sub(Register rd,
+           Register rn,
            const Operand& operand);
 
   // Subtract and update status flags.
-  void subs(const Register& rd,
-            const Register& rn,
+  void subs(Register rd,
+            Register rn,
             const Operand& operand);
 
   // Compare.
-  void cmp(const Register& rn, const Operand& operand);
+  void cmp(Register rn, const Operand& operand);
 
   // Negate.
-  void neg(const Register& rd,
+  void neg(Register rd,
            const Operand& operand);
 
   // Negate and update status flags.
-  void negs(const Register& rd,
+  void negs(Register rd,
             const Operand& operand);
 
   // Add with carry bit.
-  void adc(const Register& rd,
-           const Register& rn,
+  void adc(Register rd,
+           Register rn,
            const Operand& operand);
 
   // Add with carry bit and update status flags.
-  void adcs(const Register& rd,
-            const Register& rn,
+  void adcs(Register rd,
+            Register rn,
             const Operand& operand);
 
   // Subtract with carry bit.
-  void sbc(const Register& rd,
-           const Register& rn,
+  void sbc(Register rd,
+           Register rn,
            const Operand& operand);
 
   // Subtract with carry bit and update status flags.
-  void sbcs(const Register& rd,
-            const Register& rn,
+  void sbcs(Register rd,
+            Register rn,
             const Operand& operand);
 
   // Negate with carry bit.
-  void ngc(const Register& rd,
+  void ngc(Register rd,
            const Operand& operand);
 
   // Negate with carry bit and update status flags.
-  void ngcs(const Register& rd,
+  void ngcs(Register rd,
             const Operand& operand);
 
   // Logical instructions.
   // Bitwise and (A & B).
-  void and_(const Register& rd,
-            const Register& rn,
+  void and_(Register rd,
+            Register rn,
             const Operand& operand);
 
   // Bitwise and (A & B) and update status flags.
-  void ands(const Register& rd,
-            const Register& rn,
+  void ands(Register rd,
+            Register rn,
             const Operand& operand);
 
   // Bit test and set flags.
-  void tst(const Register& rn, const Operand& operand);
+  void tst(Register rn, const Operand& operand);
 
   // Bit clear (A & ~B).
-  void bic(const Register& rd,
-           const Register& rn,
+  void bic(Register rd,
+           Register rn,
            const Operand& operand);
 
   // Bit clear (A & ~B) and update status flags.
-  void bics(const Register& rd,
-            const Register& rn,
+  void bics(Register rd,
+            Register rn,
             const Operand& operand);
 
   // Bitwise or (A | B).
-  void orr(const Register& rd, const Register& rn, const Operand& operand);
+  void orr(Register rd, Register rn, const Operand& operand);
 
   // Bitwise nor (A | ~B).
-  void orn(const Register& rd, const Register& rn, const Operand& operand);
+  void orn(Register rd, Register rn, const Operand& operand);
 
   // Bitwise eor/xor (A ^ B).
-  void eor(const Register& rd, const Register& rn, const Operand& operand);
+  void eor(Register rd, Register rn, const Operand& operand);
 
   // Bitwise enor/xnor (A ^ ~B).
-  void eon(const Register& rd, const Register& rn, const Operand& operand);
+  void eon(Register rd, Register rn, const Operand& operand);
 
   // Logical shift left by variable.
-  void lslv(const Register& rd, const Register& rn, const Register& rm);
+  void lslv(Register rd, Register rn, Register rm);
 
   // Logical shift right by variable.
-  void lsrv(const Register& rd, const Register& rn, const Register& rm);
+  void lsrv(Register rd, Register rn, Register rm);
 
   // Arithmetic shift right by variable.
-  void asrv(const Register& rd, const Register& rn, const Register& rm);
+  void asrv(Register rd, Register rn, Register rm);
 
   // Rotate right by variable.
-  void rorv(const Register& rd, const Register& rn, const Register& rm);
+  void rorv(Register rd, Register rn, Register rm);
 
   // Bitfield instructions.
   // Bitfield move.
-  void bfm(const Register& rd,
-           const Register& rn,
+  void bfm(Register rd,
+           Register rn,
            unsigned immr,
            unsigned imms);
 
   // Signed bitfield move.
-  void sbfm(const Register& rd,
-            const Register& rn,
+  void sbfm(Register rd,
+            Register rn,
             unsigned immr,
             unsigned imms);
 
   // Unsigned bitfield move.
-  void ubfm(const Register& rd,
-            const Register& rn,
+  void ubfm(Register rd,
+            Register rn,
             unsigned immr,
             unsigned imms);
 
   // Bfm aliases.
   // Bitfield insert.
-  inline void bfi(const Register& rd,
-                  const Register& rn,
+  inline void bfi(Register rd,
+                  Register rn,
                   unsigned lsb,
                   unsigned width) {
     VIXL_ASSERT(width >= 1);
@@ -941,8 +941,8 @@ class Assembler {
   }
 
   // Bitfield extract and insert low.
-  inline void bfxil(const Register& rd,
-                    const Register& rn,
+  inline void bfxil(Register rd,
+                    Register rn,
                     unsigned lsb,
                     unsigned width) {
     VIXL_ASSERT(width >= 1);
@@ -952,14 +952,14 @@ class Assembler {
 
   // Sbfm aliases.
   // Arithmetic shift right.
-  inline void asr(const Register& rd, const Register& rn, unsigned shift) {
+  inline void asr(Register rd, Register rn, unsigned shift) {
     VIXL_ASSERT(shift < rd.size());
     sbfm(rd, rn, shift, rd.size() - 1);
   }
 
   // Signed bitfield insert with zero at right.
-  inline void sbfiz(const Register& rd,
-                    const Register& rn,
+  inline void sbfiz(Register rd,
+                    Register rn,
                     unsigned lsb,
                     unsigned width) {
     VIXL_ASSERT(width >= 1);
@@ -968,8 +968,8 @@ class Assembler {
   }
 
   // Signed bitfield extract.
-  inline void sbfx(const Register& rd,
-                   const Register& rn,
+  inline void sbfx(Register rd,
+                   Register rn,
                    unsigned lsb,
                    unsigned width) {
     VIXL_ASSERT(width >= 1);
@@ -978,37 +978,37 @@ class Assembler {
   }
 
   // Signed extend byte.
-  inline void sxtb(const Register& rd, const Register& rn) {
+  inline void sxtb(Register rd, Register rn) {
     sbfm(rd, rn, 0, 7);
   }
 
   // Signed extend halfword.
-  inline void sxth(const Register& rd, const Register& rn) {
+  inline void sxth(Register rd, Register rn) {
     sbfm(rd, rn, 0, 15);
   }
 
   // Signed extend word.
-  inline void sxtw(const Register& rd, const Register& rn) {
+  inline void sxtw(Register rd, Register rn) {
     sbfm(rd, rn, 0, 31);
   }
 
   // Ubfm aliases.
   // Logical shift left.
-  inline void lsl(const Register& rd, const Register& rn, unsigned shift) {
+  inline void lsl(Register rd, Register rn, unsigned shift) {
     unsigned reg_size = rd.size();
     VIXL_ASSERT(shift < reg_size);
     ubfm(rd, rn, (reg_size - shift) % reg_size, reg_size - shift - 1);
   }
 
   // Logical shift right.
-  inline void lsr(const Register& rd, const Register& rn, unsigned shift) {
+  inline void lsr(Register rd, Register rn, unsigned shift) {
     VIXL_ASSERT(shift < rd.size());
     ubfm(rd, rn, shift, rd.size() - 1);
   }
 
   // Unsigned bitfield insert with zero at right.
-  inline void ubfiz(const Register& rd,
-                    const Register& rn,
+  inline void ubfiz(Register rd,
+                    Register rn,
                     unsigned lsb,
                     unsigned width) {
     VIXL_ASSERT(width >= 1);
@@ -1017,8 +1017,8 @@ class Assembler {
   }
 
   // Unsigned bitfield extract.
-  inline void ubfx(const Register& rd,
-                   const Register& rn,
+  inline void ubfx(Register rd,
+                   Register rn,
                    unsigned lsb,
                    unsigned width) {
     VIXL_ASSERT(width >= 1);
@@ -1027,24 +1027,24 @@ class Assembler {
   }
 
   // Unsigned extend byte.
-  inline void uxtb(const Register& rd, const Register& rn) {
+  inline void uxtb(Register rd, Register rn) {
     ubfm(rd, rn, 0, 7);
   }
 
   // Unsigned extend halfword.
-  inline void uxth(const Register& rd, const Register& rn) {
+  inline void uxth(Register rd, Register rn) {
     ubfm(rd, rn, 0, 15);
   }
 
   // Unsigned extend word.
-  inline void uxtw(const Register& rd, const Register& rn) {
+  inline void uxtw(Register rd, Register rn) {
     ubfm(rd, rn, 0, 31);
   }
 
   // Extract.
-  void extr(const Register& rd,
-            const Register& rn,
-            const Register& rm,
+  void extr(Register rd,
+            Register rn,
+            Register rm,
             unsigned lsb);
 
   // Conditional select: rd = cond ? rn : rm.
@@ -1084,94 +1084,94 @@ class Assembler {
   void cneg32(Register rd, Register rn, Condition cond);
 
   // Rotate right.
-  inline void ror(const Register& rd, const Register& rs, unsigned shift) {
+  inline void ror(Register rd, Register rs, unsigned shift) {
     extr(rd, rs, rs, shift);
   }
 
   // Conditional comparison.
   // Conditional compare negative.
-  void ccmn(const Register& rn,
+  void ccmn(Register rn,
             const Operand& operand,
             StatusFlags nzcv,
             Condition cond);
 
   // Conditional compare.
-  void ccmp(const Register& rn,
+  void ccmp(Register rn,
             const Operand& operand,
             StatusFlags nzcv,
             Condition cond);
 
   // Multiply.
-  void mul(const Register& rd, const Register& rn, const Register& rm);
+  void mul(Register rd, Register rn, Register rm);
 
   // Negated multiply.
-  void mneg(const Register& rd, const Register& rn, const Register& rm);
+  void mneg(Register rd, Register rn, Register rm);
 
   // Signed long multiply: 32 x 32 -> 64-bit.
-  void smull(const Register& rd, const Register& rn, const Register& rm);
+  void smull(Register rd, Register rn, Register rm);
 
   // Signed multiply high: 64 x 64 -> 64-bit <127:64>.
-  void smulh(const Register& xd, const Register& xn, const Register& xm);
+  void smulh(Register xd, Register xn, Register xm);
 
   // Multiply and accumulate.
-  void madd(const Register& rd,
-            const Register& rn,
-            const Register& rm,
-            const Register& ra);
+  void madd(Register rd,
+            Register rn,
+            Register rm,
+            Register ra);
 
   // Multiply and subtract.
-  void msub(const Register& rd,
-            const Register& rn,
-            const Register& rm,
-            const Register& ra);
+  void msub(Register rd,
+            Register rn,
+            Register rm,
+            Register ra);
 
   // Signed long multiply and accumulate: 32 x 32 + 64 -> 64-bit.
-  void smaddl(const Register& rd,
-              const Register& rn,
-              const Register& rm,
-              const Register& ra);
+  void smaddl(Register rd,
+              Register rn,
+              Register rm,
+              Register ra);
 
   // Unsigned long multiply and accumulate: 32 x 32 + 64 -> 64-bit.
-  void umaddl(const Register& rd,
-              const Register& rn,
-              const Register& rm,
-              const Register& ra);
+  void umaddl(Register rd,
+              Register rn,
+              Register rm,
+              Register ra);
 
   // Signed long multiply and subtract: 64 - (32 x 32) -> 64-bit.
-  void smsubl(const Register& rd,
-              const Register& rn,
-              const Register& rm,
-              const Register& ra);
+  void smsubl(Register rd,
+              Register rn,
+              Register rm,
+              Register ra);
 
   // Unsigned long multiply and subtract: 64 - (32 x 32) -> 64-bit.
-  void umsubl(const Register& rd,
-              const Register& rn,
-              const Register& rm,
-              const Register& ra);
+  void umsubl(Register rd,
+              Register rn,
+              Register rm,
+              Register ra);
 
   // Signed integer divide.
-  void sdiv(const Register& rd, const Register& rn, const Register& rm);
+  void sdiv(Register rd, Register rn, Register rm);
 
   // Unsigned integer divide.
-  void udiv(const Register& rd, const Register& rn, const Register& rm);
+  void udiv(Register rd, Register rn, Register rm);
 
   // Bit reverse.
-  void rbit(const Register& rd, const Register& rn);
+  void rbit(Register rd, Register rn);
 
   // Reverse bytes in 16-bit half words.
-  void rev16(const Register& rd, const Register& rn);
+  void rev16(Register rd, Register rn);
 
   // Reverse bytes in 32-bit words.
-  void rev32(const Register& rd, const Register& rn);
+  void rev32(Register rd, Register rn);
 
   // Reverse bytes.
-  void rev(const Register& rd, const Register& rn);
+  void rev(Register rd, Register rn);
 
   // Count leading zeroes.
-  void clz(const Register& rd, const Register& rn);
+  void clz(Register rd, Register rn);
 
   // Count leading sign bits.
-  void cls(const Register& rd, const Register& rn);
+  void cls(Register rd, Register rn);
 
   // Memory instructions.
   // Load integer or FP register.
@@ -1181,25 +1181,25 @@ class Assembler {
   void str(const CPURegister& rt, const MemOperand& dst);
 
   // Load word with sign extension.
-  void ldrsw(const Register& rt, const MemOperand& src);
+  void ldrsw(Register rt, const MemOperand& src);
 
   // Load byte.
-  void ldrb(const Register& rt, const MemOperand& src);
+  void ldrb(Register rt, const MemOperand& src);
 
   // Store byte.
-  void strb(const Register& rt, const MemOperand& dst);
+  void strb(Register rt, const MemOperand& dst);
 
   // Load byte with sign extension.
-  void ldrsb(const Register& rt, const MemOperand& src);
+  void ldrsb(Register rt, const MemOperand& src);
 
   // Load half-word.
-  void ldrh(const Register& rt, const MemOperand& src);
+  void ldrh(Register rt, const MemOperand& src);
 
   // Store half-word.
-  void strh(const Register& rt, const MemOperand& dst);
+  void strh(Register rt, const MemOperand& dst);
 
   // Load half-word with sign extension.
-  void ldrsh(const Register& rt, const MemOperand& src);
+  void ldrsh(Register rt, const MemOperand& src);
 
   // Load integer or FP register pair.
   void ldp(const CPURegister& rt, const CPURegister& rt2,
@@ -1210,7 +1210,7 @@ class Assembler {
            const MemOperand& dst);
 
   // Load word pair with sign extension.
-  void ldpsw(const Register& rt, const Register& rt2, const MemOperand& src);
+  void ldpsw(Register rt, Register rt2, const MemOperand& src);
 
   // Load integer or FP register pair, non-temporal.
   void ldnp(const CPURegister& rt, const CPURegister& rt2,
@@ -1221,13 +1221,13 @@ class Assembler {
             const MemOperand& dst);
 
   // Load literal to register.
-  void ldr(const Register& rt, uint64_t imm);
+  void ldr(Register rt, uint64_t imm);
 
   // Load double precision floating point literal to FP register.
-  void ldr(const FloatRegister& ft, double imm);
+  void ldr(FloatRegister ft, double imm);
 
   // Load single precision floating point literal to FP register.
-  void ldr(const FloatRegister& ft, float imm);
+  void ldr(FloatRegister ft, float imm);
 
   // Move instructions. The default shift of -1 indicates that the move
   // instruction will calculate an appropriate 16-bit immediate and left shift
@@ -1240,17 +1240,17 @@ class Assembler {
   // most-significant.
 
   // Move immediate and keep.
-  void movk(const Register& rd, uint64_t imm, int shift = -1) {
+  void movk(Register rd, uint64_t imm, int shift = -1) {
     MoveWide(rd, imm, shift, MOVK);
   }
 
   // Move inverted immediate.
-  void movn(const Register& rd, uint64_t imm, int shift = -1) {
+  void movn(Register rd, uint64_t imm, int shift = -1) {
     MoveWide(rd, imm, shift, MOVN);
   }
 
   // Move immediate.
-  void movz(const Register& rd, uint64_t imm, int shift = -1) {
+  void movz(Register rd, uint64_t imm, int shift = -1) {
     MoveWide(rd, imm, shift, MOVZ);
   }
 
@@ -1262,17 +1262,17 @@ class Assembler {
   void hlt(int code);
 
   // Move register to register.
-  void mov(const Register& rd, const Register& rn);
+  void mov(Register rd, Register rn);
 
   // Move inverted operand to register.
-  void mvn(const Register& rd, const Operand& operand);
+  void mvn(Register rd, const Operand& operand);
 
   // System instructions.
   // Move to register from system register.
-  void mrs(const Register& rt, SystemRegister sysreg);
+  void mrs(Register rt, SystemRegister sysreg);
 
   // Move from register to system register.
-  void msr(SystemRegister sysreg, const Register& rt);
+  void msr(SystemRegister sysreg, Register rt);
 
   // System hint.
   void hint(SystemHint code);
@@ -1294,144 +1294,144 @@ class Assembler {
 
   // FP instructions.
   // Move double precision immediate to FP register.
-  void fmov(const FloatRegister& fd, double imm);
+  void fmov(FloatRegister fd, double imm);
 
   // Move single precision immediate to FP register.
-  void fmov(const FloatRegister& fd, float imm);
+  void fmov(FloatRegister fd, float imm);
 
   // Move FP register to register.
-  void fmov(const Register& rd, const FloatRegister& fn);
+  void fmov(Register rd, FloatRegister fn);
 
   // Move register to FP register.
-  void fmov(const FloatRegister& fd, const Register& rn);
+  void fmov(FloatRegister fd, Register rn);
 
   // Move FP register to FP register.
-  void fmov(const FloatRegister& fd, const FloatRegister& fn);
+  void fmov(FloatRegister fd, FloatRegister fn);
 
   // FP add.
-  void fadd(const FloatRegister& fd, const FloatRegister& fn, const FloatRegister& fm);
+  void fadd(FloatRegister fd, FloatRegister fn, FloatRegister fm);
 
   // FP subtract.
-  void fsub(const FloatRegister& fd, const FloatRegister& fn, const FloatRegister& fm);
+  void fsub(FloatRegister fd, FloatRegister fn, FloatRegister fm);
 
   // FP multiply.
-  void fmul(const FloatRegister& fd, const FloatRegister& fn, const FloatRegister& fm);
+  void fmul(FloatRegister fd, FloatRegister fn, FloatRegister fm);
 
   // FP fused multiply and add.
-  void fmadd(const FloatRegister& fd,
-             const FloatRegister& fn,
-             const FloatRegister& fm,
-             const FloatRegister& fa);
+  void fmadd(FloatRegister fd,
+             FloatRegister fn,
+             FloatRegister fm,
+             FloatRegister fa);
 
   // FP fused multiply and subtract.
-  void fmsub(const FloatRegister& fd,
-             const FloatRegister& fn,
-             const FloatRegister& fm,
-             const FloatRegister& fa);
+  void fmsub(FloatRegister fd,
+             FloatRegister fn,
+             FloatRegister fm,
+             FloatRegister fa);
 
   // FP fused multiply, add and negate.
-  void fnmadd(const FloatRegister& fd,
-              const FloatRegister& fn,
-              const FloatRegister& fm,
-              const FloatRegister& fa);
+  void fnmadd(FloatRegister fd,
+              FloatRegister fn,
+              FloatRegister fm,
+              FloatRegister fa);
 
   // FP fused multiply, subtract and negate.
-  void fnmsub(const FloatRegister& fd,
-              const FloatRegister& fn,
-              const FloatRegister& fm,
-              const FloatRegister& fa);
+  void fnmsub(FloatRegister fd,
+              FloatRegister fn,
+              FloatRegister fm,
+              FloatRegister fa);
 
   // FP divide.
-  void fdiv(const FloatRegister& fd, const FloatRegister& fn, const FloatRegister& fm);
+  void fdiv(FloatRegister fd, FloatRegister fn, FloatRegister fm);
 
   // FP maximum.
-  void fmax(const FloatRegister& fd, const FloatRegister& fn, const FloatRegister& fm);
+  void fmax(FloatRegister fd, FloatRegister fn, FloatRegister fm);
 
   // FP minimum.
-  void fmin(const FloatRegister& fd, const FloatRegister& fn, const FloatRegister& fm);
+  void fmin(FloatRegister fd, FloatRegister fn, FloatRegister fm);
 
   // FP maximum number.
-  void fmaxnm(const FloatRegister& fd, const FloatRegister& fn, const FloatRegister& fm);
+  void fmaxnm(FloatRegister fd, FloatRegister fn, FloatRegister fm);
 
   // FP minimum number.
-  void fminnm(const FloatRegister& fd, const FloatRegister& fn, const FloatRegister& fm);
+  void fminnm(FloatRegister fd, FloatRegister fn, FloatRegister fm);
 
   // FP absolute.
-  void fabs(const FloatRegister& fd, const FloatRegister& fn);
+  void fabs(FloatRegister fd, FloatRegister fn);
 
   // FP negate.
-  void fneg(const FloatRegister& fd, const FloatRegister& fn);
+  void fneg(FloatRegister fd, FloatRegister fn);
 
   // FP square root.
-  void fsqrt(const FloatRegister& fd, const FloatRegister& fn);
+  void fsqrt(FloatRegister fd, FloatRegister fn);
 
   // FP round to integer (nearest with ties to away).
-  void frinta(const FloatRegister& fd, const FloatRegister& fn);
+  void frinta(FloatRegister fd, FloatRegister fn);
 
   // FP round to integer (toward minus infinity).
-  void frintm(const FloatRegister& fd, const FloatRegister& fn);
+  void frintm(FloatRegister fd, FloatRegister fn);
 
   // FP round to integer (nearest with ties to even).
-  void frintn(const FloatRegister& fd, const FloatRegister& fn);
+  void frintn(FloatRegister fd, FloatRegister fn);
 
   // FP round to integer (towards zero).
-  void frintz(const FloatRegister& fd, const FloatRegister& fn);
+  void frintz(FloatRegister fd, FloatRegister fn);
 
   // FP compare registers.
-  void fcmp(const FloatRegister& fn, const FloatRegister& fm);
+  void fcmp(FloatRegister fn, FloatRegister fm);
 
   // FP compare immediate.
-  void fcmp(const FloatRegister& fn, double value);
+  void fcmp(FloatRegister fn, double value);
 
   // FP conditional compare.
-  void fccmp(const FloatRegister& fn,
-             const FloatRegister& fm,
+  void fccmp(FloatRegister fn,
+             FloatRegister fm,
              StatusFlags nzcv,
              Condition cond);
 
   // FP conditional select.
-  void fcsel(const FloatRegister& fd,
-             const FloatRegister& fn,
-             const FloatRegister& fm,
+  void fcsel(FloatRegister fd,
+             FloatRegister fn,
+             FloatRegister fm,
              Condition cond);
 
   // Common FP Convert function.
-  void FPConvertToInt(const Register& rd,
-                      const FloatRegister& fn,
+  void FPConvertToInt(Register rd,
+                      FloatRegister fn,
                       FPIntegerConvertOp op);
 
   // FP convert between single and double precision.
-  void fcvt(const FloatRegister& fd, const FloatRegister& fn);
+  void fcvt(FloatRegister fd, FloatRegister fn);
 
   // Convert FP to signed integer (nearest with ties to away).
-  void fcvtas(const Register& rd, const FloatRegister& fn);
+  void fcvtas(Register rd, FloatRegister fn);
 
   // Convert FP to unsigned integer (nearest with ties to away).
-  void fcvtau(const Register& rd, const FloatRegister& fn);
+  void fcvtau(Register rd, FloatRegister fn);
 
   // Convert FP to signed integer (round towards -infinity).
-  void fcvtms(const Register& rd, const FloatRegister& fn);
+  void fcvtms(Register rd, FloatRegister fn);
 
   // Convert FP to unsigned integer (round towards -infinity).
-  void fcvtmu(const Register& rd, const FloatRegister& fn);
+  void fcvtmu(Register rd, FloatRegister fn);
 
   // Convert FP to signed integer (nearest with ties to even).
-  void fcvtns(const Register& rd, const FloatRegister& fn);
+  void fcvtns(Register rd, FloatRegister fn);
 
   // Convert FP to unsigned integer (nearest with ties to even).
-  void fcvtnu(const Register& rd, const FloatRegister& fn);
+  void fcvtnu(Register rd, FloatRegister fn);
 
   // Convert FP to signed integer (round towards zero).
-  void fcvtzs(const Register& rd, const FloatRegister& fn);
+  void fcvtzs(Register rd, FloatRegister fn);
 
   // Convert FP to unsigned integer (round towards zero).
-  void fcvtzu(const Register& rd, const FloatRegister& fn);
+  void fcvtzu(Register rd, FloatRegister fn);
 
   // Convert signed integer or fixed point to FP.
-  void scvtf(const FloatRegister& fd, const Register& rn, unsigned fbits = 0);
+  void scvtf(FloatRegister fd, Register rn, unsigned fbits = 0);
 
   // Convert unsigned integer or fixed point to FP.
-  void ucvtf(const FloatRegister& fd, const Register& rn, unsigned fbits = 0);
+  void ucvtf(FloatRegister fd, Register rn, unsigned fbits = 0);
 
   // Emit generic instructions.
   // Emit raw instructions into the instruction stream.
@@ -1757,7 +1757,7 @@ class Assembler {
   size_t LiteralPoolSize();
 
  protected:
-  inline const Register& AppropriateZeroRegFor(const CPURegister& reg) const {
+  inline Register AppropriateZeroRegFor(const CPURegister& reg) const {
     return reg.Is64Bits() ? xzr : wzr;
   }
 
@@ -1768,12 +1768,12 @@ class Assembler {
   static bool IsImmLSUnscaled(ptrdiff_t offset);
   static bool IsImmLSScaled(ptrdiff_t offset, LSDataSize size);
 
-  void Logical(const Register& rd,
-               const Register& rn,
+  void Logical(Register rd,
+               Register rn,
                const Operand& operand,
                LogicalOp op);
-  void LogicalImmediate(const Register& rd,
-                        const Register& rn,
+  void LogicalImmediate(Register rd,
+                        Register rn,
                         unsigned n,
                         unsigned imm_s,
                         unsigned imm_r,
@@ -1784,15 +1784,15 @@ class Assembler {
                            unsigned* imm_s,
                            unsigned* imm_r);
 
-  void ConditionalCompare(const Register& rn,
+  void ConditionalCompare(Register rn,
                           const Operand& operand,
                           StatusFlags nzcv,
                           Condition cond,
                           ConditionalCompareOp op);
   static bool IsImmConditionalCompare(int64_t immediate);
 
-  void AddSubWithCarry(const Register& rd,
-                       const Register& rn,
+  void AddSubWithCarry(Register rd,
+                       Register rn,
                        const Operand& operand,
                        FlagsUpdate S,
                        AddSubWithCarryOp op);
@@ -1802,17 +1802,17 @@ class Assembler {
 
   // Functions for emulating operands not directly supported by the instruction
   // set.
-  void EmitShift(const Register& rd,
-                 const Register& rn,
+  void EmitShift(Register rd,
+                 Register rn,
                  Shift shift,
                  unsigned amount);
-  void EmitExtendShift(const Register& rd,
-                       const Register& rn,
+  void EmitExtendShift(Register rd,
+                       Register rn,
                        Extend extend,
                        unsigned left_shift);
 
-  void AddSub(const Register& rd,
-              const Register& rn,
+  void AddSub(Register rd,
+              Register rn,
               const Operand& operand,
               FlagsUpdate S,
               AddSubOp op);
@@ -1835,17 +1835,17 @@ class Assembler {
 
  private:
   // Instruction helpers.
-  void MoveWide(const Register& rd,
+  void MoveWide(Register rd,
                 uint64_t imm,
                 int shift,
                 MoveWideImmediateOp mov_op);
-  void DataProcShiftedRegister(const Register& rd,
-                               const Register& rn,
+  void DataProcShiftedRegister(Register rd,
+                               Register rn,
                                const Operand& operand,
                                FlagsUpdate S,
                                Instr op);
-  void DataProcExtendedRegister(const Register& rd,
-                                const Register& rn,
+  void DataProcExtendedRegister(Register rd,
+                                Register rn,
                                 const Operand& operand,
                                 FlagsUpdate S,
                                 Instr op);
@@ -1860,25 +1860,25 @@ class Assembler {
   void LoadLiteral(const CPURegister& rt, uint64_t imm, LoadLiteralOp op);
   void ConditionalSelect(Instr size, Register rd, Register rn, Register rm,
                          Condition cond, ConditionalSelectOp op);
-  void DataProcessing1Source(const Register& rd,
-                             const Register& rn,
+  void DataProcessing1Source(Register rd,
+                             Register rn,
                              DataProcessing1SourceOp op);
-  void DataProcessing3Source(const Register& rd,
-                             const Register& rn,
-                             const Register& rm,
-                             const Register& ra,
+  void DataProcessing3Source(Register rd,
+                             Register rn,
+                             Register rm,
+                             Register ra,
                              DataProcessing3SourceOp op);
-  void FPDataProcessing1Source(const FloatRegister& fd,
-                               const FloatRegister& fn,
+  void FPDataProcessing1Source(FloatRegister fd,
+                               FloatRegister fn,
                                FPDataProcessing1SourceOp op);
-  void FPDataProcessing2Source(const FloatRegister& fd,
-                               const FloatRegister& fn,
-                               const FloatRegister& fm,
+  void FPDataProcessing2Source(FloatRegister fd,
+                               FloatRegister fn,
+                               FloatRegister fm,
                                FPDataProcessing2SourceOp op);
-  void FPDataProcessing3Source(const FloatRegister& fd,
-                               const FloatRegister& fn,
-                               const FloatRegister& fm,
-                               const FloatRegister& fa,
+  void FPDataProcessing3Source(FloatRegister fd,
+                               FloatRegister fn,
+                               FloatRegister fm,
+                               FloatRegister fa,
                                FPDataProcessing3SourceOp op);
 
   void RecordLiteral(int64_t imm, unsigned size);
