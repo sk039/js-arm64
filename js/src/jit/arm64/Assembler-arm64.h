@@ -1048,43 +1048,40 @@ class Assembler {
             unsigned lsb);
 
   // Conditional select: rd = cond ? rn : rm.
-  void csel(const Register& rd,
-            const Register& rn,
-            const Register& rm,
-            Condition cond);
+  void csel64(Register rd, Register rn, Register rm, Condition cond);
+  void csel32(Register rd, Register rn, Register rm, Condition cond);
 
   // Conditional select increment: rd = cond ? rn : rm + 1.
-  void csinc(const Register& rd,
-             const Register& rn,
-             const Register& rm,
-             Condition cond);
+  void csinc64(Register rd, Register rn, Register rm, Condition cond);
+  void csinc32(Register rd, Register rn, Register rm, Condition cond);
 
   // Conditional select inversion: rd = cond ? rn : ~rm.
-  void csinv(const Register& rd,
-             const Register& rn,
-             const Register& rm,
-             Condition cond);
+  void csinv64(Register rd, Register rn, Register rm, Condition cond);
+  void csinv32(Register rd, Register rn, Register rm, Condition cond);
 
   // Conditional select negation: rd = cond ? rn : -rm.
-  void csneg(const Register& rd,
-             const Register& rn,
-             const Register& rm,
-             Condition cond);
+  void csneg64(Register rd, Register rn, Register rm, Condition cond);
+  void csneg32(Register rd, Register rn, Register rm, Condition cond);
 
   // Conditional set: rd = cond ? 1 : 0.
-  void cset(const Register& rd, Condition cond);
+  void cset64(Register rd, Condition cond);
+  void cset32(Register rd, Condition cond);
 
   // Conditional set mask: rd = cond ? -1 : 0.
-  void csetm(const Register& rd, Condition cond);
+  void csetm64(Register rd, Condition cond);
+  void csetm32(Register rd, Condition cond);
 
   // Conditional increment: rd = cond ? rn + 1 : rn.
-  void cinc(const Register& rd, const Register& rn, Condition cond);
+  void cinc64(Register rd, Register rn, Condition cond);
+  void cinc32(Register rd, Register rn, Condition cond);
 
   // Conditional invert: rd = cond ? ~rn : rn.
-  void cinv(const Register& rd, const Register& rn, Condition cond);
+  void cinv64(Register rd, Register rn, Condition cond);
+  void cinv32(Register rd, Register rn, Condition cond);
 
   // Conditional negate: rd = cond ? -rn : rn.
-  void cneg(const Register& rd, const Register& rn, Condition cond);
+  void cneg64(Register rd, Register rn, Condition cond);
+  void cneg32(Register rd, Register rn, Condition cond);
 
   // Rotate right.
   inline void ror(const Register& rd, const Register& rs, unsigned shift) {
@@ -1861,11 +1858,8 @@ class Assembler {
                                 const MemOperand& addr,
                                 LoadStorePairNonTemporalOp op);
   void LoadLiteral(const CPURegister& rt, uint64_t imm, LoadLiteralOp op);
-  void ConditionalSelect(const Register& rd,
-                         const Register& rn,
-                         const Register& rm,
-                         Condition cond,
-                         ConditionalSelectOp op);
+  void ConditionalSelect(Instr size, Register rd, Register rn, Register rm,
+                         Condition cond, ConditionalSelectOp op);
   void DataProcessing1Source(const Register& rd,
                              const Register& rn,
                              DataProcessing1SourceOp op);
