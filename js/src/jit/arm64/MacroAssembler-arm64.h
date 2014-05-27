@@ -69,46 +69,6 @@ struct ImmTag : public Imm32
     { }
 };
 
-class Operand
-{
-  public:
-    enum Kind {
-      REG,
-      FPREG,
-      MEM
-    };
-
-  private:
-    Kind kind_ : 2;
-    int32_t reg_ : 5;
-    int32_t offset_;
-
-  public:
-    explicit Operand(Register reg)
-      : kind_(REG),
-        reg_(reg.code())
-    { }
-    explicit Operand(FloatRegister fpreg)
-      : kind_(REG),
-        reg_(fpreg.code())
-    { }
-    explicit Operand(Register base, Imm32 offset)
-      : kind_(MEM),
-        reg_(base.code()),
-        offset_(offset.value)
-    { }
-    explicit Operand(Register base, int32_t offset)
-      : kind_(MEM),
-        reg_(base.code()),
-        offset_(offset)
-    { }
-    explicit Operand(const Address &addr)
-      : kind_(MEM),
-        reg_(addr.base.code()),
-        offset_(addr.offset)
-    { }
-};
-
 class MacroAssemblerARM64 : public Assembler
 {
   protected:
