@@ -150,7 +150,7 @@ REGISTER_CODE_LIST(DREG)
 #undef DREG
 
 
-Register Register::WRegFromCode(unsigned code) {
+const Register& Register::WRegFromCode(unsigned code) {
   if (code == kSPRegInternalCode) {
     return wsp;
   } else {
@@ -160,7 +160,7 @@ Register Register::WRegFromCode(unsigned code) {
 }
 
 
-Register Register::XRegFromCode(unsigned code) {
+const Register& Register::XRegFromCode(unsigned code) {
   if (code == kSPRegInternalCode) {
     return sp;
   } else {
@@ -170,37 +170,37 @@ Register Register::XRegFromCode(unsigned code) {
 }
 
 
-FloatRegister FloatRegister::SRegFromCode(unsigned code) {
+const FloatRegister& FloatRegister::SRegFromCode(unsigned code) {
   VIXL_ASSERT(code < kNumberOfFloatRegisters);
   return sregisters[code];
 }
 
 
-FloatRegister FloatRegister::DRegFromCode(unsigned code) {
+const FloatRegister& FloatRegister::DRegFromCode(unsigned code) {
   VIXL_ASSERT(code < kNumberOfFloatRegisters);
   return dregisters[code];
 }
 
 
-Register CPURegister::W() const {
+const Register& CPURegister::W() const {
   VIXL_ASSERT(IsValidRegister());
   return Register::WRegFromCode(code_);
 }
 
 
-Register CPURegister::X() const {
+const Register& CPURegister::X() const {
   VIXL_ASSERT(IsValidRegister());
   return Register::XRegFromCode(code_);
 }
 
 
-FloatRegister CPURegister::S() const {
+const FloatRegister& CPURegister::S() const {
   VIXL_ASSERT(IsValidFloatRegister());
   return FloatRegister::SRegFromCode(code_);
 }
 
 
-FloatRegister CPURegister::D() const {
+const FloatRegister& CPURegister::D() const {
   VIXL_ASSERT(IsValidFloatRegister());
   return FloatRegister::DRegFromCode(code_);
 }
@@ -432,19 +432,19 @@ int Assembler::UpdateAndGetByteOffsetTo(Label* label) {
 
 
 // Code generation.
-void Assembler::br(Register xn) {
+void Assembler::br(const Register& xn) {
   VIXL_ASSERT(xn.Is64Bits());
   Emit(BR | Rn(xn));
 }
 
 
-void Assembler::blr(Register xn) {
+void Assembler::blr(const Register& xn) {
   VIXL_ASSERT(xn.Is64Bits());
   Emit(BLR | Rn(xn));
 }
 
 
-void Assembler::ret(Register xn) {
+void Assembler::ret(const Register& xn) {
   VIXL_ASSERT(xn.Is64Bits());
   Emit(RET | Rn(xn));
 }
@@ -480,31 +480,31 @@ void Assembler::bl(Label* label) {
 }
 
 
-void Assembler::cbz(Register rt,
+void Assembler::cbz(const Register& rt,
                     int imm19) {
   Emit(SF(rt) | CBZ | ImmCmpBranch(imm19) | Rt(rt));
 }
 
 
-void Assembler::cbz(Register rt,
+void Assembler::cbz(const Register& rt,
                     Label* label) {
   cbz(rt, UpdateAndGetInstructionOffsetTo(label));
 }
 
 
-void Assembler::cbnz(Register rt,
+void Assembler::cbnz(const Register& rt,
                      int imm19) {
   Emit(SF(rt) | CBNZ | ImmCmpBranch(imm19) | Rt(rt));
 }
 
 
-void Assembler::cbnz(Register rt,
+void Assembler::cbnz(const Register& rt,
                      Label* label) {
   cbnz(rt, UpdateAndGetInstructionOffsetTo(label));
 }
 
 
-void Assembler::tbz(Register rt,
+void Assembler::tbz(const Register& rt,
                     unsigned bit_pos,
                     int imm14) {
   VIXL_ASSERT(rt.Is64Bits() || (rt.Is32Bits() && (bit_pos < kWRegSize)));
@@ -512,14 +512,14 @@ void Assembler::tbz(Register rt,
 }
 
 
-void Assembler::tbz(Register rt,
+void Assembler::tbz(const Register& rt,
                     unsigned bit_pos,
                     Label* label) {
   tbz(rt, bit_pos, UpdateAndGetInstructionOffsetTo(label));
 }
 
 
-void Assembler::tbnz(Register rt,
+void Assembler::tbnz(const Register& rt,
                      unsigned bit_pos,
                      int imm14) {
   VIXL_ASSERT(rt.Is64Bits() || (rt.Is32Bits() && (bit_pos < kWRegSize)));
@@ -527,210 +527,210 @@ void Assembler::tbnz(Register rt,
 }
 
 
-void Assembler::tbnz(Register rt,
+void Assembler::tbnz(const Register& rt,
                      unsigned bit_pos,
                      Label* label) {
   tbnz(rt, bit_pos, UpdateAndGetInstructionOffsetTo(label));
 }
 
 
-void Assembler::adr(Register rd, int imm21) {
+void Assembler::adr(const Register& rd, int imm21) {
   VIXL_ASSERT(rd.Is64Bits());
   Emit(ADR | ImmPCRelAddress(imm21) | Rd(rd));
 }
 
 
-void Assembler::adr(Register rd, Label* label) {
+void Assembler::adr(const Register& rd, Label* label) {
   adr(rd, UpdateAndGetByteOffsetTo(label));
 }
 
 
-void Assembler::add(Register rd,
-                    Register rn,
+void Assembler::add(const Register& rd,
+                    const Register& rn,
                     const Operand& operand) {
   AddSub(rd, rn, operand, LeaveFlags, ADD);
 }
 
 
-void Assembler::adds(Register rd,
-                     Register rn,
+void Assembler::adds(const Register& rd,
+                     const Register& rn,
                      const Operand& operand) {
   AddSub(rd, rn, operand, SetFlags, ADD);
 }
 
 
-void Assembler::cmn(Register rn,
+void Assembler::cmn(const Register& rn,
                     const Operand& operand) {
   Register zr = AppropriateZeroRegFor(rn);
   adds(zr, rn, operand);
 }
 
 
-void Assembler::sub(Register rd,
-                    Register rn,
+void Assembler::sub(const Register& rd,
+                    const Register& rn,
                     const Operand& operand) {
   AddSub(rd, rn, operand, LeaveFlags, SUB);
 }
 
 
-void Assembler::subs(Register rd,
-                     Register rn,
+void Assembler::subs(const Register& rd,
+                     const Register& rn,
                      const Operand& operand) {
   AddSub(rd, rn, operand, SetFlags, SUB);
 }
 
 
-void Assembler::cmp(Register rn, const Operand& operand) {
+void Assembler::cmp(const Register& rn, const Operand& operand) {
   Register zr = AppropriateZeroRegFor(rn);
   subs(zr, rn, operand);
 }
 
 
-void Assembler::neg(Register rd, const Operand& operand) {
+void Assembler::neg(const Register& rd, const Operand& operand) {
   Register zr = AppropriateZeroRegFor(rd);
   sub(rd, zr, operand);
 }
 
 
-void Assembler::negs(Register rd, const Operand& operand) {
+void Assembler::negs(const Register& rd, const Operand& operand) {
   Register zr = AppropriateZeroRegFor(rd);
   subs(rd, zr, operand);
 }
 
 
-void Assembler::adc(Register rd,
-                    Register rn,
+void Assembler::adc(const Register& rd,
+                    const Register& rn,
                     const Operand& operand) {
   AddSubWithCarry(rd, rn, operand, LeaveFlags, ADC);
 }
 
 
-void Assembler::adcs(Register rd,
-                     Register rn,
+void Assembler::adcs(const Register& rd,
+                     const Register& rn,
                      const Operand& operand) {
   AddSubWithCarry(rd, rn, operand, SetFlags, ADC);
 }
 
 
-void Assembler::sbc(Register rd,
-                    Register rn,
+void Assembler::sbc(const Register& rd,
+                    const Register& rn,
                     const Operand& operand) {
   AddSubWithCarry(rd, rn, operand, LeaveFlags, SBC);
 }
 
 
-void Assembler::sbcs(Register rd,
-                     Register rn,
+void Assembler::sbcs(const Register& rd,
+                     const Register& rn,
                      const Operand& operand) {
   AddSubWithCarry(rd, rn, operand, SetFlags, SBC);
 }
 
 
-void Assembler::ngc(Register rd, const Operand& operand) {
+void Assembler::ngc(const Register& rd, const Operand& operand) {
   Register zr = AppropriateZeroRegFor(rd);
   sbc(rd, zr, operand);
 }
 
 
-void Assembler::ngcs(Register rd, const Operand& operand) {
+void Assembler::ngcs(const Register& rd, const Operand& operand) {
   Register zr = AppropriateZeroRegFor(rd);
   sbcs(rd, zr, operand);
 }
 
 
 // Logical instructions.
-void Assembler::and_(Register rd,
-                     Register rn,
+void Assembler::and_(const Register& rd,
+                     const Register& rn,
                      const Operand& operand) {
   Logical(rd, rn, operand, AND);
 }
 
 
-void Assembler::ands(Register rd,
-                     Register rn,
+void Assembler::ands(const Register& rd,
+                     const Register& rn,
                      const Operand& operand) {
   Logical(rd, rn, operand, ANDS);
 }
 
 
-void Assembler::tst(Register rn,
+void Assembler::tst(const Register& rn,
                     const Operand& operand) {
   ands(AppropriateZeroRegFor(rn), rn, operand);
 }
 
 
-void Assembler::bic(Register rd,
-                    Register rn,
+void Assembler::bic(const Register& rd,
+                    const Register& rn,
                     const Operand& operand) {
   Logical(rd, rn, operand, BIC);
 }
 
 
-void Assembler::bics(Register rd,
-                     Register rn,
+void Assembler::bics(const Register& rd,
+                     const Register& rn,
                      const Operand& operand) {
   Logical(rd, rn, operand, BICS);
 }
 
 
-void Assembler::orr(Register rd,
-                    Register rn,
+void Assembler::orr(const Register& rd,
+                    const Register& rn,
                     const Operand& operand) {
   Logical(rd, rn, operand, ORR);
 }
 
 
-void Assembler::orn(Register rd,
-                    Register rn,
+void Assembler::orn(const Register& rd,
+                    const Register& rn,
                     const Operand& operand) {
   Logical(rd, rn, operand, ORN);
 }
 
 
-void Assembler::eor(Register rd,
-                    Register rn,
+void Assembler::eor(const Register& rd,
+                    const Register& rn,
                     const Operand& operand) {
   Logical(rd, rn, operand, EOR);
 }
 
 
-void Assembler::eon(Register rd,
-                    Register rn,
+void Assembler::eon(const Register& rd,
+                    const Register& rn,
                     const Operand& operand) {
   Logical(rd, rn, operand, EON);
 }
 
 
-void Assembler::lslv(Register rd,
-                     Register rn,
-                     Register rm) {
+void Assembler::lslv(const Register& rd,
+                     const Register& rn,
+                     const Register& rm) {
   VIXL_ASSERT(rd.size() == rn.size());
   VIXL_ASSERT(rd.size() == rm.size());
   Emit(SF(rd) | LSLV | Rm(rm) | Rn(rn) | Rd(rd));
 }
 
 
-void Assembler::lsrv(Register rd,
-                     Register rn,
-                     Register rm) {
+void Assembler::lsrv(const Register& rd,
+                     const Register& rn,
+                     const Register& rm) {
   VIXL_ASSERT(rd.size() == rn.size());
   VIXL_ASSERT(rd.size() == rm.size());
   Emit(SF(rd) | LSRV | Rm(rm) | Rn(rn) | Rd(rd));
 }
 
 
-void Assembler::asrv(Register rd,
-                     Register rn,
-                     Register rm) {
+void Assembler::asrv(const Register& rd,
+                     const Register& rn,
+                     const Register& rm) {
   VIXL_ASSERT(rd.size() == rn.size());
   VIXL_ASSERT(rd.size() == rm.size());
   Emit(SF(rd) | ASRV | Rm(rm) | Rn(rn) | Rd(rd));
 }
 
 
-void Assembler::rorv(Register rd,
-                     Register rn,
-                     Register rm) {
+void Assembler::rorv(const Register& rd,
+                     const Register& rn,
+                     const Register& rm) {
   VIXL_ASSERT(rd.size() == rn.size());
   VIXL_ASSERT(rd.size() == rm.size());
   Emit(SF(rd) | RORV | Rm(rm) | Rn(rn) | Rd(rd));
@@ -738,8 +738,8 @@ void Assembler::rorv(Register rd,
 
 
 // Bitfield operations.
-void Assembler::bfm(Register rd,
-                     Register rn,
+void Assembler::bfm(const Register& rd,
+                     const Register& rn,
                      unsigned immr,
                      unsigned imms) {
   VIXL_ASSERT(rd.size() == rn.size());
@@ -749,8 +749,8 @@ void Assembler::bfm(Register rd,
 }
 
 
-void Assembler::sbfm(Register rd,
-                     Register rn,
+void Assembler::sbfm(const Register& rd,
+                     const Register& rn,
                      unsigned immr,
                      unsigned imms) {
   VIXL_ASSERT(rd.Is64Bits() || rn.Is32Bits());
@@ -760,8 +760,8 @@ void Assembler::sbfm(Register rd,
 }
 
 
-void Assembler::ubfm(Register rd,
-                     Register rn,
+void Assembler::ubfm(const Register& rd,
+                     const Register& rn,
                      unsigned immr,
                      unsigned imms) {
   VIXL_ASSERT(rd.size() == rn.size());
@@ -771,9 +771,9 @@ void Assembler::ubfm(Register rd,
 }
 
 
-void Assembler::extr(Register rd,
-                     Register rn,
-                     Register rm,
+void Assembler::extr(const Register& rd,
+                     const Register& rn,
+                     const Register& rm,
                      unsigned lsb) {
   VIXL_ASSERT(rd.size() == rn.size());
   VIXL_ASSERT(rd.size() == rm.size());
@@ -872,7 +872,7 @@ void Assembler::ConditionalSelect(Instr size, Register rd, Register rn, Register
 }
 
 
-void Assembler::ccmn(Register rn,
+void Assembler::ccmn(const Register& rn,
                      const Operand& operand,
                      StatusFlags nzcv,
                      Condition cond) {
@@ -880,7 +880,7 @@ void Assembler::ccmn(Register rn,
 }
 
 
-void Assembler::ccmp(Register rn,
+void Assembler::ccmp(const Register& rn,
                      const Operand& operand,
                      StatusFlags nzcv,
                      Condition cond) {
@@ -888,154 +888,154 @@ void Assembler::ccmp(Register rn,
 }
 
 
-void Assembler::DataProcessing3Source(Register rd,
-                     Register rn,
-                     Register rm,
-                     Register ra,
+void Assembler::DataProcessing3Source(const Register& rd,
+                     const Register& rn,
+                     const Register& rm,
+                     const Register& ra,
                      DataProcessing3SourceOp op) {
   Emit(SF(rd) | op | Rm(rm) | Ra(ra) | Rn(rn) | Rd(rd));
 }
 
 
-void Assembler::mul(Register rd,
-                    Register rn,
-                    Register rm) {
+void Assembler::mul(const Register& rd,
+                    const Register& rn,
+                    const Register& rm) {
   VIXL_ASSERT(AreSameSizeAndType(rd, rn, rm));
   DataProcessing3Source(rd, rn, rm, AppropriateZeroRegFor(rd), MADD);
 }
 
 
-void Assembler::madd(Register rd,
-                     Register rn,
-                     Register rm,
-                     Register ra) {
+void Assembler::madd(const Register& rd,
+                     const Register& rn,
+                     const Register& rm,
+                     const Register& ra) {
   DataProcessing3Source(rd, rn, rm, ra, MADD);
 }
 
 
-void Assembler::mneg(Register rd,
-                     Register rn,
-                     Register rm) {
+void Assembler::mneg(const Register& rd,
+                     const Register& rn,
+                     const Register& rm) {
   VIXL_ASSERT(AreSameSizeAndType(rd, rn, rm));
   DataProcessing3Source(rd, rn, rm, AppropriateZeroRegFor(rd), MSUB);
 }
 
 
-void Assembler::msub(Register rd,
-                     Register rn,
-                     Register rm,
-                     Register ra) {
+void Assembler::msub(const Register& rd,
+                     const Register& rn,
+                     const Register& rm,
+                     const Register& ra) {
   DataProcessing3Source(rd, rn, rm, ra, MSUB);
 }
 
 
-void Assembler::umaddl(Register rd,
-                       Register rn,
-                       Register rm,
-                       Register ra) {
+void Assembler::umaddl(const Register& rd,
+                       const Register& rn,
+                       const Register& rm,
+                       const Register& ra) {
   VIXL_ASSERT(rd.Is64Bits() && ra.Is64Bits());
   VIXL_ASSERT(rn.Is32Bits() && rm.Is32Bits());
   DataProcessing3Source(rd, rn, rm, ra, UMADDL_x);
 }
 
 
-void Assembler::smaddl(Register rd,
-                       Register rn,
-                       Register rm,
-                       Register ra) {
+void Assembler::smaddl(const Register& rd,
+                       const Register& rn,
+                       const Register& rm,
+                       const Register& ra) {
   VIXL_ASSERT(rd.Is64Bits() && ra.Is64Bits());
   VIXL_ASSERT(rn.Is32Bits() && rm.Is32Bits());
   DataProcessing3Source(rd, rn, rm, ra, SMADDL_x);
 }
 
 
-void Assembler::umsubl(Register rd,
-                       Register rn,
-                       Register rm,
-                       Register ra) {
+void Assembler::umsubl(const Register& rd,
+                       const Register& rn,
+                       const Register& rm,
+                       const Register& ra) {
   VIXL_ASSERT(rd.Is64Bits() && ra.Is64Bits());
   VIXL_ASSERT(rn.Is32Bits() && rm.Is32Bits());
   DataProcessing3Source(rd, rn, rm, ra, UMSUBL_x);
 }
 
 
-void Assembler::smsubl(Register rd,
-                       Register rn,
-                       Register rm,
-                       Register ra) {
+void Assembler::smsubl(const Register& rd,
+                       const Register& rn,
+                       const Register& rm,
+                       const Register& ra) {
   VIXL_ASSERT(rd.Is64Bits() && ra.Is64Bits());
   VIXL_ASSERT(rn.Is32Bits() && rm.Is32Bits());
   DataProcessing3Source(rd, rn, rm, ra, SMSUBL_x);
 }
 
 
-void Assembler::smull(Register rd,
-                      Register rn,
-                      Register rm) {
+void Assembler::smull(const Register& rd,
+                      const Register& rn,
+                      const Register& rm) {
   VIXL_ASSERT(rd.Is64Bits());
   VIXL_ASSERT(rn.Is32Bits() && rm.Is32Bits());
   DataProcessing3Source(rd, rn, rm, xzr, SMADDL_x);
 }
 
 
-void Assembler::sdiv(Register rd,
-                     Register rn,
-                     Register rm) {
+void Assembler::sdiv(const Register& rd,
+                     const Register& rn,
+                     const Register& rm) {
   VIXL_ASSERT(rd.size() == rn.size());
   VIXL_ASSERT(rd.size() == rm.size());
   Emit(SF(rd) | SDIV | Rm(rm) | Rn(rn) | Rd(rd));
 }
 
 
-void Assembler::smulh(Register xd,
-                      Register xn,
-                      Register xm) {
+void Assembler::smulh(const Register& xd,
+                      const Register& xn,
+                      const Register& xm) {
   VIXL_ASSERT(xd.Is64Bits() && xn.Is64Bits() && xm.Is64Bits());
   DataProcessing3Source(xd, xn, xm, xzr, SMULH_x);
 }
 
-void Assembler::udiv(Register rd,
-                     Register rn,
-                     Register rm) {
+void Assembler::udiv(const Register& rd,
+                     const Register& rn,
+                     const Register& rm) {
   VIXL_ASSERT(rd.size() == rn.size());
   VIXL_ASSERT(rd.size() == rm.size());
   Emit(SF(rd) | UDIV | Rm(rm) | Rn(rn) | Rd(rd));
 }
 
 
-void Assembler::rbit(Register rd,
-                     Register rn) {
+void Assembler::rbit(const Register& rd,
+                     const Register& rn) {
   DataProcessing1Source(rd, rn, RBIT);
 }
 
 
-void Assembler::rev16(Register rd,
-                      Register rn) {
+void Assembler::rev16(const Register& rd,
+                      const Register& rn) {
   DataProcessing1Source(rd, rn, REV16);
 }
 
 
-void Assembler::rev32(Register rd,
-                      Register rn) {
+void Assembler::rev32(const Register& rd,
+                      const Register& rn) {
   VIXL_ASSERT(rd.Is64Bits());
   DataProcessing1Source(rd, rn, REV);
 }
 
 
-void Assembler::rev(Register rd,
-                    Register rn) {
+void Assembler::rev(const Register& rd,
+                    const Register& rn) {
   DataProcessing1Source(rd, rn, rd.Is64Bits() ? REV_x : REV_w);
 }
 
 
-void Assembler::clz(Register rd,
-                    Register rn) {
+void Assembler::clz(const Register& rd,
+                    const Register& rn) {
   DataProcessing1Source(rd, rn, CLZ);
 }
 
 
-void Assembler::cls(Register rd,
-                    Register rn) {
+void Assembler::cls(const Register& rd,
+                    const Register& rn) {
   DataProcessing1Source(rd, rn, CLS);
 }
 
@@ -1054,8 +1054,8 @@ void Assembler::stp(const CPURegister& rt,
 }
 
 
-void Assembler::ldpsw(Register rt,
-                      Register rt2,
+void Assembler::ldpsw(const Register& rt,
+                      const Register& rt2,
                       const MemOperand& src) {
   VIXL_ASSERT(rt.Is64Bits());
   LoadStorePair(rt, rt2, src, LDPSW_x);
@@ -1121,32 +1121,32 @@ void Assembler::LoadStorePairNonTemporal(const CPURegister& rt,
 
 
 // Memory instructions.
-void Assembler::ldrb(Register rt, const MemOperand& src) {
+void Assembler::ldrb(const Register& rt, const MemOperand& src) {
   LoadStore(rt, src, LDRB_w);
 }
 
 
-void Assembler::strb(Register rt, const MemOperand& dst) {
+void Assembler::strb(const Register& rt, const MemOperand& dst) {
   LoadStore(rt, dst, STRB_w);
 }
 
 
-void Assembler::ldrsb(Register rt, const MemOperand& src) {
+void Assembler::ldrsb(const Register& rt, const MemOperand& src) {
   LoadStore(rt, src, rt.Is64Bits() ? LDRSB_x : LDRSB_w);
 }
 
 
-void Assembler::ldrh(Register rt, const MemOperand& src) {
+void Assembler::ldrh(const Register& rt, const MemOperand& src) {
   LoadStore(rt, src, LDRH_w);
 }
 
 
-void Assembler::strh(Register rt, const MemOperand& dst) {
+void Assembler::strh(const Register& rt, const MemOperand& dst) {
   LoadStore(rt, dst, STRH_w);
 }
 
 
-void Assembler::ldrsh(Register rt, const MemOperand& src) {
+void Assembler::ldrsh(const Register& rt, const MemOperand& src) {
   LoadStore(rt, src, rt.Is64Bits() ? LDRSH_x : LDRSH_w);
 }
 
@@ -1161,30 +1161,30 @@ void Assembler::str(const CPURegister& rt, const MemOperand& src) {
 }
 
 
-void Assembler::ldrsw(Register rt, const MemOperand& src) {
+void Assembler::ldrsw(const Register& rt, const MemOperand& src) {
   VIXL_ASSERT(rt.Is64Bits());
   LoadStore(rt, src, LDRSW_x);
 }
 
 
-void Assembler::ldr(Register rt, uint64_t imm) {
+void Assembler::ldr(const Register& rt, uint64_t imm) {
   LoadLiteral(rt, imm, rt.Is64Bits() ? LDR_x_lit : LDR_w_lit);
 }
 
 
-void Assembler::ldr(FloatRegister ft, double imm) {
+void Assembler::ldr(const FloatRegister& ft, double imm) {
   VIXL_ASSERT(ft.Is64Bits());
   LoadLiteral(ft, double_to_rawbits(imm), LDR_d_lit);
 }
 
 
-void Assembler::ldr(FloatRegister ft, float imm) {
+void Assembler::ldr(const FloatRegister& ft, float imm) {
   VIXL_ASSERT(ft.Is32Bits());
   LoadLiteral(ft, float_to_rawbits(imm), LDR_s_lit);
 }
 
 
-void Assembler::mov(Register rd, Register rm) {
+void Assembler::mov(const Register& rd, const Register& rm) {
   // Moves involving the stack pointer are encoded as add immediate with
   // second operand of zero. Otherwise, orr with first operand zr is
   // used.
@@ -1196,18 +1196,18 @@ void Assembler::mov(Register rd, Register rm) {
 }
 
 
-void Assembler::mvn(Register rd, const Operand& operand) {
+void Assembler::mvn(const Register& rd, const Operand& operand) {
   orn(rd, AppropriateZeroRegFor(rd), operand);
 }
 
 
-void Assembler::mrs(Register rt, SystemRegister sysreg) {
+void Assembler::mrs(const Register& rt, SystemRegister sysreg) {
   VIXL_ASSERT(rt.Is64Bits());
   Emit(MRS | ImmSystemRegister(sysreg) | Rt(rt));
 }
 
 
-void Assembler::msr(SystemRegister sysreg, Register rt) {
+void Assembler::msr(SystemRegister sysreg, const Register& rt) {
   VIXL_ASSERT(rt.Is64Bits());
   Emit(MSR | Rt(rt) | ImmSystemRegister(sysreg));
 }
@@ -1233,185 +1233,185 @@ void Assembler::isb() {
 }
 
 
-void Assembler::fmov(FloatRegister fd, double imm) {
+void Assembler::fmov(const FloatRegister& fd, double imm) {
   VIXL_ASSERT(fd.Is64Bits());
   VIXL_ASSERT(IsImmFP64(imm));
   Emit(FMOV_d_imm | Rd(fd) | ImmFP64(imm));
 }
 
 
-void Assembler::fmov(FloatRegister fd, float imm) {
+void Assembler::fmov(const FloatRegister& fd, float imm) {
   VIXL_ASSERT(fd.Is32Bits());
   VIXL_ASSERT(IsImmFP32(imm));
   Emit(FMOV_s_imm | Rd(fd) | ImmFP32(imm));
 }
 
 
-void Assembler::fmov(Register rd, FloatRegister fn) {
+void Assembler::fmov(const Register& rd, const FloatRegister& fn) {
   VIXL_ASSERT(rd.size() == fn.size());
   FPIntegerConvertOp op = rd.Is32Bits() ? FMOV_ws : FMOV_xd;
   Emit(op | Rd(rd) | Rn(fn));
 }
 
 
-void Assembler::fmov(FloatRegister fd, Register rn) {
+void Assembler::fmov(const FloatRegister& fd, const Register& rn) {
   VIXL_ASSERT(fd.size() == rn.size());
   FPIntegerConvertOp op = fd.Is32Bits() ? FMOV_sw : FMOV_dx;
   Emit(op | Rd(fd) | Rn(rn));
 }
 
 
-void Assembler::fmov(FloatRegister fd, FloatRegister fn) {
+void Assembler::fmov(const FloatRegister& fd, const FloatRegister& fn) {
   VIXL_ASSERT(fd.size() == fn.size());
   Emit(FPType(fd) | FMOV | Rd(fd) | Rn(fn));
 }
 
 
-void Assembler::fadd(FloatRegister fd,
-                     FloatRegister fn,
-                     FloatRegister fm) {
+void Assembler::fadd(const FloatRegister& fd,
+                     const FloatRegister& fn,
+                     const FloatRegister& fm) {
   FPDataProcessing2Source(fd, fn, fm, FADD);
 }
 
 
-void Assembler::fsub(FloatRegister fd,
-                     FloatRegister fn,
-                     FloatRegister fm) {
+void Assembler::fsub(const FloatRegister& fd,
+                     const FloatRegister& fn,
+                     const FloatRegister& fm) {
   FPDataProcessing2Source(fd, fn, fm, FSUB);
 }
 
 
-void Assembler::fmul(FloatRegister fd,
-                     FloatRegister fn,
-                     FloatRegister fm) {
+void Assembler::fmul(const FloatRegister& fd,
+                     const FloatRegister& fn,
+                     const FloatRegister& fm) {
   FPDataProcessing2Source(fd, fn, fm, FMUL);
 }
 
 
-void Assembler::fmadd(FloatRegister fd,
-                      FloatRegister fn,
-                      FloatRegister fm,
-                      FloatRegister fa) {
+void Assembler::fmadd(const FloatRegister& fd,
+                      const FloatRegister& fn,
+                      const FloatRegister& fm,
+                      const FloatRegister& fa) {
   FPDataProcessing3Source(fd, fn, fm, fa, fd.Is32Bits() ? FMADD_s : FMADD_d);
 }
 
 
-void Assembler::fmsub(FloatRegister fd,
-                      FloatRegister fn,
-                      FloatRegister fm,
-                      FloatRegister fa) {
+void Assembler::fmsub(const FloatRegister& fd,
+                      const FloatRegister& fn,
+                      const FloatRegister& fm,
+                      const FloatRegister& fa) {
   FPDataProcessing3Source(fd, fn, fm, fa, fd.Is32Bits() ? FMSUB_s : FMSUB_d);
 }
 
 
-void Assembler::fnmadd(FloatRegister fd,
-                       FloatRegister fn,
-                       FloatRegister fm,
-                       FloatRegister fa) {
+void Assembler::fnmadd(const FloatRegister& fd,
+                       const FloatRegister& fn,
+                       const FloatRegister& fm,
+                       const FloatRegister& fa) {
   FPDataProcessing3Source(fd, fn, fm, fa, fd.Is32Bits() ? FNMADD_s : FNMADD_d);
 }
 
 
-void Assembler::fnmsub(FloatRegister fd,
-                       FloatRegister fn,
-                       FloatRegister fm,
-                       FloatRegister fa) {
+void Assembler::fnmsub(const FloatRegister& fd,
+                       const FloatRegister& fn,
+                       const FloatRegister& fm,
+                       const FloatRegister& fa) {
   FPDataProcessing3Source(fd, fn, fm, fa, fd.Is32Bits() ? FNMSUB_s : FNMSUB_d);
 }
 
 
-void Assembler::fdiv(FloatRegister fd,
-                     FloatRegister fn,
-                     FloatRegister fm) {
+void Assembler::fdiv(const FloatRegister& fd,
+                     const FloatRegister& fn,
+                     const FloatRegister& fm) {
   FPDataProcessing2Source(fd, fn, fm, FDIV);
 }
 
 
-void Assembler::fmax(FloatRegister fd,
-                     FloatRegister fn,
-                     FloatRegister fm) {
+void Assembler::fmax(const FloatRegister& fd,
+                     const FloatRegister& fn,
+                     const FloatRegister& fm) {
   FPDataProcessing2Source(fd, fn, fm, FMAX);
 }
 
 
-void Assembler::fmaxnm(FloatRegister fd,
-                       FloatRegister fn,
-                       FloatRegister fm) {
+void Assembler::fmaxnm(const FloatRegister& fd,
+                       const FloatRegister& fn,
+                       const FloatRegister& fm) {
   FPDataProcessing2Source(fd, fn, fm, FMAXNM);
 }
 
 
-void Assembler::fmin(FloatRegister fd,
-                     FloatRegister fn,
-                     FloatRegister fm) {
+void Assembler::fmin(const FloatRegister& fd,
+                     const FloatRegister& fn,
+                     const FloatRegister& fm) {
   FPDataProcessing2Source(fd, fn, fm, FMIN);
 }
 
 
-void Assembler::fminnm(FloatRegister fd,
-                       FloatRegister fn,
-                       FloatRegister fm) {
+void Assembler::fminnm(const FloatRegister& fd,
+                       const FloatRegister& fn,
+                       const FloatRegister& fm) {
   FPDataProcessing2Source(fd, fn, fm, FMINNM);
 }
 
 
-void Assembler::fabs(FloatRegister fd,
-                     FloatRegister fn) {
+void Assembler::fabs(const FloatRegister& fd,
+                     const FloatRegister& fn) {
   VIXL_ASSERT(fd.SizeInBits() == fn.SizeInBits());
   FPDataProcessing1Source(fd, fn, FABS);
 }
 
 
-void Assembler::fneg(FloatRegister fd,
-                     FloatRegister fn) {
+void Assembler::fneg(const FloatRegister& fd,
+                     const FloatRegister& fn) {
   VIXL_ASSERT(fd.SizeInBits() == fn.SizeInBits());
   FPDataProcessing1Source(fd, fn, FNEG);
 }
 
 
-void Assembler::fsqrt(FloatRegister fd,
-                      FloatRegister fn) {
+void Assembler::fsqrt(const FloatRegister& fd,
+                      const FloatRegister& fn) {
   VIXL_ASSERT(fd.SizeInBits() == fn.SizeInBits());
   FPDataProcessing1Source(fd, fn, FSQRT);
 }
 
 
-void Assembler::frinta(FloatRegister fd,
-                       FloatRegister fn) {
+void Assembler::frinta(const FloatRegister& fd,
+                       const FloatRegister& fn) {
   VIXL_ASSERT(fd.SizeInBits() == fn.SizeInBits());
   FPDataProcessing1Source(fd, fn, FRINTA);
 }
 
 
-void Assembler::frintm(FloatRegister fd,
-                       FloatRegister fn) {
+void Assembler::frintm(const FloatRegister& fd,
+                       const FloatRegister& fn) {
   VIXL_ASSERT(fd.SizeInBits() == fn.SizeInBits());
   FPDataProcessing1Source(fd, fn, FRINTM);
 }
 
 
-void Assembler::frintn(FloatRegister fd,
-                       FloatRegister fn) {
+void Assembler::frintn(const FloatRegister& fd,
+                       const FloatRegister& fn) {
   VIXL_ASSERT(fd.SizeInBits() == fn.SizeInBits());
   FPDataProcessing1Source(fd, fn, FRINTN);
 }
 
 
-void Assembler::frintz(FloatRegister fd,
-                       FloatRegister fn) {
+void Assembler::frintz(const FloatRegister& fd,
+                       const FloatRegister& fn) {
   VIXL_ASSERT(fd.SizeInBits() == fn.SizeInBits());
   FPDataProcessing1Source(fd, fn, FRINTZ);
 }
 
 
-void Assembler::fcmp(FloatRegister fn,
-                     FloatRegister fm) {
+void Assembler::fcmp(const FloatRegister& fn,
+                     const FloatRegister& fm) {
   VIXL_ASSERT(fn.size() == fm.size());
   Emit(FPType(fn) | FCMP | Rm(fm) | Rn(fn));
 }
 
 
-void Assembler::fcmp(FloatRegister fn,
+void Assembler::fcmp(const FloatRegister& fn,
                      double value) {
   USEARG(value);
   // Although the fcmp instruction can strictly only take an immediate value of
@@ -1422,8 +1422,8 @@ void Assembler::fcmp(FloatRegister fn,
 }
 
 
-void Assembler::fccmp(FloatRegister fn,
-                      FloatRegister fm,
+void Assembler::fccmp(const FloatRegister& fn,
+                      const FloatRegister& fm,
                       StatusFlags nzcv,
                       Condition cond) {
   VIXL_ASSERT(fn.size() == fm.size());
@@ -1431,9 +1431,9 @@ void Assembler::fccmp(FloatRegister fn,
 }
 
 
-void Assembler::fcsel(FloatRegister fd,
-                      FloatRegister fn,
-                      FloatRegister fm,
+void Assembler::fcsel(const FloatRegister& fd,
+                      const FloatRegister& fn,
+                      const FloatRegister& fm,
                       Condition cond) {
   VIXL_ASSERT(fd.size() == fn.size());
   VIXL_ASSERT(fd.size() == fm.size());
@@ -1441,15 +1441,15 @@ void Assembler::fcsel(FloatRegister fd,
 }
 
 
-void Assembler::FPConvertToInt(Register rd,
-                               FloatRegister fn,
+void Assembler::FPConvertToInt(const Register& rd,
+                               const FloatRegister& fn,
                                FPIntegerConvertOp op) {
   Emit(SF(rd) | FPType(fn) | op | Rn(fn) | Rd(rd));
 }
 
 
-void Assembler::fcvt(FloatRegister fd,
-                     FloatRegister fn) {
+void Assembler::fcvt(const FloatRegister& fd,
+                     const FloatRegister& fn) {
   if (fd.Is64Bits()) {
     // Convert float to double.
     VIXL_ASSERT(fn.Is32Bits());
@@ -1462,48 +1462,48 @@ void Assembler::fcvt(FloatRegister fd,
 }
 
 
-void Assembler::fcvtau(Register rd, FloatRegister fn) {
+void Assembler::fcvtau(const Register& rd, const FloatRegister& fn) {
   FPConvertToInt(rd, fn, FCVTAU);
 }
 
 
-void Assembler::fcvtas(Register rd, FloatRegister fn) {
+void Assembler::fcvtas(const Register& rd, const FloatRegister& fn) {
   FPConvertToInt(rd, fn, FCVTAS);
 }
 
 
-void Assembler::fcvtmu(Register rd, FloatRegister fn) {
+void Assembler::fcvtmu(const Register& rd, const FloatRegister& fn) {
   FPConvertToInt(rd, fn, FCVTMU);
 }
 
 
-void Assembler::fcvtms(Register rd, FloatRegister fn) {
+void Assembler::fcvtms(const Register& rd, const FloatRegister& fn) {
   FPConvertToInt(rd, fn, FCVTMS);
 }
 
 
-void Assembler::fcvtnu(Register rd, FloatRegister fn) {
+void Assembler::fcvtnu(const Register& rd, const FloatRegister& fn) {
   FPConvertToInt(rd, fn, FCVTNU);
 }
 
 
-void Assembler::fcvtns(Register rd, FloatRegister fn) {
+void Assembler::fcvtns(const Register& rd, const FloatRegister& fn) {
   FPConvertToInt(rd, fn, FCVTNS);
 }
 
 
-void Assembler::fcvtzu(Register rd, FloatRegister fn) {
+void Assembler::fcvtzu(const Register& rd, const FloatRegister& fn) {
   FPConvertToInt(rd, fn, FCVTZU);
 }
 
 
-void Assembler::fcvtzs(Register rd, FloatRegister fn) {
+void Assembler::fcvtzs(const Register& rd, const FloatRegister& fn) {
   FPConvertToInt(rd, fn, FCVTZS);
 }
 
 
-void Assembler::scvtf(FloatRegister fd,
-                      Register rn,
+void Assembler::scvtf(const FloatRegister& fd,
+                      const Register& rn,
                       unsigned fbits) {
   if (fbits == 0) {
     Emit(SF(rn) | FPType(fd) | SCVTF | Rn(rn) | Rd(fd));
@@ -1514,8 +1514,8 @@ void Assembler::scvtf(FloatRegister fd,
 }
 
 
-void Assembler::ucvtf(FloatRegister fd,
-                      Register rn,
+void Assembler::ucvtf(const FloatRegister& fd,
+                      const Register& rn,
                       unsigned fbits) {
   if (fbits == 0) {
     Emit(SF(rn) | FPType(fd) | UCVTF | Rn(rn) | Rd(fd));
@@ -1562,7 +1562,7 @@ Instr Assembler::ImmFP64(double imm) {
 
 
 // Code generation helpers.
-void Assembler::MoveWide(Register rd,
+void Assembler::MoveWide(const Register& rd,
                          uint64_t imm,
                          int shift,
                          MoveWideImmediateOp mov_op) {
@@ -1599,8 +1599,8 @@ void Assembler::MoveWide(Register rd,
 }
 
 
-void Assembler::AddSub(Register rd,
-                       Register rn,
+void Assembler::AddSub(const Register& rd,
+                       const Register& rn,
                        const Operand& operand,
                        FlagsUpdate S,
                        AddSubOp op) {
@@ -1636,8 +1636,8 @@ void Assembler::AddSub(Register rd,
 }
 
 
-void Assembler::AddSubWithCarry(Register rd,
-                                Register rn,
+void Assembler::AddSubWithCarry(const Register& rd,
+                                const Register& rn,
                                 const Operand& operand,
                                 FlagsUpdate S,
                                 AddSubWithCarryOp op) {
@@ -1660,8 +1660,8 @@ void Assembler::brk(int code) {
 }
 
 
-void Assembler::Logical(Register rd,
-                        Register rn,
+void Assembler::Logical(const Register& rd,
+                        const Register& rn,
                         const Operand& operand,
                         LogicalOp op) {
   VIXL_ASSERT(rd.size() == rn.size());
@@ -1696,8 +1696,8 @@ void Assembler::Logical(Register rd,
 }
 
 
-void Assembler::LogicalImmediate(Register rd,
-                                 Register rn,
+void Assembler::LogicalImmediate(const Register& rd,
+                                 const Register& rn,
                                  unsigned n,
                                  unsigned imm_s,
                                  unsigned imm_r,
@@ -1710,7 +1710,7 @@ void Assembler::LogicalImmediate(Register rd,
 }
 
 
-void Assembler::ConditionalCompare(Register rn,
+void Assembler::ConditionalCompare(const Register& rn,
                                    const Operand& operand,
                                    StatusFlags nzcv,
                                    Condition cond,
@@ -1728,24 +1728,24 @@ void Assembler::ConditionalCompare(Register rn,
 }
 
 
-void Assembler::DataProcessing1Source(Register rd,
-                                      Register rn,
+void Assembler::DataProcessing1Source(const Register& rd,
+                                      const Register& rn,
                                       DataProcessing1SourceOp op) {
   VIXL_ASSERT(rd.size() == rn.size());
   Emit(SF(rn) | op | Rn(rn) | Rd(rd));
 }
 
 
-void Assembler::FPDataProcessing1Source(FloatRegister fd,
-                                        FloatRegister fn,
+void Assembler::FPDataProcessing1Source(const FloatRegister& fd,
+                                        const FloatRegister& fn,
                                         FPDataProcessing1SourceOp op) {
   Emit(FPType(fn) | op | Rn(fn) | Rd(fd));
 }
 
 
-void Assembler::FPDataProcessing2Source(FloatRegister fd,
-                                        FloatRegister fn,
-                                        FloatRegister fm,
+void Assembler::FPDataProcessing2Source(const FloatRegister& fd,
+                                        const FloatRegister& fn,
+                                        const FloatRegister& fm,
                                         FPDataProcessing2SourceOp op) {
   VIXL_ASSERT(fd.size() == fn.size());
   VIXL_ASSERT(fd.size() == fm.size());
@@ -1753,18 +1753,18 @@ void Assembler::FPDataProcessing2Source(FloatRegister fd,
 }
 
 
-void Assembler::FPDataProcessing3Source(FloatRegister fd,
-                                        FloatRegister fn,
-                                        FloatRegister fm,
-                                        FloatRegister fa,
+void Assembler::FPDataProcessing3Source(const FloatRegister& fd,
+                                        const FloatRegister& fn,
+                                        const FloatRegister& fm,
+                                        const FloatRegister& fa,
                                         FPDataProcessing3SourceOp op) {
   VIXL_ASSERT(AreSameSizeAndType(fd, fn, fm, fa));
   Emit(FPType(fd) | op | Rm(fm) | Rn(fn) | Rd(fd) | Ra(fa));
 }
 
 
-void Assembler::EmitShift(Register rd,
-                          Register rn,
+void Assembler::EmitShift(const Register& rd,
+                          const Register& rn,
                           Shift shift,
                           unsigned shift_amount) {
   switch (shift) {
@@ -1786,8 +1786,8 @@ void Assembler::EmitShift(Register rd,
 }
 
 
-void Assembler::EmitExtendShift(Register rd,
-                                Register rn,
+void Assembler::EmitExtendShift(const Register& rd,
+                                const Register& rn,
                                 Extend extend,
                                 unsigned left_shift) {
   VIXL_ASSERT(rd.size() >= rn.size());
@@ -1823,8 +1823,8 @@ void Assembler::EmitExtendShift(Register rd,
 }
 
 
-void Assembler::DataProcShiftedRegister(Register rd,
-                                        Register rn,
+void Assembler::DataProcShiftedRegister(const Register& rd,
+                                        const Register& rn,
                                         const Operand& operand,
                                         FlagsUpdate S,
                                         Instr op) {
@@ -1837,8 +1837,8 @@ void Assembler::DataProcShiftedRegister(Register rd,
 }
 
 
-void Assembler::DataProcExtendedRegister(Register rd,
-                                         Register rn,
+void Assembler::DataProcExtendedRegister(const Register& rd,
+                                         const Register& rn,
                                          const Operand& operand,
                                          FlagsUpdate S,
                                          Instr op) {
