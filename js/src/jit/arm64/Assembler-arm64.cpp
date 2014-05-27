@@ -782,93 +782,78 @@ void Assembler::extr(const Register& rd,
 }
 
 
-void Assembler::csel64(Register rd, Register rn, Register rm, Condition cond) {
-  ConditionalSelect(SixtyFourBits, rd, rn, rm, cond, CSEL);
-}
-void Assembler::csel32(Register rd, Register rn, Register rm, Condition cond) {
-  ConditionalSelect(ThirtyTwoBits, rd, rn, rm, cond, CSEL);
-}
-
-
-void Assembler::csinc64(Register rd, Register rn, Register rm, Condition cond) {
-  ConditionalSelect(SixtyFourBits, rd, rn, rm, cond, CSINC);
-}
-void Assembler::csinc32(Register rd, Register rn, Register rm, Condition cond) {
-  ConditionalSelect(ThirtyTwoBits, rd, rn, rm, cond, CSINC);
+void Assembler::csel(const Register& rd,
+                     const Register& rn,
+                     const Register& rm,
+                     Condition cond) {
+  ConditionalSelect(rd, rn, rm, cond, CSEL);
 }
 
 
-void Assembler::csinv64(Register rd, Register rn, Register rm, Condition cond) {
-  ConditionalSelect(SixtyFourBits, rd, rn, rm, cond, CSINV);
-}
-void Assembler::csinv32(Register rd, Register rn, Register rm, Condition cond) {
-  ConditionalSelect(ThirtyTwoBits, rd, rn, rm, cond, CSINV);
-}
-
-
-void Assembler::csneg64(Register rd, Register rn, Register rm, Condition cond) {
-  ConditionalSelect(ThirtyTwoBits, rd, rn, rm, cond, CSNEG);
-}
-void Assembler::csneg32(Register rd, Register rn, Register rm, Condition cond) {
-  ConditionalSelect(ThirtyTwoBits, rd, rn, rm, cond, CSNEG);
+void Assembler::csinc(const Register& rd,
+                      const Register& rn,
+                      const Register& rm,
+                      Condition cond) {
+  ConditionalSelect(rd, rn, rm, cond, CSINC);
 }
 
 
-void Assembler::cset64(Register rd, Condition cond) {
+void Assembler::csinv(const Register& rd,
+                      const Register& rn,
+                      const Register& rm,
+                      Condition cond) {
+  ConditionalSelect(rd, rn, rm, cond, CSINV);
+}
+
+
+void Assembler::csneg(const Register& rd,
+                      const Register& rn,
+                      const Register& rm,
+                      Condition cond) {
+  ConditionalSelect(rd, rn, rm, cond, CSNEG);
+}
+
+
+void Assembler::cset(const Register &rd, Condition cond) {
   VIXL_ASSERT((cond != al) && (cond != nv));
-  csinc64(rd, xzr, xzr, InvertCondition(cond));
+  Register zr = AppropriateZeroRegFor(rd);
+  csinc(rd, zr, zr, InvertCondition(cond));
 }
-void Assembler::cset32(Register rd, Condition cond) {
+
+
+void Assembler::csetm(const Register &rd, Condition cond) {
   VIXL_ASSERT((cond != al) && (cond != nv));
-  csinc32(rd, wzr, wzr, InvertCondition(cond));
+  Register zr = AppropriateZeroRegFor(rd);
+  csinv(rd, zr, zr, InvertCondition(cond));
 }
 
 
-void Assembler::csetm64(Register rd, Condition cond) {
+void Assembler::cinc(const Register &rd, const Register &rn, Condition cond) {
   VIXL_ASSERT((cond != al) && (cond != nv));
-  csinv64(rd, xzr, xzr, InvertCondition(cond));
+  csinc(rd, rn, rn, InvertCondition(cond));
 }
-void Assembler::csetm32(Register rd, Condition cond) {
+
+
+void Assembler::cinv(const Register &rd, const Register &rn, Condition cond) {
   VIXL_ASSERT((cond != al) && (cond != nv));
-  csinv32(rd, wzr, wzr, InvertCondition(cond));
+  csinv(rd, rn, rn, InvertCondition(cond));
 }
 
 
-void Assembler::cinc64(Register rd, Register rn, Condition cond) {
+void Assembler::cneg(const Register &rd, const Register &rn, Condition cond) {
   VIXL_ASSERT((cond != al) && (cond != nv));
-  csinc64(rd, rn, rn, InvertCondition(cond));
-}
-void Assembler::cinc32(Register rd, Register rn, Condition cond) {
-  VIXL_ASSERT((cond != al) && (cond != nv));
-  csinc32(rd, rn, rn, InvertCondition(cond));
+  csneg(rd, rn, rn, InvertCondition(cond));
 }
 
 
-void Assembler::cinv64(Register rd, Register rn, Condition cond) {
-  VIXL_ASSERT((cond != al) && (cond != nv));
-  csinv64(rd, rn, rn, InvertCondition(cond));
-}
-void Assembler::cinv32(Register rd, Register rn, Condition cond) {
-  VIXL_ASSERT((cond != al) && (cond != nv));
-  csinv32(rd, rn, rn, InvertCondition(cond));
-}
-
-
-void Assembler::cneg64(Register rd, Register rn, Condition cond) {
-  VIXL_ASSERT((cond != al) && (cond != nv));
-  csneg64(rd, rn, rn, InvertCondition(cond));
-}
-void Assembler::cneg32(Register rd, Register rn, Condition cond) {
-  VIXL_ASSERT((cond != al) && (cond != nv));
-  csneg32(rd, rn, rn, InvertCondition(cond));
-}
-
-
-void Assembler::ConditionalSelect(Instr size, Register rd, Register rn, Register rm,
-                                  Condition cond, ConditionalSelectOp op)
-{
-  JS_ASSERT(size == SixtyFourBits || size == ThirtyTwoBits);
-  Emit(size | op | Rm(rm) | Cond(cond) | Rn(rn) | Rd(rd));
+void Assembler::ConditionalSelect(const Register& rd,
+                                  const Register& rn,
+                                  const Register& rm,
+                                  Condition cond,
+                                  ConditionalSelectOp op) {
+  VIXL_ASSERT(rd.size() == rn.size());
+  VIXL_ASSERT(rd.size() == rm.size());
+  Emit(SF(rd) | op | Rm(rm) | Cond(cond) | Rn(rn) | Rd(rd));
 }
 
 
