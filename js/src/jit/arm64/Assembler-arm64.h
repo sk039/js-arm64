@@ -739,13 +739,13 @@ class Assembler {
 
   // Branch / Jump instructions.
   // Branch to register.
-  void br64(Register xn);
+  void br(Register xn);
 
   // Branch with link to register.
-  void blr64(Register xn);
+  void blr(Register xn);
 
   // Branch to register with return hint.
-  void ret64(Register xn = lr);
+  void ret(Register xn = lr);
 
   // Unconditional branch to label.
   void b(Label* label);
@@ -766,136 +766,134 @@ class Assembler {
   void bl(int imm26);
 
   // Compare and branch to label if zero.
-  void cbz64(Register rt, Label* label);
-  void cbz32(Register rt, Label* label);
+  void cbz(Register rt, Label* label);
 
   // Compare and branch to PC offset if zero.
-  void cbz64(Register rt, int imm19);
-  void cbz32(Register rt, int imm19);
+  void cbz(Register rt, int imm19);
 
   // Compare and branch to label if not zero.
-  void cbnz64(Register rt, Label* label);
-  void cbnz32(Register rt, Label* label);
+  void cbnz(Register rt, Label* label);
 
   // Compare and branch to PC offset if not zero.
-  void cbnz64(Register rt, int imm19);
-  void cbnz32(Register rt, int imm19);
+  void cbnz(Register rt, int imm19);
 
   // Test bit and branch to label if zero.
-  void tbz64(Register rt, unsigned bit_pos, Label* label);
-  void tbz32(Register rt, unsigned bit_pos, Label* label);
+  void tbz(Register rt, unsigned bit_pos, Label* label);
 
   // Test bit and branch to PC offset if zero.
-  void tbz64(Register rt, unsigned bit_pos, int imm14);
-  void tbz32(Register rt, unsigned bit_pos, int imm14);
+  void tbz(Register rt, unsigned bit_pos, int imm14);
 
   // Test bit and branch to label if not zero.
-  void tbnz64(Register rt, unsigned bit_pos, Label* label);
-  void tbnz32(Register rt, unsigned bit_pos, Label* label);
+  void tbnz(Register rt, unsigned bit_pos, Label* label);
 
   // Test bit and branch to PC offset if not zero.
-  void tbnz64(Register rt, unsigned bit_pos, int imm14);
-  void tbnz32(Register rt, unsigned bit_pos, int imm14);
+  void tbnz(Register rt, unsigned bit_pos, int imm14);
 
   // Address calculation instructions.
   // Calculate a PC-relative address. Unlike for branches the offset in adr is
   // unscaled (i.e. the result can be unaligned).
 
   // Calculate the address of a label.
-  void adr64(Register rd, Label* label);
+  void adr(Register rd, Label* label);
 
   // Calculate the address of a PC offset.
-  void adr64(Register rd, int imm21);
+  void adr(Register rd, int imm21);
 
   // Data Processing instructions.
   // Add.
-  void add64(Register rd, Register rn, const Operand& operand);
-  void add32(Register rd, Register rn, const Operand& operand);
+  void add(Register rd,
+           Register rn,
+           const Operand& operand);
 
   // Add and update status flags.
-  void adds64(Register rd, Register rn, const Operand& operand);
-  void adds32(Register rd, Register rn, const Operand& operand);
+  void adds(Register rd,
+            Register rn,
+            const Operand& operand);
 
   // Compare negative.
-  void cmn64(Register rn, const Operand& operand);
-  void cmn32(Register rn, const Operand& operand);
+  void cmn(Register rn, const Operand& operand);
 
   // Subtract.
-  void sub64(Register rd, Register rn, const Operand& operand);
-  void sub32(Register rd, Register rn, const Operand& operand);
+  void sub(Register rd,
+           Register rn,
+           const Operand& operand);
 
   // Subtract and update status flags.
-  void subs64(Register rd, Register rn, const Operand& operand);
-  void subs32(Register rd, Register rn, const Operand& operand);
+  void subs(Register rd,
+            Register rn,
+            const Operand& operand);
 
   // Compare.
-  void cmp64(Register rn, const Operand& operand);
-  void cmp32(Register rn, const Operand& operand);
+  void cmp(Register rn, const Operand& operand);
 
   // Negate.
-  void neg64(Register rd, const Operand& operand);
-  void neg32(Register rd, const Operand& operand);
+  void neg(Register rd,
+           const Operand& operand);
 
   // Negate and update status flags.
-  void negs64(Register rd, const Operand& operand);
-  void negs32(Register rd, const Operand& operand);
+  void negs(Register rd,
+            const Operand& operand);
 
   // Add with carry bit.
-  void adc64(Register rd, Register rn, const Operand& operand);
-  void adc32(Register rd, Register rn, const Operand& operand);
+  void adc(Register rd,
+           Register rn,
+           const Operand& operand);
 
   // Add with carry bit and update status flags.
-  void adcs64(Register rd, Register rn, const Operand& operand);
-  void adcs32(Register rd, Register rn, const Operand& operand);
+  void adcs(Register rd,
+            Register rn,
+            const Operand& operand);
 
   // Subtract with carry bit.
-  void sbc64(Register rd, Register rn, const Operand& operand);
-  void sbc32(Register rd, Register rn, const Operand& operand);
+  void sbc(Register rd,
+           Register rn,
+           const Operand& operand);
 
   // Subtract with carry bit and update status flags.
-  void sbcs64(Register rd, Register rn, const Operand& operand);
-  void sbcs32(Register rd, Register rn, const Operand& operand);
+  void sbcs(Register rd,
+            Register rn,
+            const Operand& operand);
 
   // Negate with carry bit.
-  void ngc64(Register rd, const Operand& operand);
-  void ngc32(Register rd, const Operand& operand);
+  void ngc(Register rd,
+           const Operand& operand);
 
   // Negate with carry bit and update status flags.
-  void ngcs64(Register rd, const Operand& operand);
-  void ngcs32(Register rd, const Operand& operand);
+  void ngcs(Register rd,
+            const Operand& operand);
 
   // Logical instructions.
   // Bitwise and (A & B).
-  void and_64(Register rd, Register rn, const Operand& operand);
-  void and_32(Register rd, Register rn, const Operand& operand);
+  void and_(Register rd,
+            Register rn,
+            const Operand& operand);
 
   // Bitwise and (A & B) and update status flags.
-  void ands64(Register rd, Register rn, const Operand& operand);
-  void ands32(Register rd, Register rn, const Operand& operand);
+  void ands(Register rd,
+            Register rn,
+            const Operand& operand);
 
   // Bit test and set flags.
-  void tst64(Register rn, const Operand& operand);
-  void tst32(Register rn, const Operand& operand);
+  void tst(Register rn, const Operand& operand);
 
   // Bit clear (A & ~B).
-  void bic64(Register rd, Register rn, const Operand& operand);
-  void bic32(Register rd, Register rn, const Operand& operand);
+  void bic(Register rd,
+           Register rn,
+           const Operand& operand);
 
   // Bit clear (A & ~B) and update status flags.
-  void bics64(Register rd, Register rn, const Operand& operand);
-  void bics32(Register rd, Register rn, const Operand& operand);
+  void bics(Register rd,
+            Register rn,
+            const Operand& operand);
 
   // Bitwise or (A | B).
-  void orr64(Register rd, Register rn, const Operand& operand);
-  void orr32(Register rd, Register rn, const Operand& operand);
+  void orr(Register rd, Register rn, const Operand& operand);
 
   // Bitwise nor (A | ~B).
-  void orn64(Register rd, Register rn, const Operand& operand);
-  void orn32(Register rd, Register rn, const Operand& operand);
+  void orn(Register rd, Register rn, const Operand& operand);
 
   // Bitwise eor/xor (A ^ B).
-  void eor64(Register rd, Register rn, const Operand& operand);
-  void eor32(Register rd, Register rn, const Operand& operand);
+  void eor(Register rd, Register rn, const Operand& operand);
 
   // Bitwise enor/xnor (A ^ ~B).
   void eon(Register rd, Register rn, const Operand& operand);
@@ -1841,10 +1839,16 @@ class Assembler {
                 uint64_t imm,
                 int shift,
                 MoveWideImmediateOp mov_op);
-  void DataProcShiftedRegister(Instr size, Register rd, Register rn,
-                               const Operand& operand, FlagsUpdate S, Instr op);
-  void DataProcExtendedRegister(Instr size, Register rd, Register rn,
-                                const Operand& operand, FlagsUpdate S, Instr op);
+  void DataProcShiftedRegister(Register rd,
+                               Register rn,
+                               const Operand& operand,
+                               FlagsUpdate S,
+                               Instr op);
+  void DataProcExtendedRegister(Register rd,
+                                Register rn,
+                                const Operand& operand,
+                                FlagsUpdate S,
+                                Instr op);
   void LoadStorePair(const CPURegister& rt,
                      const CPURegister& rt2,
                      const MemOperand& addr,

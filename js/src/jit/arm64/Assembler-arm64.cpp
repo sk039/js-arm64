@@ -432,28 +432,21 @@ int Assembler::UpdateAndGetByteOffsetTo(Label* label) {
 
 
 // Code generation.
-void Assembler::br64(Register xn) {
+void Assembler::br(Register xn) {
+  VIXL_ASSERT(xn.Is64Bits());
   Emit(BR | Rn(xn));
 }
 
 
-void Assembler::blr64(Register xn) {
+void Assembler::blr(Register xn) {
+  VIXL_ASSERT(xn.Is64Bits());
   Emit(BLR | Rn(xn));
 }
 
 
-void Assembler::ret64(Register xn) {
+void Assembler::ret(Register xn) {
+  VIXL_ASSERT(xn.Is64Bits());
   Emit(RET | Rn(xn));
-}
-
-
-void Assembler::b(Label* label) {
-  b(UpdateAndGetInstructionOffsetTo(label));
-}
-
-
-void Assembler::b(Label* label, Condition cond) {
-  b(UpdateAndGetInstructionOffsetTo(label), cond);
 }
 
 
@@ -467,8 +460,13 @@ void Assembler::b(int imm19, Condition cond) {
 }
 
 
-void Assembler::bl(Label* label) {
-  bl(UpdateAndGetInstructionOffsetTo(label));
+void Assembler::b(Label* label) {
+  b(UpdateAndGetInstructionOffsetTo(label));
+}
+
+
+void Assembler::b(Label* label, Condition cond) {
+  b(UpdateAndGetInstructionOffsetTo(label), cond);
 }
 
 
@@ -477,258 +475,222 @@ void Assembler::bl(int imm26) {
 }
 
 
-void Assembler::cbz64(Register rt, int imm19) {
-  Emit(SixtyFourBits | CBZ | ImmCmpBranch(imm19) | Rt(rt));
-}
-void Assembler::cbz32(Register rt, int imm19) {
-  Emit(ThirtyTwoBits | CBZ | ImmCmpBranch(imm19) | Rt(rt));
+void Assembler::bl(Label* label) {
+  bl(UpdateAndGetInstructionOffsetTo(label));
 }
 
 
-void Assembler::cbz64(Register rt, Label* label) {
-  cbz64(rt, UpdateAndGetInstructionOffsetTo(label));
-}
-void Assembler::cbz32(Register rt, Label* label) {
-  cbz32(rt, UpdateAndGetInstructionOffsetTo(label));
+void Assembler::cbz(Register rt,
+                    int imm19) {
+  Emit(SF(rt) | CBZ | ImmCmpBranch(imm19) | Rt(rt));
 }
 
 
-void Assembler::cbnz64(Register rt, int imm19) {
-  Emit(SixtyFourBits | CBNZ | ImmCmpBranch(imm19) | Rt(rt));
-}
-void Assembler::cbnz32(Register rt, int imm19) {
-  Emit(ThirtyTwoBits | CBNZ | ImmCmpBranch(imm19) | Rt(rt));
+void Assembler::cbz(Register rt,
+                    Label* label) {
+  cbz(rt, UpdateAndGetInstructionOffsetTo(label));
 }
 
 
-void Assembler::cbnz64(Register rt, Label* label) {
-  cbnz64(rt, UpdateAndGetInstructionOffsetTo(label));
-}
-void Assembler::cbnz32(Register rt, Label* label) {
-  cbnz32(rt, UpdateAndGetInstructionOffsetTo(label));
+void Assembler::cbnz(Register rt,
+                     int imm19) {
+  Emit(SF(rt) | CBNZ | ImmCmpBranch(imm19) | Rt(rt));
 }
 
 
-void Assembler::tbz64(Register rt, unsigned bit_pos, int imm14) {
-  VIXL_ASSERT(bit_pos < 64);
-  Emit(TBZ | ImmTestBranchBit(bit_pos) | ImmTestBranch(imm14) | Rt(rt));
+void Assembler::cbnz(Register rt,
+                     Label* label) {
+  cbnz(rt, UpdateAndGetInstructionOffsetTo(label));
 }
-void Assembler::tbz32(Register rt, unsigned bit_pos, int imm14) {
-  VIXL_ASSERT(bit_pos < 32);
+
+
+void Assembler::tbz(Register rt,
+                    unsigned bit_pos,
+                    int imm14) {
+  VIXL_ASSERT(rt.Is64Bits() || (rt.Is32Bits() && (bit_pos < kWRegSize)));
   Emit(TBZ | ImmTestBranchBit(bit_pos) | ImmTestBranch(imm14) | Rt(rt));
 }
 
 
-void Assembler::tbz64(Register rt, unsigned bit_pos, Label* label) {
-  tbz64(rt, bit_pos, UpdateAndGetInstructionOffsetTo(label));
-}
-void Assembler::tbz32(Register rt, unsigned bit_pos, Label* label) {
-  tbz32(rt, bit_pos, UpdateAndGetInstructionOffsetTo(label));
+void Assembler::tbz(Register rt,
+                    unsigned bit_pos,
+                    Label* label) {
+  tbz(rt, bit_pos, UpdateAndGetInstructionOffsetTo(label));
 }
 
 
-void Assembler::tbnz64(Register rt, unsigned bit_pos, int imm14) {
-  VIXL_ASSERT(bit_pos < 64);
-  Emit(TBNZ | ImmTestBranchBit(bit_pos) | ImmTestBranch(imm14) | Rt(rt));
-}
-void Assembler::tbnz(Register rt, unsigned bit_pos, int imm14) {
-  VIXL_ASSERT(bit_pos < 32);
+void Assembler::tbnz(Register rt,
+                     unsigned bit_pos,
+                     int imm14) {
+  VIXL_ASSERT(rt.Is64Bits() || (rt.Is32Bits() && (bit_pos < kWRegSize)));
   Emit(TBNZ | ImmTestBranchBit(bit_pos) | ImmTestBranch(imm14) | Rt(rt));
 }
 
 
-void Assembler::tbnz64(Register rt, unsigned bit_pos, Label* label) {
-  tbnz64(rt, bit_pos, UpdateAndGetInstructionOffsetTo(label));
-}
-void Assembler::tbnz32(Register rt, unsigned bit_pos, Label* label) {
-  tbnz32(rt, bit_pos, UpdateAndGetInstructionOffsetTo(label));
+void Assembler::tbnz(Register rt,
+                     unsigned bit_pos,
+                     Label* label) {
+  tbnz(rt, bit_pos, UpdateAndGetInstructionOffsetTo(label));
 }
 
 
-void Assembler::adr64(Register rd, int imm21) {
+void Assembler::adr(Register rd, int imm21) {
+  VIXL_ASSERT(rd.Is64Bits());
   Emit(ADR | ImmPCRelAddress(imm21) | Rd(rd));
 }
 
 
-void Assembler::adr64(Register rd, Label* label) {
+void Assembler::adr(Register rd, Label* label) {
   adr(rd, UpdateAndGetByteOffsetTo(label));
 }
 
 
-void Assembler::add64(Register rd, Register rn, const Operand& operand) {
-  AddSub(SixtyFourBits, rd, rn, operand, LeaveFlags, ADD);
-}
-void Assembler::add32(Register rd, Register rn, const Operand& operand) {
-  AddSub(ThirtyTwoBits, rd, rn, operand, LeaveFlags, ADD);
-}
-
-
-void Assembler::adds64(Register rd, Register rn, const Operand& operand) {
-  AddSub(SixtyFourBits, rd, rn, operand, SetFlags, ADD);
-}
-void Assembler::adds32(Register rd, Register rn, const Operand& operand) {
-  AddSub(ThirtyTwoBits, rd, rn, operand, SetFlags, ADD);
+void Assembler::add(Register rd,
+                    Register rn,
+                    const Operand& operand) {
+  AddSub(rd, rn, operand, LeaveFlags, ADD);
 }
 
 
-void Assembler::cmn64(Register rn, const Operand& operand) {
-  adds64(xzr, rn, operand);
-}
-void Assembler::cmn32(Register rn, const Operand& operand) {
-  adds32(wzr, rn, operand);
-}
-
-
-void Assembler::sub64(Register rd, Register rn, const Operand& operand) {
-  AddSub(SixtyFourBits, rd, rn, operand, LeaveFlags, SUB);
-}
-void Assembler::sub32(Register rd, Register rn, const Operand& operand) {
-  AddSub(ThirtyTwoBits, rd, rn, operand, LeaveFlags, SUB);
+void Assembler::adds(Register rd,
+                     Register rn,
+                     const Operand& operand) {
+  AddSub(rd, rn, operand, SetFlags, ADD);
 }
 
 
-void Assembler::subs64(Register rd, Register rn, const Operand& operand) {
-  AddSub(SixtyFourBits, rd, rn, operand, SetFlags, SUB);
-}
-void Assembler::subs32(Register rd, Register rn, const Operand& operand) {
-  AddSub(ThirtyTwoBits, rd, rn, operand, SetFlags, SUB);
-}
-
-
-void Assembler::cmp64(Register rn, const Operand& operand) {
-  subs64(xzr, rn, operand);
-}
-void Assembler::cmp32(Register rn, const Operand& operand) {
-  subs32(wzr, rn, operand);
+void Assembler::cmn(Register rn,
+                    const Operand& operand) {
+  Register zr = AppropriateZeroRegFor(rn);
+  adds(zr, rn, operand);
 }
 
 
-void Assembler::neg64(Register rd, const Operand& operand) {
-  sub64(rd, xzr, operand);
-}
-void Assembler::neg32(Register rd, const Operand& operand) {
-  sub32(rd, wzr, operand);
-}
-
-
-void Assembler::negs64(Register rd, const Operand& operand) {
-  subs64(rd, xzr, operand);
-}
-void Assembler::negs32(Register rd, const Operand& operand) {
-  subs32(rd, wzr, operand);
+void Assembler::sub(Register rd,
+                    Register rn,
+                    const Operand& operand) {
+  AddSub(rd, rn, operand, LeaveFlags, SUB);
 }
 
 
-void Assembler::adc64(Register rd, Register rn, const Operand& operand) {
-  AddSubWithCarry(SixtyFourBits, rd, rn, operand, LeaveFlags, ADC);
-}
-void Assembler::adc32(Register rd, Register rn, const Operand& operand) {
-  AddSubWithCarry(ThirtyTwoBits, rd, rn, operand, LeaveFlags, ADC);
-}
-
-
-void Assembler::adcs64(Register rd, Register rn, const Operand& operand) {
-  AddSubWithCarry(SixtyFourBits, rd, rn, operand, SetFlags, ADC);
-}
-void Assembler::adcs32(Register rd, Register rn, const Operand& operand) {
-  AddSubWithCarry(ThirtyTwoBits, rd, rn, operand, SetFlags, ADC);
+void Assembler::subs(Register rd,
+                     Register rn,
+                     const Operand& operand) {
+  AddSub(rd, rn, operand, SetFlags, SUB);
 }
 
 
-void Assembler::sbc64(Register rd, Register rn, const Operand& operand) {
-  AddSubWithCarry(SixtyFourBits, rd, rn, operand, LeaveFlags, SBC);
-}
-void Assembler::sbc32(Register rd, Register rn, const Operand& operand) {
-  AddSubWithCarry(ThirtyTwoBits, rd, rn, operand, LeaveFlags, SBC);
+void Assembler::cmp(Register rn, const Operand& operand) {
+  Register zr = AppropriateZeroRegFor(rn);
+  subs(zr, rn, operand);
 }
 
 
-void Assembler::sbcs64(Register rd, Register rn, const Operand& operand) {
-  AddSubWithCarry(SixtyFourBits, rd, rn, operand, SetFlags, SBC);
-}
-void Assembler::sbcs32(Register rd, Register rn, const Operand& operand) {
-  AddSubWithCarry(ThirtyTwoBits, rd, rn, operand, SetFlags, SBC);
+void Assembler::neg(Register rd, const Operand& operand) {
+  Register zr = AppropriateZeroRegFor(rd);
+  sub(rd, zr, operand);
 }
 
 
-void Assembler::ngc64(Register rd, const Operand& operand) {
-  sbc64(rd, xzr, operand);
-}
-void Assembler::ngc32(Register rd, const Operand& operand) {
-  sbc32(rd, wzr, operand);
+void Assembler::negs(Register rd, const Operand& operand) {
+  Register zr = AppropriateZeroRegFor(rd);
+  subs(rd, zr, operand);
 }
 
 
-void Assembler::ngcs64(Register rd, const Operand& operand) {
-  sbcs64(rd, xzr, operand);
+void Assembler::adc(Register rd,
+                    Register rn,
+                    const Operand& operand) {
+  AddSubWithCarry(rd, rn, operand, LeaveFlags, ADC);
 }
-void Assembler::ngcs32(Register rd, const Operand& operand) {
-  sbcs32(rd, wzr, operand);
+
+
+void Assembler::adcs(Register rd,
+                     Register rn,
+                     const Operand& operand) {
+  AddSubWithCarry(rd, rn, operand, SetFlags, ADC);
+}
+
+
+void Assembler::sbc(Register rd,
+                    Register rn,
+                    const Operand& operand) {
+  AddSubWithCarry(rd, rn, operand, LeaveFlags, SBC);
+}
+
+
+void Assembler::sbcs(Register rd,
+                     Register rn,
+                     const Operand& operand) {
+  AddSubWithCarry(rd, rn, operand, SetFlags, SBC);
+}
+
+
+void Assembler::ngc(Register rd, const Operand& operand) {
+  Register zr = AppropriateZeroRegFor(rd);
+  sbc(rd, zr, operand);
+}
+
+
+void Assembler::ngcs(Register rd, const Operand& operand) {
+  Register zr = AppropriateZeroRegFor(rd);
+  sbcs(rd, zr, operand);
 }
 
 
 // Logical instructions.
-void Assembler::and_64(Register rd, Register rn, const Operand& operand) {
-  Logical(SixtyFourBits, rd, rn, operand, AND);
-}
-void Assembler::and_32(Register rd, Register rn, const Operand& operand) {
-  Logical(ThirtyTwoBits, rd, rn, operand, AND);
-}
-
-
-void Assembler::ands64(Register rd, Register rn, const Operand& operand) {
-  Logical(SixtyFourBits, rd, rn, operand, ANDS);
-}
-void Assembler::ands32(Register rd, Register rn, const Operand& operand) {
-  Logical(ThirtyTwoBits, rd, rn, operand, ANDS);
+void Assembler::and_(Register rd,
+                     Register rn,
+                     const Operand& operand) {
+  Logical(rd, rn, operand, AND);
 }
 
 
-void Assembler::tst64(Register rn, const Operand& operand) {
-  ands64(xzr, rn, operand);
-}
-void Assembler::tst32(Register rn, const Operand& operand) {
-  ands32(wzr, rn, operand);
-}
-
-
-void Assembler::bic64(Register rd, Register rn, const Operand& operand) {
-  Logical(SixtyFourBits, rd, rn, operand, BIC);
-}
-void Assembler::bic32(Register rd, Register rn, const Operand& operand) {
-  Logical(ThirtyTwoBits, rd, rn, operand, BIC);
+void Assembler::ands(Register rd,
+                     Register rn,
+                     const Operand& operand) {
+  Logical(rd, rn, operand, ANDS);
 }
 
 
-void Assembler::bics64(Register rd, Register rn, const Operand& operand) {
-  Logical(SixtyFourBits, rd, rn, operand, BICS);
-}
-void Assembler::bics32(Register rd, Register rn, const Operand& operand) {
-  Logical(ThirtyTwoBits, rd, rn, operand, BICS);
+void Assembler::tst(Register rn,
+                    const Operand& operand) {
+  ands(AppropriateZeroRegFor(rn), rn, operand);
 }
 
 
-void Assembler::orr64(Register rd, Register rn, const Operand& operand) {
-  Logical(SixtyFourBits, rd, rn, operand, ORR);
-}
-void Assembler::orr32(Register rd, Register rn, const Operand& operand) {
-  Logical(ThirtyTwoBits, rd, rn, operand, ORR);
-}
-
-
-void Assembler::orn64(Register rd, Register rn, const Operand& operand) {
-  Logical(SixtyFourBits, rd, rn, operand, ORN);
-}
-void Assembler::orn32(Register rd, Register rn, const Operand& operand) {
-  Logical(ThirtyTwoBits, rd, rn, operand, ORN);
+void Assembler::bic(Register rd,
+                    Register rn,
+                    const Operand& operand) {
+  Logical(rd, rn, operand, BIC);
 }
 
 
-void Assembler::eor64(Register rd, Register rn, const Operand& operand) {
-  Logical(SixtyFourBits, rd, rn, operand, EOR);
+void Assembler::bics(Register rd,
+                     Register rn,
+                     const Operand& operand) {
+  Logical(rd, rn, operand, BICS);
 }
-void Assembler::eor32(Register rd, Register rn, const Operand& operand) {
-  Logical(ThirtyTwoBits, rd, rn, operand, EOR);
+
+
+void Assembler::orr(Register rd,
+                    Register rn,
+                    const Operand& operand) {
+  Logical(rd, rn, operand, ORR);
+}
+
+
+void Assembler::orn(Register rd,
+                    Register rn,
+                    const Operand& operand) {
+  Logical(rd, rn, operand, ORN);
+}
+
+
+void Assembler::eor(Register rd,
+                    Register rn,
+                    const Operand& operand) {
+  Logical(rd, rn, operand, EOR);
 }
 
 
@@ -1637,19 +1599,20 @@ void Assembler::MoveWide(Register rd,
 }
 
 
-void Assembler::AddSub(Instr size, Register rd, Register rn, const Operand& operand,
-                       FlagsUpdate S, AddSubOp op) {
-  VIXL_ASSERT(size == SixtyFourBits || size == ThirtyTwoBits);
-
+void Assembler::AddSub(Register rd,
+                       Register rn,
+                       const Operand& operand,
+                       FlagsUpdate S,
+                       AddSubOp op) {
+  VIXL_ASSERT(rd.size() == rn.size());
   if (operand.IsImmediate()) {
     int64_t immediate = operand.immediate();
     VIXL_ASSERT(IsImmAddSub(immediate));
     Instr dest_reg = (S == SetFlags) ? Rd(rd) : RdSP(rd);
-    Emit(size | AddSubImmediateFixed | op | Flags(S) |
+    Emit(SF(rd) | AddSubImmediateFixed | op | Flags(S) |
          ImmAddSub(immediate) | dest_reg | RnSP(rn));
   } else if (operand.IsShiftedRegister()) {
-    // !! Careful: operand register must be the same size as the other registers.
-    // FIXME: No way to assert this with our current Register/Operand schema.
+    VIXL_ASSERT(operand.reg().size() == rd.size());
     VIXL_ASSERT(operand.shift() != ROR);
 
     // For instructions of the form:
@@ -1661,14 +1624,14 @@ void Assembler::AddSub(Instr size, Register rd, Register rn, const Operand& oper
     // extended register mode, and emit an add/sub extended instruction.
     if (rn.IsSP() || rd.IsSP()) {
       VIXL_ASSERT(!(rd.IsSP() && (S == SetFlags)));
-      DataProcExtendedRegister(size, rd, rn, operand.ToExtendedRegister(), S,
+      DataProcExtendedRegister(rd, rn, operand.ToExtendedRegister(), S,
                                AddSubExtendedFixed | op);
     } else {
-      DataProcShiftedRegister(size, rd, rn, operand, S, AddSubShiftedFixed | op);
+      DataProcShiftedRegister(rd, rn, operand, S, AddSubShiftedFixed | op);
     }
   } else {
     VIXL_ASSERT(operand.IsExtendedRegister());
-    DataProcExtendedRegister(size, rd, rn, operand, S, AddSubExtendedFixed | op);
+    DataProcExtendedRegister(rd, rn, operand, S, AddSubExtendedFixed | op);
   }
 }
 
@@ -1860,22 +1823,27 @@ void Assembler::EmitExtendShift(Register rd,
 }
 
 
-void Assembler::DataProcShiftedRegister(Instr size, Register rd, Register rn,
-                                        const Operand& operand, FlagsUpdate S, Instr op) {
+void Assembler::DataProcShiftedRegister(Register rd,
+                                        Register rn,
+                                        const Operand& operand,
+                                        FlagsUpdate S,
+                                        Instr op) {
   VIXL_ASSERT(operand.IsShiftedRegister());
-  VIXL_ASSERT(size == SixtyFourBits || size == ThirtyTwoBits);
-  JS_ASSERT_IF(size == ThirtyTwoBits, is_uint5(operand.shift_amount()));
-  Emit(size | op | Flags(S) |
+  VIXL_ASSERT(rn.Is64Bits() || (rn.Is32Bits() &&
+              is_uint5(operand.shift_amount())));
+  Emit(SF(rd) | op | Flags(S) |
        ShiftDP(operand.shift()) | ImmDPShift(operand.shift_amount()) |
        Rm(operand.reg()) | Rn(rn) | Rd(rd));
 }
 
 
-void Assembler::DataProcExtendedRegister(Instr size, Register rd, Register rn,
-                                         const Operand& operand, FlagsUpdate S, Instr op) {
-  VIXL_ASSERT(size == SixtyFourBits || size == ThirtyTwoBits);
+void Assembler::DataProcExtendedRegister(Register rd,
+                                         Register rn,
+                                         const Operand& operand,
+                                         FlagsUpdate S,
+                                         Instr op) {
   Instr dest_reg = (S == SetFlags) ? Rd(rd) : RdSP(rd);
-  Emit(size | op | Flags(S) | Rm(operand.reg()) |
+  Emit(SF(rd) | op | Flags(S) | Rm(operand.reg()) |
        ExtendMode(operand.extend()) | ImmExtendShift(operand.shift_amount()) |
        dest_reg | RnSP(rn));
 }
