@@ -37,6 +37,8 @@
 #include "jit/arm64/vixl/Disasm-vixl.h"
 #include "jit/arm64/vixl/Instrument-vixl.h"
 
+#include "jit/IonTypes.h"
+
 namespace js {
 namespace jit {
 
@@ -184,6 +186,21 @@ class Simulator : public DecoderVisitor {
 
   // Sets up the simulator state and grabs the result on return.
   int64_t call(uint8_t* entry, int argument_count, ...);
+
+  static void *RedirectNativeFunction(void *nativeFunction, ABIFunctionType type) {
+    JS_ASSERT(0 && "Implement RedirectNativeFunction");
+    return nullptr;
+  }
+
+  bool overRecursed(uintptr_t newsp) const {
+    JS_ASSERT(0 && "Implement overRecursed");
+    return true;
+  }
+
+  bool overRecursedWithExtra(uint32_t extra) const {
+    JS_ASSERT(0 && "Implement overRecursedWithExtra");
+    return true;
+  }
 
   // Simulation helpers.
   inline Instruction* get_pc() { return pc_; }
