@@ -186,7 +186,7 @@ class Simulator : public DecoderVisitor {
   int64_t call(uint8_t* entry, int argument_count, ...);
 
   // Simulation helpers.
-  inline Instruction* pc() { return pc_; }
+  inline Instruction* get_pc() { return pc_; }
   inline void set_pc(Instruction* new_pc) {
     pc_ = new_pc;
     pc_modified_ = true;

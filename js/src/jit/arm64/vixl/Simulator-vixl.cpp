@@ -2511,7 +2511,7 @@ void Simulator::DoPrintf(Instruction* instr) {
   set_pc(instr->InstructionAtOffset(kPrintfLength));
 
   // Set LR as if we'd just called a native printf function.
-  set_lr(pc());
+  set_lr(get_pc());
 
   delete[] format;
 }
