@@ -257,6 +257,16 @@ void Simulator::set_coloured_trace(bool value) {
   clr_debug_message  = value ? COLOUR(ORANGE)       : "";
   clr_printf         = value ? COLOUR(GREEN)        : "";
 }
+#undef COLOUR
+#undef BOLD
+#undef NORMAL
+#undef GREY
+#undef GREEN
+#undef ORANGE
+#undef BLUE
+#undef PURPLE
+#undef INDIGO
+#undef WHITE
 
 
 // Helpers ---------------------------------------------------------------------
