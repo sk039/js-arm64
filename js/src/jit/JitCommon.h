@@ -12,7 +12,7 @@
 #if defined(JS_ARM_SIMULATOR)
 # include "jit/arm/Simulator-arm.h"
 #elif defined(JS_ARM64_SIMULATOR)
-# include "jit/arm64/Simulator-arm64.h"
+# include "jit/arm64/vixl/Simulator-arm64.h"
 #elif defined(JS_MIPS_SIMULATOR)
 # include "jit/mips/Simulator-mips.h"
 #endif
