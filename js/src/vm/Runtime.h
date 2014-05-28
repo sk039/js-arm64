@@ -537,7 +537,7 @@ class PerThreadData : public PerThreadDataFriendFields
     /* Pointer to the current AutoFlushICache. */
     js::jit::AutoFlushICache *autoFlushICache_;
 
-#if defined(JS_ARM_SIMULATOR) || defined(JS_MIPS_SIMULATOR)
+#if defined(JS_ARM_SIMULATOR) || defined(JS_ARM64_SIMULATOR) || defined(JS_MIPS_SIMULATOR)
     js::jit::Simulator *simulator_;
     uintptr_t simulatorStackLimit_;
 #endif
@@ -615,7 +615,7 @@ class PerThreadData : public PerThreadDataFriendFields
     js::jit::AutoFlushICache *autoFlushICache() const;
     void setAutoFlushICache(js::jit::AutoFlushICache *afc);
 
-#if defined(JS_ARM_SIMULATOR) || defined(JS_MIPS_SIMULATOR)
+#if defined(JS_ARM_SIMULATOR) || defined(JS_ARM64_SIMULATOR) || defined(JS_MIPS_SIMULATOR)
     js::jit::Simulator *simulator() const;
     void setSimulator(js::jit::Simulator *sim);
     js::jit::SimulatorRuntime *simulatorRuntime() const;
@@ -988,7 +988,7 @@ struct JSRuntime : public JS::shadow::Runtime,
         gc.unlockGC();
     }
 
-#if defined(JS_ARM_SIMULATOR) || defined(JS_MIPS_SIMULATOR)
+#if defined(JS_ARM_SIMULATOR) || defined(JS_ARM64_SIMULATOR) || defined(JS_MIPS_SIMULATOR)
     js::jit::SimulatorRuntime *simulatorRuntime_;
 #endif
 
@@ -997,7 +997,7 @@ struct JSRuntime : public JS::shadow::Runtime,
         needsBarrier_ = needs;
     }
 
-#if defined(JS_ARM_SIMULATOR) || defined(JS_MIPS_SIMULATOR)
+#if defined(JS_ARM_SIMULATOR) || defined(JS_ARM64_SIMULATOR) || defined(JS_MIPS_SIMULATOR)
     js::jit::SimulatorRuntime *simulatorRuntime() const;
     void setSimulatorRuntime(js::jit::SimulatorRuntime *srt);
 #endif

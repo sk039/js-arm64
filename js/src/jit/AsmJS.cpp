@@ -6546,6 +6546,8 @@ GenerateFFIIonExit(ModuleCompiler &m, const ModuleCompiler::ExitDescriptor &exit
     m.masm().append(AsmJSGlobalAccess(label2.offset(), globalDataOffset));
 #elif defined(JS_CODEGEN_ARM)
     masm.lea(Operand(GlobalReg, globalDataOffset), callee);
+#elif defined(JS_CODEGEN_ARM64)
+    JS_ASSERT(0 && "GET GENERATEFFIIONEXIT WORKING OK TY");
 #else
     JS_ASSERT(0 && "TODO: add LEA");
 #endif
