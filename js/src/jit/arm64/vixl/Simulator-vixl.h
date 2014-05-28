@@ -182,6 +182,9 @@ class Simulator : public DecoderVisitor {
   virtual void Run();
   void RunFrom(Instruction* first);
 
+  // Sets up the simulator state and grabs the result on return.
+  int64_t call(uint8_t* entry, int argument_count, ...);
+
   // Simulation helpers.
   inline Instruction* pc() { return pc_; }
   inline void set_pc(Instruction* new_pc) {
