@@ -83,8 +83,8 @@ template<typename T> class ValueToken : public Token {
 // Format: wn or xn with 0 <= n < 32 or a name in the aliases list.
 class RegisterToken : public ValueToken<const ARMRegister> {
  public:
-  explicit RegisterToken(const Register reg)
-      : ValueToken<const Register>(reg) {}
+  explicit RegisterToken(const ARMRegister reg)
+      : ValueToken<const ARMRegister>(reg) {}
 
   virtual bool IsRegister() const { return true; }
   virtual bool CanAddressMemory() const { return value().Is64Bits(); }
@@ -738,7 +738,7 @@ void DebuggerARM64::RunDebuggerShell() {
     }
 
     printf("Next: ");
-    PrintInstructions(pc());
+    PrintInstructions(get_pc());
     bool done = false;
     while (!done) {
       char buffer[kMaxDebugShellLine];
@@ -999,7 +999,7 @@ Token* FloatRegisterToken::Tokenize(const char* arg) {
         return NULL;
       }
 
-      FloatRegister fpreg = NoFPReg;
+      ARMFPRegister fpreg = NoFPReg;
       switch (*arg) {
         case 's': fpreg = ARMFPRegister::SRegFromCode(code); break;
         case 'd': fpreg = ARMFPRegister::DRegFromCode(code); break;
@@ -1015,7 +1015,7 @@ Token* FloatRegisterToken::Tokenize(const char* arg) {
 
 uint8_t* IdentifierToken::ToAddress(DebuggerARM64* debugger) const {
   VIXL_ASSERT(CanAddressMemory());
-  Instruction* pc_value = debugger->pc();
+  Instruction* pc_value = debugger->get_pc();
   uint8_t* address = NULL;
   memcpy(&address, &pc_value, sizeof(address));
   return address;
@@ -1376,7 +1376,7 @@ bool PrintCommand::Run(DebuggerARM64* debugger) {
     } else if (strcmp(identifier, "sysregs") == 0) {
       debugger->PrintSystemRegisters(true);
     } else if (strcmp(identifier, "pc") == 0) {
-      printf("pc = %16p\n", reinterpret_cast<void*>(debugger->pc()));
+      printf("pc = %16p\n", reinterpret_cast<void*>(debugger->get_pc()));
     } else {
       printf(" ** Unknown identifier to print: %s **\n", identifier);
     }
@@ -1394,13 +1394,13 @@ bool PrintCommand::Run(DebuggerARM64* debugger) {
 
   if (tok->IsRegister()) {
     RegisterToken* reg_tok = RegisterToken::Cast(tok);
-    Register reg = reg_tok->value();
+    ARMRegister reg = reg_tok->value();
     debugger->PrintRegister(reg, reg_tok->Name(), format_tok);
     return false;
   }
 
   if (tok->IsFloatRegister()) {
-    FloatRegister fpreg = FloatRegisterToken::Cast(tok)->value();
+    ARMFPRegister fpreg = FloatRegisterToken::Cast(tok)->value();
     debugger->PrintFloatRegister(fpreg, format_tok);
     return false;
   }
@@ -1425,10 +1425,10 @@ DebugCommand* PrintCommand::Build(std::vector<Token*> args) {
   FormatToken* format = NULL;
   int target_size = 0;
   if (target->IsRegister()) {
-    Register reg = RegisterToken::Cast(target)->value();
+    ARMRegister reg = RegisterToken::Cast(target)->value();
     target_size = reg.SizeInBytes();
   } else if (target->IsFloatRegister()) {
-    FloatRegister fpreg = FloatRegisterToken::Cast(target)->value();
+    ARMFPRegister fpreg = FloatRegisterToken::Cast(target)->value();
     target_size = fpreg.SizeInBytes();
   }
   // If the target is an identifier there must be no format. This is checked
