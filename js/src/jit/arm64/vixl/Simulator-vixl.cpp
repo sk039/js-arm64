@@ -29,6 +29,8 @@
 
 #include "jit/arm64/vixl/Simulator-vixl.h"
 
+#include "vm/Runtime.h"
+
 #include <string.h>
 #include <math.h>
 
@@ -92,6 +94,18 @@ Simulator::Simulator(Decoder* decoder, FILE* stream) {
 
   // Set the sample period to 10, as the VIXL examples and tests are short.
   instrumentation_ = new Instrument("vixl_stats.csv", 10);
+}
+
+
+Simulator *Simulator::Current() {
+  PerThreadData *pt = TlsPerThreadData.get();
+  Simulator *sim = pt->simulator();
+  if (!sim) {
+    sim = js_new<Simulator>(pt->simulatorRuntime());
+    pt->setSimulator(sim);
+  }
+
+  return sim;
 }
 
 

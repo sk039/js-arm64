@@ -174,6 +174,10 @@ class Simulator : public DecoderVisitor {
 
   void ResetState();
 
+  // The currently executing Simulator instance.
+  // Potentially there can be one for each native thread.
+  static Simulator *Current();
+
   // Run the simulator.
   virtual void Run();
   void RunFrom(Instruction* first);
