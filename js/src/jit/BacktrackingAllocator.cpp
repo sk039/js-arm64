@@ -6,7 +6,7 @@
 
 #include "jit/BacktrackingAllocator.h"
 #include "jit/BitSet.h"
-
+#include "jit/IonSpewer.h"
 using namespace js;
 using namespace js::jit;
 

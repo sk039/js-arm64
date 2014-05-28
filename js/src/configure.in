@@ -1991,6 +1991,11 @@ arm*-*)
     AC_DEFINE(JS_CPU_ARM)
     AC_DEFINE(JS_NUNBOX32)
     ;;
+aarch64*-*)
+    ENABLE_ION=1
+    AC_DEFINE(JS_CPU_ARM64)
+    AC_DEFINE(JS_PUNBOX64)
+    ;;
 sparc*-*)
     if test ! "$HAVE_64BIT_OS" ; then
 dnl ENABLE_ION=0
@@ -3263,7 +3268,7 @@ elif test "$CPU_ARCH" = "x86_64"; then
 elif test "$CPU_ARCH" = "arm"; then
     AC_DEFINE(JS_CODEGEN_ARM)
     JS_CODEGEN_ARM=1
-elif test "$CPU_ARCH" = "arm64"; then dnl FIXME -- is this the right string? Test with hardware.
+elif test "$CPU_ARCH" = "aarch64"; then
     AC_DEFINE(JS_CODEGEN_ARM64)
     JS_CODEGEN_ARM64=1
 fi

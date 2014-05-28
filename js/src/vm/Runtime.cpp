@@ -29,7 +29,7 @@
 #include "jswatchpoint.h"
 #include "jswrapper.h"
 
-#if defined(JS_ION)
+#if defined(JS_ION) && !defined(JS_CPU_ARM64)
 # include "assembler/assembler/MacroAssembler.h"
 #endif
 #include "jit/arm/Simulator-arm.h"
@@ -249,9 +249,11 @@ static bool
 JitSupportsFloatingPoint()
 {
 #if defined(JS_ION)
+    // armv8, and hence arm64 *must* support fp instructions
+#if !defined(JS_CPU_ARM64)
     if (!JSC::MacroAssembler::supportsFloatingPoint())
         return false;
-
+#endif
 #if defined(JS_ION) && WTF_ARM_ARCH_VERSION == 6
     if (!js::jit::hasVFP())
         return false;

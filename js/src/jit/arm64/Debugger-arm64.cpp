@@ -59,7 +59,7 @@ class Token {
   virtual bool IsUnknown() const { return false; }
   // Token properties.
   virtual bool CanAddressMemory() const { return false; }
-  virtual uint8_t* ToAddress(Debugger* debugger) const;
+  virtual uint8_t* ToAddress(DebuggerARM64* debugger) const;
   virtual void Print(FILE* out = stdout) const = 0;
 
   static Token* Tokenize(const char* arg);
@@ -86,7 +86,7 @@ class RegisterToken : public ValueToken<const Register> {
 
   virtual bool IsRegister() const { return true; }
   virtual bool CanAddressMemory() const { return value().Is64Bits(); }
-  virtual uint8_t* ToAddress(Debugger* debugger) const;
+  virtual uint8_t* ToAddress(DebuggerARM64* debugger) const;
   virtual void Print(FILE* out = stdout) const ;
   const char* Name() const;
 
@@ -133,7 +133,7 @@ class IdentifierToken : public ValueToken<char*> {
 
   virtual bool IsIdentifier() const { return true; }
   virtual bool CanAddressMemory() const { return strcmp(value(), "pc") == 0; }
-  virtual uint8_t* ToAddress(Debugger* debugger) const;
+  virtual uint8_t* ToAddress(DebuggerARM64* debugger) const;
   virtual void Print(FILE* out = stdout) const;
 
   static Token* Tokenize(const char* arg);
@@ -151,7 +151,7 @@ class AddressToken : public ValueToken<uint8_t*> {
 
   virtual bool IsAddress() const { return true; }
   virtual bool CanAddressMemory() const { return true; }
-  virtual uint8_t* ToAddress(Debugger* debugger) const;
+  virtual uint8_t* ToAddress(DebuggerARM64* debugger) const;
   virtual void Print(FILE* out = stdout) const ;
 
   static Token* Tokenize(const char* arg);
@@ -253,7 +253,7 @@ class DebugCommand {
   const char* name() { return name_->value(); }
   // Run the command on the given debugger. The command returns true if
   // execution should move to the next instruction.
-  virtual bool Run(Debugger * debugger) = 0;
+  virtual bool Run(DebuggerARM64 * debugger) = 0;
   virtual void Print(FILE* out = stdout);
 
   static bool Match(const char* name, const char** aliases);
@@ -272,7 +272,7 @@ class HelpCommand : public DebugCommand {
  public:
   explicit HelpCommand(Token* name) : DebugCommand(name) {}
 
-  virtual bool Run(Debugger* debugger);
+  virtual bool Run(DebuggerARM64* debugger);
 
   static DebugCommand* Build(std::vector<Token*> args);
 
@@ -286,7 +286,7 @@ class ContinueCommand : public DebugCommand {
  public:
   explicit ContinueCommand(Token* name) : DebugCommand(name) {}
 
-  virtual bool Run(Debugger* debugger);
+  virtual bool Run(DebuggerARM64* debugger);
 
   static DebugCommand* Build(std::vector<Token*> args);
 
@@ -303,7 +303,7 @@ class StepCommand : public DebugCommand {
   virtual ~StepCommand() { delete count_; }
 
   int64_t count() { return count_->value(); }
-  virtual bool Run(Debugger* debugger);
+  virtual bool Run(DebuggerARM64* debugger);
   virtual void Print(FILE* out = stdout);
 
   static DebugCommand* Build(std::vector<Token*> args);
@@ -337,7 +337,7 @@ class PrintCommand : public DebugCommand {
 
   Token* target() { return target_; }
   FormatToken* format() { return format_; }
-  virtual bool Run(Debugger* debugger);
+  virtual bool Run(DebuggerARM64* debugger);
   virtual void Print(FILE* out = stdout);
 
   static DebugCommand* Build(std::vector<Token*> args);
@@ -367,7 +367,7 @@ class ExamineCommand : public DebugCommand {
   Token* target() { return target_; }
   FormatToken* format() { return format_; }
   IntegerToken* count() { return count_; }
-  virtual bool Run(Debugger* debugger);
+  virtual bool Run(DebuggerARM64* debugger);
   virtual void Print(FILE* out = stdout);
 
   static DebugCommand* Build(std::vector<Token*> args);
@@ -388,7 +388,7 @@ class UnknownCommand : public DebugCommand {
   explicit UnknownCommand(std::vector<Token*> args) : args_(args) {}
   virtual ~UnknownCommand();
 
-  virtual bool Run(Debugger* debugger);
+  virtual bool Run(DebuggerARM64* debugger);
 
  private:
   std::vector<Token*> args_;
@@ -401,7 +401,7 @@ class InvalidCommand : public DebugCommand {
       : args_(args), index_(index), cause_(cause) {}
   virtual ~InvalidCommand();
 
-  virtual bool Run(Debugger* debugger);
+  virtual bool Run(DebuggerARM64* debugger);
 
  private:
   std::vector<Token*> args_;
@@ -526,7 +526,7 @@ const char* RegisterToken::kWAliases[kNumberOfRegisters][kMaxAliasNumber] = {
 };
 
 
-Debugger::Debugger(Decoder* decoder, FILE* stream)
+DebuggerARM64::DebuggerARM64(Decoder* decoder, FILE* stream)
     : Simulator(decoder, stream),
       log_parameters_(0),
       debug_parameters_(0),
@@ -539,7 +539,7 @@ Debugger::Debugger(Decoder* decoder, FILE* stream)
 }
 
 
-void Debugger::Run() {
+void DebuggerARM64::Run() {
   pc_modified_ = false;
   while (pc_ != kEndOfSimAddress) {
     if (pending_request()) {
@@ -552,7 +552,7 @@ void Debugger::Run() {
 }
 
 
-void Debugger::PrintInstructions(void* address, int64_t count) {
+void DebuggerARM64::PrintInstructions(void* address, int64_t count) {
   if (count == 0) {
     return;
   }
@@ -572,7 +572,7 @@ void Debugger::PrintInstructions(void* address, int64_t count) {
 }
 
 
-void Debugger::PrintMemory(const uint8_t* address,
+void DebuggerARM64::PrintMemory(const uint8_t* address,
                            const FormatToken* format,
                            int64_t count) {
   if (count == 0) {
@@ -600,7 +600,7 @@ void Debugger::PrintMemory(const uint8_t* address,
 }
 
 
-void Debugger::PrintRegister(const Register& target_reg,
+void DebuggerARM64::PrintRegister(const Register& target_reg,
                              const char* name,
                              const FormatToken* format) {
   const uint64_t reg_size = target_reg.SizeInBits();
@@ -623,7 +623,7 @@ void Debugger::PrintRegister(const Register& target_reg,
 }
 
 
-void Debugger::PrintFloatRegister(const FloatRegister& target_fpreg,
+void DebuggerARM64::PrintFloatRegister(const FloatRegister& target_fpreg,
                                const FormatToken* format) {
   const uint64_t fpreg_size = target_fpreg.SizeInBits();
   const uint64_t format_size = format->SizeOf() * 8;
@@ -648,7 +648,7 @@ void Debugger::PrintFloatRegister(const FloatRegister& target_fpreg,
 }
 
 
-void Debugger::VisitException(Instruction* instr) {
+void DebuggerARM64::VisitException(Instruction* instr) {
   switch (instr->Mask(ExceptionMask)) {
     case BRK:
       DoBreakpoint(instr);
@@ -671,22 +671,22 @@ void Debugger::VisitException(Instruction* instr) {
 }
 
 
-void Debugger::LogSystemRegisters() {
+void DebuggerARM64::LogSystemRegisters() {
   if (log_parameters_ & LOG_SYS_REGS) PrintSystemRegisters();
 }
 
 
-void Debugger::LogRegisters() {
+void DebuggerARM64::LogRegisters() {
   if (log_parameters_ & LOG_REGS) PrintRegisters();
 }
 
 
-void Debugger::LogFloatRegisters() {
+void DebuggerARM64::LogFloatRegisters() {
   if (log_parameters_ & LOG_FP_REGS) PrintFloatRegisters();
 }
 
 
-void Debugger::LogProcessorState() {
+void DebuggerARM64::LogProcessorState() {
   LogSystemRegisters();
   LogRegisters();
   LogFloatRegisters();
@@ -696,7 +696,7 @@ void Debugger::LogProcessorState() {
 // Read a command. A command will be at most kMaxDebugShellLine char long and
 // ends with '\n\0'.
 // TODO: Should this be a utility function?
-char* Debugger::ReadCommandLine(const char* prompt, char* buffer, int length) {
+char* DebuggerARM64::ReadCommandLine(const char* prompt, char* buffer, int length) {
   int fgets_calls = 0;
   char* end = NULL;
 
@@ -727,7 +727,7 @@ char* Debugger::ReadCommandLine(const char* prompt, char* buffer, int length) {
 }
 
 
-void Debugger::RunDebuggerShell() {
+void DebuggerARM64::RunDebuggerShell() {
   if (IsDebuggerRunning()) {
     if (steps_ > 0) {
       // Finish stepping first.
@@ -765,7 +765,7 @@ void Debugger::RunDebuggerShell() {
 }
 
 
-void Debugger::DoBreakpoint(Instruction* instr) {
+void DebuggerARM64::DoBreakpoint(Instruction* instr) {
   VIXL_ASSERT(instr->Mask(ExceptionMask) == BRK);
 
   printf("Hit breakpoint at pc=%p.\n", reinterpret_cast<void*>(instr));
@@ -775,7 +775,7 @@ void Debugger::DoBreakpoint(Instruction* instr) {
 }
 
 
-void Debugger::DoUnreachable(Instruction* instr) {
+void DebuggerARM64::DoUnreachable(Instruction* instr) {
   VIXL_ASSERT((instr->Mask(ExceptionMask) == HLT) &&
               (instr->ImmException() == kUnreachableOpcode));
 
@@ -785,7 +785,7 @@ void Debugger::DoUnreachable(Instruction* instr) {
 }
 
 
-void Debugger::DoTrace(Instruction* instr) {
+void DebuggerARM64::DoTrace(Instruction* instr) {
   VIXL_ASSERT((instr->Mask(ExceptionMask) == HLT) &&
               (instr->ImmException() == kTraceOpcode));
 
@@ -812,7 +812,7 @@ void Debugger::DoTrace(Instruction* instr) {
 }
 
 
-void Debugger::DoLog(Instruction* instr) {
+void DebuggerARM64::DoLog(Instruction* instr) {
   VIXL_ASSERT((instr->Mask(ExceptionMask) == HLT) &&
               (instr->ImmException() == kLogOpcode));
 
@@ -883,7 +883,7 @@ static bool StringToInt64(int64_t* value, const char* line, int base = 10) {
 }
 
 
-uint8_t* Token::ToAddress(Debugger* debugger) const {
+uint8_t* Token::ToAddress(DebuggerARM64* debugger) const {
   USEARG(debugger);
   VIXL_UNREACHABLE();
   return NULL;
@@ -927,7 +927,7 @@ Token* Token::Tokenize(const char* arg) {
 }
 
 
-uint8_t* RegisterToken::ToAddress(Debugger* debugger) const {
+uint8_t* RegisterToken::ToAddress(DebuggerARM64* debugger) const {
   VIXL_ASSERT(CanAddressMemory());
   uint64_t reg_value = debugger->xreg(value().code(), Reg31IsStackPointer);
   uint8_t* address = NULL;
@@ -1011,7 +1011,7 @@ Token* FloatRegisterToken::Tokenize(const char* arg) {
 }
 
 
-uint8_t* IdentifierToken::ToAddress(Debugger* debugger) const {
+uint8_t* IdentifierToken::ToAddress(DebuggerARM64* debugger) const {
   VIXL_ASSERT(CanAddressMemory());
   Instruction* pc_value = debugger->pc();
   uint8_t* address = NULL;
@@ -1042,7 +1042,7 @@ Token* IdentifierToken::Tokenize(const char* arg) {
 }
 
 
-uint8_t* AddressToken::ToAddress(Debugger* debugger) const {
+uint8_t* AddressToken::ToAddress(DebuggerARM64* debugger) const {
   USEARG(debugger);
   return value();
 }
@@ -1244,7 +1244,7 @@ void DebugCommand::PrintHelp(const char** aliases,
 }
 
 
-bool HelpCommand::Run(Debugger* debugger) {
+bool HelpCommand::Run(DebuggerARM64* debugger) {
   VIXL_ASSERT(debugger->IsDebuggerRunning());
   USEARG(debugger);
 
@@ -1269,7 +1269,7 @@ DebugCommand* HelpCommand::Build(std::vector<Token*> args) {
 }
 
 
-bool ContinueCommand::Run(Debugger* debugger) {
+bool ContinueCommand::Run(DebuggerARM64* debugger) {
   VIXL_ASSERT(debugger->IsDebuggerRunning());
 
   debugger->set_debug_parameters(debugger->debug_parameters() & ~DBG_ACTIVE);
@@ -1286,7 +1286,7 @@ DebugCommand* ContinueCommand::Build(std::vector<Token*> args) {
 }
 
 
-bool StepCommand::Run(Debugger* debugger) {
+bool StepCommand::Run(DebuggerARM64* debugger) {
   VIXL_ASSERT(debugger->IsDebuggerRunning());
 
   int64_t steps = count();
@@ -1361,7 +1361,7 @@ void PrintCommand::Print(FILE* out) {
 }
 
 
-bool PrintCommand::Run(Debugger* debugger) {
+bool PrintCommand::Run(DebuggerARM64* debugger) {
   VIXL_ASSERT(debugger->IsDebuggerRunning());
 
   Token* tok = target();
@@ -1475,7 +1475,7 @@ DebugCommand* PrintCommand::Build(std::vector<Token*> args) {
 }
 
 
-bool ExamineCommand::Run(Debugger* debugger) {
+bool ExamineCommand::Run(DebuggerARM64* debugger) {
   VIXL_ASSERT(debugger->IsDebuggerRunning());
 
   uint8_t* address = target()->ToAddress(debugger);
@@ -1558,7 +1558,7 @@ UnknownCommand::~UnknownCommand() {
 }
 
 
-bool UnknownCommand::Run(Debugger* debugger) {
+bool UnknownCommand::Run(DebuggerARM64* debugger) {
   VIXL_ASSERT(debugger->IsDebuggerRunning());
   USEARG(debugger);
 
@@ -1582,7 +1582,7 @@ InvalidCommand::~InvalidCommand() {
 }
 
 
-bool InvalidCommand::Run(Debugger* debugger) {
+bool InvalidCommand::Run(DebuggerARM64* debugger) {
   VIXL_ASSERT(debugger->IsDebuggerRunning());
   USEARG(debugger);
 

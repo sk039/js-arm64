@@ -1,4 +1,4 @@
-// -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 2 -*-
+// -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
 // vim: set ts=8 sts=2 et sw=2 tw=99:
 //
 // Copyright 2013, ARM Limited
@@ -36,7 +36,10 @@
 #include "jit/arm64/VIXL-Globals-arm64.h"
 #include "jit/arm64/Assembler-arm64.h"
 #include "jit/arm64/Debugger-arm64.h"
-
+class Operand {
+    // lolwut? it looks like CodeGenerator is accessing this directly?
+    // That should probably be changed
+};
 #define LS_MACRO_LIST(V)                                      \
   V(Ldrb, Register&, rt, LDRB_w)                              \
   V(Strb, Register&, rt, STRB_w)                              \
@@ -66,6 +69,46 @@ struct ImmTag : public Imm32
 {
     ImmTag(JSValueTag tag)
       : Imm32(tag)
+    { }
+};
+
+class ARMOperand
+{
+  public:
+    enum Kind {
+      REG,
+      FPREG,
+      MEM
+    };
+
+  private:
+    Kind kind_ : 2;
+    int32_t reg_ : 5;
+    int32_t offset_;
+
+  public:
+    explicit ARMOperand(Register reg)
+      : kind_(REG),
+        reg_(reg.code())
+    { }
+    explicit ARMOperand(FloatRegister fpreg)
+      : kind_(REG),
+        reg_(fpreg.code())
+    { }
+    explicit ARMOperand(Register base, Imm32 offset)
+      : kind_(MEM),
+        reg_(base.code()),
+        offset_(offset.value)
+    { }
+    explicit ARMOperand(Register base, int32_t offset)
+      : kind_(MEM),
+        reg_(base.code()),
+        offset_(offset)
+    { }
+    explicit ARMOperand(const Address &addr)
+      : kind_(MEM),
+        reg_(addr.base.code()),
+        offset_(addr.offset)
     { }
 };
 
@@ -145,7 +188,7 @@ class MacroAssemblerARM64 : public Assembler
         JS_ASSERT(0 && "freeStack");
     }
 
-    void storeValue(ValueOperand val, Operand dest) {
+    void storeValue(ValueOperand val, ARMOperand dest) {
         JS_ASSERT(0 && "storeValue");
     }
     void storeValue(ValueOperand val, const Address &dest) {
@@ -162,7 +205,7 @@ class MacroAssemblerARM64 : public Assembler
     void storeValue(ValueOperand val, BaseIndex dest) {
         JS_ASSERT(0 && "storeValue");
     }
-    void loadValue(Operand src, ValueOperand val) {
+    void loadValue(ARMOperand src, ValueOperand val) {
         JS_ASSERT(0 && "loadValue");
     }
     void loadValue(Address src, ValueOperand val) {
@@ -201,6 +244,18 @@ class MacroAssemblerARM64 : public Assembler
     void moveValue(const ValueOperand &src, const ValueOperand &dest) {
         JS_ASSERT(0 && "moveValue");
     }
+
+    CodeOffsetLabel pushWithPatch(ImmWord imm) {
+        JS_ASSERT(0 && "pushWithPatch");
+    }
+
+    CodeOffsetLabel movWithPatch(ImmWord imm, Register dest) {
+        JS_ASSERT(0 && "moveWithPatch");
+    }
+    CodeOffsetLabel movWithPatch(ImmPtr imm, Register dest) {
+      JS_ASSERT(0 && "moveWithPatch");
+    }
+
     void boxValue(JSValueType type, Register src, Register dest) {
         JS_ASSERT(0 && "boxValue");
     }
@@ -236,14 +291,43 @@ class MacroAssemblerARM64 : public Assembler
     void ensureDouble(const ValueOperand &source, FloatRegister dest, Label *failure) {
         JS_ASSERT(0 && "ensureDouble()");
     }
+    void
+    emitSet(Assembler::Condition cond, Register dest)
+    {
+        JS_ASSERT(0 && "emitSet");
+    }
 
+    template <typename T1, typename T2>
+    void cmpPtrSet(Assembler::Condition cond, T1 lhs, T2 rhs, Register dest)
+    {
+        cmpPtr(lhs, rhs);
+        emitSet(cond, dest);
+    }
+    template <typename T1, typename T2>
+    void cmp32Set(Assembler::Condition cond, T1 lhs, T2 rhs, Register dest)
+    {
+        cmp32(lhs, rhs);
+        emitSet(cond, dest);
+    }
+
+    void testNullSet(Condition cond, const ValueOperand &value, Register dest) {
+        cond = testNull(cond, value);
+        emitSet(cond, dest);
+    }
+    void testUndefinedSet(Condition cond, const ValueOperand &value, Register dest) {
+        cond = testUndefined(cond, value);
+        emitSet(cond, dest);
+    }
+    void convertBoolToInt32(Register source, Register dest) {
+        JS_ASSERT(0 && "convertBoolToInt32");
+    }
     void convertInt32ToDouble(Register src, FloatRegister dest) {
         JS_ASSERT(0 && "convertInt32ToDouble");
     }
     void convertInt32ToDouble(const Address &src, FloatRegister dest) {
         JS_ASSERT(0 && "convertInt32ToDouble");
     }
-    void convertInt32ToDouble(const Operand &src, FloatRegister dest) {
+    void convertInt32ToDouble(const ARMOperand &src, FloatRegister dest) {
         JS_ASSERT(0 && "convertInt32ToDouble");
     }
     void convertInt32ToFloat32(Register src, FloatRegister dest) {
@@ -252,8 +336,24 @@ class MacroAssemblerARM64 : public Assembler
     void convertInt32ToFloat32(const Address &src, FloatRegister dest) {
         JS_ASSERT(0 && "convertInt32ToFloat32");
     }
-    void convertInt32ToFloat32(const Operand &src, FloatRegister dest) {
+    void convertInt32ToFloat32(const ARMOperand &src, FloatRegister dest) {
         JS_ASSERT(0 && "convertInt32ToFloat32");
+    }
+
+    void convertUInt32ToDouble(const Address &src, FloatRegister dest) {
+        JS_ASSERT(0 && "convertUInt32ToDouble");
+    }
+    void convertUInt32ToDouble(const Register &src, FloatRegister dest) {
+        JS_ASSERT(0 && "convertUInt32ToDouble");
+    }
+    void convertUInt32ToFloat32(Register src, FloatRegister dest) {
+        JS_ASSERT(0 && "convertUInt32ToFloat32");
+    }
+    void convertUInt32ToFloat32(const Address &src, FloatRegister dest) {
+        JS_ASSERT(0 && "convertUInt32ToFloat32");
+    }
+    void convertUInt32ToFloat32(const Register &src, FloatRegister dest) {
+        JS_ASSERT(0 && "convertUInt32ToFloat32");
     }
 
     void convertFloat32ToDouble(FloatRegister src, FloatRegister dest) {
@@ -262,7 +362,21 @@ class MacroAssemblerARM64 : public Assembler
     void convertDoubleToFloat32(FloatRegister src, FloatRegister dest) {
         JS_ASSERT(0 && "convertDoubleToFloat32");
     }
+    void branchTruncateDouble(FloatRegister src, Register dest, Label *fail) {
+        JS_ASSERT(0 && "branchTruncateDouble");
+    }
+    void convertDoubleToInt32(FloatRegister src, Register dest, Label *fail,
+                              bool negativeZeroCheck = true) {
+        JS_ASSERT(0 && "convertDoubleToInt32");
+    }
+    void convertFloat32ToInt32(FloatRegister src, Register dest, Label *fail,
+                               bool negativeZeroCheck = true) {
+        JS_ASSERT(0 && "convertFloat32ToInt32");
+    }
 
+    void branchTruncateFloat32(FloatRegister src, Register dest, Label *fail) {
+        JS_ASSERT(0 && "branchTruncateFloat32");
+    }
     void jump(Label *label) {
         JS_ASSERT(0 && "jump");
     }
@@ -283,7 +397,7 @@ class MacroAssemblerARM64 : public Assembler
     void movePtr(Register src, Register dest) {
         JS_ASSERT(0 && "movePtr");
     }
-    void movePtr(Register src, const Operand &dest) {
+    void movePtr(Register src, const ARMOperand &dest) {
         JS_ASSERT(0 && "movePtr");
     }
     void movePtr(ImmWord imm, Register dest) {
@@ -298,13 +412,37 @@ class MacroAssemblerARM64 : public Assembler
     void movePtr(ImmGCPtr imm, Register dest) {
         JS_ASSERT(0 && "movePtr");
     }
+    void move32(Imm32 imm, Register dest) {
+        JS_ASSERT(0 && "move32");
+    }
+    void move32(Register src, Register dest) {
+        JS_ASSERT(0 && "move32");
+    }
+    void mov(ImmWord word, Register dest) {
+        JS_ASSERT(0 && "mov");
+    }
+    void mov(ImmPtr imm, Register dest) {
+        mov(ImmWord(uintptr_t(imm.value)), dest);
+    }
+
+    void mov(Register src, Register dest) {
+        JS_ASSERT(0 && "mov");
+    }
+
+    void not32(Register reg) {
+        JS_ASSERT(0 && "not");
+    }
+    void neg32(Register reg) {
+        JS_ASSERT(0 && "not");
+    }
+
     void loadPtr(AbsoluteAddress address, Register dest) {
         JS_ASSERT(0 && "loadPtr");
     }
     void loadPtr(const Address &address, Register dest) {
         JS_ASSERT(0 && "loadPtr");
     }
-    void loadPtr(const Operand &src, Register dest) {
+    void loadPtr(const ARMOperand &src, Register dest) {
         JS_ASSERT(0 && "loadPtr");
     }
     void loadPtr(const BaseIndex &src, Register dest) {
@@ -316,6 +454,29 @@ class MacroAssemblerARM64 : public Assembler
     void load32(AbsoluteAddress address, Register dest) {
         JS_ASSERT(0 && "load32");
     }
+
+    void store8(Register src, const Address &address) {
+        JS_ASSERT(0 && "store8");
+    }
+    void store8(Imm32 imm, const Address &address) {
+        JS_ASSERT(0 && "store8");
+    }
+    void store8(Register src, const BaseIndex &address);
+    void store8(Imm32 imm, const BaseIndex &address);
+
+    void store16(Register src, const Address &address) {
+        JS_ASSERT(0 && "store16");
+    }
+    void store16(Imm32 imm, const Address &address) {
+        JS_ASSERT(0 && "store16");
+    }
+    void store16(Register src, const BaseIndex &address) {
+        JS_ASSERT(0 && "store16");
+    }
+    void store16(Imm32 imm, const BaseIndex &address) {
+        JS_ASSERT(0 && "store16");
+    }
+
     void storePtr(ImmWord imm, const Address &address) {
         JS_ASSERT(0 && "storePtr");
     }
@@ -331,7 +492,7 @@ class MacroAssemblerARM64 : public Assembler
     void storePtr(Register src, const BaseIndex &address) {
         JS_ASSERT(0 && "storePtr");
     }
-    void storePtr(Register src, const Operand &dest) {
+    void storePtr(Register src, const ARMOperand &dest) {
         JS_ASSERT(0 && "storePtr");
     }
     void storePtr(Register src, AbsoluteAddress address) {
@@ -352,6 +513,10 @@ class MacroAssemblerARM64 : public Assembler
     void xorPtr(Imm32 imm, Register dest) {
         JS_ASSERT(0 && "xorPtr");
     }
+    void xor32(Imm32 imm, Register dest) {
+        JS_ASSERT(0 && "xorPtr");
+    }
+
     void xorPtr(Register src, Register dest) {
         JS_ASSERT(0 && "xorPtr");
     }
@@ -364,8 +529,72 @@ class MacroAssemblerARM64 : public Assembler
     void andPtr(Imm32 imm, Register dest) {
         JS_ASSERT(0 && "andPtr");
     }
+    void and32(Imm32 imm, Register dest) {
+        JS_ASSERT(0 && "and32");
+    }
+    void and32(Register src, Register dest) {
+        JS_ASSERT(0 && "and32");
+    }
+    void and32(Imm32 mask, Address dest) {
+        JS_ASSERT(0 && "and32");
+    }
+
     void andPtr(Register src, Register dest) {
         JS_ASSERT(0 && "andPtr");
+    }
+    void or32(Imm32 imm, const Address &dest) {
+        JS_ASSERT(0 && "or32");
+    }
+
+
+    void test32(Register lhs, Register rhs) {
+      JS_ASSERT(0 && "test32");
+    }
+    void test32(const Address &addr, Imm32 imm) {
+        JS_ASSERT(0 && "test32");
+    }
+    void test32(Register lhs, Imm32 rhs) {
+        JS_ASSERT(0 && "test32");
+    }
+    void cmp32(Register lhs, Imm32 rhs) {
+      JS_ASSERT(0 && "cmp32");
+    }
+    void cmp32(Register a, Register b) {
+      JS_ASSERT(0 && "cmp32");
+    }
+    void cmp32(const Operand &lhs, Imm32 rhs) {
+      JS_ASSERT(0 && "cmp32");
+    }
+    void cmp32(const Operand &lhs, Register rhs) {
+      JS_ASSERT(0 && "cmp32");
+    }
+
+  void cmpPtr(Register lhs, ImmWord rhs) {
+    JS_ASSERT(0 && "cmpPtr");
+  }
+  void cmpPtr(Register lhs, ImmPtr rhs) {
+    JS_ASSERT(0 && "cmpPtr");
+  }
+  void cmpPtr(Register lhs, Register rhs) {
+    JS_ASSERT(0 && "cmpPtr");
+  }
+  void cmpPtr(Register lhs, ImmGCPtr rhs) {
+    JS_ASSERT(0 && "cmpPtr");
+  }
+  void cmpPtr(Register lhs, Imm32 rhs) {
+    JS_ASSERT(0 && "cmpPtr");
+  }
+  void cmpPtr(const Address &lhs, Register rhs) {
+    JS_ASSERT(0 && "cmpPtr");
+  }
+  void cmpPtr(const Address &lhs, ImmWord rhs) {
+    JS_ASSERT(0 && "cmpPtr");
+  }
+  void cmpPtr(const Address &lhs, ImmPtr rhs) {
+    JS_ASSERT(0 && "cmpPtr");  }
+
+    void testPtr(Register lhs, Register rhs) {
+        test32(lhs, rhs);
     }
 
     void loadDouble(const Address &src, FloatRegister dest) {
@@ -374,18 +603,33 @@ class MacroAssemblerARM64 : public Assembler
     void loadDouble(const BaseIndex &src, FloatRegister dest) {
         JS_ASSERT(0 && "loadDouble");
     }
-    void loadDouble(const Operand &src, FloatRegister dest) {
-        JS_ASSERT(0 && "loadDouble");
+    void loadFloatAsDouble(const Address &addr, FloatRegister dest) {
+        JS_ASSERT(0 && "loadFloatAsDouble");
     }
+    void loadFloatAsDouble(const BaseIndex &src, FloatRegister dest) {
+        JS_ASSERT(0 && "loadFloatAsDouble");
+    }
+
+    void loadFloat32(const Address &addr, FloatRegister dest) {
+        JS_ASSERT(0 && "loadFloat32");
+    }
+    void loadFloat32(const BaseIndex &src, FloatRegister dest) {
+        JS_ASSERT(0 && "loadFloat32");
+    }
+
     void storeDouble(FloatRegister src, const Address &dest) {
         JS_ASSERT(0 && "storeDouble");
     }
     void storeDouble(FloatRegister src, const BaseIndex &dest) {
         JS_ASSERT(0 && "storeDouble");
     }
-    void storeDouble(FloatRegister src, const Operand &dest) {
-        JS_ASSERT(0 && "storeDouble");
+    void storeFloat32(FloatRegister src, Address addr) {
+        JS_ASSERT(0 && "storeFloat32");
     }
+    void storeFloat32(FloatRegister src, BaseIndex addr) {
+        JS_ASSERT(0 && "storeFloat32");
+    }
+
     void moveDouble(FloatRegister src, FloatRegister dest) {
         JS_ASSERT(0 && "moveDouble");
     }
@@ -413,6 +657,12 @@ class MacroAssemblerARM64 : public Assembler
     void divDouble(FloatRegister src, FloatRegister dest) {
         JS_ASSERT(0 && "divDouble");
     }
+
+
+    void moveFloat32(FloatRegister src, FloatRegister dest) {
+        JS_ASSERT(0 && "moveFloat32");
+    }
+
     void moveFloatAsDouble(Register src, FloatRegister dest) {
         JS_ASSERT(0 && "moveFloatAsDouble");
     }
@@ -423,7 +673,7 @@ class MacroAssemblerARM64 : public Assembler
     void splitTag(const ValueOperand &operand, Register dest) {
         JS_ASSERT(0 && "void ");
     }
-    void splitTag(const Operand &operand, Register dest) {
+    void splitTag(const ARMOperand &operand, Register dest) {
         JS_ASSERT(0 && "splitTag");
     }
     void splitTag(const Address &operand, Register dest) {
@@ -448,9 +698,20 @@ class MacroAssemblerARM64 : public Assembler
     void load32(const BaseIndex &src, Register dest) {
         JS_ASSERT(0 && "load32");
     }
-    void load32(const Operand &src, Register dst) {
+    void load32(const ARMOperand &src, Register dst) {
         JS_ASSERT(0 && "load32");
     }
+    void load8SignExtend(const Address &address, Register dest);
+    void load8SignExtend(const BaseIndex &src, Register dest);
+
+    void load8ZeroExtend(const Address &address, Register dest);
+    void load8ZeroExtend(const BaseIndex &src, Register dest);
+
+    void load16SignExtend(const Address &address, Register dest);
+    void load16SignExtend(const BaseIndex &src, Register dest);
+
+    void load16ZeroExtend(const Address &address, Register dest);
+    void load16ZeroExtend(const BaseIndex &src, Register dest);
 
     template <typename S, typename T>
     void store32(const S &src, const T &dest) {
@@ -482,7 +743,7 @@ class MacroAssemblerARM64 : public Assembler
     void addPtr(Imm32 imm, const Address &dest) {
         JS_ASSERT(0 && "addPtr");
     }
-    void addPtr(Imm32 imm, const Operand &dest) {
+    void addPtr(Imm32 imm, const ARMOperand &dest) {
         JS_ASSERT(0 && "addPtr");
     }
     void addPtr(ImmWord imm, Register dest) {
@@ -505,6 +766,22 @@ class MacroAssemblerARM64 : public Assembler
     }
     void subPtr(Register src, const Address &dest) {
         JS_ASSERT(0 && "subPtr");
+    }
+    void ret() {
+        JS_ASSERT(0 && "ret");
+    }
+
+    void j(Condition code , Label *dest)
+    {
+        JS_ASSERT(0 && "j");
+    }
+    void j(Label *dest)
+    {
+        JS_ASSERT(0 && "j");
+    }
+
+    void branch(Condition cond, Label *label) {
+      JS_ASSERT(0 && "branch");
     }
 
     void branch16(Condition cond, Register lhs, Register rhs, Label *label) {
@@ -534,6 +811,33 @@ class MacroAssemblerARM64 : public Assembler
     void branch32(Condition cond, AbsoluteAddress lhs, Register rhs, Label *label) {
         JS_ASSERT(0 && "branch32");
     }
+
+
+    void branchSub32(Condition cond, const ARMOperand &lhs, Register rhs, Label *label) {
+        JS_ASSERT(0 && "branchSub32");
+    }
+    void branchSub32(Condition cond, const ARMOperand &lhs, Imm32 rhs, Label *label) {
+        JS_ASSERT(0 && "branchSub32");
+    }
+    void branchSub32(Condition cond, const Address &lhs, Register rhs, Label *label) {
+        JS_ASSERT(0 && "branchSub32");
+    }
+    void branchSub32(Condition cond, const Address &lhs, Imm32 imm, Label *label) {
+        JS_ASSERT(0 && "branchSub32");
+    }
+    void branchSub32(Condition cond, Register lhs, Imm32 imm, Label *label) {
+        JS_ASSERT(0 && "branchSub32");
+    }
+    void branchSub32(Condition cond, Register lhs, Register rhs, Label *label) {
+        JS_ASSERT(0 && "branchSub32");
+    }
+    void branchSub32(Condition cond, AbsoluteAddress lhs, Imm32 rhs, Label *label) {
+        JS_ASSERT(0 && "branchSub32");
+    }
+    void branchSub32(Condition cond, AbsoluteAddress lhs, Register rhs, Label *label) {
+        JS_ASSERT(0 && "branchSub32");
+    }
+
     void branchTest16(Condition cond, Register lhs, Register rhs, Label *label) {
         JS_ASSERT(0 && "branchTest16");
     }
@@ -546,7 +850,15 @@ class MacroAssemblerARM64 : public Assembler
     void branchTest32(Condition cond, const Address &address, Imm32 imm, Label *label) {
         JS_ASSERT(0 && "branchTest32");
     }
-
+    CodeOffsetJump jumpWithPatch(RepatchLabel *label, Condition cond = Always);
+    template <typename T>
+    CodeOffsetJump branchPtrWithPatch(Condition cond, Register reg, T ptr, RepatchLabel *label) {
+        JS_ASSERT(0 && "branchPtrWithPatch");
+    }
+    template <typename T>
+    CodeOffsetJump branchPtrWithPatch(Condition cond, Address addr, T ptr, RepatchLabel *label) {
+        JS_ASSERT(0 && "branchPtrWithPatch");
+    }
     template <typename T, typename S>
     void branchPtr(Condition cond, T lhs, S ptr, Label *label) {
         JS_ASSERT(0 && "branchPtr");
@@ -560,6 +872,18 @@ class MacroAssemblerARM64 : public Assembler
     void branchTestPtr(Condition cond, const Address &lhs, Imm32 imm, Label *label) {
         JS_ASSERT(0 && "branchTestPtr");
     }
+    void branchPrivatePtr(Condition cond, const Address &lhs, ImmPtr ptr, Label *label) {
+        branchPtr(cond, lhs, ptr, label);
+    }
+
+    void branchPrivatePtr(Condition cond, const Address &lhs, Register ptr, Label *label) {
+        branchPtr(cond, lhs, ptr, label);
+    }
+
+    void branchPrivatePtr(Condition cond, Register lhs, ImmWord ptr, Label *label) {
+        branchPtr(cond, lhs, ptr, label);
+    }
+
     void decBranchPtr(Condition cond, Register lhs, Imm32 imm, Label *label) {
         JS_ASSERT(0 && "decBranchPtr");
     }
@@ -589,31 +913,29 @@ class MacroAssemblerARM64 : public Assembler
         JS_ASSERT(0 && "branchTestNumber");
     }
 
-    // ARM64 can test for certain types directly from memory when the payload
-    // of the type is limited to 32 bits. This avoids loading into a register,
-    // accesses half as much memory, and removes a right-shift.
-    void branchTestUndefined(Condition cond, const Operand &operand, Label *label) {
+
+    void branchTestUndefined(Condition cond, const ARMOperand &operand, Label *label) {
         JS_ASSERT(0 && "branchTestUndefined");
     }
     void branchTestUndefined(Condition cond, const Address &address, Label *label) {
         JS_ASSERT(0 && "branchTestUndefined");
     }
-    void branchTestInt32(Condition cond, const Operand &operand, Label *label) {
+    void branchTestInt32(Condition cond, const ARMOperand &operand, Label *label) {
         JS_ASSERT(0 && "branchTestInt32");
     }
     void branchTestInt32(Condition cond, const Address &address, Label *label) {
         JS_ASSERT(0 && "branchTestInt32");
     }
-    void branchTestDouble(Condition cond, const Operand &operand, Label *label) {
+    void branchTestDouble(Condition cond, const ARMOperand &operand, Label *label) {
         JS_ASSERT(0 && "branchTestDouble");
     }
     void branchTestDouble(Condition cond, const Address &address, Label *label) {
         JS_ASSERT(0 && "branchTestDouble");
     }
-    void branchTestBoolean(Condition cond, const Operand &operand, Label *label) {
+    void branchTestBoolean(Condition cond, const ARMOperand &operand, Label *label) {
         JS_ASSERT(0 && "branchTestBoolean");
     }
-    void branchTestNull(Condition cond, const Operand &operand, Label *label) {
+    void branchTestNull(Condition cond, const ARMOperand &operand, Label *label) {
         JS_ASSERT(0 && "branchTestNull");
     }
 
@@ -686,6 +1008,7 @@ class MacroAssemblerARM64 : public Assembler
         JS_ASSERT(0 && "testMagic");
         return Condition::Equal;
     }
+
     Condition testError(Condition cond, const ValueOperand &src) {
         JS_ASSERT(0 && "testError");
         return Condition::Equal;
@@ -697,13 +1020,6 @@ class MacroAssemblerARM64 : public Assembler
                          Label *label)
     {
         JS_ASSERT(0 && "branchTestValue");
-    }
-
-    void testNullSet(Condition cond, const ValueOperand &value, Register dest) {
-        JS_ASSERT(0 && "testNullSet");
-    }
-    void testUndefinedSet(Condition cond, const ValueOperand &value, Register dest) {
-        JS_ASSERT(0 && "testUndefinedSet");
     }
 
     void compareDouble(DoubleCondition cond, FloatRegister lhs, FloatRegister rhs) {
@@ -739,7 +1055,7 @@ class MacroAssemblerARM64 : public Assembler
     void unboxInt32(const ValueOperand &src, Register dest) {
         JS_ASSERT(0 && "unboxInt32");
     }
-    void unboxInt32(const Operand &src, Register dest) {
+    void unboxInt32(const ARMOperand &src, Register dest) {
         JS_ASSERT(0 && "unboxInt32");
     }
     void unboxInt32(const Address &src, Register dest) {
@@ -752,7 +1068,7 @@ class MacroAssemblerARM64 : public Assembler
     void unboxArgObjMagic(const ValueOperand &src, Register dest) {
         JS_ASSERT(0 && "unboxArgObjMagic");
     }
-    void unboxArgObjMagic(const Operand &src, Register dest) {
+    void unboxArgObjMagic(const ARMOperand &src, Register dest) {
         JS_ASSERT(0 && "unboxArgObjMagic");
     }
     void unboxArgObjMagic(const Address &src, Register dest) {
@@ -762,7 +1078,7 @@ class MacroAssemblerARM64 : public Assembler
     void unboxBoolean(const ValueOperand &src, Register dest) {
         JS_ASSERT(0 && "unboxBoolean");
     }
-    void unboxBoolean(const Operand &src, Register dest) {
+    void unboxBoolean(const ARMOperand &src, Register dest) {
         JS_ASSERT(0 && "unboxBoolean");
     }
     void unboxBoolean(const Address &src, Register dest) {
@@ -783,19 +1099,31 @@ class MacroAssemblerARM64 : public Assembler
     void notBoolean(const ValueOperand &val) {
         JS_ASSERT(0 && "notBoolean");
     }
+    void unboxObject(const ValueOperand &src, Register dest) {
+        JS_ASSERT(0 && "unboxObject");
+    }
+    void unboxObject(const Address &src, Register dest) {
+        JS_ASSERT(0 && "unboxObject");
+    }
 
     // Unbox any non-double value into dest. Prefer unboxInt32 or unboxBoolean
     // instead if the source type is known.
     void unboxNonDouble(const ValueOperand &src, Register dest) {
         JS_ASSERT(0 && "unboxNonDouble");
     }
-    void unboxNonDouble(const Operand &src, Register dest) {
+    void unboxNonDouble(const ARMOperand &src, Register dest) {
         // Explicitly permits |dest| to be used in |src|.
         JS_ASSERT(0 && "unboxNonDouble");
     }
 
     void unboxValue(const ValueOperand &src, AnyRegister dest) {
         JS_ASSERT(0 && "unboxValue");
+    }
+    void unboxString(const ValueOperand &operand, Register dest) {
+        JS_ASSERT(0 && "unboxSTring");
+    }
+    void unboxString(const Address &src, Register dest) {
+        JS_ASSERT(0 && "unboxString");
     }
 
     // These two functions use the low 32-bits of the full value register.
@@ -820,12 +1148,50 @@ class MacroAssemblerARM64 : public Assembler
         JS_ASSERT(0 && "loadConstantFloat32");
     }
 
-    void branchTruncateDouble(FloatRegister src, Register dest, Label *fail) {
-        JS_ASSERT(0 && "branchTruncateDouble");
-    }
-    void branchTruncateFloat32(FloatRegister src, Register dest, Label *fail) {
-        JS_ASSERT(0 && "branchTruncateFloat32");
-    }
+    Condition testInt32(Condition cond, const ValueOperand &value);
+    Condition testBoolean(Condition cond, const ValueOperand &value);
+    Condition testDouble(Condition cond, const ValueOperand &value);
+    Condition testNull(Condition cond, const ValueOperand &value);
+    Condition testUndefined(Condition cond, const ValueOperand &value);
+    Condition testString(Condition cond, const ValueOperand &value);
+    Condition testObject(Condition cond, const ValueOperand &value);
+    Condition testNumber(Condition cond, const ValueOperand &value);
+
+    Condition testPrimitive(Condition cond, const ValueOperand &value);
+
+    // register-based tests
+    Condition testInt32(Condition cond, Register tag);
+    Condition testBoolean(Condition cond, Register tag);
+    Condition testNull(Condition cond, Register tag);
+    Condition testUndefined(Condition cond, Register tag);
+    Condition testString(Condition cond, Register tag);
+    Condition testObject(Condition cond, Register tag);
+    Condition testDouble(Condition cond, Register tag);
+    Condition testNumber(Condition cond, Register tag);
+    Condition testMagic(Condition cond, Register tag);
+    Condition testPrimitive(Condition cond, Register tag);
+
+    Condition testGCThing(Condition cond, const Address &address);
+    Condition testMagic(Condition cond, const Address &address);
+    Condition testInt32(Condition cond, const Address &address);
+    Condition testDouble(Condition cond, const Address &address);
+    Condition testBoolean(Condition cond, const Address &address);
+    Condition testNull(Condition cond, const Address &address);
+    Condition testUndefined(Condition cond, const Address &address);
+    Condition testString(Condition cond, const Address &address);
+    Condition testObject(Condition cond, const Address &address);
+    Condition testNumber(Condition cond, const Address &address);
+
+    Condition testUndefined(Condition cond, const BaseIndex &src);
+    Condition testNull(Condition cond, const BaseIndex &src);
+    Condition testBoolean(Condition cond, const BaseIndex &src);
+    Condition testString(Condition cond, const BaseIndex &src);
+    Condition testInt32(Condition cond, const BaseIndex &src);
+    Condition testObject(Condition cond, const BaseIndex &src);
+    Condition testDouble(Condition cond, const BaseIndex &src);
+    Condition testMagic(Condition cond, const BaseIndex &src);
+    Condition testGCThing(Condition cond, const BaseIndex &src);
+
 
     Condition testInt32Truthy(bool truthy, const ValueOperand &operand) {
         JS_ASSERT(0 && "testInt32Truthy");
@@ -834,6 +1200,11 @@ class MacroAssemblerARM64 : public Assembler
     void branchTestInt32Truthy(bool truthy, const ValueOperand &operand, Label *label) {
         JS_ASSERT(0 && "branchTestInt32Truthy");
     }
+
+    void branchTestDoubleTruthy(bool truthy, FloatRegister reg, Label *label) {
+        JS_ASSERT(0 && "branchTestDoubleTruthy");
+    }
+
     void branchTestBooleanTruthy(bool truthy, const ValueOperand &operand, Label *label) {
         JS_ASSERT(0 && "branchTestBooleanTruthy");
     }
@@ -845,7 +1216,7 @@ class MacroAssemblerARM64 : public Assembler
         JS_ASSERT(0 && "branchTestStringTruthy");
     }
 
-    void loadInt32OrDouble(const Operand &operand, FloatRegister dest) {
+    void loadInt32OrDouble(const ARMOperand &operand, FloatRegister dest) {
         JS_ASSERT(0 && "loadInt32OrDouble");
     }
 
@@ -868,6 +1239,10 @@ class MacroAssemblerARM64 : public Assembler
     void bind(Label *label) {
         JS_ASSERT(0 && "bind");
     }
+    void bind(RepatchLabel* label) {
+        JS_ASSERT(0 && "bind");
+    }
+
     void writeDataRelocation(const Value &val) {
         JS_ASSERT(0 && "writeDataRelocation");
     }
@@ -935,6 +1310,13 @@ class MacroAssemblerARM64 : public Assembler
     void callWithABI(Address fun, MoveOp::Type result = MoveOp::GENERAL) {
         JS_ASSERT(0 && "callWithABI");
     }
+
+
+
+    CodeOffsetLabel labelForPatch() {
+        JS_ASSERT(0 && "labelForPatch");
+    }
+
 
     void handleFailureWithHandler(void *handler) {
         JS_ASSERT(0 && "handleFailureWithHandler");
@@ -1018,11 +1400,30 @@ class MacroAssemblerARM64 : public Assembler
     void call(const CallSiteDesc &desc, Register reg) {
         JS_ASSERT(0 && "call");
     }
+    void call(const CallSiteDesc &desc, AsmJSImmPtr imm) {
+        JS_ASSERT(0 && "call");
+    }
+
     void call(JitCode *target) {
         JS_ASSERT(0 && "call");
     }
+    void call(Label *target) {
+        JS_ASSERT(0 && "call");
+    }
+    void callExit(AsmJSImmPtr imm, uint32_t stackArgBytes) {
+        JS_ASSERT(0 && "callExit");
+    }
+
     void callIonFromAsmJS(Register reg) {
         JS_ASSERT(0 && "callIonFromAsmJS");
+    }
+
+    // Emit a BLX or NOP instruction. ToggleCall can be used to patch
+    // this instruction.
+    CodeOffsetLabel toggledCall(JitCode *target, bool enabled);
+
+    static size_t ToggledCallSize() {
+        JS_ASSERT(0 && "ToggledCallSize");
     }
 
     void checkStackAlignment() {
@@ -1033,12 +1434,58 @@ class MacroAssemblerARM64 : public Assembler
         JS_ASSERT(0 && "abiret");
     }
 
+    void mulBy3(const Register &src, const Register &dest) {
+        JS_ASSERT(0 && "mulBy3");
+    }
+
+    template <typename T>
+    void branchAdd32(Condition cond, T src, Register dest, Label *label) {
+        add32(src, dest);
+        branch(cond, label);
+    }
+    template <typename T>
+    void branchSub32(Condition cond, T src, Register dest, Label *label) {
+        sub32(src, dest);
+        branch(cond, label);
+    }
+    void clampCheck(Register r, Label *handleNotAnInt) {
+        JS_ASSERT(0 && "clampCheck");
+    }
+
+    void memMove32(Address Source, Address Dest) {
+        JS_ASSERT(0 && "memMove32");
+    }
+    void memMove64(Address Source, Address Dest) {
+        JS_ASSERT(0 && "memMove64");
+    }
+
+    void lea(Operand addr, Register dest) {
+        JS_ASSERT(0 && "lea");
+    }
+
+    void stackCheck(ImmWord limitAddr, Label *label) {
+        JS_ASSERT(0 && "stackCheck");
+    }
+    void clampIntToUint8(Register reg) {
+        JS_ASSERT(0 && "clampIntToUint8");
+    }
+
+    void incrementInt32Value(const Address &addr) {
+        JS_ASSERT(0 && "IncrementInt32Value");
+    }
+    void inc64(AbsoluteAddress dest) {
+        JS_ASSERT(0 && "inc64");
+    }
+    void breakpoint() {
+        JS_ASSERT(0 && "breakpoint");
+    }
     // FIXME: Should be in Assembler?
     // FIXME: Should be const?
     uint32_t currentOffset() {
         JS_ASSERT(0 && "currentOffset");
         return 0;
     }
+
 
   protected:
     bool buildOOLFakeExitFrame(void *fakeReturnAddr) {

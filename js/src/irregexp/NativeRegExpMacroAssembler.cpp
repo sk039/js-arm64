@@ -32,6 +32,7 @@
 
 #include "irregexp/RegExpStack.h"
 #include "jit/IonLinker.h"
+#include "jit/IonSpewer.h"
 #ifdef JS_ION_PERF
 # include "jit/PerfSpewer.h"
 #endif

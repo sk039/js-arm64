@@ -7,8 +7,9 @@
 #include "jit/AsmJSSignalHandlers.h"
 
 #include "mozilla/BinarySearch.h"
-
+#if defined(JS_CPU_X86) || defined(JS_CPU_X64)
 #include "assembler/assembler/MacroAssembler.h"
+#endif
 #include "jit/AsmJSModule.h"
 
 using namespace js;
@@ -85,6 +86,9 @@ using JS::GenericNaN;
 #  define R15_sig(p) ((p)->uc_mcontext.arm_pc)
 # else
 #  define R15_sig(p) ((p)->uc_mcontext.gregs[REG_R15])
+# endif
+# if defined(__linux__) && defined(__aarch64__)
+#  define PC_sig(p) ((p)->uc_mcontext.pc)
 # endif
 #elif defined(__NetBSD__)
 # define XMM_sig(p,i) (((struct fxsave64 *)(p)->uc_mcontext.__fpregs)->fx_xmm[i])

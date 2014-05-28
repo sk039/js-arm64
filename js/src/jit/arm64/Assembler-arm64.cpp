@@ -81,9 +81,9 @@ bool CPURegList::IsValid() const {
 
 void CPURegList::RemoveCalleeSaved() {
   if (type() == CPURegister::kARMRegister) {
-    Remove(GetCalleeSaved(ARMRegisterSizeInBits()));
+    Remove(GetCalleeSaved(RegisterSizeInBits()));
   } else if (type() == CPURegister::kARMFPRegister) {
-    Remove(GetCalleeSavedFP(ARMRegisterSizeInBits()));
+    Remove(GetCalleeSavedFP(RegisterSizeInBits()));
   } else {
     VIXL_ASSERT(type() == CPURegister::kNoRegister);
     VIXL_ASSERT(IsEmpty());
@@ -194,15 +194,17 @@ const ARMRegister& CPURegister::X() const {
 }
 
 
-const ARMFPRegister& CPURegister::S() const {
-  VIXL_ASSERT(IsValidFloatRegister());
+
+const ARMFPRegister &CPURegister::S() const {
+  VIXL_ASSERT(IsValidARMFPRegister());
   return ARMFPRegister::SRegFromCode(code_);
 }
 
 
-const ARMFPRegister& CPURegister::D() const {
-  VIXL_ASSERT(IsValidFloatRegister());
+const ARMFPRegister &CPURegister::D() const {
+  VIXL_ASSERT(IsValidARMFPRegister());
   return ARMFPRegister::DRegFromCode(code_);
+
 }
 
 
@@ -402,6 +404,7 @@ void Assembler::FinalizeCode() {
 
 #if 0 // FIXME: Remove.
 void Assembler::bind(Label* label) {
+#if 0
   label->is_bound_ = true;
   label->target_ = pc_;
   while (label->IsLinked()) {
@@ -414,12 +417,16 @@ void Assembler::bind(Label* label) {
     // done.
     label->link_ = (label->link_ != next_link) ? next_link : NULL;
   }
+#else
+  JS_ASSERT(0 && "bind");
+#endif
 }
 #endif
 
 
 #if 0 // FIXME: Remove.
 int Assembler::UpdateAndGetByteOffsetTo(Label* label) {
+#if 0
   int offset;
   VIXL_STATIC_ASSERT(sizeof(*pc_) == 1);
   if (label->IsBound()) {
@@ -431,6 +438,9 @@ int Assembler::UpdateAndGetByteOffsetTo(Label* label) {
   }
   label->set_link(pc_);
   return offset;
+#else
+  JS_ASSERT(0 && "UpdateAndGetByteOffsetTo");
+#endif
 }
 #endif
 
@@ -512,6 +522,7 @@ void Assembler::tbz(const ARMRegister& rt,
                     unsigned bit_pos,
                     int imm14) {
   VIXL_ASSERT(rt.Is64Bits() || (rt.Is32Bits() && (bit_pos < kWRegSize)));
+
   Emit(TBZ | ImmTestBranchBit(bit_pos) | ImmTestBranch(imm14) | Rt(rt));
 }
 
@@ -1487,6 +1498,7 @@ void Assembler::fcvtzu(const ARMRegister& rd, const ARMFPRegister& fn) {
 
 
 void Assembler::fcvtzs(const ARMRegister& rd, const ARMFPRegister& fn) {
+
   FPConvertToInt(rd, fn, FCVTZS);
 }
 
@@ -1594,6 +1606,7 @@ void Assembler::AddSub(const ARMRegister& rd,
                        FlagsUpdate S,
                        AddSubOp op) {
   VIXL_ASSERT(rd.size() == rn.size());
+
   if (operand.IsImmediate()) {
     int64_t immediate = operand.immediate();
     VIXL_ASSERT(IsImmAddSub(immediate));
@@ -1699,6 +1712,7 @@ void Assembler::LogicalImmediate(const ARMRegister& rd,
 }
 
 
+
 void Assembler::ConditionalCompare(const ARMRegister& rn,
                                    const Operand& operand,
                                    StatusFlags nzcv,
@@ -1719,6 +1733,7 @@ void Assembler::ConditionalCompare(const ARMRegister& rn,
 
 void Assembler::DataProcessing1Source(const ARMRegister& rd,
                                       const ARMRegister& rn,
+
                                       DataProcessing1SourceOp op) {
   VIXL_ASSERT(rd.size() == rn.size());
   Emit(SF(rn) | op | Rn(rn) | Rd(rd));
@@ -2077,7 +2092,7 @@ LoadStoreOp Assembler::LoadOpFor(const CPURegister& rt) {
   if (rt.IsRegister()) {
     return rt.Is64Bits() ? LDR_x : LDR_w;
   } else {
-    VIXL_ASSERT(rt.IsFloatRegister());
+    VIXL_ASSERT(rt.IsARMFPRegister());
     return rt.Is64Bits() ? LDR_d : LDR_s;
   }
 }
@@ -2090,7 +2105,7 @@ LoadStorePairOp Assembler::LoadPairOpFor(const CPURegister& rt,
   if (rt.IsRegister()) {
     return rt.Is64Bits() ? LDP_x : LDP_w;
   } else {
-    VIXL_ASSERT(rt.IsFloatRegister());
+    VIXL_ASSERT(rt.IsARMFPRegister());
     return rt.Is64Bits() ? LDP_d : LDP_s;
   }
 }
@@ -2101,7 +2116,7 @@ LoadStoreOp Assembler::StoreOpFor(const CPURegister& rt) {
   if (rt.IsRegister()) {
     return rt.Is64Bits() ? STR_x : STR_w;
   } else {
-    VIXL_ASSERT(rt.IsFloatRegister());
+    VIXL_ASSERT(rt.IsARMFPRegister());
     return rt.Is64Bits() ? STR_d : STR_s;
   }
 }
@@ -2114,7 +2129,7 @@ LoadStorePairOp Assembler::StorePairOpFor(const CPURegister& rt,
   if (rt.IsRegister()) {
     return rt.Is64Bits() ? STP_x : STP_w;
   } else {
-    VIXL_ASSERT(rt.IsFloatRegister());
+    VIXL_ASSERT(rt.IsARMFPRegister());
     return rt.Is64Bits() ? STP_d : STP_s;
   }
 }
@@ -2127,7 +2142,7 @@ LoadStorePairNonTemporalOp Assembler::LoadPairNonTemporalOpFor(
   if (rt.IsRegister()) {
     return rt.Is64Bits() ? LDNP_x : LDNP_w;
   } else {
-    VIXL_ASSERT(rt.IsFloatRegister());
+    VIXL_ASSERT(rt.IsARMFPRegister());
     return rt.Is64Bits() ? LDNP_d : LDNP_s;
   }
 }
@@ -2140,7 +2155,7 @@ LoadStorePairNonTemporalOp Assembler::StorePairNonTemporalOpFor(
   if (rt.IsRegister()) {
     return rt.Is64Bits() ? STNP_x : STNP_w;
   } else {
-    VIXL_ASSERT(rt.IsFloatRegister());
+    VIXL_ASSERT(rt.IsARMFPRegister());
     return rt.Is64Bits() ? STNP_d : STNP_s;
   }
 }
@@ -2222,6 +2237,8 @@ void Assembler::EmitLiteralPool(LiteralPoolEmitOption option) {
 
   // The pool size should always be a multiple of four bytes because that is the
   // scaling applied by the LDR(literal) instruction, even for X-register loads.
+  // none of this will make sense after we transition to one of the ARMBuffers.
+#if 0
   VIXL_ASSERT((SizeOfCodeGeneratedSince(&start_of_pool) % 4) == 0);
   uint64_t pool_size = SizeOfCodeGeneratedSince(&start_of_pool) / 4;
 
@@ -2231,7 +2248,7 @@ void Assembler::EmitLiteralPool(LiteralPoolEmitOption option) {
   // the entire pool at its maximum size.
   Instr marker_instruction = LDR_x_lit | ImmLLiteral(pool_size) | Rt(xzr);
   memcpy(marker.target(), &marker_instruction, kInstructionSize);
-
+#endif
   next_literal_pool_check_ = pc_ + kLiteralPoolCheckInterval;
 }
 
@@ -2266,7 +2283,7 @@ bool AreAliased(const CPURegister& reg1, const CPURegister& reg2,
     if (regs[i].IsRegister()) {
       number_of_valid_regs++;
       unique_regs |= regs[i].Bit();
-    } else if (regs[i].IsFloatRegister()) {
+    } else if (regs[i].IsARMFPRegister()) {
       number_of_valid_fpregs++;
       unique_fpregs |= regs[i].Bit();
     } else {

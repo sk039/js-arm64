@@ -178,10 +178,10 @@ enum Condition {
   NoOverflow          =  7, vc =  7, // AArch64-specific.
   Above               =  8, hi =  8,
   BelowOrEqual        =  9, ls =  9,
-  GreaterThanOrEqual  = 10, ge = 10,
-  LessThan            = 11, lt = 11,
-  GreaterThan         = 12, gt = 12,
-  LessThanOrEqual     = 13, le = 13,
+  GreaterThanOrEqual_  = 10, ge = 10,
+  LessThan_            = 11, lt = 11,
+  GreaterThan_         = 12, gt = 12,
+  LessThanOrEqual_     = 13, le = 13,
   Always              = 14, al = 14,
   Never               = 15, nv = 15  // Behaves as always/al.
 };

@@ -1,4 +1,4 @@
-// -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 2 -*-
+// -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
 // vim: set ts=8 sts=2 et sw=2 tw=99:
 //
 // Copyright 2013, ARM Limited
@@ -34,7 +34,7 @@
 #include "jit/arm64/VIXL-Globals-arm64.h"
 #include "jit/arm64/VIXL-Utils-arm64.h"
 #include "jit/shared/Assembler-shared.h"
-
+#include "jit/IonSpewer.h"
 #include <list>
 
 namespace js {
@@ -63,14 +63,14 @@ class CPURegister {
     kNoRegister
   };
 
-  CPURegister() : code_(0), size_(0), type_(kNoRegister) {
-    VIXL_ASSERT(!IsValid());
-    VIXL_ASSERT(IsNone());
+  constexpr CPURegister() : code_(0), size_(0), type_(kNoRegister) {
+    //  VIXL_ASSERT(!IsValid());
+    //    VIXL_ASSERT(IsNone());
   }
 
-  CPURegister(unsigned code, unsigned size, RegisterType type)
+  constexpr CPURegister(unsigned code, unsigned size, RegisterType type)
       : code_(code), size_(size), type_(type) {
-    VIXL_ASSERT(IsValidOrNone());
+    //VIXL_ASSERT(IsValidOrNone());
   }
 
   unsigned code() const {
@@ -200,13 +200,17 @@ class ARMRegister : public CPURegister {
       : CPURegister(other.code(), other.size(), other.type()) {
     VIXL_ASSERT(IsValidRegister());
   }
-  explicit ARMRegister(unsigned code, unsigned size)
+
+  constexpr ARMRegister(unsigned code, unsigned size)
       : CPURegister(code, size, kARMRegister) {}
+  explicit ARMRegister(Register r, unsigned size) : CPURegister(r.code(), size, kARMRegister) {
+  }
 
   bool IsValid() const {
     VIXL_ASSERT(IsRegister() || IsNone());
     return IsValidRegister();
   }
+
 
   static const ARMRegister& WRegFromCode(unsigned code);
   static const ARMRegister& XRegFromCode(unsigned code);
@@ -228,7 +232,8 @@ class ARMFPRegister : public CPURegister {
       : CPURegister(other.code(), other.size(), other.type()) {
     VIXL_ASSERT(IsValidARMFPRegister());
   }
-  inline ARMFPRegister(unsigned code, unsigned size)
+
+  constexpr inline ARMFPRegister(unsigned code, unsigned size)
       : CPURegister(code, size, kARMFPRegister) {}
 
   bool IsValid() const {
@@ -244,6 +249,7 @@ class ARMFPRegister : public CPURegister {
   static const int kNumAllocatableRegisters = kNumberOfFloatRegisters - 1;
 
  private:
+
   static const ARMFPRegister sregisters[];
   static const ARMFPRegister dregisters[];
 };
@@ -612,7 +618,6 @@ class Label {
 };
 #endif
 
-
 // TODO: Obtain better values for these, based on real-world data.
 const int kLiteralPoolCheckInterval = 4 * KBytes;
 const int kRecommendedLiteralPoolRange = 2 * kLiteralPoolCheckInterval;
@@ -643,8 +648,9 @@ class Literal {
 
 
 // Assembler.
-class Assembler {
+class Assembler : public AssemblerShared {
  public:
+  //unsigned numAsmJSAbsoluteLinks() const;
   Assembler(byte* buffer, unsigned buffer_size);
 
   // The destructor asserts that one of the following is true:
@@ -673,8 +679,10 @@ class Assembler {
   // Label.
   // Bind a label to the current PC.
   void bind(Label* label);
+
   int UpdateAndGetByteOffsetTo(Label* label);
   inline int UpdateAndGetInstructionOffsetTo(Label* label) {
+    //VIXL_ASSERT(Label::kEndOfChain == 0);
     return UpdateAndGetByteOffsetTo(label) >> kInstructionSizeLog2;
   }
 
@@ -740,6 +748,7 @@ class Assembler {
 
   // Branch / Jump instructions.
   // Branch to register.
+
   void br(const ARMRegister& xn);
 
   // Branch with link to register.
@@ -767,6 +776,7 @@ class Assembler {
   void bl(int imm26);
 
   // Compare and branch to label if zero.
+
   void cbz(const ARMRegister& rt, Label* label);
 
   // Compare and branch to PC offset if zero.
@@ -795,6 +805,7 @@ class Assembler {
   // unscaled (i.e. the result can be unaligned).
 
   // Calculate the address of a label.
+
   void adr(const ARMRegister& rd, Label* label);
 
   // Calculate the address of a PC offset.
@@ -1736,7 +1747,7 @@ class Assembler {
   // Size of the code generated since label to the current position.
   uint64_t SizeOfCodeGeneratedSince(Label* label) const {
     VIXL_ASSERT(label->bound());
-    VIXL_ASSERT((pc_ >= label->offset()) && (pc_ < (buffer_ + buffer_size_)));
+    VIXL_ASSERT((pc_ >= label->target()) && (pc_ < (buffer_ + buffer_size_)));
     return pc_ - label->offset();
   }
 #endif
@@ -1763,8 +1774,8 @@ class Assembler {
   size_t LiteralPoolSize();
 
  protected:
-  inline const ARMRegister& AppropriateZeroRegFor(const CPURegister& reg) const {
-    return reg.Is64Bits() ? xzr : wzr;
+    inline const ARMRegister& AppropriateZeroRegFor(const CPURegister& reg) const {
+        return reg.Is64Bits() ? xzr : wzr;
   }
 
 
@@ -1944,6 +1955,78 @@ class Assembler {
 #ifdef DEBUG
   bool finalized_;
 #endif
+ public:
+    void finish();
+    void executableCopy(void *buffer);
+    void copyJumpRelocationTable(uint8_t *dest);
+    void copyDataRelocationTable(uint8_t *dest);
+    void copyPreBarrierTable(uint8_t *dest);
+
+    bool addCodeLabel(CodeLabel label);
+    size_t numCodeLabels() const {
+        return codeLabels_.length();
+    }
+    CodeLabel codeLabel(size_t i) {
+        return codeLabels_[i];
+    }
+    void processCodeLabels(uint8_t *rawCode);
+    // Size of the jump relocation table, in bytes.
+    size_t jumpRelocationTableBytes() const;
+    size_t dataRelocationTableBytes() const;
+    size_t preBarrierTableBytes() const;
+    void flushBuffer() {
+    }
+    unsigned int bytesNeeded() {
+        return buffer_size_;
+    }
+    int actualOffset(int curOffset) {
+        return curOffset;
+    }
+    int actualIndex(int curOffset) {
+        return curOffset;
+    }
+    int labelOffsetToPatchOffset(int labelOff) {
+        return labelOff;
+    }
+    static uint8_t *PatchableJumpAddress(JitCode *code, uint32_t index) {
+        JS_ASSERT(0 && "patchableJumpAddress");
+    }
+    void executableCopy(unsigned char *code){
+        JS_ASSERT(0 && "executableCopy");
+    }
+    void setPrinter(Sprinter *sp) {
+    }
+    static void TraceJumpRelocations(JSTracer *trc, JitCode *code, CompactBufferReader &reader);
+    static void TraceDataRelocations(JSTracer *trc, JitCode *code, CompactBufferReader &reader);
+
+    static uint32_t patchWrite_NearCallSize();
+    static uint32_t nopSize() { return 4; }
+    static void patchWrite_NearCall(CodeLocationLabel start, CodeLocationLabel toCall);
+    static void patchDataWithValueCheck(CodeLocationLabel label, PatchedImmPtr newValue,
+                                        PatchedImmPtr expectedValue);
+    static void patchDataWithValueCheck(CodeLocationLabel label, ImmPtr newValue,
+                                        ImmPtr expectedValue);
+    static void patchWrite_Imm32(CodeLocationLabel label, Imm32 imm);
+    static uint32_t alignDoubleArg(uint32_t offset) {
+        return (offset+1)&~1;
+    }
+    static uint8_t *nextInstruction(uint8_t *instruction, uint32_t *count = nullptr);
+  static uintptr_t getPointer(uint8_t *);
+    // Toggle a jmp or cmp emitted by toggledJump().
+
+    static void ToggleToJmp(CodeLocationLabel inst_);
+    static void ToggleToCmp(CodeLocationLabel inst_);
+
+    static void ToggleCall(CodeLocationLabel inst_, bool enabled);
+
+    static void updateBoundsCheck(uint32_t logHeapSize, Instruction *inst);
+
+    js::Vector<CodeLabel, 0, SystemAllocPolicy> codeLabels_;
+
+    CompactBufferWriter jumpRelocations_;
+    CompactBufferWriter dataRelocations_;
+    CompactBufferWriter relocations_;
+    CompactBufferWriter preBarriers_;
 };
 
 class BlockLiteralPoolScope {
@@ -1959,11 +2042,54 @@ class BlockLiteralPoolScope {
  private:
   Assembler* assm_;
 };
+class ABIArgGenerator
+{
+    unsigned intRegIndex_;
+    unsigned floatRegIndex_;
+    uint32_t stackOffset_;
+    ABIArg current_;
 
-static MOZ_CONSTEXPR_VAR Register ScratchRegister = { Registers::ip0 };
+  public:
+    ABIArgGenerator();
+    ABIArg next(MIRType argType);
+    ABIArg &current() { return current_; }
+    uint32_t stackBytesConsumedSoFar() const { return stackOffset_; }
+    static const Register NonArgReturnVolatileReg0;
+    static const Register NonArgReturnVolatileReg1;
+};
 
-static MOZ_CONSTEXPR_VAR Register OsrFrameReg = { Registers::x3 };
-static MOZ_CONSTEXPR_VAR Register ArgumentsRectifierReg = { Registers::x8 };
+// ugh. why is this not a static member of Assembler?
+void
+PatchJump(CodeLocationJump &jump_, CodeLocationLabel label);
+static inline bool
+GetIntArgReg(uint32_t usedIntArgs, uint32_t usedFloatArgs, Register *out)
+{
+    JS_ASSERT(0 && "TODO");
+    return false;
+}
+
+// Get a register in which we plan to put a quantity that will be used as an
+// integer argument.  This differs from GetIntArgReg in that if we have no more
+// actual argument registers to use we will fall back on using whatever
+// CallTempReg* don't overlap the argument registers, and only fail once those
+// run out too.
+static inline bool
+GetTempRegForIntArg(uint32_t usedIntArgs, uint32_t usedFloatArgs, Register *out)
+{
+    JS_ASSERT(0 && "TODO");
+    return false;
+}
+
+static const uint32_t AlignmentAtPrologue = 0;
+static const uint32_t AlignmentMidPrologue = 8;
+static const Scale ScalePointer = TimesEight;
+
+static MOZ_CONSTEXPR_VAR ARMRegister ScratchRegister64 = { Registers::ip0, 64 };
+static MOZ_CONSTEXPR_VAR ARMRegister ScratchRegister32 = { Registers::ip0, 32 };
+
+
+static MOZ_CONSTEXPR_VAR Register OsrFrameReg = { Registers::x3};
+static MOZ_CONSTEXPR_VAR Register ArgumentsRectifierReg = { Registers::x8};
 static MOZ_CONSTEXPR_VAR Register CallTempReg0 = { Registers::x5 };
 static MOZ_CONSTEXPR_VAR Register CallTempReg1 = { Registers::x6 };
 static MOZ_CONSTEXPR_VAR Register CallTempReg2 = { Registers::x7 };
@@ -1976,12 +2102,73 @@ static MOZ_CONSTEXPR_VAR Register PreBarrierReg = { Registers::x1 };
 static MOZ_CONSTEXPR_VAR Register InvalidReg = { Registers::invalid_reg };
 static MOZ_CONSTEXPR_VAR FloatRegister InvalidFloatReg = { FloatRegisters::invalid_fpreg };
 
+static MOZ_CONSTEXPR_VAR Register ReturnReg_ = { Registers::x0 };
 static MOZ_CONSTEXPR_VAR Register ReturnReg = { Registers::x0 };
 static MOZ_CONSTEXPR_VAR Register JSReturnReg = { Registers::x2 };
 static MOZ_CONSTEXPR_VAR Register FramePointer = { Registers::fp };
 static MOZ_CONSTEXPR_VAR Register StackPointer = { Registers::sp };
 static MOZ_CONSTEXPR_VAR FloatRegister ReturnFloatReg = { FloatRegisters::d0 };
 static MOZ_CONSTEXPR_VAR FloatRegister ScratchFloatReg = { FloatRegisters::d31 };
+
+static MOZ_CONSTEXPR_VAR Register IntArgReg0 = { Registers::x0 };
+static MOZ_CONSTEXPR_VAR Register IntArgReg1 = { Registers::x1 };
+static MOZ_CONSTEXPR_VAR Register IntArgReg2 = { Registers::x2 };
+static MOZ_CONSTEXPR_VAR Register IntArgReg3 = { Registers::x3 };
+static MOZ_CONSTEXPR_VAR Register GlobalReg =  { Registers::x10 };
+static MOZ_CONSTEXPR_VAR Register HeapReg = { Registers::x11 };
+
+static MOZ_CONSTEXPR_VAR Register r0 = { Registers::x0 };
+static MOZ_CONSTEXPR_VAR Register r1 = { Registers::x1 };
+static MOZ_CONSTEXPR_VAR Register r2 = { Registers::x2 };
+static MOZ_CONSTEXPR_VAR Register r3 = { Registers::x3 };
+static MOZ_CONSTEXPR_VAR Register r4 = { Registers::x4 };
+static MOZ_CONSTEXPR_VAR Register r5 = { Registers::x5 };
+static MOZ_CONSTEXPR_VAR Register r6 = { Registers::x6 };
+static MOZ_CONSTEXPR_VAR Register r7 = { Registers::x7 };
+static MOZ_CONSTEXPR_VAR Register r8 = { Registers::x8 };
+static MOZ_CONSTEXPR_VAR Register r9 = { Registers::x9 };
+static MOZ_CONSTEXPR_VAR Register r10 = { Registers::x10};
+static MOZ_CONSTEXPR_VAR Register r11 = { Registers::x11};
+static MOZ_CONSTEXPR_VAR Register r12 = { Registers::x12};
+static MOZ_CONSTEXPR_VAR Register r13 = { Registers::x13};
+static MOZ_CONSTEXPR_VAR Register r14 = { Registers::x14};
+static MOZ_CONSTEXPR_VAR Register r15 = { Registers::x15};
+static MOZ_CONSTEXPR_VAR Register r16 = { Registers::x16};
+static MOZ_CONSTEXPR_VAR Register r17 = { Registers::x17};
+static MOZ_CONSTEXPR_VAR Register r18 = { Registers::x18};
+static MOZ_CONSTEXPR_VAR Register r19 = { Registers::x19};
+static MOZ_CONSTEXPR_VAR Register r20 = { Registers::x20};
+static MOZ_CONSTEXPR_VAR Register r21 = { Registers::x21};
+static MOZ_CONSTEXPR_VAR Register r22 = { Registers::x22};
+static MOZ_CONSTEXPR_VAR Register r23 = { Registers::x23};
+static MOZ_CONSTEXPR_VAR Register r24 = { Registers::x24};
+static MOZ_CONSTEXPR_VAR Register r25 = { Registers::x25};
+static MOZ_CONSTEXPR_VAR Register r26 = { Registers::x26};
+static MOZ_CONSTEXPR_VAR Register r27 = { Registers::x27};
+static MOZ_CONSTEXPR_VAR Register r28 = { Registers::x28};
+static MOZ_CONSTEXPR_VAR Register r29 = { Registers::x29};
+static MOZ_CONSTEXPR_VAR Register r30 = { Registers::x30};
+static MOZ_CONSTEXPR_VAR ValueOperand JSReturnOperand = ValueOperand(JSReturnReg);
+
+// Registers used in the GenerateFFIIonExit Enable Activation block.
+static MOZ_CONSTEXPR_VAR Register AsmJSIonExitRegCallee = r8;
+static MOZ_CONSTEXPR_VAR Register AsmJSIonExitRegE0 = r0;
+static MOZ_CONSTEXPR_VAR Register AsmJSIonExitRegE1 = r1;
+static MOZ_CONSTEXPR_VAR Register AsmJSIonExitRegE2 = r2;
+static MOZ_CONSTEXPR_VAR Register AsmJSIonExitRegE3 = r3;
+
+// Registers used in the GenerateFFIIonExit Disable Activation block.
+// None of these may be the second scratch register.
+static MOZ_CONSTEXPR_VAR Register AsmJSIonExitRegReturnData = r2;
+static MOZ_CONSTEXPR_VAR Register AsmJSIonExitRegReturnType = r3;
+static MOZ_CONSTEXPR_VAR Register AsmJSIonExitRegD0 = r0;
+static MOZ_CONSTEXPR_VAR Register AsmJSIonExitRegD1 = r1;
+static MOZ_CONSTEXPR_VAR Register AsmJSIonExitRegD2 = r4;
+
+static MOZ_CONSTEXPR_VAR Register JSReturnReg_Type = r3;
+static MOZ_CONSTEXPR_VAR Register JSReturnReg_Data = r2;
+
+static MOZ_CONSTEXPR_VAR FloatRegister NANReg = { FloatRegisters::d14 };
 
 }; // namespace jit
 }; // namespace js

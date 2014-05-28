@@ -10,7 +10,7 @@
 
 #include "jit/IonLinker.h"
 #include "jit/PerfSpewer.h"
-
+#include "jit/IonSpewer.h"
 #include "jit/IonFrames-inl.h"
 #include "vm/Stack-inl.h"
 

@@ -108,9 +108,9 @@ class DebugCommand;
 class Token;
 class FormatToken;
 
-class Debugger : public Simulator {
+class DebuggerARM64 : public Simulator {
  public:
-  Debugger(Decoder* decoder, FILE* stream = stdout);
+  DebuggerARM64(Decoder* decoder, FILE* stream = stdout);
 
   virtual void Run();
   void VisitException(Instruction* instr);

@@ -5,7 +5,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "jit/RegisterAllocator.h"
-
+#include "jit/IonSpewer.h"
 using namespace js;
 using namespace js::jit;
 

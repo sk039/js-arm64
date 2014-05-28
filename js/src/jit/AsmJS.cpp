@@ -17,7 +17,9 @@
 #include "jsworkers.h"
 #include "prmjtime.h"
 
+#if  defined(JS_CPU_X86) || defined(JS_CPU_X64)
 #include "assembler/assembler/MacroAssembler.h"
+#endif
 #include "frontend/Parser.h"
 #include "jit/AsmJSLink.h"
 #include "jit/AsmJSModule.h"
@@ -26,6 +28,7 @@
 #include "jit/CompileWrappers.h"
 #include "jit/MIR.h"
 #include "jit/MIRGraph.h"
+#include "jit/IonSpewer.h"
 #ifdef JS_ION_PERF
 # include "jit/PerfSpewer.h"
 #endif
@@ -6541,8 +6544,10 @@ GenerateFFIIonExit(ModuleCompiler &m, const ModuleCompiler::ExitDescriptor &exit
 #elif defined(JS_CODEGEN_X86)
     CodeOffsetLabel label2 = masm.movlWithPatch(Imm32(0), callee);
     m.masm().append(AsmJSGlobalAccess(label2.offset(), globalDataOffset));
-#else
+#elif defined(JS_CODEGEN_ARM)
     masm.lea(Operand(GlobalReg, globalDataOffset), callee);
+#else
+    JS_ASSERT(0 && "TODO: add LEA");
 #endif
 
     // 2.2. Get callee
@@ -6793,7 +6798,7 @@ GenerateInterruptExit(ModuleCompiler &m, Label *throwLabel)
     masm.align(CodeAlignment);
     masm.bind(&m.interruptLabel());
 
-#ifndef JS_CODEGEN_ARM
+#if ! (defined(JS_CODEGEN_ARM) || defined(JS_CODEGEN_ARM64))
     // Be very careful here not to perturb the machine state before saving it
     // to the stack. In particular, add/sub instructions may set conditions in
     // the flags register.
@@ -6839,7 +6844,7 @@ GenerateInterruptExit(ModuleCompiler &m, Label *throwLabel)
     masm.PopRegsInMask(AllRegsExceptSP); // restore all GP/FP registers (except SP)
     masm.popFlags();              // after this, nothing that sets conditions
     masm.ret();                   // pop resumePC into PC
-#else
+#elif defined(JS_CODEGEN_ARM)
     masm.setFramePushed(0);         // set to zero so we can use masm.framePushed() below
     masm.PushRegsInMask(RegisterSet(GeneralRegisterSet(Registers::AllMask & ~(1<<Registers::sp)), FloatRegisterSet(uint32_t(0))));   // save all GP registers,excep sp
 
@@ -6886,7 +6891,10 @@ GenerateInterruptExit(ModuleCompiler &m, Label *throwLabel)
     masm.transferReg(lr);
     masm.finishDataTransfer();
     masm.ret();
-
+#elif defined(JS_CODEGEN_ARM64)
+    JS_ASSERT(0 && "TODO");
+#else
+#  error unsupported architecture
 #endif
 
     return !masm.oom();
