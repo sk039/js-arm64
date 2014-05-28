@@ -30,12 +30,14 @@
 #ifndef VIXL_PLATFORM_H
 #define VIXL_PLATFORM_H
 
+#include "js-config.h"
+
 // Define platform specific functionalities.
 
 namespace js {
 namespace jit {
 
-#ifdef USE_SIMULATOR
+#ifdef JS_ARM64_SIMULATOR
 // Currently we assume running the simulator implies running on x86 hardware.
 inline void HostBreakpoint() { asm("int3"); }
 #else

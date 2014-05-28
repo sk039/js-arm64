@@ -27,7 +27,9 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
 // EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifdef USE_SIMULATOR
+#include "js-config.h"
+
+#ifdef JS_ARM64_SIMULATOR
 
 #include "jit/arm64/vixl/Debugger-vixl.h"
 
@@ -79,7 +81,7 @@ template<typename T> class ValueToken : public Token {
 
 // Integer registers (X or W) and their aliases.
 // Format: wn or xn with 0 <= n < 32 or a name in the aliases list.
-class RegisterToken : public ValueToken<const Register> {
+class RegisterToken : public ValueToken<const ARMRegister> {
  public:
   explicit RegisterToken(const Register reg)
       : ValueToken<const Register>(reg) {}
@@ -104,10 +106,10 @@ class RegisterToken : public ValueToken<const Register> {
 
 // Floating point registers (D or S).
 // Format: sn or dn with 0 <= n < 32.
-class FloatRegisterToken : public ValueToken<const FloatRegister> {
+class FloatRegisterToken : public ValueToken<const ARMFPRegister> {
  public:
-  explicit FloatRegisterToken(const FloatRegister fpreg)
-      : ValueToken<const FloatRegister>(fpreg) {}
+  explicit FloatRegisterToken(const ARMFPRegister fpreg)
+      : ValueToken<const ARMFPRegister>(fpreg) {}
 
   virtual bool IsFloatRegister() const { return true; }
   virtual void Print(FILE* out = stdout) const ;
@@ -600,7 +602,7 @@ void DebuggerARM64::PrintMemory(const uint8_t* address,
 }
 
 
-void DebuggerARM64::PrintRegister(const Register& target_reg,
+void DebuggerARM64::PrintRegister(const ARMRegister& target_reg,
                              const char* name,
                              const FormatToken* format) {
   const uint64_t reg_size = target_reg.SizeInBits();
@@ -623,7 +625,7 @@ void DebuggerARM64::PrintRegister(const Register& target_reg,
 }
 
 
-void DebuggerARM64::PrintFloatRegister(const FloatRegister& target_fpreg,
+void DebuggerARM64::PrintFloatRegister(const ARMFPRegister& target_fpreg,
                                const FormatToken* format) {
   const uint64_t fpreg_size = target_fpreg.SizeInBits();
   const uint64_t format_size = format->SizeOf() * 8;
@@ -956,14 +958,14 @@ Token* RegisterToken::Tokenize(const char* arg) {
     // Is it a X register or alias?
     for (const char** current = kXAliases[i]; *current != NULL; current++) {
       if (strcmp(arg, *current) == 0) {
-        return new RegisterToken(Register::XRegFromCode(i));
+        return new RegisterToken(ARMRegister::XRegFromCode(i));
       }
     }
 
     // Is it a W register or alias?
     for (const char** current = kWAliases[i]; *current != NULL; current++) {
       if (strcmp(arg, *current) == 0) {
-        return new RegisterToken(Register::WRegFromCode(i));
+        return new RegisterToken(ARMRegister::WRegFromCode(i));
       }
     }
   }
@@ -999,8 +1001,8 @@ Token* FloatRegisterToken::Tokenize(const char* arg) {
 
       FloatRegister fpreg = NoFPReg;
       switch (*arg) {
-        case 's': fpreg = FloatRegister::SRegFromCode(code); break;
-        case 'd': fpreg = FloatRegister::DRegFromCode(code); break;
+        case 's': fpreg = ARMFPRegister::SRegFromCode(code); break;
+        case 'd': fpreg = ARMFPRegister::DRegFromCode(code); break;
         default: VIXL_UNREACHABLE();
       }
 
@@ -1607,4 +1609,4 @@ bool InvalidCommand::Run(DebuggerARM64* debugger) {
 } // namespace jit
 } // namespace js
 
-#endif  // USE_SIMULATOR
+#endif  // JS_ARM64_SIMULATOR

@@ -63,7 +63,7 @@ void CPU::SetUp() {
 
 
 uint32_t CPU::GetCacheType() {
-#ifdef USE_SIMULATOR
+#ifdef JS_ARM64_SIMULATOR
   // This will lead to a cache with 1 byte long lines, which is fine since the
   // simulator will not need this information.
   return 0;
@@ -78,7 +78,7 @@ uint32_t CPU::GetCacheType() {
 
 
 void CPU::EnsureIAndDCacheCoherency(void *address, size_t length) {
-#ifdef USE_SIMULATOR
+#ifdef JS_ARM64_SIMULATOR
   USEARG(address);
   USEARG(length);
   // TODO: consider adding cache simulation to ensure every address run has been
