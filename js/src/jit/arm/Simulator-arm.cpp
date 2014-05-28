@@ -427,9 +427,9 @@ class AutoLockSimulatorRuntime
 #ifdef JS_THREADSAFE
         PR_Lock(srt_->lock_);
         MOZ_ASSERT(!srt_->lockOwner_);
-#ifdef DEBUG
+# ifdef DEBUG
         srt_->lockOwner_ = PR_GetCurrentThread();
-#endif
+# endif
 #endif
     }
 

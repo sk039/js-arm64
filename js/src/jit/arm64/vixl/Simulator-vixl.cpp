@@ -76,7 +76,12 @@ Simulator::Simulator(Decoder* decoder, FILE* stream) {
   ResetState();
 
   // Allocate and set up the simulator stack.
-  stack_ = new byte[stack_size_];
+  stack_ = reinterpret_cast<char*>(js_malloc(stack_size_));
+  if (!stack_) {
+    MOZ_ReportAssertionFaliure("[unhandlable oom] Simulator stack", __FILE__, __LINE__);
+    MOZ_CRASH();
+  }
+
   stack_limit_ = stack_ + stack_protection_size_;
   // Configure the starting stack pointer.
   //  - Find the top of the stack.
@@ -87,13 +92,25 @@ Simulator::Simulator(Decoder* decoder, FILE* stream) {
   tos = AlignDown(tos, 16);
   set_sp(tos);
 
+  void *printDisasmMem = js_malloc(sizeof(PrintDisassembler));
+  if (!printDisasmMem) {
+    MOZ_ReportAssertionFaliure("[unhandlable oom] Simulator PrintDisassembler", __FILE__, __LINE__);
+    MOZ_CRASH();
+  }
+  print_disasm_ = new(printDisasmMem) PrintDisassembler(stream_);
+
+  void *instrumentMem = js_malloc(sizeof(Instrument));
+  if (!instrumentMem) {
+    MOZ_ReportAssertionFaliure("[unhandlable oom] Simulator Instrumentation", __FILE__, __LINE__);
+    MOZ_CRASH();
+  }
+  // FIXME: Sets the sample period to 10, as the VIXL examples and tests are short.
+  instrumentation_ = new(instrumentMem) Instrument("vixl_stats.csv", 10);
+
   stream_ = stream;
-  print_disasm_ = new PrintDisassembler(stream_);
   set_coloured_trace(false);
   disasm_trace_ = false;
 
-  // Set the sample period to 10, as the VIXL examples and tests are short.
-  instrumentation_ = new Instrument("vixl_stats.csv", 10);
 }
 
 
@@ -130,13 +147,14 @@ void Simulator::ResetState() {
 
 
 Simulator::~Simulator() {
-  delete [] stack_;
+  js_free(stack_);
+
   // The decoder may outlive the simulator.
   decoder_->RemoveVisitor(print_disasm_);
-  delete print_disasm_;
+  js_free(print_disasm_);
 
   decoder_->RemoveVisitor(instrumentation_);
-  delete instrumentation_;
+  js_free(instrumentation_);
 }
 
 

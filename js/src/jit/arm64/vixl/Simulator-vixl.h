@@ -674,6 +674,7 @@ class Simulator : public DecoderVisitor {
   byte* stack_;
   static const int stack_protection_size_ = 256;
   // 2 KB stack.
+  // FIXME: This is stupidly small.
   static const int stack_size_ = 2 * 1024 + 2 * stack_protection_size_;
   byte* stack_limit_;
 
@@ -699,6 +700,67 @@ class Simulator : public DecoderVisitor {
 
   // Indicates whether the instruction instrumentation is active.
   bool instruction_stats_;
+};
+
+// FIXME: This is MPLv2, and probably shouldn't be here...
+// FIXME: It should probably be in jit/shared.
+class SimulatorRuntime
+{
+    friend class AutoLockSimulatorRuntime;
+
+  protected:
+    // Synchronize access between main thread and compilation/PJS threads.
+    PRLock *lock_;
+    mozilla::DebugOnly<PRThread *> lockOwner_;
+
+  public:
+    SimulatorRuntime()
+      : lock_(nullptr), lockOwner_(nullptr)
+    { }
+
+    ~SimulatorRuntime() {
+#ifdef JS_THREADSAFE
+        if (lock_)
+            PR_DestroyLock(lock_);
+#endif
+    }
+
+    bool init() {
+#ifdef JS_THREADSAFE
+        lock_ = PR_NewLock();
+        if (!lock_)
+            return false;
+#endif
+        return true;
+    }
+};
+
+// FIXME: This class should definitely be shared.
+class AutoLockSimulatorRuntime
+{
+  protected:
+    SimulatorRuntime *srt_;
+
+  public:
+    AutoLockSimulatorRuntime(SimulatorRuntime *srt)
+      : srt_(srt)
+    {
+#ifdef JS_THREADSAFE
+        PR_Lock(srt_->lock_);
+        MOZ_ASSERT(!srt_->lockOwner_);
+# ifdef DEBUG
+        srt_->lockOwner_ = PR_GetCurrentThread();
+# endif
+#endif
+    }
+
+    ~AutoLockSimulatorRuntime() {
+#ifdef JS_THREADSAFE
+        MOZ_ASSERT(srt_->lockOwner_ == PR_GetCurrentThread());
+        srt_->lockOwner_ = nullptr;
+        PR_Unlock(srt_->lock_);
+#endif
+    }
 };
 
 #define JS_CHECK_SIMULATOR_RECURSION_WITH_EXTRA(cx, extra, onerror)             \
