@@ -30,12 +30,12 @@
 #ifndef VIXL_A64_SIMULATOR_A64_H_
 #define VIXL_A64_SIMULATOR_A64_H_
 
-#include "jit/arm64/VIXL-Globals-arm64.h"
-#include "jit/arm64/VIXL-Utils-arm64.h"
-#include "jit/arm64/Instructions-arm64.h"
-#include "jit/arm64/Assembler-arm64.h"
-#include "jit/arm64/Disasm-arm64.h"
-#include "jit/arm64/Instrument-arm64.h"
+#include "jit/arm64/vixl/VIXL-Globals-vixl.h"
+#include "jit/arm64/vixl/VIXL-Utils-vixl.h"
+#include "jit/arm64/vixl/Instructions-vixl.h"
+#include "jit/arm64/vixl/Assembler-vixl.h"
+#include "jit/arm64/vixl/Disasm-vixl.h"
+#include "jit/arm64/vixl/Instrument-vixl.h"
 
 namespace js {
 namespace jit {

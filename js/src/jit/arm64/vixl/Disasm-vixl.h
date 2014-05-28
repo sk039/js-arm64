@@ -30,10 +30,10 @@
 #ifndef VIXL_A64_DISASM_A64_H
 #define VIXL_A64_DISASM_A64_H
 
-#include "jit/arm64/VIXL-Globals-arm64.h"
-#include "jit/arm64/VIXL-Utils-arm64.h"
-#include "jit/arm64/Instructions-arm64.h"
-#include "jit/arm64/Decoder-arm64.h"
+#include "jit/arm64/vixl/VIXL-Globals-vixl.h"
+#include "jit/arm64/vixl/VIXL-Utils-vixl.h"
+#include "jit/arm64/vixl/Instructions-vixl.h"
+#include "jit/arm64/vixl/Decoder-vixl.h"
 
 namespace js {
 namespace jit {

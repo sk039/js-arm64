@@ -33,9 +33,9 @@
 #include "jit/IonFrames.h"
 #include "jit/MoveResolver.h"
 
-#include "jit/arm64/VIXL-Globals-arm64.h"
+#include "jit/arm64/vixl/VIXL-Globals-vixl.h"
 #include "jit/arm64/Assembler-arm64.h"
-#include "jit/arm64/Debugger-arm64.h"
+#include "jit/arm64/vixl/Debugger-vixl.h"
 class Operand {
     // lolwut? it looks like CodeGenerator is accessing this directly?
     // That should probably be changed
@@ -136,7 +136,6 @@ class MacroAssemblerARM64 : public Assembler
         return false;
     }
 
-  public:
     template <typename T>
     void Push(const T &t) {
         JS_ASSERT(0 && "Push()");

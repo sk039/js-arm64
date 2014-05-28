@@ -30,10 +30,10 @@
 #ifndef VIXL_A64_INSTRUMENT_A64_H_
 #define VIXL_A64_INSTRUMENT_A64_H_
 
-#include "jit/arm64/VIXL-Globals-arm64.h"
-#include "jit/arm64/VIXL-Utils-arm64.h"
-#include "jit/arm64/Decoder-arm64.h"
-#include "jit/arm64/Constants-arm64.h"
+#include "jit/arm64/vixl/VIXL-Globals-vixl.h"
+#include "jit/arm64/vixl/VIXL-Utils-vixl.h"
+#include "jit/arm64/vixl/Decoder-vixl.h"
+#include "jit/arm64/vixl/Constants-vixl.h"
 
 namespace js {
 namespace jit {

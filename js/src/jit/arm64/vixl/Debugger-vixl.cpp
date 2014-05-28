@@ -29,7 +29,7 @@
 
 #ifdef USE_SIMULATOR
 
-#include "jit/arm64/Debugger-arm64.h"
+#include "jit/arm64/vixl/Debugger-vixl.h"
 
 namespace js {
 namespace jit {

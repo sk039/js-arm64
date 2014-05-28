@@ -30,8 +30,8 @@
 #ifndef VIXL_A64_DECODER_A64_H_
 #define VIXL_A64_DECODER_A64_H_
 
-#include "jit/arm64/VIXL-Globals-arm64.h"
-#include "jit/arm64/Instructions-arm64.h"
+#include "jit/arm64/vixl/VIXL-Globals-vixl.h"
+#include "jit/arm64/vixl/Instructions-vixl.h"
 
 #include <list>
 

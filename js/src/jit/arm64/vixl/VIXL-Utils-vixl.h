@@ -30,7 +30,7 @@
 #ifndef VIXL_UTILS_H
 #define VIXL_UTILS_H
 
-#include "jit/arm64/VIXL-Globals-arm64.h"
+#include "jit/arm64/vixl/VIXL-Globals-vixl.h"
 
 #include <math.h>
 #include <string.h>

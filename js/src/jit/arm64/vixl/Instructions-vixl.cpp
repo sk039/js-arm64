@@ -27,9 +27,9 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "jit/arm64/Instructions-arm64.h"
+#include "jit/arm64/vixl/Instructions-vixl.h"
 
-#include "jit/arm64/Assembler-arm64.h"
+#include "jit/arm64/vixl/Assembler-vixl.h"
 
 namespace js {
 namespace jit {
@@ -192,7 +192,7 @@ void Instruction::SetPCRelImmTarget(Instruction* target) {
   // ADRP is not supported, so 'this' must point to an ADR instruction.
   VIXL_ASSERT(Mask(PCRelAddressingMask) == ADR);
 
-  Instr imm = Assembler::ImmPCRelAddress(target - this);
+  Instr imm = AssemblerVIXL::ImmPCRelAddress(target - this);
 
   SetInstructionBits(Mask(~ImmPCRel_mask) | imm);
 }
@@ -205,22 +205,22 @@ void Instruction::SetBranchImmTarget(Instruction* target) {
   int offset = (target - this) >> kInstructionSizeLog2;
   switch (BranchType()) {
     case CondBranchType: {
-      branch_imm = Assembler::ImmCondBranch(offset);
+      branch_imm = AssemblerVIXL::ImmCondBranch(offset);
       imm_mask = ImmCondBranch_mask;
       break;
     }
     case UncondBranchType: {
-      branch_imm = Assembler::ImmUncondBranch(offset);
+      branch_imm = AssemblerVIXL::ImmUncondBranch(offset);
       imm_mask = ImmUncondBranch_mask;
       break;
     }
     case CompareBranchType: {
-      branch_imm = Assembler::ImmCmpBranch(offset);
+      branch_imm = AssemblerVIXL::ImmCmpBranch(offset);
       imm_mask = ImmCmpBranch_mask;
       break;
     }
     case TestBranchType: {
-      branch_imm = Assembler::ImmTestBranch(offset);
+      branch_imm = AssemblerVIXL::ImmTestBranch(offset);
       imm_mask = ImmTestBranch_mask;
       break;
     }
@@ -233,7 +233,7 @@ void Instruction::SetBranchImmTarget(Instruction* target) {
 void Instruction::SetImmLLiteral(Instruction* source) {
   VIXL_ASSERT(((source - this) & 3) == 0);
   int offset = (source - this) >> kLiteralEntrySizeLog2;
-  Instr imm = Assembler::ImmLLiteral(offset);
+  Instr imm = AssemblerVIXL::ImmLLiteral(offset);
   Instr mask = ImmLLiteral_mask;
 
   SetInstructionBits(Mask(~mask) | imm);

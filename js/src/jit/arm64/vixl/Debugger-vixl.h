@@ -35,10 +35,10 @@
 #include <errno.h>
 #include <vector>
 
-#include "jit/arm64/VIXL-Globals-arm64.h"
-#include "jit/arm64/VIXL-Utils-arm64.h"
-#include "jit/arm64/Constants-arm64.h"
-#include "jit/arm64/Simulator-arm64.h"
+#include "jit/arm64/vixl/VIXL-Globals-vixl.h"
+#include "jit/arm64/vixl/VIXL-Utils-vixl.h"
+#include "jit/arm64/vixl/Constants-vixl.h"
+#include "jit/arm64/vixl/Simulator-vixl.h"
 
 namespace js {
 namespace jit {

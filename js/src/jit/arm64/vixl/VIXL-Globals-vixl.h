@@ -46,7 +46,7 @@
 #include "js/Utility.h"
 #include "mozilla/Assertions.h"
 
-#include "jit/arm64/VIXL-Platform-arm64.h"
+#include "jit/arm64/vixl/VIXL-Platform-vixl.h"
 
 #include <stdint.h>
 #include <inttypes.h>
