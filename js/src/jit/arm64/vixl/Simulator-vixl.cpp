@@ -75,10 +75,12 @@ Simulator::Simulator(Decoder* decoder, FILE* stream) {
 
   ResetState();
 
+  stream_ = stdout;
+
   // Allocate and set up the simulator stack.
-  stack_ = reinterpret_cast<char*>(js_malloc(stack_size_));
+  stack_ = reinterpret_cast<byte*>(js_malloc(stack_size_));
   if (!stack_) {
-    MOZ_ReportAssertionFaliure("[unhandlable oom] Simulator stack", __FILE__, __LINE__);
+    MOZ_ReportAssertionFailure("[unhandlable oom] Simulator stack", __FILE__, __LINE__);
     MOZ_CRASH();
   }
 
@@ -94,23 +96,21 @@ Simulator::Simulator(Decoder* decoder, FILE* stream) {
 
   void *printDisasmMem = js_malloc(sizeof(PrintDisassembler));
   if (!printDisasmMem) {
-    MOZ_ReportAssertionFaliure("[unhandlable oom] Simulator PrintDisassembler", __FILE__, __LINE__);
+    MOZ_ReportAssertionFailure("[unhandlable oom] Simulator PrintDisassembler", __FILE__, __LINE__);
     MOZ_CRASH();
   }
-  print_disasm_ = new(printDisasmMem) PrintDisassembler(stream_);
+  print_disasm_ = new(printDisasmMem) PrintDisassembler(stream);
 
   void *instrumentMem = js_malloc(sizeof(Instrument));
   if (!instrumentMem) {
-    MOZ_ReportAssertionFaliure("[unhandlable oom] Simulator Instrumentation", __FILE__, __LINE__);
+    MOZ_ReportAssertionFailure("[unhandlable oom] Simulator Instrumentation", __FILE__, __LINE__);
     MOZ_CRASH();
   }
   // FIXME: Sets the sample period to 10, as the VIXL examples and tests are short.
   instrumentation_ = new(instrumentMem) Instrument("vixl_stats.csv", 10);
 
-  stream_ = stream;
   set_coloured_trace(false);
   disasm_trace_ = false;
-
 }
 
 
