@@ -673,9 +673,8 @@ class Simulator : public DecoderVisitor {
   // Stack
   byte* stack_;
   static const int stack_protection_size_ = 256;
-  // 2 KB stack.
-  // FIXME: This is stupidly small.
-  static const int stack_size_ = 2 * 1024 + 2 * stack_protection_size_;
+  // 2 MB stack.
+  static const int stack_size_ = 2 * 1024 * 1024 + 2 * stack_protection_size_;
   byte* stack_limit_;
 
   Decoder* decoder_;
