@@ -180,6 +180,10 @@ class Simulator : public DecoderVisitor {
   // Potentially there can be one for each native thread.
   static Simulator *Current();
 
+  static inline uintptr_t StackLimit() {
+    return Simulator::Current()->stackLimit();
+  }
+
   // Run the simulator.
   virtual void Run();
   void RunFrom(Instruction* first);
