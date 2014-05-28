@@ -192,7 +192,12 @@ class Simulator : public DecoderVisitor {
     return nullptr;
   }
 
-  bool overRecursed(uintptr_t newsp) const {
+  uintptr_t stackLimit() const {
+    JS_ASSERT(0 && "Implement stackLimit");
+    return 0;
+  }
+
+  bool overRecursed(uintptr_t newsp = 0) const {
     JS_ASSERT(0 && "Implement overRecursed");
     return true;
   }
@@ -691,6 +696,14 @@ class Simulator : public DecoderVisitor {
   // Indicates whether the instruction instrumentation is active.
   bool instruction_stats_;
 };
+
+#define JS_CHECK_SIMULATOR_RECURSION_WITH_EXTRA(cx, extra, onerror)             \
+    JS_BEGIN_MACRO                                                              \
+        if (cx->mainThread().simulator()->overRecursedWithExtra(extra)) {       \
+            js_ReportOverRecursed(cx);                                          \
+            onerror;                                                            \
+        }                                                                       \
+    JS_END_MACRO
 
 }  // namespace jit
 }  // namespace js
