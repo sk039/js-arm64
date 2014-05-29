@@ -11,7 +11,6 @@
     _(Unbox)                    \
     _(UnboxFloatingPoint)       \
     _(Box)                      \
-    _(BoxFloatingPoint)         \
     _(DivI)                     \
     _(SoftDivI)                 \
     _(DivPowTwoI)               \

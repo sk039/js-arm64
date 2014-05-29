@@ -173,7 +173,6 @@ class CodeGeneratorARM64 : public CodeGeneratorShared
 
   public:
     bool visitBox(LBox *box);
-    bool visitBoxFloatingPoint(LBoxFloatingPoint *box);
     bool visitUnbox(LUnbox *unbox);
     bool visitValue(LValue *value);
     bool visitDouble(LDouble *ins);

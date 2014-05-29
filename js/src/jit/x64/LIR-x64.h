@@ -61,7 +61,8 @@ class LUnbox : public LUnboxBase {
     }
 };
 
-class LUnboxFloatingPoint : public LUnboxBase {
+class LUnboxFloatingPoint : public LUnboxBase
+{
     MIRType type_;
 
   public:

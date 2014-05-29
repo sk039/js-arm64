@@ -10,7 +10,7 @@
 namespace js {
 namespace jit {
 
-class LBox : public LInstructionHelper<2, 1, 0>
+class LBox : public LInstructionHelper<1, 1, 0>
 {
     MIRType type_;
 
@@ -31,63 +31,46 @@ class LBox : public LInstructionHelper<2, 1, 0>
     }
 };
 
-class LBoxFloatingPoint : public LInstructionHelper<2, 1, 1>
-{
-    MIRType type_;
-
-  public:
-    LIR_HEADER(BoxFloatingPoint);
-
-    LBoxFloatingPoint(const LAllocation &in, const LDefinition &temp, MIRType type)
-      : type_(type)
-    {
-        setOperand(0, in);
-        setTemp(0, temp);
-    }
-
-    MIRType type() const {
-        return type_;
-    }
-    const char *extraName() const {
-        return StringFromMIRType(type_);
-    }
-};
-
-class LUnbox : public LInstructionHelper<1, 2, 0>
+// FIXME: Share with LIR-x64.
+class LUnboxBase : public LInstructionHelper<1, 1, 0>
 {
   public:
-    LIR_HEADER(Unbox);
+    LUnboxBase(const LAllocation &input) {
+        setOperand(0, input);
+    }
+
+    static const size_t Input = 0;
 
     MUnbox *mir() const {
         return mir_->toUnbox();
     }
-    const LAllocation *payload() {
-        return getOperand(0);
-    }
-    const LAllocation *type() {
-        return getOperand(1);
-    }
+};
+
+class LUnbox : public LUnboxBase
+{
+  public:
+    LIR_HEADER(Unbox);
+
+    LUnbox(const LAllocation &input)
+      : LUnboxBase(input)
+    { }
+
     const char *extraName() const {
         return StringFromMIRType(mir()->type());
     }
 };
 
-class LUnboxFloatingPoint : public LInstructionHelper<1, 2, 0>
+class LUnboxFloatingPoint : public LUnboxBase
 {
     MIRType type_;
 
   public:
     LIR_HEADER(UnboxFloatingPoint);
 
-    static const size_t Input = 0;
-
-    LUnboxFloatingPoint(MIRType type)
-      : type_(type)
+    LUnboxFloatingPoint(const LAllocation &input, MIRType type)
+      : LUnboxBase(input),
+        type_(type)
     { }
-
-    MUnbox *mir() const {
-        return mir_->toUnbox();
-    }
 
     MIRType type() const {
         return type_;

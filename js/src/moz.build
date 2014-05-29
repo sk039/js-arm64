@@ -378,6 +378,7 @@ if CONFIG['ENABLE_ION']:
     elif CONFIG['JS_CODEGEN_ARM64']:
         UNIFIED_SOURCES += [
             'jit/arm64/Architecture-arm64.cpp',
+            'jit/arm64/Lowering-arm64.cpp',
             'jit/arm64/MacroAssembler-arm64.cpp',
             'jit/arm64/vixl/Assembler-vixl.cpp',
             'jit/arm64/vixl/Cpu-vixl.cpp',
