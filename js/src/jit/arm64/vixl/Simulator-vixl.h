@@ -764,6 +764,9 @@ class AutoLockSimulatorRuntime
     }
 };
 
+SimulatorRuntime *CreateSimulatorRuntime();
+void DestroySimulatorRuntime(SimulatorRuntime *srt);
+
 #define JS_CHECK_SIMULATOR_RECURSION_WITH_EXTRA(cx, extra, onerror)             \
     JS_BEGIN_MACRO                                                              \
         if (cx->mainThread().simulator()->overRecursedWithExtra(extra)) {       \

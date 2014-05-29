@@ -2550,5 +2550,30 @@ void Simulator::DoPrintf(Instruction* instr) {
   delete[] format;
 }
 
+
+SimulatorRuntime *
+CreateSimulatorRuntime()
+{
+    SimulatorRuntime *srt = js_new<SimulatorRuntime>();
+    if (!srt)
+        return nullptr;
+
+    if (!srt->init()) {
+        js_delete(srt);
+        return nullptr;
+    }
+
+    // TODO: ARM64_SIM_STOP_AT support and so on.
+    return srt;
+}
+
+
+void
+DestroySimulatorRuntime(SimulatorRuntime *srt)
+{
+    js_delete(srt);
+}
+
+
 } // namespace jit
 } // namespace js
