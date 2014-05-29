@@ -849,7 +849,9 @@ class MacroAssemblerARM64 : public Assembler
     void branchTest32(Condition cond, const Address &address, Imm32 imm, Label *label) {
         JS_ASSERT(0 && "branchTest32");
     }
-    CodeOffsetJump jumpWithPatch(RepatchLabel *label, Condition cond = Always);
+    CodeOffsetJump jumpWithPatch(RepatchLabel *label, Condition cond = Always) {
+        JS_ASSERT(0 && "jumpWithPatch");
+    }
     template <typename T>
     CodeOffsetJump branchPtrWithPatch(Condition cond, Register reg, T ptr, RepatchLabel *label) {
         JS_ASSERT(0 && "branchPtrWithPatch");
