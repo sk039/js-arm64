@@ -5969,13 +5969,6 @@ SetRuntimeOptions(JSRuntime *rt, const OptionParser &op)
     int32_t stopAt = op.getIntOption("arm-sim-stop-at");
     if (stopAt >= 0)
         jit::Simulator::StopSimAt = stopAt;
-#elif defined(JS_ARM64_SIMULATOR)
-    if (op.getBoolOption("arm64-sim-icache-checks"))
-        jit::Simulator::ICacheCheckingEnabled = true;
-
-    int32_t stopAt = op.getIntOption("arm64-sim-stop-at");
-    if (stopAt >= 0)
-        jit::Simulator::StopSimAt = stopAt;
 #elif defined(JS_MIPS_SIMULATOR)
     if (op.getBoolOption("mips-sim-icache-checks"))
         jit::Simulator::ICacheCheckingEnabled = true;
