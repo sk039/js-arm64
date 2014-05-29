@@ -93,9 +93,9 @@ class Assembler : public AssemblerVIXL {
         return (offset+1)&~1;
     }
     static uint8_t *nextInstruction(uint8_t *instruction, uint32_t *count = nullptr);
-  static uintptr_t getPointer(uint8_t *);
-    // Toggle a jmp or cmp emitted by toggledJump().
+    static uintptr_t getPointer(uint8_t *);
 
+    // Toggle a jmp or cmp emitted by toggledJump().
     static void ToggleToJmp(CodeLocationLabel inst_);
     static void ToggleToCmp(CodeLocationLabel inst_);
 
@@ -113,18 +113,27 @@ class Assembler : public AssemblerVIXL {
 
 class ABIArgGenerator
 {
+  public:
+    ABIArgGenerator()
+      : intRegIndex_(0),
+        floatRegIndex_(0),
+        stackOffset_(0),
+        current_()
+    { }
+
+    ABIArg next(MIRType argType);
+    ABIArg &current() { return current_; }
+    uint32_t stackBytesConsumedSoFar() const { return stackOffset_; }
+
+  public:
+    static const Register NonArgReturnVolatileReg0;
+    static const Register NonArgReturnVolatileReg1;
+
+  protected:
     unsigned intRegIndex_;
     unsigned floatRegIndex_;
     uint32_t stackOffset_;
     ABIArg current_;
-
-  public:
-    ABIArgGenerator();
-    ABIArg next(MIRType argType);
-    ABIArg &current() { return current_; }
-    uint32_t stackBytesConsumedSoFar() const { return stackOffset_; }
-    static const Register NonArgReturnVolatileReg0;
-    static const Register NonArgReturnVolatileReg1;
 };
 
 // ugh. why is this not a static member of Assembler?
