@@ -778,37 +778,4 @@ void DestroySimulatorRuntime(SimulatorRuntime *srt);
 }  // namespace jit
 }  // namespace js
 
-// FIXME: All this stuff should be shared.
-void
-js::PerThreadData::setSimulator(js::jit::Simulator *sim)
-{
-  simulator_ = sim;
-  simulatorStackLimit_ = sim->stackLimit();
-}
-
-js::jit::SimulatorRuntime *
-js::PerThreadData::simulatorRuntime() const
-{
-  return runtime_->simulatorRuntime();
-}
-
-uintptr_t *
-js::PerThreadData::addressOfSimulatorStackLimit()
-{
-  return &simulatorStackLimit_;
-}
-
-js::jit::SimulatorRuntime *
-JSRuntime::simulatorRuntime() const
-{
-  return simulatorRuntime_;
-}
-
-void
-JSRuntime::setSimulatorRuntime(js::jit::SimulatorRuntime *srt)
-{
-  MOZ_ASSERT(!simulatorRuntime_);
-  simulatorRuntime_ = srt;
-}
-
 #endif  // VIXL_A64_SIMULATOR_A64_H_
