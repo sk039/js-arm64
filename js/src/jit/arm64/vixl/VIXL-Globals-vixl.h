@@ -51,7 +51,6 @@
 #include <stdint.h>
 #include <inttypes.h>
 
-#include <assert.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdint.h>

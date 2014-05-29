@@ -40,7 +40,7 @@ const size_t AsmJSPageSize = 4096;
 // The asm.js spec requires that the ArrayBuffer's byteLength be a multiple of 4096.
 static const size_t AsmJSAllocationGranularity = 4096;
 
-#ifdef JS_CODEGEN_X64
+#if defined(JS_CODEGEN_X64) || defined(JS_CODEGEN_ARM64)
 // On x64, the internal ArrayBuffer data array is inflated to 4GiB (only the
 // byteLength portion of which is accessible) so that out-of-bounds accesses
 // (made using a uint32 index) are guaranteed to raise a SIGSEGV.
@@ -67,7 +67,7 @@ static const size_t AsmJSBufferProtectedSize = 4 * 1024ULL * 1024ULL * 1024ULL;
 //                      obj->elements       required to be page boundaries
 //
 static const size_t AsmJSMappedSize = AsmJSPageSize + AsmJSBufferProtectedSize;
-#endif // JS_CODEGEN_X64
+#endif // JS_CODEGEN_X64 || JS_CODEGEN_ARM64
 
 #ifdef JS_ION
 
