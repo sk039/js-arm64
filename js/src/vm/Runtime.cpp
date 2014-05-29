@@ -32,15 +32,14 @@
 #if defined(JS_ION) && !defined(JS_CPU_ARM64)
 # include "assembler/assembler/MacroAssembler.h"
 #endif
-#include "jit/arm/Simulator-arm.h"
 #include "jit/AsmJSSignalHandlers.h"
+#include "jit/JitCommon.h"
 #include "jit/JitCompartment.h"
-#include "jit/mips/Simulator-mips.h"
 #include "jit/PcScriptCache.h"
 #include "js/MemoryMetrics.h"
 #include "js/SliceBudget.h"
 #ifdef JS_YARR
-#include "yarr/BumpPointerAllocator.h"
+# include "yarr/BumpPointerAllocator.h"
 #endif
 
 #include "jscntxtinlines.h"
