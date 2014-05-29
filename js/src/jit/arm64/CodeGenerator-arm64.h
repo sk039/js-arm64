@@ -4,8 +4,8 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#ifndef jit_arm_CodeGenerator_arm_h
-#define jit_arm_CodeGenerator_arm_h
+#ifndef jit_arm64_CodeGenerator_arm64_h
+#define jit_arm64_CodeGenerator_arm64_h
 
 #include "jit/arm64/Assembler-arm64.h"
 #include "jit/shared/CodeGenerator-shared.h"
@@ -16,11 +16,11 @@ namespace jit {
 class OutOfLineBailout;
 class OutOfLineTableSwitch;
 
-class CodeGeneratorARM : public CodeGeneratorShared
+class CodeGeneratorARM64 : public CodeGeneratorShared
 {
-    friend class MoveResolverARM;
+    friend class MoveResolverARM64;
 
-    CodeGeneratorARM *thisFromCtor() {return this;}
+    CodeGeneratorARM64 *thisFromCtor() {return this;}
 
   protected:
     // Label for the common return path.
@@ -169,7 +169,7 @@ class CodeGeneratorARM : public CodeGeneratorShared
                     Label &done);
 
   public:
-    CodeGeneratorARM(MIRGenerator *gen, LIRGraph *graph, MacroAssembler *masm);
+    CodeGeneratorARM64(MIRGenerator *gen, LIRGraph *graph, MacroAssembler *masm);
 
   public:
     bool visitBox(LBox *box);
@@ -219,10 +219,10 @@ class CodeGeneratorARM : public CodeGeneratorShared
     bool visitSoftUDivOrMod(LSoftUDivOrMod *ins);
 };
 
-typedef CodeGeneratorARM CodeGeneratorSpecific;
+typedef CodeGeneratorARM64 CodeGeneratorSpecific;
 
 // An out-of-line bailout thunk.
-class OutOfLineBailout : public OutOfLineCodeBase<CodeGeneratorARM>
+class OutOfLineBailout : public OutOfLineCodeBase<CodeGeneratorARM64>
 {
   protected: // Silence Clang warning.
     LSnapshot *snapshot_;
@@ -234,7 +234,7 @@ class OutOfLineBailout : public OutOfLineCodeBase<CodeGeneratorARM>
         frameSize_(frameSize)
     { }
 
-    bool accept(CodeGeneratorARM *codegen);
+    bool accept(CodeGeneratorARM64 *codegen);
 
     LSnapshot *snapshot() const {
         return snapshot_;
@@ -244,4 +244,4 @@ class OutOfLineBailout : public OutOfLineCodeBase<CodeGeneratorARM>
 } // namespace jit
 } // namespace js
 
-#endif /* jit_arm_CodeGenerator_arm_h */
+#endif /* jit_arm64_CodeGenerator_arm64_h */

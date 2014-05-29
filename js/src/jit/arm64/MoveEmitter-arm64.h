@@ -15,7 +15,7 @@ namespace jit {
 
 class CodeGenerator;
 
-class MoveEmitterARM
+class MoveEmitterARM64
 {
     bool inCycle_;
     MacroAssemblerARM64 &masm;
@@ -50,13 +50,13 @@ class MoveEmitterARM
     void emit(const MoveOp &move);
 
   public:
-    MoveEmitterARM(MacroAssemblerARM64 &masm);
-    ~MoveEmitterARM();
+    MoveEmitterARM64(MacroAssemblerARM64 &masm);
+    ~MoveEmitterARM64();
     void emit(const MoveResolver &moves);
     void finish();
 };
 
-typedef MoveEmitterARM MoveEmitter;
+typedef MoveEmitterARM64 MoveEmitter;
 
 } // namespace jit
 } // namespace js

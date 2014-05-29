@@ -14,12 +14,7 @@
 namespace js {
 namespace jit {
 
-// r15 = program-counter
-// r14 = link-register
-
-// r13 = stack-pointer
-// r11 = frame-pointer
-static MOZ_CONSTEXPR_VAR Register BaselineFrameReg {Registers::x11};
+static MOZ_CONSTEXPR_VAR Register BaselineFrameReg {Registers::fp};
 static MOZ_CONSTEXPR_VAR Register BaselineStackReg {Registers::sp};
 
 // ValueOperands R0, R1, and R2.
@@ -60,4 +55,4 @@ static MOZ_CONSTEXPR_VAR FloatRegister FloatReg1   {FloatRegisters::v1};
 
 #endif // JS_ION
 
-#endif /* jit_arm_BaselineRegisters_arm_h */
+#endif /* jit_arm64_BaselineRegisters_arm64_h */

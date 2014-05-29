@@ -4,8 +4,8 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#ifndef jit_arm_LOpcodes_arm_h
-#define jit_arm_LOpcodes_arm_h
+#ifndef jit_arm64_LOpcodes_arm64_h
+#define jit_arm64_LOpcodes_arm64_h
 
 #define LIR_CPU_OPCODE_LIST(_)  \
     _(Unbox)                    \
@@ -27,4 +27,4 @@
     _(SoftUDivOrMod)            \
     _(AsmJSLoadFuncPtr)
 
-#endif /* jit_arm_LOpcodes_arm_h */
+#endif /* jit_arm64_LOpcodes_arm64_h */

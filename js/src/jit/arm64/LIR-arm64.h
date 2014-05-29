@@ -4,8 +4,8 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#ifndef jit_arm_LIR_arm_h
-#define jit_arm_LIR_arm_h
+#ifndef jit_arm64_LIR_arm64_h
+#define jit_arm64_LIR_arm64_h
 
 namespace js {
 namespace jit {
@@ -125,7 +125,8 @@ class LDivI : public LBinaryMath<1>
     LIR_HEADER(DivI);
 
     LDivI(const LAllocation &lhs, const LAllocation &rhs,
-          const LDefinition &temp) {
+          const LDefinition &temp)
+    {
         setOperand(0, lhs);
         setOperand(1, rhs);
         setTemp(0, temp);
@@ -470,4 +471,4 @@ class LAsmJSLoadFuncPtr : public LInstructionHelper<1, 1, 1>
 } // namespace jit
 } // namespace js
 
-#endif /* jit_arm_LIR_arm_h */
+#endif /* jit_arm64_LIR_arm64_h */

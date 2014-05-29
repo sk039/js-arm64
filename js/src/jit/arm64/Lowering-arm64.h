@@ -4,18 +4,18 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#ifndef jit_arm_Lowering_arm_h
-#define jit_arm_Lowering_arm_h
+#ifndef jit_arm64_Lowering_arm64_h
+#define jit_arm64_Lowering_arm64_h
 
 #include "jit/shared/Lowering-shared.h"
 
 namespace js {
 namespace jit {
 
-class LIRGeneratorARM : public LIRGeneratorShared
+class LIRGeneratorARM64 : public LIRGeneratorShared
 {
   public:
-    LIRGeneratorARM(MIRGenerator *gen, MIRGraph &graph, LIRGraph &lirGraph)
+    LIRGeneratorARM64(MIRGenerator *gen, MIRGraph &graph, LIRGraph &lirGraph)
       : LIRGeneratorShared(gen, graph, lirGraph)
     { }
 
@@ -97,9 +97,9 @@ class LIRGeneratorARM : public LIRGeneratorShared
     }
 };
 
-typedef LIRGeneratorARM LIRGeneratorSpecific;
+typedef LIRGeneratorARM64 LIRGeneratorSpecific;
 
 } // namespace jit
 } // namespace js
 
-#endif /* jit_arm_Lowering_arm_h */
+#endif /* jit_arm64_Lowering_arm64_h */

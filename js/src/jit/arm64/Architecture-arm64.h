@@ -6,10 +6,13 @@
 
 #ifndef jit_arm64_Architecture_arm64_h
 #define jit_arm64_Architecture_arm64_h
+
 #include "mozilla/Assertions.h"
 #include "js/Utility.h"
+
 namespace js {
 namespace jit {
+
 // TODO: find out which header uint32_t is defined in.
 typedef unsigned int uint32_t;
 
@@ -270,10 +273,10 @@ class FloatRegisters
 
     static const uint32_t AllocatableMask = AllMask & ~NonAllocatableMask;
 };
+
 static const uint32_t CodeAlignment = 8;
 static const uint32_t StackAlignment = 16;
 static const uint32_t NativeFrameSize = sizeof(void*);
-
 
 } // namespace jit
 } // namespace js

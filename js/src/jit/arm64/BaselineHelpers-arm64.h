@@ -4,10 +4,11 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#ifndef jit_arm_BaselineHelpers_arm_h
-#define jit_arm_BaselineHelpers_arm_h
+#ifndef jit_arm64_BaselineHelpers_arm64_h
+#define jit_arm64_BaselineHelpers_arm64_h
 
 #ifdef JS_ION
+
 #include "jit/BaselineFrame.h"
 #include "jit/BaselineIC.h"
 #include "jit/BaselineRegisters.h"
@@ -41,7 +42,7 @@ inline void
 EmitEnterTypeMonitorIC(MacroAssembler &masm,
                        size_t monitorStubOffset = ICMonitoredStub::offsetOfFirstMonitorStub())
 {
-JS_ASSERT(0 && "EmitEnterTypeMonitorIC");
+    JS_ASSERT(0 && "EmitEnterTypeMonitorIC");
 }
 
 inline void
@@ -128,5 +129,4 @@ EmitStubGuardFailure(MacroAssembler &masm)
 
 #endif // JS_ION
 
-#endif /* jit_arm_BaselineHelpers_arm_h */
-
+#endif /* jit_arm64_BaselineHelpers_arm64_h */

@@ -5,7 +5,9 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "jit/arm64/Architecture-arm64.h"
+
 #include <cstring>
+
 namespace js {
 namespace jit {
 
