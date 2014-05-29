@@ -460,8 +460,12 @@ class MacroAssemblerARM64 : public Assembler
     void store8(Imm32 imm, const Address &address) {
         JS_ASSERT(0 && "store8");
     }
-    void store8(Register src, const BaseIndex &address);
-    void store8(Imm32 imm, const BaseIndex &address);
+    void store8(Register src, const BaseIndex &address) {
+        JS_ASSERT(0 && "store8");
+    }
+    void store8(Imm32 imm, const BaseIndex &address) {
+        JS_ASSERT(0 && "store8");
+    }
 
     void store16(Register src, const Address &address) {
         JS_ASSERT(0 && "store16");
@@ -700,17 +704,33 @@ class MacroAssemblerARM64 : public Assembler
     void load32(const ARMOperand &src, Register dst) {
         JS_ASSERT(0 && "load32");
     }
-    void load8SignExtend(const Address &address, Register dest);
-    void load8SignExtend(const BaseIndex &src, Register dest);
+    void load8SignExtend(const Address &address, Register dest) {
+        JS_ASSERT(0 && "load8SignExtend");
+    }
+    void load8SignExtend(const BaseIndex &src, Register dest) {
+        JS_ASSERT(0 && "load8SignExtend");
+    }
 
-    void load8ZeroExtend(const Address &address, Register dest);
-    void load8ZeroExtend(const BaseIndex &src, Register dest);
+    void load8ZeroExtend(const Address &address, Register dest) {
+        JS_ASSERT(0 && "load8ZeroExtend");
+    }
+    void load8ZeroExtend(const BaseIndex &src, Register dest) {
+        JS_ASSERT(0 && "load8ZeroExtend");
+    }
 
-    void load16SignExtend(const Address &address, Register dest);
-    void load16SignExtend(const BaseIndex &src, Register dest);
+    void load16SignExtend(const Address &address, Register dest) {
+        JS_ASSERT(0 && "load16SignExtend");
+    }
+    void load16SignExtend(const BaseIndex &src, Register dest) {
+        JS_ASSERT(0 && "load16SignExtend");
+    }
 
-    void load16ZeroExtend(const Address &address, Register dest);
-    void load16ZeroExtend(const BaseIndex &src, Register dest);
+    void load16ZeroExtend(const Address &address, Register dest) {
+        JS_ASSERT(0 && "load16ZeroExtend");
+    }
+    void load16ZeroExtend(const BaseIndex &src, Register dest) {
+        JS_ASSERT(0 && "load16ZeroExtend");
+    }
 
     template <typename S, typename T>
     void store32(const S &src, const T &dest) {
@@ -1149,49 +1169,154 @@ class MacroAssemblerARM64 : public Assembler
         JS_ASSERT(0 && "loadConstantFloat32");
     }
 
-    Condition testInt32(Condition cond, const ValueOperand &value);
-    Condition testBoolean(Condition cond, const ValueOperand &value);
-    Condition testDouble(Condition cond, const ValueOperand &value);
-    Condition testNull(Condition cond, const ValueOperand &value);
-    Condition testUndefined(Condition cond, const ValueOperand &value);
-    Condition testString(Condition cond, const ValueOperand &value);
-    Condition testObject(Condition cond, const ValueOperand &value);
-    Condition testNumber(Condition cond, const ValueOperand &value);
+    Condition testInt32(Condition cond, const ValueOperand &value) {
+        JS_ASSERT(0 && "testInt32");
+    }
+    Condition testBoolean(Condition cond, const ValueOperand &value) {
+        JS_ASSERT(0 && "testBoolean");
+    }
+    Condition testDouble(Condition cond, const ValueOperand &value) {
+        JS_ASSERT(0 && "testDouble");
+    }
+    Condition testNull(Condition cond, const ValueOperand &value) {
+        JS_ASSERT(0 && "testNull");
+    }
+    Condition testUndefined(Condition cond, const ValueOperand &value) {
+        JS_ASSERT(0 && "testUndefined");
+    }
+    Condition testString(Condition cond, const ValueOperand &value) {
+        JS_ASSERT(0 && "testString");
+    }
+    Condition testObject(Condition cond, const ValueOperand &value) {
+        JS_ASSERT(0 && "testObject");
+    }
+    Condition testNumber(Condition cond, const ValueOperand &value) {
+        JS_ASSERT(0 && "testNumber");
+    }
 
-    Condition testPrimitive(Condition cond, const ValueOperand &value);
+    Condition testPrimitive(Condition cond, const ValueOperand &value) {
+        JS_ASSERT(0 && "testPrimitive");
+    }
 
     // register-based tests
-    Condition testInt32(Condition cond, Register tag);
-    Condition testBoolean(Condition cond, Register tag);
-    Condition testNull(Condition cond, Register tag);
-    Condition testUndefined(Condition cond, Register tag);
-    Condition testString(Condition cond, Register tag);
-    Condition testObject(Condition cond, Register tag);
-    Condition testDouble(Condition cond, Register tag);
-    Condition testNumber(Condition cond, Register tag);
-    Condition testMagic(Condition cond, Register tag);
-    Condition testPrimitive(Condition cond, Register tag);
+    Condition testInt32(Condition cond, Register tag) {
+        JS_ASSERT(0 && "testInt32");
+        return Condition::Zero;
+    }
+    Condition testBoolean(Condition cond, Register tag) {
+        JS_ASSERT(0 && "testBoolean");
+        return Condition::Zero;
+    }
+    Condition testNull(Condition cond, Register tag) {
+        JS_ASSERT(0 && "testNull");
+        return Condition::Zero;
+    }
+    Condition testUndefined(Condition cond, Register tag) {
+        JS_ASSERT(0 && "testUndefined");
+        return Condition::Zero;
+    }
+    Condition testString(Condition cond, Register tag) {
+        JS_ASSERT(0 && "testString");
+        return Condition::Zero;
+    }
+    Condition testObject(Condition cond, Register tag) {
+        JS_ASSERT(0 && "testObject");
+        return Condition::Zero;
+    }
+    Condition testDouble(Condition cond, Register tag) {
+        JS_ASSERT(0 && "testDouble");
+        return Condition::Zero;
+    }
+    Condition testNumber(Condition cond, Register tag) {
+        JS_ASSERT(0 && "testNumber");
+        return Condition::Zero;
+    }
+    Condition testMagic(Condition cond, Register tag) {
+        JS_ASSERT(0 && "testMagic");
+        return Condition::Zero;
+    }
+    Condition testPrimitive(Condition cond, Register tag) {
+        JS_ASSERT(0 && "testPrimitive");
+        return Condition::Zero;
+    }
 
-    Condition testGCThing(Condition cond, const Address &address);
-    Condition testMagic(Condition cond, const Address &address);
-    Condition testInt32(Condition cond, const Address &address);
-    Condition testDouble(Condition cond, const Address &address);
-    Condition testBoolean(Condition cond, const Address &address);
-    Condition testNull(Condition cond, const Address &address);
-    Condition testUndefined(Condition cond, const Address &address);
-    Condition testString(Condition cond, const Address &address);
-    Condition testObject(Condition cond, const Address &address);
-    Condition testNumber(Condition cond, const Address &address);
+    Condition testGCThing(Condition cond, const Address &address) {
+        JS_ASSERT(0 && "testGCThing");
+        return Condition::Zero;
+    }
+    Condition testMagic(Condition cond, const Address &address) {
+        JS_ASSERT(0 && "testMagic");
+        return Condition::Zero;
+    }
+    Condition testInt32(Condition cond, const Address &address) {
+        JS_ASSERT(0 && "testInt32");
+        return Condition::Zero;
+    }
+    Condition testDouble(Condition cond, const Address &address) {
+        JS_ASSERT(0 && "testDouble");
+        return Condition::Zero;
+    }
+    Condition testBoolean(Condition cond, const Address &address) {
+        JS_ASSERT(0 && "testBoolean");
+        return Condition::Zero;
+    }
+    Condition testNull(Condition cond, const Address &address) {
+        JS_ASSERT(0 && "testNull");
+        return Condition::Zero;
+    }
+    Condition testUndefined(Condition cond, const Address &address) {
+        JS_ASSERT(0 && "testUndefined");
+        return Condition::Zero;
+    }
+    Condition testString(Condition cond, const Address &address) {
+        JS_ASSERT(0 && "testString");
+        return Condition::Zero;
+    }
+    Condition testObject(Condition cond, const Address &address) {
+        JS_ASSERT(0 && "testObject");
+        return Condition::Zero;
+    }
+    Condition testNumber(Condition cond, const Address &address) {
+        JS_ASSERT(0 && "testNumber");
+        return Condition::Zero;
+    }
 
-    Condition testUndefined(Condition cond, const BaseIndex &src);
-    Condition testNull(Condition cond, const BaseIndex &src);
-    Condition testBoolean(Condition cond, const BaseIndex &src);
-    Condition testString(Condition cond, const BaseIndex &src);
-    Condition testInt32(Condition cond, const BaseIndex &src);
-    Condition testObject(Condition cond, const BaseIndex &src);
-    Condition testDouble(Condition cond, const BaseIndex &src);
-    Condition testMagic(Condition cond, const BaseIndex &src);
-    Condition testGCThing(Condition cond, const BaseIndex &src);
+    Condition testUndefined(Condition cond, const BaseIndex &src) {
+        JS_ASSERT(0 && "testUndefined");
+        return Condition::Zero;
+    }
+    Condition testNull(Condition cond, const BaseIndex &src) {
+        JS_ASSERT(0 && "testNull");
+        return Condition::Zero;
+    }
+    Condition testBoolean(Condition cond, const BaseIndex &src) {
+        JS_ASSERT(0 && "testBoolean");
+        return Condition::Zero;
+    }
+    Condition testString(Condition cond, const BaseIndex &src) {
+        JS_ASSERT(0 && "testString");
+        return Condition::Zero;
+    }
+    Condition testInt32(Condition cond, const BaseIndex &src) {
+        JS_ASSERT(0 && "testInt32");
+        return Condition::Zero;
+    }
+    Condition testObject(Condition cond, const BaseIndex &src) {
+        JS_ASSERT(0 && "testObject");
+        return Condition::Zero;
+    }
+    Condition testDouble(Condition cond, const BaseIndex &src) {
+        JS_ASSERT(0 && "testDouble");
+        return Condition::Zero;
+    }
+    Condition testMagic(Condition cond, const BaseIndex &src) {
+        JS_ASSERT(0 && "testMagic");
+        return Condition::Zero;
+    }
+    Condition testGCThing(Condition cond, const BaseIndex &src) {
+        JS_ASSERT(0 && "testGCThing");
+        return Condition::Zero;
+    }
 
 
     Condition testInt32Truthy(bool truthy, const ValueOperand &operand) {
@@ -1486,7 +1611,6 @@ class MacroAssemblerARM64 : public Assembler
         JS_ASSERT(0 && "currentOffset");
         return 0;
     }
-
 
   protected:
     bool buildOOLFakeExitFrame(void *fakeReturnAddr) {
