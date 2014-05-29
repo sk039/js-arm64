@@ -168,10 +168,12 @@ class SimRegisterBase {
 typedef SimRegisterBase<kXRegSizeInBytes> SimRegister;      // r0-r31
 typedef SimRegisterBase<kDRegSizeInBytes> SimFloatRegister;    // v0-v31
 
+class SimulatorRuntime;
 
 class Simulator : public DecoderVisitor {
  public:
   explicit Simulator(Decoder* decoder, FILE* stream = stdout);
+  explicit Simulator(SimulatorRuntime *srt);
   ~Simulator();
 
   void ResetState();

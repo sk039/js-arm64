@@ -64,6 +64,12 @@ SimSystemRegister SimSystemRegister::DefaultValueFor(SystemRegister id) {
 }
 
 
+Simulator::Simulator(SimulatorRuntime *srt)
+{
+  VIXL_ASSERT(0 && "Simulator(SimulatorRuntime *srt)");
+}
+
+
 Simulator::Simulator(Decoder* decoder, FILE* stream) {
   // Ensure that shift operations act as the simulator expects.
   VIXL_ASSERT((static_cast<int32_t>(-1) >> 1) == -1);
