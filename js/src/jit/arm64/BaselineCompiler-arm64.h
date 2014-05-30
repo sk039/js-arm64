@@ -15,7 +15,9 @@ namespace jit {
 class BaselineCompilerARM64 : public BaselineCompilerShared
 {
   protected:
-    BaselineCompilerARM64(JSContext *cx, TempAllocator &alloc, JSScript *script);
+    BaselineCompilerARM64(JSContext *cx, TempAllocator &alloc, JSScript *script)
+      : BaselineCompilerShared(cx, alloc, script)
+    { }
 };
 
 typedef BaselineCompilerARM64 BaselineCompilerSpecific;
