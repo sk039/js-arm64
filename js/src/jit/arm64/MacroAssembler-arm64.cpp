@@ -29,8 +29,20 @@
 
 #include "jit/arm64/MacroAssembler-arm64.h"
 
+#include "jit/IonMacroAssembler.h"
+
 namespace js {
 namespace jit {
+
+void
+MacroAssembler::PopRegsInMaskIgnore(RegisterSet set, RegisterSet ignore) {
+    JS_ASSERT(0 && "PopRegsInMaskIgnore()");
+}
+
+void
+MacroAssembler::clampDoubleToUint8(FloatRegister input, Register output) {
+    JS_ASSERT(0 && "clampDoubleToUint8()");
+}
 
 } // namespace jit
 } // namespace js

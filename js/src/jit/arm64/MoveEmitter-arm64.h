@@ -35,25 +35,68 @@ class MoveEmitterARM64
     Register spilledReg_;
     FloatRegister spilledFloatReg_;
 
-    void assertDone();
-    Register tempReg();
-    FloatRegister tempFloatReg();
-    Operand cycleSlot() const;
-    Operand spillSlot() const;
-    Operand toOperand(const MoveOperand &operand, bool isFloat) const;
+    void assertDone() {
+        JS_ASSERT(!inCycle_);
+    }
 
-    void emitMove(const MoveOperand &from, const MoveOperand &to);
-    void emitFloat32Move(const MoveOperand &from, const MoveOperand &to);
-    void emitDoubleMove(const MoveOperand &from, const MoveOperand &to);
-    void breakCycle(const MoveOperand &from, const MoveOperand &to, MoveOp::Type type);
-    void completeCycle(const MoveOperand &from, const MoveOperand &to, MoveOp::Type type);
-    void emit(const MoveOp &move);
+    Register tempReg() {
+        JS_ASSERT(0 && "tempReg()");
+        return InvalidReg;
+    }
+    FloatRegister tempFloatReg() {
+        JS_ASSERT(0 && "tempFloatReg()");
+        return InvalidFloatReg;
+    }
+    Operand cycleSlot() const {
+        MOZ_ASSUME_UNREACHABLE("cycleSlot()");
+    }
+    Operand spillSlot() const {
+        MOZ_ASSUME_UNREACHABLE("spillSlot()");
+    }
+    Operand toOperand(const MoveOperand &operand, bool isFloat) const {
+        MOZ_ASSUME_UNREACHABLE("toOperand()");
+    }
+
+    void emitMove(const MoveOperand &from, const MoveOperand &to) {
+        JS_ASSERT(0 && "emitMove()");
+    }
+    void emitFloat32Move(const MoveOperand &from, const MoveOperand &to) {
+        JS_ASSERT(0 && "emitFloat32Move()");
+    }
+    void emitDoubleMove(const MoveOperand &from, const MoveOperand &to) {
+        JS_ASSERT(0 && "emitDoubleMove()");
+    }
+    void breakCycle(const MoveOperand &from, const MoveOperand &to, MoveOp::Type type) {
+        JS_ASSERT(0 && "breakCycle()");
+    }
+    void completeCycle(const MoveOperand &from, const MoveOperand &to, MoveOp::Type type) {
+        JS_ASSERT(0 && "completeCycle()");
+    }
+    void emit(const MoveOp &move) {
+        JS_ASSERT(0 && "emit()");
+    }
 
   public:
-    MoveEmitterARM64(MacroAssemblerARM64 &masm);
-    ~MoveEmitterARM64();
-    void emit(const MoveResolver &moves);
-    void finish();
+    MoveEmitterARM64(MacroAssemblerARM64 &masm)
+      : inCycle_(false),
+        masm(masm),
+        pushedAtCycle_(-1),
+        pushedAtSpill_(-1),
+        spilledReg_(InvalidReg),
+        spilledFloatReg_(InvalidFloatReg)
+    {
+        pushedAtStart_ = masm.framePushed();
+    }
+
+    ~MoveEmitterARM64() {
+        assertDone();
+    }
+    void emit(const MoveResolver &moves) {
+            JS_ASSERT(0 && "emit()");
+    }
+    void finish() {
+            JS_ASSERT(0 && "finish()");
+    }
 };
 
 typedef MoveEmitterARM64 MoveEmitter;

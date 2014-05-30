@@ -34,29 +34,58 @@
 
 namespace js {
 namespace jit {
+
 class Assembler : public AssemblerVIXL {
   public:
-    Assembler(byte* buffer, unsigned buffer_size) :
-        AssemblerVIXL(buffer, buffer_size) { }
-    void finish();
-    void executableCopy(void *buffer);
-    void copyJumpRelocationTable(uint8_t *dest);
-    void copyDataRelocationTable(uint8_t *dest);
-    void copyPreBarrierTable(uint8_t *dest);
+    Assembler(byte* buffer, unsigned buffer_size)
+      : AssemblerVIXL(buffer, buffer_size)
+    { }
 
-    bool addCodeLabel(CodeLabel label);
+    void finish() {
+        JS_ASSERT(0 && "finish()");
+    }
+    void executableCopy(void *buffer) {
+        JS_ASSERT(0 && "executableCopy()");
+    }
+    void copyJumpRelocationTable(uint8_t *dest) {
+        JS_ASSERT(0 && "copyJumpRelocationTable()");
+    }
+    void copyDataRelocationTable(uint8_t *dest) {
+        JS_ASSERT(0 && "copyDataRelocationTable()");
+    }
+    void copyPreBarrierTable(uint8_t *dest) {
+        JS_ASSERT(0 && "copyPreBarrierTable()");
+    }
+
+    bool addCodeLabel(CodeLabel label) {
+        JS_ASSERT(0 && "addCodeLabel()");
+        return false;
+    }
     size_t numCodeLabels() const {
         return codeLabels_.length();
     }
     CodeLabel codeLabel(size_t i) {
         return codeLabels_[i];
     }
-    void processCodeLabels(uint8_t *rawCode);
+    void processCodeLabels(uint8_t *rawCode) {
+        JS_ASSERT(0 && "processCodeLabels()");
+    }
+
     // Size of the jump relocation table, in bytes.
-    size_t jumpRelocationTableBytes() const;
-    size_t dataRelocationTableBytes() const;
-    size_t preBarrierTableBytes() const;
+    size_t jumpRelocationTableBytes() const {
+        JS_ASSERT(0 && "jumpRelocationTableBytes()");
+        return 0;
+    }
+    size_t dataRelocationTableBytes() const {
+        JS_ASSERT(0 && "dataRelocationTableBytes()");
+        return 0;
+    }
+    size_t preBarrierTableBytes() const {
+        JS_ASSERT(0 && "preBarrierTableBytes()");
+        return 0;
+    }
     void flushBuffer() {
+        JS_ASSERT(0 && "flushBuffer()");
     }
     unsigned int bytesNeeded() {
         return buffer_size_;
@@ -77,31 +106,69 @@ class Assembler : public AssemblerVIXL {
         JS_ASSERT(0 && "executableCopy");
     }
     void setPrinter(Sprinter *sp) {
+        JS_ASSERT(0 && "setPrinter()");
     }
-    static void TraceJumpRelocations(JSTracer *trc, JitCode *code, CompactBufferReader &reader);
-    static void TraceDataRelocations(JSTracer *trc, JitCode *code, CompactBufferReader &reader);
 
-    static uint32_t patchWrite_NearCallSize();
-    static uint32_t nopSize() { return 4; }
-    static void patchWrite_NearCall(CodeLocationLabel start, CodeLocationLabel toCall);
+    static void TraceJumpRelocations(JSTracer *trc, JitCode *code, CompactBufferReader &reader) {
+        JS_ASSERT(0 && "TraceJumpRelocations()");
+    }
+    static void TraceDataRelocations(JSTracer *trc, JitCode *code, CompactBufferReader &reader) {
+        JS_ASSERT(0 && "TraceDataRelocations()");
+    }
+
+    static uint32_t patchWrite_NearCallSize() {
+        JS_ASSERT(0 && "patchWrite_NearCallSize()");
+        return 0;
+    }
+
+    static uint32_t nopSize() {
+        JS_ASSERT(0 && "nopSize()");
+        return 4;
+    }
+    static void patchWrite_NearCall(CodeLocationLabel start, CodeLocationLabel toCall) {
+        JS_ASSERT(0 && "patchWrite_NearCall()");
+    }
     static void patchDataWithValueCheck(CodeLocationLabel label, PatchedImmPtr newValue,
-                                        PatchedImmPtr expectedValue);
+                                        PatchedImmPtr expectedValue)
+    {
+        JS_ASSERT(0 && "patchDataWithValueCheck()");
+    }
     static void patchDataWithValueCheck(CodeLocationLabel label, ImmPtr newValue,
-                                        ImmPtr expectedValue);
-    static void patchWrite_Imm32(CodeLocationLabel label, Imm32 imm);
+                                        ImmPtr expectedValue)
+    {
+        JS_ASSERT(0 && "patchDataWithValueCheck()");
+    }
+    static void patchWrite_Imm32(CodeLocationLabel label, Imm32 imm) {
+        JS_ASSERT(0 && "patchWrite_Imm32()");
+    }
     static uint32_t alignDoubleArg(uint32_t offset) {
+        JS_ASSERT(0 && "alignDoubleArg()");
         return (offset+1)&~1;
     }
-    static uint8_t *nextInstruction(uint8_t *instruction, uint32_t *count = nullptr);
-    static uintptr_t getPointer(uint8_t *);
+    static uint8_t *nextInstruction(uint8_t *instruction, uint32_t *count = nullptr) {
+        JS_ASSERT(0 && "nextInstruction()");
+        return nullptr;
+    }
+    static uintptr_t getPointer(uint8_t *) {
+        JS_ASSERT(0 && "getPointer()");
+        return 0;
+    }
 
     // Toggle a jmp or cmp emitted by toggledJump().
-    static void ToggleToJmp(CodeLocationLabel inst_);
-    static void ToggleToCmp(CodeLocationLabel inst_);
+    static void ToggleToJmp(CodeLocationLabel inst_) {
+        JS_ASSERT(0 && "ToggleToJmp()");
+    }
+    static void ToggleToCmp(CodeLocationLabel inst_) {
+        JS_ASSERT(0 && "ToggleToCmp()");
+    }
 
-    static void ToggleCall(CodeLocationLabel inst_, bool enabled);
+    static void ToggleCall(CodeLocationLabel inst_, bool enabled) {
+        JS_ASSERT(0 && "ToggleCall()");
+    }
 
-    static void updateBoundsCheck(uint32_t logHeapSize, Instruction *inst);
+    static void updateBoundsCheck(uint32_t logHeapSize, Instruction *inst) {
+        JS_ASSERT(0 && "updateBoundsCheck()");
+    }
 
     js::Vector<CodeLabel, 0, SystemAllocPolicy> codeLabels_;
 
@@ -138,7 +205,10 @@ class ABIArgGenerator
 
 // ugh. why is this not a static member of Assembler?
 void
-PatchJump(CodeLocationJump &jump_, CodeLocationLabel label);
+PatchJump(CodeLocationJump &jump_, CodeLocationLabel label) {
+    JS_ASSERT(0 && "PatchJump()");
+}
+
 static inline bool
 GetIntArgReg(uint32_t usedIntArgs, uint32_t usedFloatArgs, Register *out)
 {
