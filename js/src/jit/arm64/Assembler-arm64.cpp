@@ -31,5 +31,17 @@ ABIArgGenerator::next(MIRType type)
     JS_ASSERT(0 && "ABIArgGenerator::next");
     return current_;
 }
+
 const Register ABIArgGenerator::NonArgReturnVolatileReg0 = r4;
 const Register ABIArgGenerator::NonArgReturnVolatileReg1 = r5;
+
+namespace js {
+namespace jit {
+
+void
+PatchJump(CodeLocationLabel &jump_, CodeLocationLabel label) {
+    JS_ASSERT(0 && "PatchJump()");
+}
+
+} // namespace jit
+} // namespace js

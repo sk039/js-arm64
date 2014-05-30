@@ -203,11 +203,8 @@ class ABIArgGenerator
     ABIArg current_;
 };
 
-// ugh. why is this not a static member of Assembler?
-void
-PatchJump(CodeLocationJump &jump_, CodeLocationLabel label) {
-    JS_ASSERT(0 && "PatchJump()");
-}
+// FIXME: ugh. why is this not a static member of Assembler?
+void PatchJump(CodeLocationJump &jump_, CodeLocationLabel label);
 
 static inline bool
 GetIntArgReg(uint32_t usedIntArgs, uint32_t usedFloatArgs, Register *out)
@@ -234,7 +231,6 @@ static const Scale ScalePointer = TimesEight;
 
 static MOZ_CONSTEXPR_VAR ARMRegister ScratchRegister64 = { Registers::ip0, 64 };
 static MOZ_CONSTEXPR_VAR ARMRegister ScratchRegister32 = { Registers::ip0, 32 };
-
 
 static MOZ_CONSTEXPR_VAR Register OsrFrameReg = { Registers::x3};
 static MOZ_CONSTEXPR_VAR Register ArgumentsRectifierReg = { Registers::x8};
