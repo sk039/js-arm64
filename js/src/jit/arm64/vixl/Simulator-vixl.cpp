@@ -2578,8 +2578,13 @@ DestroySimulatorRuntime(SimulatorRuntime *srt)
 } // namespace jit
 } // namespace js
 
-
 // FIXME: All this stuff should probably be shared.
+js::jit::Simulator *
+js::PerThreadData::simulator() const
+{
+  return simulator_;
+}
+
 void
 js::PerThreadData::setSimulator(js::jit::Simulator *sim)
 {
