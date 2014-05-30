@@ -402,7 +402,6 @@ void AssemblerVIXL::FinalizeCode() {
 }
 
 
-#if 0 // FIXME: Remove.
 void AssemblerVIXL::bind(Label* label) {
 #if 0
   label->is_bound_ = true;
@@ -421,10 +420,8 @@ void AssemblerVIXL::bind(Label* label) {
   JS_ASSERT(0 && "bind");
 #endif
 }
-#endif
 
 
-#if 0 // FIXME: Remove.
 int AssemblerVIXL::UpdateAndGetByteOffsetTo(Label* label) {
 #if 0
   int offset;
@@ -440,9 +437,9 @@ int AssemblerVIXL::UpdateAndGetByteOffsetTo(Label* label) {
   return offset;
 #else
   JS_ASSERT(0 && "UpdateAndGetByteOffsetTo");
+  return 0;
 #endif
 }
-#endif
 
 
 // Code generation.
