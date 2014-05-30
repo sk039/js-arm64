@@ -1546,7 +1546,9 @@ class MacroAssemblerARM64 : public Assembler
 
     // Emit a BLX or NOP instruction. ToggleCall can be used to patch
     // this instruction.
-    CodeOffsetLabel toggledCall(JitCode *target, bool enabled);
+    CodeOffsetLabel toggledCall(JitCode *target, bool enabled) {
+        MOZ_ASSUME_UNREACHABLE("toggledCall()");
+    }
 
     static size_t ToggledCallSize() {
         JS_ASSERT(0 && "ToggledCallSize");
