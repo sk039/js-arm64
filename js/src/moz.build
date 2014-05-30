@@ -379,6 +379,7 @@ if CONFIG['ENABLE_ION']:
         UNIFIED_SOURCES += [
             'jit/arm64/Architecture-arm64.cpp',
             'jit/arm64/Assembler-arm64.cpp',
+            'jit/arm64/Bailouts-arm64.cpp',
             'jit/arm64/BaselineIC-arm64.cpp',
             'jit/arm64/CodeGenerator-arm64.cpp',
             'jit/arm64/Lowering-arm64.cpp',
