@@ -39,7 +39,7 @@ namespace js {
 namespace jit {
 
 void
-PatchJump(CodeLocationLabel &jump_, CodeLocationLabel label) {
+PatchJump(CodeLocationJump &jump_, CodeLocationLabel label) {
     JS_ASSERT(0 && "PatchJump()");
 }
 
