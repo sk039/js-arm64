@@ -35,6 +35,12 @@ namespace js {
 namespace jit {
 
 void
+MacroAssembler::PushRegsInMask(RegisterSet set)
+{
+    JS_ASSERT(0 && "PushRegsInMask()");
+}
+
+void
 MacroAssembler::PopRegsInMaskIgnore(RegisterSet set, RegisterSet ignore) {
     JS_ASSERT(0 && "PopRegsInMaskIgnore()");
 }
