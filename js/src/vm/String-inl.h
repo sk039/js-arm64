@@ -24,20 +24,20 @@ static MOZ_ALWAYS_INLINE JSInlineString *
 NewFatInlineString(ThreadSafeContext *cx, JS::Latin1Chars chars)
 {
     size_t len = chars.length();
-    JS_ASSERT(JSFatInlineString::lengthFits(len));
+    JS_ASSERT(JSFatInlineString::twoByteLengthFits(len));
 
     JSInlineString *str;
     jschar *p;
-    if (JSInlineString::lengthFits(len)) {
+    if (JSInlineString::twoByteLengthFits(len)) {
         str = JSInlineString::new_<allowGC>(cx);
         if (!str)
             return nullptr;
-        p = str->init(len);
+        p = str->initTwoByte(len);
     } else {
         JSFatInlineString *fatstr = JSFatInlineString::new_<allowGC>(cx);
         if (!fatstr)
             return nullptr;
-        p = fatstr->init(len);
+        p = fatstr->initTwoByte(len);
         str = fatstr;
     }
 
@@ -57,20 +57,20 @@ NewFatInlineString(ExclusiveContext *cx, JS::TwoByteChars chars)
      * Don't bother trying to find a static atom; measurement shows that not
      * many get here (for one, Atomize is catching them).
      */
-    JS_ASSERT(JSFatInlineString::lengthFits(len));
+    JS_ASSERT(JSFatInlineString::twoByteLengthFits(len));
 
     JSInlineString *str;
     jschar *storage;
-    if (JSInlineString::lengthFits(len)) {
+    if (JSInlineString::twoByteLengthFits(len)) {
         str = JSInlineString::new_<allowGC>(cx);
         if (!str)
             return nullptr;
-        storage = str->init(len);
+        storage = str->initTwoByte(len);
     } else {
         JSFatInlineString *fatstr = JSFatInlineString::new_<allowGC>(cx);
         if (!fatstr)
             return nullptr;
-        storage = fatstr->init(len);
+        storage = fatstr->initTwoByte(len);
         str = fatstr;
     }
 
@@ -107,6 +107,8 @@ JSRope::init(js::ThreadSafeContext *cx, JSString *left, JSString *right, size_t 
 {
     d.u1.length = length;
     d.u1.flags = ROPE_FLAGS;
+    if (left->hasLatin1Chars() && right->hasLatin1Chars())
+        d.u1.flags |= LATIN1_CHARS_BIT;
     d.s.u2.left = left;
     d.s.u3.right = right;
     js::StringWriteBarrierPost(cx, &d.s.u2.left);
@@ -143,7 +145,7 @@ JSDependentString::init(js::ThreadSafeContext *cx, JSLinearString *base, const j
     JS_ASSERT(!js::IsPoisonedPtr(base));
     d.u1.length = length;
     d.u1.flags = DEPENDENT_FLAGS;
-    d.s.u2.nonInlineChars = chars;
+    d.s.u2.nonInlineCharsTwoByte = chars;
     d.s.u3.base = base;
     js::StringWriteBarrierPost(cx, reinterpret_cast<JSString **>(&d.s.u3.base));
 }
@@ -177,7 +179,7 @@ JSDependentString::new_(js::ExclusiveContext *cx,
      * both to avoid the awkward moving-GC hazard this introduces and because it
      * is more efficient to immediately undepend here.
      */
-    if (JSFatInlineString::lengthFits(length))
+    if (JSFatInlineString::twoByteLengthFits(length))
         return js::NewFatInlineString<js::CanGC>(cx, JS::TwoByteChars(chars, length));
 
     JSDependentString *str = (JSDependentString *)js_NewGCString<js::NoGC>(cx);
@@ -207,7 +209,7 @@ JSFlatString::init(const jschar *chars, size_t length)
 {
     d.u1.length = length;
     d.u1.flags = FLAT_BIT;
-    d.s.u2.nonInlineChars = chars;
+    d.s.u2.nonInlineCharsTwoByte = chars;
 }
 
 template <js::AllowGC allowGC>
@@ -248,21 +250,39 @@ JSInlineString::new_(js::ThreadSafeContext *cx)
 }
 
 MOZ_ALWAYS_INLINE jschar *
-JSInlineString::init(size_t length)
+JSInlineString::initTwoByte(size_t length)
 {
-    JS_ASSERT(lengthFits(length));
+    JS_ASSERT(twoByteLengthFits(length));
     d.u1.length = length;
     d.u1.flags = INIT_INLINE_FLAGS;
-    return d.inlineStorage;
+    return d.inlineStorageTwoByte;
+}
+
+MOZ_ALWAYS_INLINE JS::Latin1Char *
+JSInlineString::initLatin1(size_t length)
+{
+    JS_ASSERT(latin1LengthFits(length));
+    d.u1.length = length;
+    d.u1.flags = INIT_INLINE_FLAGS | LATIN1_CHARS_BIT;
+    return d.inlineStorageLatin1;
 }
 
 MOZ_ALWAYS_INLINE jschar *
-JSFatInlineString::init(size_t length)
+JSFatInlineString::initTwoByte(size_t length)
 {
-    JS_ASSERT(lengthFits(length));
+    JS_ASSERT(twoByteLengthFits(length));
     d.u1.length = length;
     d.u1.flags = INIT_FAT_INLINE_FLAGS;
-    return d.inlineStorage;
+    return d.inlineStorageTwoByte;
+}
+
+MOZ_ALWAYS_INLINE JS::Latin1Char *
+JSFatInlineString::initLatin1(size_t length)
+{
+    JS_ASSERT(latin1LengthFits(length));
+    d.u1.length = length;
+    d.u1.flags = INIT_FAT_INLINE_FLAGS | LATIN1_CHARS_BIT;
+    return d.inlineStorageLatin1;
 }
 
 template <js::AllowGC allowGC>
@@ -279,7 +299,7 @@ JSExternalString::init(const jschar *chars, size_t length, const JSStringFinaliz
     JS_ASSERT(fin->finalize);
     d.u1.length = length;
     d.u1.flags = EXTERNAL_FLAGS;
-    d.s.u2.nonInlineChars = chars;
+    d.s.u2.nonInlineCharsTwoByte = chars;
     d.s.u3.externalFinalizer = fin;
 }
 
@@ -339,7 +359,7 @@ JSFlatString::finalize(js::FreeOp *fop)
     JS_ASSERT(getAllocKind() != js::gc::FINALIZE_FAT_INLINE_STRING);
 
     if (!isInline())
-        fop->free_(const_cast<jschar *>(nonInlineChars()));
+        fop->free_(nonInlineCharsRaw());
 }
 
 inline void
@@ -348,7 +368,7 @@ JSFatInlineString::finalize(js::FreeOp *fop)
     JS_ASSERT(getAllocKind() == js::gc::FINALIZE_FAT_INLINE_STRING);
 
     if (!isInline())
-        fop->free_(const_cast<jschar *>(nonInlineChars()));
+        fop->free_(nonInlineCharsRaw());
 }
 
 inline void
@@ -358,7 +378,7 @@ JSAtom::finalize(js::FreeOp *fop)
     JS_ASSERT(JSString::isFlat());
 
     if (!isInline())
-        fop->free_(const_cast<jschar *>(nonInlineChars()));
+        fop->free_(nonInlineCharsRaw());
 }
 
 inline void

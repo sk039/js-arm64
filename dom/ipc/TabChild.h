@@ -212,7 +212,7 @@ protected:
     bool UpdateFrameHandler(const mozilla::layers::FrameMetrics& aFrameMetrics);
 
 protected:
-    float mOldViewportWidth;
+    CSSSize mOldViewportSize;
     bool mContentDocumentIsDisplayed;
     nsRefPtr<TabChildGlobal> mTabChildGlobal;
     ScreenIntSize mInnerSize;
@@ -446,7 +446,7 @@ public:
     static TabChild* GetFrom(nsIPresShell* aPresShell);
     static TabChild* GetFrom(uint64_t aLayersId);
 
-    void DidComposite();
+    void DidComposite(uint64_t aTransactionId);
 
     static inline TabChild*
     GetFrom(nsIDOMWindow* aWindow)
@@ -455,6 +455,8 @@ public:
       nsCOMPtr<nsIDocShell> docShell = do_QueryInterface(webNav);
       return GetFrom(docShell);
     }
+
+    virtual bool RecvUIResolutionChanged() MOZ_OVERRIDE;
 
 protected:
     virtual PRenderFrameChild* AllocPRenderFrameChild(ScrollingBehavior* aScrolling,

@@ -123,13 +123,13 @@ public:
   }
 
   /**
-   * Returns the path of the default adapter, implemented via a platform
+   * Returns an array of each adapter's properties, implemented via a platform
    * specific method.
    *
    * @return NS_OK on success, NS_ERROR_FAILURE otherwise
    */
   virtual nsresult
-  GetDefaultAdapterPathInternal(BluetoothReplyRunnable* aRunnable) = 0;
+  GetAdaptersInternal(BluetoothReplyRunnable* aRunnable) = 0;
 
   /**
    * Returns the properties of paired devices, implemented via a platform
@@ -307,9 +307,6 @@ public:
 
   bool
   IsToggling() const;
-
-  void
-  RemoveObserverFromTable(const nsAString& key);
 
   /**
    * Below 2 function/variable are used for ensuring event 'AdapterAdded' will

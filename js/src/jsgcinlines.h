@@ -15,33 +15,6 @@ namespace js {
 
 class Shape;
 
-/*
- * This auto class should be used around any code that might cause a mark bit to
- * be set on an object in a dead zone. See AutoMaybeTouchDeadZones
- * for more details.
- */
-struct AutoMarkInDeadZone
-{
-    AutoMarkInDeadZone(JS::Zone *zone)
-      : zone(zone),
-        scheduled(zone->scheduledForDestruction)
-    {
-        JSRuntime *rt = zone->runtimeFromMainThread();
-        if (rt->gc.manipulatingDeadZones && zone->scheduledForDestruction) {
-            rt->gc.objectsMarkedInDeadZones++;
-            zone->scheduledForDestruction = false;
-        }
-    }
-
-    ~AutoMarkInDeadZone() {
-        zone->scheduledForDestruction = scheduled;
-    }
-
-  private:
-    JS::Zone *zone;
-    bool scheduled;
-};
-
 inline Allocator *
 ThreadSafeContext::allocator() const
 {
@@ -243,7 +216,7 @@ class ArenaCellIterImpl
 class ArenaCellIterUnderGC : public ArenaCellIterImpl
 {
   public:
-    ArenaCellIterUnderGC(ArenaHeader *aheader) {
+    explicit ArenaCellIterUnderGC(ArenaHeader *aheader) {
         JS_ASSERT(aheader->zone->runtimeFromAnyThread()->isHeapBusy());
         init(aheader);
     }
@@ -252,7 +225,7 @@ class ArenaCellIterUnderGC : public ArenaCellIterImpl
 class ArenaCellIterUnderFinalize : public ArenaCellIterImpl
 {
   public:
-    ArenaCellIterUnderFinalize(ArenaHeader *aheader) {
+    explicit ArenaCellIterUnderFinalize(ArenaHeader *aheader) {
         initUnsynchronized(aheader);
     }
 };
@@ -319,7 +292,7 @@ class AutoAssertNoAlloc
 
   public:
     AutoAssertNoAlloc() : gc(nullptr) {}
-    AutoAssertNoAlloc(JSRuntime *rt) : gc(nullptr) {
+    explicit AutoAssertNoAlloc(JSRuntime *rt) : gc(nullptr) {
         disallowAlloc(rt);
     }
     void disallowAlloc(JSRuntime *rt) {
@@ -334,7 +307,7 @@ class AutoAssertNoAlloc
 #else
   public:
     AutoAssertNoAlloc() {}
-    AutoAssertNoAlloc(JSRuntime *) {}
+    explicit AutoAssertNoAlloc(JSRuntime *) {}
     void disallowAlloc(JSRuntime *rt) {}
 #endif
 };
@@ -394,7 +367,7 @@ class GCZonesIter
     ZonesIter zone;
 
   public:
-    GCZonesIter(JSRuntime *rt) : zone(rt, WithAtoms) {
+    explicit GCZonesIter(JSRuntime *rt) : zone(rt, WithAtoms) {
         if (!zone->isCollecting())
             next();
     }
@@ -425,7 +398,7 @@ class GCZoneGroupIter {
     JS::Zone *current;
 
   public:
-    GCZoneGroupIter(JSRuntime *rt) {
+    explicit GCZoneGroupIter(JSRuntime *rt) {
         JS_ASSERT(rt->isHeapBusy());
         current = rt->gc.currentZoneGroup;
     }
@@ -503,6 +476,10 @@ CheckAllocatorState(ThreadSafeContext *cx, AllocKind kind)
     JS_ASSERT(!rt->isHeapBusy());
     JS_ASSERT(rt->gc.isAllocAllowed());
 #endif
+
+    // Crash if we perform a GC action when it is not safe.
+    if (allowGC && !rt->mainThread.suppressGC)
+        JS::AutoAssertOnGC::VerifyIsSafeToGC(rt);
 
     // For testing out of memory conditions
     if (!PossiblyFail()) {

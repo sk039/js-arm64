@@ -119,7 +119,7 @@ static NS_DEFINE_CID(kXULControllersCID,  NS_XULCONTROLLERS_CID);
 
 // This must come outside of any namespace, or else it won't overload with the
 // double based version in nsMathUtils.h
-inline NS_HIDDEN_(mozilla::Decimal)
+inline mozilla::Decimal
 NS_floorModulo(mozilla::Decimal x, mozilla::Decimal y)
 {
   return (x - y * (x / y).floor());
@@ -6788,11 +6788,18 @@ HTMLInputElement::GetValidationMessage(nsAString& aValidationMessage,
     }
     case VALIDITY_STATE_RANGE_OVERFLOW:
     {
+      static const char kNumberOverTemplate[] = "FormValidationNumberRangeOverflow";
+      static const char kDateOverTemplate[] = "FormValidationDateRangeOverflow";
+      static const char kTimeOverTemplate[] = "FormValidationTimeRangeOverflow";
+
+      const char* msgTemplate;
       nsXPIDLString message;
 
       nsAutoString maxStr;
       if (mType == NS_FORM_INPUT_NUMBER ||
           mType == NS_FORM_INPUT_RANGE) {
+        msgTemplate = kNumberOverTemplate;
+
         //We want to show the value as parsed when it's a number
         Decimal maximum = GetMaximum();
         MOZ_ASSERT(!maximum.isNaN());
@@ -6802,25 +6809,34 @@ HTMLInputElement::GetValidationMessage(nsAString& aValidationMessage,
         maxStr.AssignASCII(buf);
         MOZ_ASSERT(ok, "buf not big enough");
       } else if (mType == NS_FORM_INPUT_DATE || mType == NS_FORM_INPUT_TIME) {
+        msgTemplate = mType == NS_FORM_INPUT_DATE ? kDateOverTemplate : kTimeOverTemplate;
         GetAttr(kNameSpaceID_None, nsGkAtoms::max, maxStr);
       } else {
+        msgTemplate = kNumberOverTemplate;
         NS_NOTREACHED("Unexpected input type");
       }
 
       const char16_t* params[] = { maxStr.get() };
       rv = nsContentUtils::FormatLocalizedString(nsContentUtils::eDOM_PROPERTIES,
-                                                 "FormValidationRangeOverflow",
+                                                 msgTemplate,
                                                  params, message);
       aValidationMessage = message;
       break;
     }
     case VALIDITY_STATE_RANGE_UNDERFLOW:
     {
+      static const char kNumberUnderTemplate[] = "FormValidationNumberRangeUnderflow";
+      static const char kDateUnderTemplate[] = "FormValidationDateRangeUnderflow";
+      static const char kTimeUnderTemplate[] = "FormValidationTimeRangeUnderflow";
+
+      const char* msgTemplate;
       nsXPIDLString message;
 
       nsAutoString minStr;
       if (mType == NS_FORM_INPUT_NUMBER ||
           mType == NS_FORM_INPUT_RANGE) {
+        msgTemplate = kNumberUnderTemplate;
+
         Decimal minimum = GetMinimum();
         MOZ_ASSERT(!minimum.isNaN());
 
@@ -6829,14 +6845,16 @@ HTMLInputElement::GetValidationMessage(nsAString& aValidationMessage,
         minStr.AssignASCII(buf);
         MOZ_ASSERT(ok, "buf not big enough");
       } else if (mType == NS_FORM_INPUT_DATE || mType == NS_FORM_INPUT_TIME) {
+        msgTemplate = mType == NS_FORM_INPUT_DATE ? kDateUnderTemplate : kTimeUnderTemplate;
         GetAttr(kNameSpaceID_None, nsGkAtoms::min, minStr);
       } else {
+        msgTemplate = kNumberUnderTemplate;
         NS_NOTREACHED("Unexpected input type");
       }
 
       const char16_t* params[] = { minStr.get() };
       rv = nsContentUtils::FormatLocalizedString(nsContentUtils::eDOM_PROPERTIES,
-                                                 "FormValidationRangeUnderflow",
+                                                 msgTemplate,
                                                  params, message);
       aValidationMessage = message;
       break;
@@ -7275,44 +7293,6 @@ HTMLInputElement::SetFilePickerFiltersFromAccept(nsIFilePicker* filePicker)
     // current filter.
     filePicker->SetFilterIndex(1);
   }
-}
-
-int32_t
-HTMLInputElement::GetFilterFromAccept()
-{
-  NS_ASSERTION(HasAttr(kNameSpaceID_None, nsGkAtoms::accept),
-               "You should not call GetFileFiltersFromAccept if the element"
-               " has no accept attribute!");
-
-  int32_t filter = 0;
-  nsAutoString accept;
-  GetAttr(kNameSpaceID_None, nsGkAtoms::accept, accept);
-
-  HTMLSplitOnSpacesTokenizer tokenizer(accept, ',');
-
-  while (tokenizer.hasMoreTokens()) {
-    const nsDependentSubstring token = tokenizer.nextToken();
-
-    int32_t tokenFilter = 0;
-    if (token.EqualsLiteral("image/*")) {
-      tokenFilter = nsIFilePicker::filterImages;
-    } else if (token.EqualsLiteral("audio/*")) {
-      tokenFilter = nsIFilePicker::filterAudio;
-    } else if (token.EqualsLiteral("video/*")) {
-      tokenFilter = nsIFilePicker::filterVideo;
-    }
-
-    if (tokenFilter) {
-      // We do not want to set more than one filter so if we found two different
-      // kwown tokens, we will return 0 (no filter).
-      if (filter && filter != tokenFilter) {
-        return 0;
-      }
-      filter = tokenFilter;
-    }
-  }
-
-  return filter;
 }
 
 Decimal

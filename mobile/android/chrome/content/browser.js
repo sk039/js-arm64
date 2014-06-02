@@ -110,6 +110,7 @@ XPCOMUtils.defineLazyModuleGetter(this, "CharsetMenu",
   ["WebrtcUI", ["getUserMedia:request", "recording-device-events"], "chrome://browser/content/WebrtcUI.js"],
 #endif
   ["MemoryObserver", ["memory-pressure", "Memory:Dump"], "chrome://browser/content/MemoryObserver.js"],
+  ["ConsoleAPI", ["console-api-log-event"], "chrome://browser/content/ConsoleAPI.js"],
   ["FindHelper", ["FindInPage:Find", "FindInPage:Prev", "FindInPage:Next", "FindInPage:Closed", "Tab:Selected"], "chrome://browser/content/FindHelper.js"],
   ["PermissionsHelper", ["Permissions:Get", "Permissions:Clear"], "chrome://browser/content/PermissionsHelper.js"],
   ["FeedHandler", ["Feeds:Subscribe"], "chrome://browser/content/FeedHandler.js"],
@@ -485,11 +486,18 @@ var BrowserApp = {
       function(aTarget) {
         let url = NativeWindow.contextmenus._getLinkURL(aTarget);
         ContentAreaUtils.urlSecurityCheck(url, aTarget.ownerDocument.nodePrincipal);
-        BrowserApp.addTab(url, { selected: false, parentId: BrowserApp.selectedTab.id });
+        let tab = BrowserApp.addTab(url, { selected: false, parentId: BrowserApp.selectedTab.id });
 
         let newtabStrings = Strings.browser.GetStringFromName("newtabpopup.opened");
         let label = PluralForm.get(1, newtabStrings).replace("#1", 1);
-        NativeWindow.toast.show(label, "short");
+        let buttonLabel = Strings.browser.GetStringFromName("newtabpopup.switch");
+        NativeWindow.toast.show(label, "long", {
+          button: {
+            icon: "drawable://switch_button_icon",
+            label: buttonLabel,
+            callback: () => { BrowserApp.selectTab(tab); },
+          }
+        });
       });
 
     NativeWindow.contextmenus.add(Strings.browser.GetStringFromName("contextmenu.openInPrivateTab"),
@@ -497,11 +505,18 @@ var BrowserApp = {
       function(aTarget) {
         let url = NativeWindow.contextmenus._getLinkURL(aTarget);
         ContentAreaUtils.urlSecurityCheck(url, aTarget.ownerDocument.nodePrincipal);
-        BrowserApp.addTab(url, { selected: false, parentId: BrowserApp.selectedTab.id, isPrivate: true });
+        let tab = BrowserApp.addTab(url, { selected: false, parentId: BrowserApp.selectedTab.id, isPrivate: true });
 
         let newtabStrings = Strings.browser.GetStringFromName("newprivatetabpopup.opened");
         let label = PluralForm.get(1, newtabStrings).replace("#1", 1);
-        NativeWindow.toast.show(label, "short");
+        let buttonLabel = Strings.browser.GetStringFromName("newtabpopup.switch");
+        NativeWindow.toast.show(label, "long", {
+          button: {
+            icon: "drawable://switch_button_icon",
+            label: buttonLabel,
+            callback: () => { BrowserApp.selectTab(tab); },
+          }
+        });
       });
 
     NativeWindow.contextmenus.add(Strings.browser.GetStringFromName("contextmenu.copyLink"),
@@ -953,7 +968,7 @@ var BrowserApp = {
 
   // Calling this will update the state in BrowserApp after a tab has been
   // closed in the Java UI.
-  _handleTabClosed: function _handleTabClosed(aTab) {
+  _handleTabClosed: function _handleTabClosed(aTab, aShowUndoToast) {
     if (aTab == this.selectedTab)
       this.selectedTab = null;
 
@@ -961,8 +976,25 @@ var BrowserApp = {
     evt.initUIEvent("TabClose", true, false, window, null);
     aTab.browser.dispatchEvent(evt);
 
+    // Get a title for the undo close toast. Fall back to the URL if there is no title.
+    let title = aTab.browser.contentDocument.title || aTab.browser.contentDocument.URL;
+
     aTab.destroy();
     this._tabs.splice(this._tabs.indexOf(aTab), 1);
+
+    if (aShowUndoToast) {
+      let message = Strings.browser.formatStringFromName("undoCloseToast.message", [title], 1);
+      NativeWindow.toast.show(message, "short", {
+        button: {
+          icon: "drawable://undo_button_icon",
+          label: Strings.browser.GetStringFromName("undoCloseToast.action2"),
+          callback: function() {
+            let ss = Cc["@mozilla.org/browser/sessionstore;1"].getService(Ci.nsISessionStore);
+            ss.undoCloseTab(window, 0);
+          }
+        }
+      });
+    }
   },
 
   // Use this method to select a tab from JS. This method sends a message
@@ -1492,9 +1524,11 @@ var BrowserApp = {
         this._handleTabSelected(this.getTabForId(parseInt(aData)));
         break;
 
-      case "Tab:Closed":
-        this._handleTabClosed(this.getTabForId(parseInt(aData)));
+      case "Tab:Closed": {
+        let data = JSON.parse(aData);
+        this._handleTabClosed(this.getTabForId(data.tabId), data.showUndoToast);
         break;
+      }
 
       case "keyword-search":
         // This event refers to a search via the URL bar, not a bookmarks
@@ -1764,12 +1798,20 @@ var NativeWindow = {
 
       if (aOptions && aOptions.button) {
         msg.button = {
-          label: aOptions.button.label,
           id: uuidgen.generateUUID().toString(),
+        };
+
+        // null is badly handled by the receiver, so try to avoid including nulls.
+        if (aOptions.button.label) {
+          msg.button.label = aOptions.button.label;
+        }
+
+        if (aOptions.button.icon) {
           // If the caller specified a button, make sure we convert any chrome urls
           // to jar:jar urls so that the frontend can show them
-          icon: aOptions.button.icon ? resolveGeckoURI(aOptions.button.icon) : null,
+          msg.button.icon = resolveGeckoURI(aOptions.button.icon);
         };
+
         this._callbacks[msg.button.id] = aOptions.button.callback;
       }
 
@@ -3292,11 +3334,13 @@ Tab.prototype = {
 
     let scrollx = this.browser.contentWindow.scrollX * zoom;
     let scrolly = this.browser.contentWindow.scrollY * zoom;
+    let screenWidth = gScreenWidth - gViewportMargins.left - gViewportMargins.right;
+    let screenHeight = gScreenHeight - gViewportMargins.top - gViewportMargins.bottom;
     let displayPortMargins = {
       left: scrollx - aDisplayPort.left,
       top: scrolly - aDisplayPort.top,
-      right: aDisplayPort.right - (scrollx + gScreenWidth),
-      bottom: aDisplayPort.bottom - (scrolly + gScreenHeight)
+      right: aDisplayPort.right - (scrollx + screenWidth),
+      bottom: aDisplayPort.bottom - (scrolly + screenHeight)
     };
 
     if (this._oldDisplayPortMargins == null ||
@@ -3408,13 +3452,6 @@ Tab.prototype = {
         cwu.setResolution(aZoom / window.devicePixelRatio, aZoom / window.devicePixelRatio);
       }
     }
-  },
-
-  getPageSize: function(aDocument, aDefaultWidth, aDefaultHeight) {
-    let body = aDocument.body || { scrollWidth: aDefaultWidth, scrollHeight: aDefaultHeight };
-    let html = aDocument.documentElement || { scrollWidth: aDefaultWidth, scrollHeight: aDefaultHeight };
-    return [Math.max(body.scrollWidth, html.scrollWidth),
-      Math.max(body.scrollHeight, html.scrollHeight)];
   },
 
   getViewport: function() {
@@ -3869,9 +3906,12 @@ Tab.prototype = {
 
         // Once document is fully loaded, parse it
         Reader.parseDocumentFromTab(this.id, function (article) {
+          // The loaded page may have changed while we were parsing the document. 
+          // Make sure we've got the current one.
+          let uri = this.browser.currentURI;
+          let tabURL = uri.specIgnoringRef;
           // Do nothing if there's no article or the page in this tab has
           // changed
-          let tabURL = uri.specIgnoringRef;
           if (article == null || (article.url != tabURL)) {
             // Don't clear the article for about:reader pages since we want to
             // use the article from the previous page
@@ -4261,21 +4301,22 @@ Tab.prototype = {
     if (this.browser.contentDocument) {
       // this may get run during a Viewport:Change message while the document
       // has not yet loaded, so need to guard against a null document.
-      let [pageWidth, pageHeight] = this.getPageSize(this.browser.contentDocument, viewportW, viewportH);
+      let cwu = this.browser.contentWindow.QueryInterface(Ci.nsIInterfaceRequestor).getInterface(Ci.nsIDOMWindowUtils);
+      let cssPageRect = cwu.getRootBounds();
 
       // In the situation the page size equals or exceeds the screen size,
       // lengthen the viewport on the corresponding axis to include the margins.
       // The '- 0.5' is to account for rounding errors.
-      if (pageWidth * this._zoom > gScreenWidth - 0.5) {
+      if (cssPageRect.width * this._zoom > gScreenWidth - 0.5) {
         screenW = gScreenWidth;
         this.viewportExcludesHorizontalMargins = false;
       }
-      if (pageHeight * this._zoom > gScreenHeight - 0.5) {
+      if (cssPageRect.height * this._zoom > gScreenHeight - 0.5) {
         screenH = gScreenHeight;
         this.viewportExcludesVerticalMargins = false;
       }
 
-      minScale = screenW / pageWidth;
+      minScale = screenW / cssPageRect.width;
     }
     minScale = this.clampZoom(minScale);
     viewportH = Math.max(viewportH, screenH / minScale);

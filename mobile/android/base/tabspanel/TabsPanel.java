@@ -20,6 +20,7 @@ import org.mozilla.gecko.widget.IconTabWidget;
 import android.content.Context;
 import android.content.res.Resources;
 import android.graphics.Rect;
+import android.graphics.drawable.Drawable;
 import android.os.Build;
 import android.util.AttributeSet;
 import android.view.LayoutInflater;
@@ -33,6 +34,7 @@ import android.widget.RelativeLayout;
 public class TabsPanel extends LinearLayout
                        implements LightweightTheme.OnChangeListener,
                                   IconTabWidget.OnTabChangedListener {
+    @SuppressWarnings("unused")
     private static final String LOGTAG = "Gecko" + TabsPanel.class.getSimpleName();
 
     public static enum Panel {
@@ -140,6 +142,9 @@ public class TabsPanel extends LinearLayout
         mTabWidget.addTab(R.drawable.tabs_private, R.string.tabs_private);
 
         if (!GeckoProfile.get(mContext).inGuestMode()) {
+            // The initial icon is not the animated icon, because on Android
+            // 4.4.2, the animation starts immediately (and can start at other
+            // unpredictable times). See Bug 1015974.
             mTabWidget.addTab(R.drawable.tabs_synced, R.string.tabs_synced);
         }
 
@@ -460,5 +465,18 @@ public class TabsPanel extends LinearLayout
     private void dispatchLayoutChange(int width, int height) {
         if (mLayoutChangeListener != null)
             mLayoutChangeListener.onTabsLayoutChange(width, height);
+    }
+
+    /**
+     * Fetch the Drawable icon corresponding to the given panel.
+     * @param panel to fetch icon for.
+     * @return Drawable instance, or null if no icon is being displayed, or the icon does not exist.
+     */
+    public Drawable getIconDrawable(Panel panel) {
+        return mTabWidget.getIconDrawable(panel.ordinal());
+    }
+
+    public void setIconDrawable(Panel panel, int resource) {
+        mTabWidget.setIconDrawable(panel.ordinal(), resource);
     }
 }

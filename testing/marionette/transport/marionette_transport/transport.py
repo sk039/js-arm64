@@ -93,7 +93,7 @@ class MarionetteTransport(object):
                 self.sock.send(packet)
             except IOError as e:
                 if e.errno == errno.EPIPE:
-                    raise IOError("%s: %s" % (str(e)), self.connection_lost_msg)
+                    raise IOError("%s: %s" % (str(e), self.connection_lost_msg))
                 else:
                     raise e
 
@@ -103,5 +103,6 @@ class MarionetteTransport(object):
     def close(self):
         """ Close the socket.
         """
-        self.sock.close()
+        if self.sock:
+            self.sock.close()
         self.sock = None

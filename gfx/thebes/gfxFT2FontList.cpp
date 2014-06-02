@@ -515,6 +515,15 @@ FT2FontEntry::ReadCMAP(FontInfoData *aFontInfoData)
         }
     }
 
+#ifdef MOZ_WIDGET_ANDROID
+    // Hack for the SamsungDevanagari font, bug 1012365:
+    // pretend the font supports U+0972.
+    if (!charmap->test(0x0972) &&
+        charmap->test(0x0905) && charmap->test(0x0945)) {
+        charmap->set(0x0972);
+    }
+#endif
+
     mHasCmapTable = NS_SUCCEEDED(rv);
     if (mHasCmapTable) {
         gfxPlatformFontList *pfl = gfxPlatformFontList::PlatformFontList();
@@ -1195,7 +1204,7 @@ gfxFT2FontList::FindFonts()
             bool moreFiles = handle != INVALID_HANDLE_VALUE;
             while (moreFiles) {
                 nsAutoString filePath(path);
-                filePath.AppendLiteral("\\");
+                filePath.Append('\\');
                 filePath.Append(results.cFileName);
                 AppendFacesFromFontFile(NS_ConvertUTF16toUTF8(filePath));
                 moreFiles = FindNextFile(handle, &results);

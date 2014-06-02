@@ -277,7 +277,7 @@ AsmJSModule::restoreToInitialState(ArrayBufferObject *maybePrevBuffer, Exclusive
     // in staticallyLink are valid.
     for (size_t i = 0; i < staticLinkData_.absoluteLinks.length(); i++) {
         AbsoluteLink link = staticLinkData_.absoluteLinks[i];
-        Assembler::patchDataWithValueCheck(code_ + link.patchAt.offset(),
+        Assembler::patchDataWithValueCheck(CodeLocationLabel(code_ + link.patchAt.offset()),
                                            PatchedImmPtr((void*)-1),
                                            PatchedImmPtr(AddressOf(link.target, cx)));
     }
@@ -318,7 +318,7 @@ AsmJSModule::staticallyLink(ExclusiveContext *cx)
 
     for (size_t i = 0; i < staticLinkData_.absoluteLinks.length(); i++) {
         AbsoluteLink link = staticLinkData_.absoluteLinks[i];
-        Assembler::patchDataWithValueCheck(code_ + link.patchAt.offset(),
+        Assembler::patchDataWithValueCheck(CodeLocationLabel(code_ + link.patchAt.offset()),
                                            PatchedImmPtr(AddressOf(link.target, cx)),
                                            PatchedImmPtr((void*)-1));
     }
@@ -374,6 +374,9 @@ AsmJSModule::~AsmJSModule()
 
         DeallocateExecutableMemory(code_, pod.totalBytes_);
     }
+
+    for (size_t i = 0; i < numFunctionCounts(); i++)
+        js_delete(functionCounts(i));
 }
 
 void
@@ -394,6 +397,7 @@ AsmJSModule::addSizeOfMisc(mozilla::MallocSizeOf mallocSizeOf, size_t *asmJSModu
 #if defined(JS_ION_PERF)
                         perfProfiledBlocksFunctions_.sizeOfExcludingThis(mallocSizeOf) +
 #endif
+                        functionCounts_.sizeOfExcludingThis(mallocSizeOf) +
                         staticLinkData_.sizeOfExcludingThis(mallocSizeOf);
 }
 
@@ -1079,7 +1083,7 @@ struct PropertyNameWrapper
     PropertyNameWrapper()
       : name(nullptr)
     {}
-    PropertyNameWrapper(PropertyName *name)
+    explicit PropertyNameWrapper(PropertyName *name)
       : name(name)
     {}
     size_t serializedSize() const {
@@ -1305,7 +1309,7 @@ struct ScopedCacheEntryOpenedForRead
     const uint8_t *memory;
     intptr_t handle;
 
-    ScopedCacheEntryOpenedForRead(ExclusiveContext *cx)
+    explicit ScopedCacheEntryOpenedForRead(ExclusiveContext *cx)
       : cx(cx), serializedSize(0), memory(nullptr), handle(0)
     {}
 

@@ -121,6 +121,13 @@ pref("dom.gamepad.non_standard_events.enabled", false);
 pref("dom.gamepad.non_standard_events.enabled", true);
 #endif
 
+// Whether the KeyboardEvent.code is enabled
+#ifdef RELEASE_BUILD
+pref("dom.keyboardevent.code.enabled", false);
+#else
+pref("dom.keyboardevent.code.enabled", true);
+#endif
+
 // Whether the WebCrypto API is enabled
 #ifdef RELEASE_BUILD
 pref("dom.webcrypto.enabled", false);
@@ -266,6 +273,9 @@ pref("media.peerconnection.video.enabled", true);
 pref("media.navigator.video.max_fs", 0); // unrestricted
 pref("media.navigator.video.max_fr", 0); // unrestricted
 #endif
+pref("media.peerconnection.video.min_bitrate", 200);
+pref("media.peerconnection.video.start_bitrate", 300);
+pref("media.peerconnection.video.max_bitrate", 2000);
 pref("media.navigator.permission.disabled", false);
 pref("media.peerconnection.default_iceservers", "[{\"url\": \"stun:stun.services.mozilla.com\"}]");
 pref("media.peerconnection.trickle_ice", true);
@@ -361,6 +371,9 @@ pref("apz.printtree", false);
 // Layerize scrollable subframes to allow async panning
 pref("apz.subframe.enabled", false);
 
+// APZ testing (bug 961289)
+pref("apz.test.logging_enabled", false);
+
 #ifdef XP_MACOSX
 // Whether to run in native HiDPI mode on machines with "Retina"/HiDPI display;
 //   <= 0 : hidpi mode disabled, display will just use pixel-based upscaling
@@ -410,23 +423,6 @@ pref("gfx.font_rendering.wordcache.charlimit", 32);
 pref("gfx.font_rendering.wordcache.maxentries", 10000);
 
 pref("gfx.font_rendering.graphite.enabled", true);
-
-// Check intl/unicharutil/util/nsUnicodeProperties.h for definitions of script bits
-// in the ShapingType enumeration
-// Currently-defined bits:
-//  SHAPING_DEFAULT   = 0x0001,
-//  SHAPING_ARABIC    = 0x0002,
-//  SHAPING_HEBREW    = 0x0004,
-//  SHAPING_HANGUL    = 0x0008,
-//  SHAPING_MONGOLIAN = 0x0010,
-//  SHAPING_INDIC     = 0x0020,
-//  SHAPING_THAI      = 0x0040
-// (see http://mxr.mozilla.org/mozilla-central/ident?i=ShapingType)
-// Scripts not listed are grouped in the default category.
-// Set the pref to 255 to have all text shaped via the harfbuzz backend.
-// Default setting:
-// We use harfbuzz for all scripts (except when using AAT fonts on OS X).
-pref("gfx.font_rendering.harfbuzz.scripts", 255);
 
 #ifdef XP_WIN
 pref("gfx.font_rendering.directwrite.enabled", false);
@@ -548,9 +544,6 @@ pref("accessibility.typeaheadfind.matchesCountLimit", 100);
 
 // use Mac OS X Appearance panel text smoothing setting when rendering text, disabled by default
 pref("gfx.use_text_smoothing_setting", false);
-
-// loading and rendering of framesets and iframes
-pref("browser.frames.enabled", true);
 
 // Number of characters to consider emphasizing for rich autocomplete results
 pref("toolkit.autocomplete.richBoundaryCutoff", 200);
@@ -773,7 +766,7 @@ pref("dom.webapps.useCurrentProfile", false);
 
 pref("dom.cycle_collector.incremental", true);
 
-pref("dom.window_experimental_bindings", false);
+pref("dom.window_experimental_bindings", true);
 
 // Parsing perf prefs. For now just mimic what the old code did.
 #ifndef XP_WIN
@@ -3151,7 +3144,7 @@ pref("font.name.monospace.ko", "Fira Mono OT");
 pref("font.name.serif.th", "Charis SIL Compact");
 pref("font.name.sans-serif.th", "Fira Sans OT");
 pref("font.name.monospace.th", "Fira Mono OT");
-pref("font.name-list.sans-serif.th", "Fira Sans OT, Droid Sans Thai");
+pref("font.name-list.sans-serif.th", "Fira Sans OT, Noto Sans Thai, Droid Sans Thai");
 
 pref("font.name.serif.tr", "Charis SIL Compact");
 pref("font.name.sans-serif.tr", "Fira Sans OT");
@@ -3731,6 +3724,7 @@ pref("layers.draw-tile-borders", false);
 pref("layers.draw-bigimage-borders", false);
 pref("layers.frame-counter", false);
 pref("layers.enable-tiles", false);
+pref("layers.low-precision-buffer", false);
 pref("layers.tile-width", 256);
 pref("layers.tile-height", 256);
 // Max number of layers per container. See Overwrite in mobile prefs.
@@ -3885,6 +3879,9 @@ pref("dom.vibrator.max_vibrate_list_len", 128);
 
 // Battery API
 pref("dom.battery.enabled", true);
+
+// Image srcset
+pref("dom.image.srcset.enabled", false);
 
 // WebSMS
 pref("dom.sms.enabled", false);
@@ -4045,7 +4042,7 @@ pref("dom.mms.requestStatusReport", true);
 pref("dom.mms.retrieval_mode", "manual");
 
 pref("dom.mms.sendRetryCount", 3);
-pref("dom.mms.sendRetryInterval", 300000);
+pref("dom.mms.sendRetryInterval", "10000,60000,180000");
 
 pref("dom.mms.retrievalRetryCount", 4);
 pref("dom.mms.retrievalRetryIntervals", "60000,300000,600000,1800000");

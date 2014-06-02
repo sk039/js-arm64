@@ -158,7 +158,7 @@ void LoadMonitor::Shutdown()
 
     nsRefPtr<LoadMonitorRemoveObserver> remObsRunner = new LoadMonitorRemoveObserver(this);
     if (!NS_IsMainThread()) {
-      NS_DispatchToMainThread(remObsRunner, NS_DISPATCH_NORMAL);
+      NS_DispatchToMainThread(remObsRunner);
     } else {
       remObsRunner->Run();
     }
@@ -431,10 +431,10 @@ nsresult LoadInfo::UpdateSystemLoad()
     CTL_KERN,
     KERN_CP_TIME,
   };
-  size_t miblen = sizeof(mib) / sizeof(mib[0]);
-  if (sysctl(mib, miblen, &cp_time, &sz, NULL, 0)) {
+  u_int miblen = sizeof(mib) / sizeof(mib[0]);
+  if (sysctl(mib, miblen, &cp_time, &sz, nullptr, 0)) {
 #else
-  if (sysctlbyname("kern.cp_time", &cp_time, &sz, NULL, 0)) {
+  if (sysctlbyname("kern.cp_time", &cp_time, &sz, nullptr, 0)) {
 #endif // KERN_CP_TIME
     LOG(("sysctl kern.cp_time failed"));
     return NS_ERROR_FAILURE;
@@ -600,7 +600,7 @@ LoadMonitor::Init(nsRefPtr<LoadMonitor> &self)
   }
 
   nsRefPtr<LoadMonitorAddObserver> addObsRunner = new LoadMonitorAddObserver(self);
-  NS_DispatchToMainThread(addObsRunner, NS_DISPATCH_NORMAL);
+  NS_DispatchToMainThread(addObsRunner);
 
   NS_NewNamedThread("Sys Load Info", getter_AddRefs(mLoadInfoThread));
 

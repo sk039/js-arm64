@@ -95,7 +95,7 @@ class CodeGenerator : public CodeGeneratorSpecific
     void emitIntToString(Register input, Register output, Label *ool);
     bool visitIntToString(LIntToString *lir);
     bool visitDoubleToString(LDoubleToString *lir);
-    bool visitPrimitiveToString(LPrimitiveToString *lir);
+    bool visitValueToString(LValueToString *lir);
     bool visitInteger(LInteger *lir);
     bool visitRegExp(LRegExp *lir);
     bool visitRegExpExec(LRegExpExec *lir);
@@ -108,7 +108,10 @@ class CodeGenerator : public CodeGeneratorSpecific
     bool visitLambdaPar(LLambdaPar *lir);
     bool visitPointer(LPointer *lir);
     bool visitSlots(LSlots *lir);
-    bool visitStoreSlotV(LStoreSlotV *store);
+    bool visitLoadSlotT(LLoadSlotT *lir);
+    bool visitLoadSlotV(LLoadSlotV *lir);
+    bool visitStoreSlotT(LStoreSlotT *lir);
+    bool visitStoreSlotV(LStoreSlotV *lir);
     bool visitElements(LElements *lir);
     bool visitConvertElementsToDoubles(LConvertElementsToDoubles *lir);
     bool visitMaybeToDoubleElement(LMaybeToDoubleElement *lir);
@@ -230,6 +233,8 @@ class CodeGenerator : public CodeGeneratorSpecific
     bool visitTypeOfV(LTypeOfV *lir);
     bool visitOutOfLineTypeOfV(OutOfLineTypeOfV *ool);
     bool visitToIdV(LToIdV *lir);
+    template<typename T> bool emitLoadElementT(LLoadElementT *lir, const T &source);
+    bool visitLoadElementT(LLoadElementT *lir);
     bool visitLoadElementV(LLoadElementV *load);
     bool visitLoadElementHole(LLoadElementHole *lir);
     bool visitStoreElementT(LStoreElementT *lir);
@@ -348,7 +353,14 @@ class CodeGenerator : public CodeGeneratorSpecific
     bool visitAssertRangeF(LAssertRangeF *ins);
     bool visitAssertRangeV(LAssertRangeV *ins);
 
+    bool visitInterruptCheck(LInterruptCheck *lir);
     bool visitRecompileCheck(LRecompileCheck *ins);
+
+    IonScriptCounts *extractScriptCounts() {
+        IonScriptCounts *counts = scriptCounts_;
+        scriptCounts_ = nullptr;  // prevent delete in dtor
+        return counts;
+    }
 
   private:
     bool addGetPropertyCache(LInstruction *ins, RegisterSet liveRegs, Register objReg,
@@ -437,6 +449,9 @@ class CodeGenerator : public CodeGeneratorSpecific
     // place of jumpToBlock.
     Label *getJumpLabelForBranch(MBasicBlock *block);
 
+    void emitStoreElementTyped(const LAllocation *value, MIRType valueType, MIRType elementType,
+                               Register elements, const LAllocation *index);
+
     // Bailout if an element about to be written to is a hole.
     bool emitStoreHoleCheck(Register elements, const LAllocation *index, LSnapshot *snapshot);
 
@@ -451,6 +466,9 @@ class CodeGenerator : public CodeGeneratorSpecific
     bool emitObjectOrStringResultChecks(LInstruction *lir, MDefinition *mir);
     bool emitValueResultChecks(LInstruction *lir, MDefinition *mir);
 #endif
+
+    // Script counts created during code generation.
+    IonScriptCounts *scriptCounts_;
 
 #if defined(JS_ION_PERF)
     PerfSpewer perfSpewer_;

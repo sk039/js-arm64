@@ -44,8 +44,6 @@ Wrapper::New(JSContext *cx, JSObject *obj, JSObject *parent, Wrapper *handler,
 {
     JS_ASSERT(parent);
 
-    AutoMarkInDeadZone amd(cx->zone());
-
     RootedValue priv(cx, ObjectValue(*obj));
     mozilla::Maybe<WrapperOptions> opts;
     if (!options) {
@@ -999,7 +997,7 @@ js::RemapWrapper(JSContext *cx, JSObject *wobjArg, JSObject *newTargetArg)
     // Update the entry in the compartment's wrapper map to point to the old
     // wrapper, which has now been updated (via reuse or swap).
     JS_ASSERT(wobj->is<WrapperObject>());
-    wcompartment->putWrapper(cx, ObjectValue(*newTarget), ObjectValue(*wobj));
+    wcompartment->putWrapper(cx, CrossCompartmentKey(newTarget), ObjectValue(*wobj));
     return true;
 }
 
@@ -1037,8 +1035,6 @@ JS_FRIEND_API(bool)
 js::RecomputeWrappers(JSContext *cx, const CompartmentFilter &sourceFilter,
                       const CompartmentFilter &targetFilter)
 {
-    AutoMaybeTouchDeadZones agc(cx);
-
     AutoWrapperVector toRecompute(cx);
 
     for (CompartmentsIter c(cx->runtime(), SkipAtoms); !c.done(); c.next()) {

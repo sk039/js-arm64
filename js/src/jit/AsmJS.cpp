@@ -390,7 +390,7 @@ class Type
 
   public:
     Type() : which_(Which(-1)) {}
-    Type(Which w) : which_(w) {}
+    MOZ_IMPLICIT Type(Which w) : which_(w) {}
 
     bool operator==(Type rhs) const { return which_ == rhs.which_; }
     bool operator!=(Type rhs) const { return which_ != rhs.which_; }
@@ -501,8 +501,8 @@ class RetType
 
   public:
     RetType() : which_(Which(-1)) {}
-    RetType(Which w) : which_(w) {}
-    RetType(AsmJSCoercion coercion) {
+    MOZ_IMPLICIT RetType(Which w) : which_(w) {}
+    MOZ_IMPLICIT RetType(AsmJSCoercion coercion) {
         switch (coercion) {
           case AsmJS_ToInt32: which_ = Signed; break;
           case AsmJS_ToNumber: which_ = Double; break;
@@ -575,9 +575,9 @@ class VarType
   public:
     VarType()
       : which_(Which(-1)) {}
-    VarType(Which w)
+    MOZ_IMPLICIT VarType(Which w)
       : which_(w) {}
-    VarType(AsmJSCoercion coercion) {
+    MOZ_IMPLICIT VarType(AsmJSCoercion coercion) {
         switch (coercion) {
           case AsmJS_ToInt32: which_ = Int; break;
           case AsmJS_ToNumber: which_ = Double; break;
@@ -650,7 +650,7 @@ class ABIArgIter
     void settle() { if (!done()) gen_.next(ToMIRType(types_[i_])); }
 
   public:
-    ABIArgIter(const VecT &types) : types_(types), i_(0) { settle(); }
+    explicit ABIArgIter(const VecT &types) : types_(types), i_(0) { settle(); }
     void operator++(int) { JS_ASSERT(!done()); i_++; settle(); }
     bool done() const { return i_ == types_.length(); }
 
@@ -674,7 +674,7 @@ class Signature
     RetType retType_;
 
   public:
-    Signature(LifoAlloc &alloc)
+    explicit Signature(LifoAlloc &alloc)
       : argTypes_(alloc) {}
     Signature(LifoAlloc &alloc, RetType retType)
       : argTypes_(alloc), retType_(retType) {}
@@ -884,7 +884,7 @@ class MOZ_STACK_CLASS ModuleCompiler
         friend class ModuleCompiler;
         friend class js::LifoAlloc;
 
-        Global(Which which) : which_(which) {}
+        explicit Global(Which which) : which_(which) {}
 
       public:
         Which which() const {
@@ -1001,10 +1001,10 @@ class MOZ_STACK_CLASS ModuleCompiler
         } u;
 
         MathBuiltin() : kind(Kind(-1)) {}
-        MathBuiltin(double cst) : kind(Constant) {
+        explicit MathBuiltin(double cst) : kind(Constant) {
             u.cst = cst;
         }
-        MathBuiltin(AsmJSMathBuiltinFunction func) : kind(Function) {
+        explicit MathBuiltin(AsmJSMathBuiltinFunction func) : kind(Function) {
             u.func = func;
         }
     };
@@ -1449,6 +1449,10 @@ class MOZ_STACK_CLASS ModuleCompiler
     }
 #endif
 
+    bool addFunctionCounts(IonScriptCounts *counts) {
+        return module_->addFunctionCounts(counts);
+    }
+
     void finishFunctionBodies() {
         JS_ASSERT(!finishedFunctionBodies_);
         masm_.align(AsmJSPageSize);
@@ -1623,7 +1627,7 @@ class MOZ_STACK_CLASS ModuleCompiler
         for (size_t i = 0; i < masm_.numAsmJSAbsoluteLinks(); i++) {
             AsmJSAbsoluteLink src = masm_.asmJSAbsoluteLink(i);
             AsmJSModule::AbsoluteLink link;
-            link.patchAt = masm_.actualOffset(src.patchAt.offset());
+            link.patchAt = CodeOffsetLabel(masm_.actualOffset(src.patchAt.offset()));
             link.target = src.target;
             if (!module_->addAbsoluteLink(link))
                 return false;
@@ -2028,7 +2032,7 @@ class FunctionCompiler
         if (!newBlock(/* pred = */ nullptr, &curBlock_, fn_))
             return false;
 
-        for (ABIArgTypeIter i = argTypes; !i.done(); i++) {
+        for (ABIArgTypeIter i(argTypes); !i.done(); i++) {
             MAsmJSParameter *ins = MAsmJSParameter::New(alloc(), *i, i.mirType());
             curBlock_->add(ins);
             curBlock_->initSlot(info().localSlot(i.index()), ins);
@@ -5484,6 +5488,12 @@ GenerateCode(ModuleCompiler &m, ModuleCompiler::Func &func, MIRGenerator &mir, L
     if (!codegen || !codegen->generateAsmJS(&m.stackOverflowLabel()))
         return m.fail(nullptr, "internal codegen failure (probably out of memory)");
 
+    jit::IonScriptCounts *counts = codegen->extractScriptCounts();
+    if (counts && !m.addFunctionCounts(counts)) {
+        js_delete(counts);
+        return false;
+    }
+
 #if defined(MOZ_VTUNE) || defined(JS_ION_PERF)
     // Profiling might not be active now, but it may be activated later (perhaps
     // after the module has been cached and reloaded from the cache). Function
@@ -5574,7 +5584,7 @@ CheckFunctionsSequential(ModuleCompiler &m)
 
 // Currently, only one asm.js parallel compilation is allowed at a time.
 // This RAII class attempts to claim this parallel compilation using atomic ops
-// on rt->workerThreadState->asmJSCompilationInProgress.
+// on the helper thread state's asmJSCompilationInProgress.
 class ParallelCompilationGuard
 {
     bool parallelState_;
@@ -5582,13 +5592,13 @@ class ParallelCompilationGuard
     ParallelCompilationGuard() : parallelState_(false) {}
     ~ParallelCompilationGuard() {
         if (parallelState_) {
-            JS_ASSERT(WorkerThreadState().asmJSCompilationInProgress == true);
-            WorkerThreadState().asmJSCompilationInProgress = false;
+            JS_ASSERT(HelperThreadState().asmJSCompilationInProgress == true);
+            HelperThreadState().asmJSCompilationInProgress = false;
         }
     }
     bool claim() {
         JS_ASSERT(!parallelState_);
-        if (!WorkerThreadState().asmJSCompilationInProgress.compareExchange(false, true))
+        if (!HelperThreadState().asmJSCompilationInProgress.compareExchange(false, true))
             return false;
         parallelState_ = true;
         return true;
@@ -5600,11 +5610,11 @@ ParallelCompilationEnabled(ExclusiveContext *cx)
 {
     // If 'cx' isn't a JSContext, then we are already off the main thread so
     // off-thread compilation must be enabled. However, since there are a fixed
-    // number of worker threads and one is already being consumed by this
+    // number of helper threads and one is already being consumed by this
     // parsing task, ensure that there another free thread to avoid deadlock.
     // (Note: there is at most one thread used for parsing so we don't have to
     // worry about general dining philosophers.)
-    if (WorkerThreadState().threadCount <= 1)
+    if (HelperThreadState().threadCount <= 1)
         return false;
 
     if (!cx->isJSContext())
@@ -5619,23 +5629,23 @@ struct ParallelGroupState
     int32_t outstandingJobs; // Good work, jobs!
     uint32_t compiledJobs;
 
-    ParallelGroupState(js::Vector<AsmJSParallelTask> &tasks)
+    explicit ParallelGroupState(js::Vector<AsmJSParallelTask> &tasks)
       : tasks(tasks), outstandingJobs(0), compiledJobs(0)
     { }
 };
 
-// Block until a worker-assigned LifoAlloc becomes finished.
+// Block until a helper-assigned LifoAlloc becomes finished.
 static AsmJSParallelTask *
 GetFinishedCompilation(ModuleCompiler &m, ParallelGroupState &group)
 {
-    AutoLockWorkerThreadState lock;
+    AutoLockHelperThreadState lock;
 
-    while (!WorkerThreadState().asmJSWorkerFailed()) {
-        if (!WorkerThreadState().asmJSFinishedList().empty()) {
+    while (!HelperThreadState().asmJSFailed()) {
+        if (!HelperThreadState().asmJSFinishedList().empty()) {
             group.outstandingJobs--;
-            return WorkerThreadState().asmJSFinishedList().popCopy();
+            return HelperThreadState().asmJSFinishedList().popCopy();
         }
-        WorkerThreadState().wait(GlobalWorkerThreadState::CONSUMER);
+        HelperThreadState().wait(GlobalHelperThreadState::CONSUMER);
     }
 
     return nullptr;
@@ -5661,7 +5671,7 @@ GenerateCodeForFinishedJob(ModuleCompiler &m, ParallelGroupState &group, AsmJSPa
 
     group.compiledJobs++;
 
-    // Clear the LifoAlloc for use by another worker.
+    // Clear the LifoAlloc for use by another helper.
     TempAllocator &tempAlloc = task->mir->alloc();
     tempAlloc.TempAllocator::~TempAllocator();
     task->lifo.releaseAll();
@@ -5675,7 +5685,7 @@ GetUnusedTask(ParallelGroupState &group, uint32_t i, AsmJSParallelTask **outTask
 {
     // Since functions are dispatched in order, if fewer than |numLifos| functions
     // have been generated, then the |i'th| LifoAlloc must never have been
-    // assigned to a worker thread.
+    // assigned to a helper thread.
     if (i >= group.tasks.length())
         return false;
     *outTask = &group.tasks[i];
@@ -5687,12 +5697,12 @@ CheckFunctionsParallelImpl(ModuleCompiler &m, ParallelGroupState &group)
 {
 #ifdef DEBUG
     {
-        AutoLockWorkerThreadState lock;
-        JS_ASSERT(WorkerThreadState().asmJSWorklist().empty());
-        JS_ASSERT(WorkerThreadState().asmJSFinishedList().empty());
+        AutoLockHelperThreadState lock;
+        JS_ASSERT(HelperThreadState().asmJSWorklist().empty());
+        JS_ASSERT(HelperThreadState().asmJSFinishedList().empty());
     }
 #endif
-    WorkerThreadState().resetAsmJSFailureState();
+    HelperThreadState().resetAsmJSFailureState();
 
     for (unsigned i = 0; PeekToken(m.parser()) == TOK_FUNCTION; i++) {
         // Get exclusive access to an empty LifoAlloc from the thread group's pool.
@@ -5706,7 +5716,7 @@ CheckFunctionsParallelImpl(ModuleCompiler &m, ParallelGroupState &group)
         if (!CheckFunction(m, task->lifo, &mir, &func))
             return false;
 
-        // Perform optimizations and LIR generation on a worker thread.
+        // Perform optimizations and LIR generation on a helper thread.
         task->init(m.cx()->compartment()->runtimeFromAnyThread(), func, mir);
         if (!StartOffThreadAsmJSCompile(m.cx(), task))
             return false;
@@ -5714,7 +5724,7 @@ CheckFunctionsParallelImpl(ModuleCompiler &m, ParallelGroupState &group)
         group.outstandingJobs++;
     }
 
-    // Block for all outstanding workers to complete.
+    // Block for all outstanding helpers to complete.
     while (group.outstandingJobs > 0) {
         AsmJSParallelTask *ignored = nullptr;
         if (!GenerateCodeForFinishedJob(m, group, &ignored))
@@ -5728,12 +5738,12 @@ CheckFunctionsParallelImpl(ModuleCompiler &m, ParallelGroupState &group)
     JS_ASSERT(group.compiledJobs == m.numFunctions());
 #ifdef DEBUG
     {
-        AutoLockWorkerThreadState lock;
-        JS_ASSERT(WorkerThreadState().asmJSWorklist().empty());
-        JS_ASSERT(WorkerThreadState().asmJSFinishedList().empty());
+        AutoLockHelperThreadState lock;
+        JS_ASSERT(HelperThreadState().asmJSWorklist().empty());
+        JS_ASSERT(HelperThreadState().asmJSFinishedList().empty());
     }
 #endif
-    JS_ASSERT(!WorkerThreadState().asmJSWorkerFailed());
+    JS_ASSERT(!HelperThreadState().asmJSFailed());
     return true;
 }
 
@@ -5744,38 +5754,38 @@ CancelOutstandingJobs(ModuleCompiler &m, ParallelGroupState &group)
     // The problem is that all memory for compilation is stored in LifoAllocs
     // maintained in the scope of CheckFunctionsParallel() -- so in order
     // for that function to safely return, and thereby remove the LifoAllocs,
-    // none of that memory can be in use or reachable by workers.
+    // none of that memory can be in use or reachable by helpers.
 
     JS_ASSERT(group.outstandingJobs >= 0);
     if (!group.outstandingJobs)
         return;
 
-    AutoLockWorkerThreadState lock;
+    AutoLockHelperThreadState lock;
 
-    // From the compiling tasks, eliminate those waiting for worker assignation.
-    group.outstandingJobs -= WorkerThreadState().asmJSWorklist().length();
-    WorkerThreadState().asmJSWorklist().clear();
+    // From the compiling tasks, eliminate those waiting for helper assignation.
+    group.outstandingJobs -= HelperThreadState().asmJSWorklist().length();
+    HelperThreadState().asmJSWorklist().clear();
 
     // From the compiling tasks, eliminate those waiting for codegen.
-    group.outstandingJobs -= WorkerThreadState().asmJSFinishedList().length();
-    WorkerThreadState().asmJSFinishedList().clear();
+    group.outstandingJobs -= HelperThreadState().asmJSFinishedList().length();
+    HelperThreadState().asmJSFinishedList().clear();
 
     // Eliminate tasks that failed without adding to the finished list.
-    group.outstandingJobs -= WorkerThreadState().harvestFailedAsmJSJobs();
+    group.outstandingJobs -= HelperThreadState().harvestFailedAsmJSJobs();
 
     // Any remaining tasks are therefore undergoing active compilation.
     JS_ASSERT(group.outstandingJobs >= 0);
     while (group.outstandingJobs > 0) {
-        WorkerThreadState().wait(GlobalWorkerThreadState::CONSUMER);
+        HelperThreadState().wait(GlobalHelperThreadState::CONSUMER);
 
-        group.outstandingJobs -= WorkerThreadState().harvestFailedAsmJSJobs();
-        group.outstandingJobs -= WorkerThreadState().asmJSFinishedList().length();
-        WorkerThreadState().asmJSFinishedList().clear();
+        group.outstandingJobs -= HelperThreadState().harvestFailedAsmJSJobs();
+        group.outstandingJobs -= HelperThreadState().asmJSFinishedList().length();
+        HelperThreadState().asmJSFinishedList().clear();
     }
 
     JS_ASSERT(group.outstandingJobs == 0);
-    JS_ASSERT(WorkerThreadState().asmJSWorklist().empty());
-    JS_ASSERT(WorkerThreadState().asmJSFinishedList().empty());
+    JS_ASSERT(HelperThreadState().asmJSWorklist().empty());
+    JS_ASSERT(HelperThreadState().asmJSFinishedList().empty());
 }
 
 static const size_t LIFO_ALLOC_PARALLEL_CHUNK_SIZE = 1 << 12;
@@ -5786,7 +5796,7 @@ CheckFunctionsParallel(ModuleCompiler &m)
     // If parallel compilation isn't enabled (not enough cores, disabled by
     // pref, etc) or another thread is currently compiling asm.js in parallel,
     // fall back to sequential compilation. (We could lift the latter
-    // constraint by hoisting asmJS* state out of WorkerThreadState so multiple
+    // constraint by hoisting asmJS* state out of HelperThreadState so multiple
     // concurrent asm.js parallel compilations don't race.)
     ParallelCompilationGuard g;
     if (!ParallelCompilationEnabled(m.cx()) || !g.claim())
@@ -5794,8 +5804,8 @@ CheckFunctionsParallel(ModuleCompiler &m)
 
     IonSpew(IonSpew_Logs, "Can't log asm.js script. (Compiled on background thread.)");
 
-    // Saturate all worker threads plus the main thread.
-    size_t numParallelJobs = WorkerThreadState().threadCount + 1;
+    // Saturate all helper threads plus the main thread.
+    size_t numParallelJobs = HelperThreadState().threadCount + 1;
 
     // Allocate scoped AsmJSParallelTask objects. Each contains a unique
     // LifoAlloc that provides all necessary memory for compilation.
@@ -5806,13 +5816,13 @@ CheckFunctionsParallel(ModuleCompiler &m)
     for (size_t i = 0; i < numParallelJobs; i++)
         tasks.infallibleAppend(LIFO_ALLOC_PARALLEL_CHUNK_SIZE);
 
-    // With compilation memory in-scope, dispatch worker threads.
+    // With compilation memory in-scope, dispatch helper threads.
     ParallelGroupState group(tasks);
     if (!CheckFunctionsParallelImpl(m, group)) {
         CancelOutstandingJobs(m, group);
 
-        // If failure was triggered by a worker thread, report error.
-        if (void *maybeFunc = WorkerThreadState().maybeAsmJSFailedFunction()) {
+        // If failure was triggered by a helper thread, report error.
+        if (void *maybeFunc = HelperThreadState().maybeAsmJSFailedFunction()) {
             ModuleCompiler::Func *func = reinterpret_cast<ModuleCompiler::Func *>(maybeFunc);
             return m.failOffset(func->srcOffset(), "allocation failure during compilation");
         }
@@ -5995,7 +6005,7 @@ static const RegisterSet NonVolatileRegs =
 static void
 LoadAsmJSActivationIntoRegister(MacroAssembler &masm, Register reg)
 {
-    masm.movePtr(AsmJSImm_Runtime, reg);
+    masm.movePtr(AsmJSImmPtr(AsmJSImm_Runtime), reg);
     size_t offset = offsetof(JSRuntime, mainThread) +
                     PerThreadData::offsetOfAsmJSActivationStackReadOnly();
     masm.loadPtr(Address(reg, offset), reg);
@@ -6391,16 +6401,16 @@ GenerateFFIInterpreterExit(ModuleCompiler &m, const ModuleCompiler::ExitDescript
     AssertStackAlignment(masm);
     switch (exit.sig().retType().which()) {
       case RetType::Void:
-        masm.callExit(AsmJSImm_InvokeFromAsmJS_Ignore, i.stackBytesConsumedSoFar());
+        masm.callExit(AsmJSImmPtr(AsmJSImm_InvokeFromAsmJS_Ignore), i.stackBytesConsumedSoFar());
         masm.branchTest32(Assembler::Zero, ReturnReg, ReturnReg, throwLabel);
         break;
       case RetType::Signed:
-        masm.callExit(AsmJSImm_InvokeFromAsmJS_ToInt32, i.stackBytesConsumedSoFar());
+        masm.callExit(AsmJSImmPtr(AsmJSImm_InvokeFromAsmJS_ToInt32), i.stackBytesConsumedSoFar());
         masm.branchTest32(Assembler::Zero, ReturnReg, ReturnReg, throwLabel);
         masm.unboxInt32(argv, ReturnReg);
         break;
       case RetType::Double:
-        masm.callExit(AsmJSImm_InvokeFromAsmJS_ToNumber, i.stackBytesConsumedSoFar());
+        masm.callExit(AsmJSImmPtr(AsmJSImm_InvokeFromAsmJS_ToNumber), i.stackBytesConsumedSoFar());
         masm.branchTest32(Assembler::Zero, ReturnReg, ReturnReg, throwLabel);
         masm.loadDouble(argv, ReturnFloatReg);
         break;
@@ -6466,12 +6476,12 @@ GenerateOOLConvert(ModuleCompiler &m, RetType retType, Label *throwLabel)
     AssertStackAlignment(masm);
     switch (retType.which()) {
       case RetType::Signed:
-        masm.callExit(AsmJSImm_CoerceInPlace_ToInt32, i.stackBytesConsumedSoFar());
+        masm.callExit(AsmJSImmPtr(AsmJSImm_CoerceInPlace_ToInt32), i.stackBytesConsumedSoFar());
         masm.branchTest32(Assembler::Zero, ReturnReg, ReturnReg, throwLabel);
         masm.unboxInt32(Address(StackPointer, offsetToArgv), ReturnReg);
         break;
       case RetType::Double:
-        masm.callExit(AsmJSImm_CoerceInPlace_ToNumber, i.stackBytesConsumedSoFar());
+        masm.callExit(AsmJSImmPtr(AsmJSImm_CoerceInPlace_ToNumber), i.stackBytesConsumedSoFar());
         masm.branchTest32(Assembler::Zero, ReturnReg, ReturnReg, throwLabel);
         masm.loadDouble(Address(StackPointer, offsetToArgv), ReturnFloatReg);
         break;
@@ -6540,10 +6550,10 @@ GenerateFFIIonExit(ModuleCompiler &m, const ModuleCompiler::ExitDescriptor &exit
     unsigned globalDataOffset = m.module().exitIndexToGlobalDataOffset(exitIndex);
 #if defined(JS_CODEGEN_X64)
     CodeOffsetLabel label2 = masm.leaRipRelative(callee);
-    m.masm().append(AsmJSGlobalAccess(label2.offset(), globalDataOffset));
+    m.masm().append(AsmJSGlobalAccess(CodeOffsetLabel(label2.offset()), globalDataOffset));
 #elif defined(JS_CODEGEN_X86)
     CodeOffsetLabel label2 = masm.movlWithPatch(Imm32(0), callee);
-    m.masm().append(AsmJSGlobalAccess(label2.offset(), globalDataOffset));
+    m.masm().append(AsmJSGlobalAccess(CodeOffsetLabel(label2.offset()), globalDataOffset));
 #elif defined(JS_CODEGEN_ARM)
     masm.lea(Operand(GlobalReg, globalDataOffset), callee);
 #elif defined(JS_CODEGEN_ARM64)
@@ -6778,7 +6788,7 @@ GenerateStackOverflowExit(ModuleCompiler &m, Label *throwLabel)
     JS_ASSERT(i.done());
 
     AssertStackAlignment(masm);
-    masm.callExit(AsmJSImm_ReportOverRecursed, i.stackBytesConsumedSoFar());
+    masm.callExit(AsmJSImmPtr(AsmJSImm_ReportOverRecursed), i.stackBytesConsumedSoFar());
 
     // Don't worry about restoring the stack; throwLabel will pop everything.
     masm.jump(throwLabel);
@@ -6836,7 +6846,7 @@ GenerateInterruptExit(ModuleCompiler &m, Label *throwLabel)
     LoadJSContextFromActivation(masm, activation, IntArgReg0);
 #endif
 
-    masm.call(AsmJSImm_HandleExecutionInterrupt);
+    masm.call(AsmJSImmPtr(AsmJSImm_HandleExecutionInterrupt));
     masm.branchIfFalseBool(ReturnReg, throwLabel);
 
     // Restore the StackPointer to it's position before the call.
@@ -7083,7 +7093,7 @@ EstablishPreconditions(ExclusiveContext *cx, AsmJSParser &parser)
 
 #ifdef JS_THREADSAFE
     if (ParallelCompilationEnabled(cx))
-        EnsureWorkerThreadsInitialized(cx);
+        EnsureHelperThreadsInitialized(cx);
 #endif
 
     return true;

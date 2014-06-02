@@ -27,6 +27,7 @@
 #include "mozilla/gfx/2D.h"
 #include "Units.h"
 #include "mozilla/ToString.h"
+#include "gfxPrefs.h"
 
 #include <limits>
 #include <algorithm>
@@ -45,6 +46,7 @@ class nsFontFaceList;
 class nsIImageLoadingContent;
 class nsStyleContext;
 class nsBlockFrame;
+class nsContainerFrame;
 class gfxASurface;
 class gfxDrawable;
 class nsView;
@@ -73,6 +75,7 @@ class HTMLVideoElement;
 } // namespace dom
 namespace layers {
 class Layer;
+class ClientLayerManager;
 }
 }
 
@@ -384,7 +387,7 @@ public:
    * LastContinuationWithChild gets the last continuation in aFrame's chain
    * that has a child, or the first continuation if the frame has no children.
    */
-  static nsIFrame* LastContinuationWithChild(nsIFrame* aFrame);
+  static nsContainerFrame* LastContinuationWithChild(nsContainerFrame* aFrame);
 
   /**
    * GetLastSibling simply finds the last sibling of aFrame, or returns nullptr if
@@ -2183,7 +2186,11 @@ public:
   static void LogTestDataForPaint(nsIPresShell* aPresShell,
                                   ViewID aScrollId,
                                   const std::string& aKey,
-                                  const std::string& aValue);
+                                  const std::string& aValue) {
+    if (gfxPrefs::APZTestLoggingEnabled()) {
+      DoLogTestDataForPaint(aPresShell, aScrollId, aKey, aValue);
+    }
+  }
 
   /**
    * A convenience overload of LogTestDataForPaint() that accepts any type
@@ -2195,8 +2202,10 @@ public:
                                   ViewID aScrollId,
                                   const std::string& aKey,
                                   const Value& aValue) {
-    LogTestDataForPaint(aPresShell, aScrollId, aKey,
-        mozilla::ToString(aValue));
+    if (gfxPrefs::APZTestLoggingEnabled()) {
+      DoLogTestDataForPaint(aPresShell, aScrollId, aKey,
+          mozilla::ToString(aValue));
+    }
   }
 
  /**
@@ -2230,6 +2239,14 @@ private:
   static bool sInvalidationDebuggingIsEnabled;
   static bool sCSSVariablesEnabled;
   static bool sInterruptibleReflowEnabled;
+
+  /**
+   * Helper function for LogTestDataForPaint().
+   */
+  static void DoLogTestDataForPaint(nsIPresShell* aPresShell,
+                                    ViewID aScrollId,
+                                    const std::string& aKey,
+                                    const std::string& aValue);
 };
 
 MOZ_FINISH_NESTED_ENUM_CLASS(nsLayoutUtils::RepaintMode)
@@ -2293,6 +2310,8 @@ namespace mozilla {
       nsPresContext *mPresContext;
       bool mOldValue;
     };
+
+    void MaybeSetupTransactionIdAllocator(layers::LayerManager* aManager, nsView* aView);
 
   }
 }

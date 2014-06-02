@@ -192,7 +192,7 @@ NativeRegExpMacroAssembler::GenerateCode(JSContext *cx)
 #ifdef DEBUG
         // Bounds check numOutputRegisters.
         Label enoughRegisters;
-        masm.branchPtr(MacroAssembler::GreaterThanOrEqual,
+        masm.branchPtr(Assembler::GreaterThanOrEqual,
                        temp1, ImmWord(num_saved_registers_), &enoughRegisters);
         masm.assumeUnreachable("Not enough output registers for RegExp");
         masm.bind(&enoughRegisters);
@@ -227,7 +227,7 @@ NativeRegExpMacroAssembler::GenerateCode(JSContext *cx)
     Label load_char_start_regexp, start_regexp;
 
     // Load newline if index is at start, previous character otherwise.
-    masm.branchPtr(MacroAssembler::NotEqual, 
+    masm.branchPtr(Assembler::NotEqual, 
                    Address(StackPointer, offsetof(FrameData, startIndex)), ImmWord(0),
                    &load_char_start_regexp);
     masm.movePtr(ImmWord('\n'), current_character);
@@ -252,7 +252,7 @@ NativeRegExpMacroAssembler::GenerateCode(JSContext *cx)
         masm.bind(&init_loop);
         masm.storePtr(temp0, BaseIndex(StackPointer, temp1, TimesOne));
         masm.addPtr(ImmWord(sizeof(void *)), temp1);
-        masm.branchPtr(MacroAssembler::LessThan, temp1,
+        masm.branchPtr(Assembler::LessThan, temp1,
                        ImmWord(register_offset(num_saved_registers_)), &init_loop);
     } else {
         // Unroll the loop.
@@ -337,7 +337,7 @@ NativeRegExpMacroAssembler::GenerateCode(JSContext *cx)
                                &load_char_start_regexp);
 
                 // edi (offset from the end) is zero if we already reached the end.
-                masm.branchTestPtr(MacroAssembler::Zero, current_position, current_position,
+                masm.branchTestPtr(Assembler::Zero, current_position, current_position,
                                    &exit_label_);
 
                 // Advance current position after a zero-length match.
@@ -495,6 +495,15 @@ void
 NativeRegExpMacroAssembler::Backtrack()
 {
     IonSpew(SPEW_PREFIX "Backtrack");
+
+    // Check for an interrupt.
+    Label noInterrupt;
+    masm.branch32(Assembler::Equal,
+                  AbsoluteAddress(&runtime->interrupt), Imm32(0),
+                  &noInterrupt);
+    masm.movePtr(ImmWord(RegExpRunStatus_Error), temp0);
+    masm.jump(&exit_label_);
+    masm.bind(&noInterrupt);
 
     // Pop code location from backtrack stack and jump to location.
     PopBacktrack(temp0);

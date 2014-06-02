@@ -8,6 +8,8 @@ this.EXPORTED_SYMBOLS = ["Translation"];
 
 const {classes: Cc, interfaces: Ci, utils: Cu} = Components;
 
+const TRANSLATION_PREF_SHOWUI = "browser.translation.ui.show";
+
 Cu.import("resource://gre/modules/Services.jsm");
 
 this.Translation = {
@@ -26,6 +28,9 @@ this.Translation = {
   },
 
   languageDetected: function(aBrowser, aDetectedLanguage) {
+    if (!Services.prefs.getBoolPref(TRANSLATION_PREF_SHOWUI))
+      return;
+
     if (this.supportedSourceLanguages.indexOf(aDetectedLanguage) != -1 &&
         aDetectedLanguage != this.defaultTargetLanguage) {
       if (!aBrowser.translationUI)
@@ -64,6 +69,13 @@ TranslationUI.prototype = {
   STATE_ERROR: 3,
 
   translate: function(aFrom, aTo) {
+    if (aFrom == aTo ||
+        (this.state == this.STATE_TRANSLATED &&
+         this.translatedFrom == aFrom && this.translatedTo == aTo)) {
+      // Nothing to do.
+      return;
+    }
+
     this.state = this.STATE_TRANSLATING;
     this.translatedFrom = aFrom;
     this.translatedTo = aTo;
@@ -122,7 +134,7 @@ TranslationUI.prototype = {
     this.browser.messageManager.sendAsyncMessage("Translation:ShowTranslation");
   },
 
-  get notificationBox() this.browser.ownerGlobal.gBrowser.getNotificationBox(),
+  get notificationBox() this.browser.ownerGlobal.gBrowser.getNotificationBox(this.browser),
 
   showTranslationInfoBar: function() {
     let notificationBox = this.notificationBox;

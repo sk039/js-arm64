@@ -357,11 +357,12 @@ CompareStringsPar(ForkJoinContext *cx, JSString *left, JSString *right, int32_t 
 {
     ScopedThreadSafeStringInspector leftInspector(left);
     ScopedThreadSafeStringInspector rightInspector(right);
-    if (!leftInspector.ensureChars(cx) || !rightInspector.ensureChars(cx))
+    AutoCheckCannotGC nogc;
+    if (!leftInspector.ensureChars(cx, nogc) || !rightInspector.ensureChars(cx, nogc))
         return false;
 
-    *res = CompareChars(leftInspector.chars(), left->length(),
-                        rightInspector.chars(), right->length());
+    *res = CompareChars(leftInspector.twoByteChars(), left->length(),
+                        rightInspector.twoByteChars(), right->length());
     return true;
 }
 
@@ -428,7 +429,7 @@ StrictlyEqualImplPar(ForkJoinContext *cx, MutableHandleValue lhs, MutableHandleV
             return LooselyEqualImplPar<Equal>(cx, lhs, rhs, res);
     }
 
-    *res = false;
+    *res = !Equal;
     return true;
 }
 
