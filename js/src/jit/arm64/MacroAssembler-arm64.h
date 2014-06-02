@@ -204,6 +204,14 @@ class MacroAssemblerARM64 : public Assembler
     void storeValue(ValueOperand val, BaseIndex dest) {
         JS_ASSERT(0 && "storeValue");
     }
+
+    template <typename T>
+    void storeUnboxedValue(ConstantOrRegister value, MIRType valueType, const T &dest,
+                           MIRType slotType)
+    {
+        JS_ASSERT(0 && "storeUnboxedValue");
+    }
+
     void loadValue(ARMOperand src, ValueOperand val) {
         JS_ASSERT(0 && "loadValue");
     }
@@ -541,6 +549,9 @@ class MacroAssemblerARM64 : public Assembler
     void and32(Imm32 mask, Address dest) {
         JS_ASSERT(0 && "and32");
     }
+    void and32(Address src, Register dest) {
+        JS_ASSERT(0 && "and32");
+    }
 
     void andPtr(Register src, Register dest) {
         JS_ASSERT(0 && "andPtr");
@@ -867,6 +878,9 @@ class MacroAssemblerARM64 : public Assembler
         JS_ASSERT(0 && "branchTest32");
     }
     void branchTest32(Condition cond, const Address &address, Imm32 imm, Label *label) {
+        JS_ASSERT(0 && "branchTest32");
+    }
+    void branchTest32(Condition cond, AbsoluteAddress &address, Imm32 imm, Label *label) {
         JS_ASSERT(0 && "branchTest32");
     }
     CodeOffsetJump jumpWithPatch(RepatchLabel *label, Condition cond = Always) {

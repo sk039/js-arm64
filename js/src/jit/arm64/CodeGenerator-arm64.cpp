@@ -664,13 +664,6 @@ CodeGeneratorARM64::visitGuardClass(LGuardClass *guard)
 }
 
 bool
-CodeGeneratorARM64::visitImplicitThis(LImplicitThis *lir)
-{
-    JS_ASSERT(0 && "CodeGeneratorARM64::visitImplicitThis");
-    return false;
-}
-
-bool
 CodeGeneratorARM64::visitInterruptCheck(LInterruptCheck *lir)
 {
     JS_ASSERT(0 && "CodeGeneratorARM64::visitInterruptCheck");
