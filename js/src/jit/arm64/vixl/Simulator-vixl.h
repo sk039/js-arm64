@@ -172,11 +172,13 @@ class SimulatorRuntime;
 
 class Simulator : public DecoderVisitor {
  public:
-  explicit Simulator(Decoder* decoder, FILE* stream = stdout);
   explicit Simulator(SimulatorRuntime *srt);
+  explicit Simulator(Decoder* decoder, FILE* stream = stdout);
   ~Simulator();
 
   void ResetState();
+
+  void init(Decoder* decoder, FILE* stream = stdout);
 
   // The currently executing Simulator instance.
   // Potentially there can be one for each native thread.
@@ -713,10 +715,11 @@ class SimulatorRuntime
     // Synchronize access between main thread and compilation/PJS threads.
     PRLock *lock_;
     mozilla::DebugOnly<PRThread *> lockOwner_;
+    Decoder *decoder_;
 
   public:
     SimulatorRuntime()
-      : lock_(nullptr), lockOwner_(nullptr)
+      : lock_(nullptr), lockOwner_(nullptr), decoder_(nullptr)
     { }
 
     ~SimulatorRuntime() {
@@ -724,6 +727,7 @@ class SimulatorRuntime
         if (lock_)
             PR_DestroyLock(lock_);
 #endif
+        js_delete(decoder_);
     }
 
     bool init() {
@@ -732,7 +736,16 @@ class SimulatorRuntime
         if (!lock_)
             return false;
 #endif
+        decoder_ = js_new<Decoder>();
+        if (!decoder_) {
+            PR_DestroyLock(lock_);
+            return false;
+        }
         return true;
+    }
+
+    Decoder *decoder() const {
+        return decoder_;
     }
 };
 
