@@ -200,19 +200,22 @@ class Simulator : public DecoderVisitor {
     return nullptr;
   }
 
+  // FIXME: All the simulators should share this logic.
   uintptr_t stackLimit() const {
-    JS_ASSERT(0 && "Implement stackLimit");
-    return 0;
+    // Leave a safety margin of 1MB to prevent overrunning the stack when
+    // pushing values (total stack size is 2MB)
+    return reinterpret_cast<uintptr_t>(stack_) + 1024 * 1024;
   }
 
   bool overRecursed(uintptr_t newsp = 0) const {
-    JS_ASSERT(0 && "Implement overRecursed");
-    return true;
+    if (newsp == 0)
+      newsp = xreg(Registers::sp, Reg31IsStackPointer);
+    return newsp <= stackLimit();
   }
 
   bool overRecursedWithExtra(uint32_t extra) const {
-    JS_ASSERT(0 && "Implement overRecursedWithExtra");
-    return true;
+    uintptr_t newsp = xreg(Registers::sp, Reg31IsStackPointer) - extra;
+    return newsp <= stackLimit();
   }
 
   // Simulation helpers.
