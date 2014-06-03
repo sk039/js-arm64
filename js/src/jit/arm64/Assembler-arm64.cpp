@@ -39,6 +39,12 @@ namespace js {
 namespace jit {
 
 void
+Assembler::finish()
+{
+    AssemblerVIXL::FinalizeCode();
+}
+
+void
 PatchJump(CodeLocationJump &jump_, CodeLocationLabel label) {
     JS_ASSERT(0 && "PatchJump()");
 }

@@ -1465,9 +1465,7 @@ class MacroAssemblerARM64 : public Assembler
     void handleFailureWithHandler(void *handler) {
         JS_ASSERT(0 && "handleFailureWithHandler");
     }
-    void handleFailureWithHandlerTail() {
-        JS_ASSERT(0 && "handleFailureWithHandlerTail");
-    }
+    void handleFailureWithHandlerTail();
 
     void makeFrameDescriptor(Register frameSizeReg, FrameType type) {
         JS_ASSERT(0 && "makeFrameDescriptor");
@@ -1623,7 +1621,7 @@ class MacroAssemblerARM64 : public Assembler
         JS_ASSERT(0 && "inc64");
     }
     void breakpoint() {
-        JS_ASSERT(0 && "breakpoint");
+        brk(0x0); // ARM lets us include a specific code in the breakpoint.
     }
     // FIXME: Should be in Assembler?
     // FIXME: Should be const?

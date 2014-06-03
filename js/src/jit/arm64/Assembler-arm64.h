@@ -41,9 +41,8 @@ class Assembler : public AssemblerVIXL {
       : AssemblerVIXL(buffer, buffer_size)
     { }
 
-    void finish() {
-        JS_ASSERT(0 && "finish()");
-    }
+    void finish();
+
     void executableCopy(void *buffer) {
         JS_ASSERT(0 && "executableCopy()");
     }
