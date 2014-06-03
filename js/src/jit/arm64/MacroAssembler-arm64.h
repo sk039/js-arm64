@@ -117,9 +117,13 @@ class MacroAssemblerARM64 : public Assembler
   protected:
     uint32_t framePushed_;
 
+    // FIXME: Oh no. This is temporary, I swear!
+    // FIXME: Integrate the Assembler with some buffer.
+    byte horribleTempBuffer_[4096];
+
   public:
     MacroAssemblerARM64()
-      : Assembler(NULL, 0) // FIXME: Integrate the Assembler with some buffer.
+      : Assembler(horribleTempBuffer_, 4096) 
     { }
 
   protected:
