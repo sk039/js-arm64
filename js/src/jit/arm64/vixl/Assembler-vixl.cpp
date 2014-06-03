@@ -367,7 +367,7 @@ bool MemOperand::IsPostIndex() const {
 
 // Assembler
 AssemblerVIXL::AssemblerVIXL(byte* buffer, unsigned buffer_size)
-    : buffer_size_(buffer_size), literal_pool_monitor_(0) {
+    : buffer_size_(buffer_size) {
 
   buffer_ = reinterpret_cast<Instruction*>(buffer);
   pc_ = buffer_;
@@ -377,25 +377,20 @@ AssemblerVIXL::AssemblerVIXL(byte* buffer, unsigned buffer_size)
 
 AssemblerVIXL::~AssemblerVIXL() {
   VIXL_ASSERT(finalized_ || (pc_ == buffer_));
-  VIXL_ASSERT(literals_.empty());
 }
 
 
 void AssemblerVIXL::Reset() {
 #ifdef DEBUG
   VIXL_ASSERT((pc_ >= buffer_) && (pc_ < buffer_ + buffer_size_));
-  VIXL_ASSERT(literal_pool_monitor_ == 0);
   memset(buffer_, 0, pc_ - buffer_);
   finalized_ = false;
 #endif
   pc_ = buffer_;
-  literals_.clear();
-  next_literal_pool_check_ = pc_ + kLiteralPoolCheckInterval;
 }
 
 
 void AssemblerVIXL::FinalizeCode() {
-  EmitLiteralPool();
 #ifdef DEBUG
   finalized_ = true;
 #endif
@@ -1922,7 +1917,8 @@ void AssemblerVIXL::LoadLiteral(const CPURegister& rt,
                             LoadLiteralOp op) {
   VIXL_ASSERT(is_int32(imm) || is_uint32(imm) || (rt.Is64Bits()));
 
-  BlockLiteralPoolScope scope(this);
+  //FIXME: BlockLiteralPoolScope scope(this);
+  JS_ASSERT(0 && "LoadLiteral");
   RecordLiteral(imm, rt.SizeInBytes());
   Emit(op | ImmLLiteral(0) | Rt(rt));
 }
@@ -2159,108 +2155,8 @@ LoadStorePairNonTemporalOp AssemblerVIXL::StorePairNonTemporalOpFor(
 
 
 void AssemblerVIXL::RecordLiteral(int64_t imm, unsigned size) {
-  literals_.push_front(new Literal(pc_, imm, size));
-}
-
-
-// Check if a literal pool should be emitted. Currently a literal is emitted
-// when:
-//  * the distance to the first literal load handled by this pool is greater
-//    than the recommended distance and the literal pool can be emitted without
-//    generating a jump over it.
-//  * the distance to the first literal load handled by this pool is greater
-//    than twice the recommended distance.
-// TODO: refine this heuristic using real world data.
-void AssemblerVIXL::CheckLiteralPool(LiteralPoolEmitOption option) {
-  if (IsLiteralPoolBlocked()) {
-    // Literal pool emission is forbidden, no point in doing further checks.
-    return;
-  }
-
-  if (literals_.empty()) {
-    // No literal pool to emit.
-    next_literal_pool_check_ += kLiteralPoolCheckInterval;
-    return;
-  }
-
-  intptr_t distance = pc_ - literals_.back()->pc_;
-  if ((distance < kRecommendedLiteralPoolRange) ||
-      ((option == JumpRequired) &&
-       (distance < (2 * kRecommendedLiteralPoolRange)))) {
-    // We prefer not to have to jump over the literal pool.
-    next_literal_pool_check_ += kLiteralPoolCheckInterval;
-    return;
-  }
-
-  EmitLiteralPool(option);
-}
-
-
-void AssemblerVIXL::EmitLiteralPool(LiteralPoolEmitOption option) {
-  // Prevent recursive calls while emitting the literal pool.
-  BlockLiteralPoolScope scope(this);
-
-  Label marker;
-  Label start_of_pool;
-  Label end_of_pool;
-
-  if (option == JumpRequired) {
-    b(&end_of_pool);
-  }
-
-  // Leave space for a literal pool marker. This is populated later, once the
-  // size of the pool is known.
-  bind(&marker);
-  nop();
-
-  // Now populate the literal pool.
-  bind(&start_of_pool);
-  std::list<Literal*>::iterator it;
-  for (it = literals_.begin(); it != literals_.end(); it++) {
-    // Update the load-literal instruction to point to this pool entry.
-    Instruction* load_literal = (*it)->pc_;
-    load_literal->SetImmLLiteral(pc_);
-    // Copy the data into the pool.
-    uint64_t value= (*it)->value_;
-    unsigned size = (*it)->size_;
-    VIXL_ASSERT((size == kXRegSizeInBytes) || (size == kWRegSizeInBytes));
-    VIXL_ASSERT((pc_ + size) <= (buffer_ + buffer_size_));
-    memcpy(pc_, &value, size);
-    pc_ += size;
-    delete *it;
-  }
-  literals_.clear();
-  bind(&end_of_pool);
-
-  // The pool size should always be a multiple of four bytes because that is the
-  // scaling applied by the LDR(literal) instruction, even for X-register loads.
-  // none of this will make sense after we transition to one of the ARMBuffers.
-#if 0
-  VIXL_ASSERT((SizeOfCodeGeneratedSince(&start_of_pool) % 4) == 0);
-  uint64_t pool_size = SizeOfCodeGeneratedSince(&start_of_pool) / 4;
-
-  // Literal pool marker indicating the size in words of the literal pool.
-  // We use a literal load to the zero register, the offset indicating the
-  // size in words. This instruction can encode a large enough offset to span
-  // the entire pool at its maximum size.
-  Instr marker_instruction = LDR_x_lit | ImmLLiteral(pool_size) | Rt(xzr);
-  memcpy(marker.target(), &marker_instruction, kInstructionSize);
-#endif
-  next_literal_pool_check_ = pc_ + kLiteralPoolCheckInterval;
-}
-
-
-// Return the size in bytes, required by the literal pool entries. This does
-// not include any marker or branch over the literal pool itself.
-size_t AssemblerVIXL::LiteralPoolSize() {
-  size_t size = 0;
-
-  std::list<Literal*>::iterator it;
-  for (it = literals_.begin(); it != literals_.end(); it++) {
-    size += (*it)->size_;
-  }
-
-  return size;
+  //FIXME: literals_.push_front(new Literal(pc_, imm, size));
+  JS_ASSERT(0 && "RecordLiteral");
 }
 
 

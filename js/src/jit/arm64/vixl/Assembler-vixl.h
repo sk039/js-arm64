@@ -618,34 +618,6 @@ class Label {
 };
 #endif
 
-// TODO: Obtain better values for these, based on real-world data.
-const int kLiteralPoolCheckInterval = 4 * KBytes;
-const int kRecommendedLiteralPoolRange = 2 * kLiteralPoolCheckInterval;
-
-
-// Control whether a branch over the literal pool should also be emitted. This
-// is needed if the literal pool has to be emitted in the middle of the JITted
-// code.
-enum LiteralPoolEmitOption {
-  JumpRequired,
-  NoJumpRequired
-};
-
-
-// Literal pool entry.
-class Literal {
- public:
-  Literal(Instruction* pc, uint64_t imm, unsigned size)
-      : pc_(pc), value_(imm), size_(size) {}
-
- private:
-  Instruction* pc_;
-  int64_t value_;
-  unsigned size_;
-
-  friend class AssemblerVIXL;
-};
-
 
 // Assembler.
 class AssemblerVIXL : public AssemblerShared {
@@ -1743,36 +1715,6 @@ class AssemblerVIXL : public AssemblerShared {
     return pc_ - buffer_;
   }
 
-#if 0
-  // Size of the code generated since label to the current position.
-  uint64_t SizeOfCodeGeneratedSince(Label* label) const {
-    VIXL_ASSERT(label->bound());
-    VIXL_ASSERT((pc_ >= label->target()) && (pc_ < (buffer_ + buffer_size_)));
-    return pc_ - label->offset();
-  }
-#endif
-
-
-  inline void BlockLiteralPool() {
-    literal_pool_monitor_++;
-  }
-
-  inline void ReleaseLiteralPool() {
-    if (--literal_pool_monitor_ == 0) {
-      // Has the literal pool been blocked for too long?
-      VIXL_ASSERT(literals_.empty() ||
-             (pc_ < (literals_.back()->pc_ + kMaxLoadLiteralRange)));
-    }
-  }
-
-  inline bool IsLiteralPoolBlocked() {
-    return literal_pool_monitor_ != 0;
-  }
-
-  void CheckLiteralPool(LiteralPoolEmitOption option = JumpRequired);
-  void EmitLiteralPool(LiteralPoolEmitOption option = NoJumpRequired);
-  size_t LiteralPoolSize();
-
  protected:
     inline const ARMRegister& AppropriateZeroRegFor(const CPURegister& reg) const {
         return reg.Is64Bits() ? xzr : wzr;
@@ -1936,9 +1878,7 @@ class AssemblerVIXL : public AssemblerShared {
 
   inline void CheckBufferSpace() {
     VIXL_ASSERT(pc_ < (buffer_ + buffer_size_));
-    if (pc_ > next_literal_pool_check_) {
-      CheckLiteralPool();
-    }
+    // FIXME: Integration with constant pool?
   }
 
   // The buffer into which code and relocation info are generated.
@@ -1947,30 +1887,12 @@ class AssemblerVIXL : public AssemblerShared {
   protected:
   unsigned buffer_size_;
   Instruction* pc_;
-  std::list<Literal*> literals_;
-  Instruction* next_literal_pool_check_;
-  unsigned literal_pool_monitor_;
-
-  friend class BlockLiteralPoolScope;
 
 #ifdef DEBUG
   bool finalized_;
 #endif
  public:
 
-};
-class BlockLiteralPoolScope {
- public:
-  explicit BlockLiteralPoolScope(AssemblerVIXL* assm) : assm_(assm) {
-    assm_->BlockLiteralPool();
-  }
-
-  ~BlockLiteralPoolScope() {
-    assm_->ReleaseLiteralPool();
-  }
-
- private:
-  AssemblerVIXL* assm_;
 };
 
 }; // namespace jit
