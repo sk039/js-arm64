@@ -9,6 +9,7 @@
 
 #include "mozilla/DebugOnly.h"
 
+#include "assembler/wtf/Assertions.h"
 #include "assembler/wtf/SegmentedVector.h"
 #include "jit/IonSpewer.h"
 #include "jit/shared/IonAssemblerBuffer.h"
@@ -171,17 +172,17 @@ struct Pool
     // align to the requirement of the pool. If the pool is empty,
     // there is nothing to be aligned, so it will not perform any alignment
     uint8_t* align(uint8_t *ptr) {
-        return (uint8_t*)align((uint32_t)ptr);
+        return (uint8_t*)align((uintptr_t)ptr);
     }
-    uint32_t align(uint32_t ptr) {
+    uintptr_t align(uintptr_t ptr) {
         if (numEntries == 0)
             return ptr;
         return (ptr + alignment-1) & ~(alignment-1);
     }
-    uint32_t forceAlign(uint32_t ptr) {
+    uintptr_t forceAlign(uintptr_t ptr) {
         return (ptr + alignment-1) & ~(alignment-1);
     }
-    bool isAligned(uint32_t ptr) {
+    bool isAligned(uintptr_t ptr) {
         return ptr == align(ptr);
     }
     int getAlignment() {
@@ -205,20 +206,28 @@ struct Pool
 
 
 template <int SliceSize, int InstBaseSize>
-struct BufferSliceTail : public BufferSlice<SliceSize> {
+struct BufferSliceTail : public BufferSlice<SliceSize>
+{
     Pool *data;
     mozilla::Array<uint8_t, (SliceSize + (InstBaseSize * 8 - 1)) / (InstBaseSize * 8)> isBranch;
     bool isNatural : 1;
+
+  public:
+    BufferSliceTail()
+      : data(nullptr), isNatural(true)
+    {
+        memset(&isBranch[0], 0, sizeof(isBranch));
+    }
+
     BufferSliceTail *getNext() {
         return (BufferSliceTail *)this->next;
     }
-    BufferSliceTail() : data(nullptr), isNatural(true) {
-        memset(&isBranch[0], 0, sizeof(isBranch));
-    }
+
     void markNextAsBranch() {
         int idx = this->nodeSize / InstBaseSize;
         isBranch[idx >> 3] |= 1 << (idx & 0x7);
     }
+
     bool isNextBranch() {
         unsigned int size = this->nodeSize;
         if (size >= SliceSize)
@@ -228,13 +237,6 @@ struct BufferSliceTail : public BufferSlice<SliceSize> {
     }
 };
 
-#if 0
-static int getId() {
-    if (MaybeGetIonContext())
-        return MaybeGetIonContext()->getNextAssemblerId();
-    return NULL_ID;
-}
-#endif
 static inline void spewEntry(uint8_t *ptr, int length) {
 #if IS_LITTLE_ENDIAN
     for (int idx = 0; idx < length; idx++) {
@@ -250,6 +252,7 @@ static inline void spewEntry(uint8_t *ptr, int length) {
     }
 #endif
 }
+
 // NOTE: Adding in the ability to retroactively insert a pool has consequences!
 // Most notably, Labels stop working.  Normally, we create a label, later bind it.
 // when the label is bound, We back-patch all previous references to the label with
@@ -281,31 +284,43 @@ static inline void spewEntry(uint8_t *ptr, int length) {
 // has been finalized, and an executable copy allocated.
 
 template <int SliceSize, int InstBaseSize, class Inst, class Asm, int poolKindBits>
-struct AssemblerBufferWithConstantPool : public AssemblerBuffer<SliceSize, Inst> {
+struct AssemblerBufferWithConstantPool : public AssemblerBuffer<SliceSize, Inst>
+{
   private:
     mozilla::Array<int, 1 << poolKindBits> entryCount;
     static const int offsetBits = 32 - poolKindBits;
-  public:
 
-    class PoolEntry {
-        template <int ss, int ibs, class i, class a, int pkb>
-        friend struct AssemblerBufferWithConstantPool;
+  public:
+    class PoolEntry
+    {
         uint32_t offset_ : offsetBits;
         uint32_t kind_ : poolKindBits;
-        PoolEntry(int offset, int kind) : offset_(offset), kind_(kind) {
-        }
+
+        template <int ss, int ibs, class i, class a, int pkb>
+        friend struct AssemblerBufferWithConstantPool;
+
+      protected:
+        PoolEntry(int offset, int kind)
+          : offset_(offset), kind_(kind)
+        { }
+
+      public:
+        PoolEntry(uint32_t bits)
+          : offset_(((1u << offsetBits) - 1) & bits),
+            kind_(bits >> offsetBits)
+        { }
+
+        PoolEntry()
+          : offset_((1u << offsetBits) - 1),
+            kind_((1u << poolKindBits) - 1)
+        { }
+
       public:
         uint32_t encode() {
             uint32_t ret;
             memcpy(&ret, this, sizeof(uint32_t));
             return ret;
         }
-        PoolEntry(uint32_t bits) : offset_(((1u << offsetBits) - 1) & bits),
-                                 kind_(bits >> offsetBits) {
-        }
-        PoolEntry() : offset_((1u << offsetBits) - 1), kind_((1u << poolKindBits) - 1) {
-        }
-
         uint32_t poolKind() const {
             return kind_;
         }
@@ -313,6 +328,7 @@ struct AssemblerBufferWithConstantPool : public AssemblerBuffer<SliceSize, Inst>
             return offset_;
         }
     };
+
   private:
     typedef BufferSliceTail<SliceSize, InstBaseSize> BufferSlice;
     typedef AssemblerBuffer<SliceSize, Inst> Parent;
@@ -333,12 +349,14 @@ struct AssemblerBufferWithConstantPool : public AssemblerBuffer<SliceSize, Inst>
 
     // the number of times we've dumped the pool.
     int numDumps;
+
     struct PoolInfo {
         int offset; // the number of instructions before the start of the pool
         int size;   // the size of the pool, including padding
         int finalPos; // the end of the buffer, in bytes from the beginning of the buffer
         BufferSlice *slice;
     };
+
     PoolInfo *poolInfo;
     // we need to keep track of how large the pools are, so we can allocate
     // enough space for them later.  This should include any amount of padding
@@ -351,10 +369,13 @@ struct AssemblerBufferWithConstantPool : public AssemblerBuffer<SliceSize, Inst>
     // Cache the last place we saw an opportunity to dump the pool
     BufferOffset perforation;
     BufferSlice *perforatedNode;
+
   public:
     int id;
+
   private:
     static const int logBasePoolInfo = 3;
+
     BufferSlice ** getHead() {
         return (BufferSlice**)&this->head;
     }
@@ -371,19 +392,25 @@ struct AssemblerBufferWithConstantPool : public AssemblerBuffer<SliceSize, Inst>
         new (tmp) BufferSlice;
         return tmp;
     }
+
   public:
-    AssemblerBufferWithConstantPool(int guardSize_, int headerSize_, int footerSize_, Pool *pools_, int instBufferAlign_)
-        : guardSize(guardSize_), headerSize(headerSize_),
+    AssemblerBufferWithConstantPool(int guardSize_, int headerSize_,
+                                    int footerSize_, Pool *pools_, int instBufferAlign_)
+        : guardSize(guardSize_),
+          headerSize(headerSize_),
           footerSize(footerSize_),
           pools(pools_),
-          instBufferAlign(instBufferAlign_), numDumps(0),
+          instBufferAlign(instBufferAlign_),
+          numDumps(0),
           poolInfo(nullptr),
-          poolSize(0), canNotPlacePool(0), inBackref(false),
-          perforatedNode(nullptr), id(-1)
+          poolSize(0),
+          canNotPlacePool(0),
+          inBackref(false),
+          perforatedNode(nullptr),
+          id(-1)
     {
-        for (int idx = 0; idx < numPoolKinds; idx++) {
+        for (int idx = 0; idx < numPoolKinds; idx++)
             entryCount[idx] = 0;
-        }
     }
 
     // We need to wait until an AutoIonContextAlloc is created by the
@@ -398,17 +425,20 @@ struct AssemblerBufferWithConstantPool : public AssemblerBuffer<SliceSize, Inst>
             return nil;
         return poolInfo[x];
     }
+
     void executableCopy(uint8_t *dest_) {
         if (this->oom())
             return;
+
         // TODO: only do this when the pool actually has a value in it
         flushPool();
         for (int idx = 0; idx < numPoolKinds; idx++) {
             JS_ASSERT(pools[idx].numEntries == 0 && pools[idx].other->numEntries == 0);
         }
+
         typedef mozilla::Array<uint8_t, InstBaseSize> Chunk;
         mozilla::DebugOnly<Chunk *> start = (Chunk*)dest_;
-        Chunk *dest = (Chunk*)(((uint32_t)dest_ + instBufferAlign - 1) & ~(instBufferAlign -1));
+        Chunk *dest = (Chunk*)(((uintptr_t)dest_ + instBufferAlign - 1) & ~(instBufferAlign -1));
         int curIndex = 0;
         int curInstOffset = 0;
         JS_ASSERT(start == dest);
@@ -455,7 +485,9 @@ struct AssemblerBufferWithConstantPool : public AssemblerBuffer<SliceSize, Inst>
         }
     }
 
-    BufferOffset insertEntry(uint32_t instSize, uint8_t *inst, Pool *p, uint8_t *data, PoolEntry *pe = nullptr) {
+    BufferOffset insertEntry(uint32_t instSize, uint8_t *inst, Pool *p,
+                             uint8_t *data, PoolEntry *pe = nullptr)
+    {
         if (this->oom() && !this->bail())
             return BufferOffset();
         int token;
@@ -593,9 +625,11 @@ struct AssemblerBufferWithConstantPool : public AssemblerBuffer<SliceSize, Inst>
         }
         return p->insertEntry(data, this->nextOffset(), this->LifoAlloc_);
     }
+
     BufferOffset putInt(uint32_t value) {
         return insertEntry(sizeof(uint32_t) / sizeof(uint8_t), (uint8_t*)&value, nullptr, nullptr);
     }
+
     // Mark the current section as an area where we can
     // later go to dump a pool
     void perforate() {
@@ -665,6 +699,7 @@ struct AssemblerBufferWithConstantPool : public AssemblerBuffer<SliceSize, Inst>
         ret.slice = perforatedNode;
         return ret;
     }
+
     void finishPool() {
         // This function should only be called while the backwards half of the pool
         // is being filled in. The backwards half of the pool is always in a state

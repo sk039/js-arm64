@@ -34,6 +34,7 @@
 #include "jit/arm64/vixl/VIXL-Globals-vixl.h"
 #include "jit/arm64/vixl/VIXL-Utils-vixl.h"
 #include "jit/shared/Assembler-shared.h"
+#include "jit/shared/IonAssemblerBufferWithConstantPools.h"
 #include "jit/IonSpewer.h"
 #include <list>
 
