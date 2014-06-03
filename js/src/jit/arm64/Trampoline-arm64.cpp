@@ -62,7 +62,17 @@ JitRuntime::generateBailoutTable(JSContext *cx, uint32_t frameClass)
 JitCode *
 JitRuntime::generateBailoutHandler(JSContext *cx)
 {
-    MOZ_ASSUME_UNREACHABLE("generateBailoutHandler");
+    MacroAssembler masm(cx);
+    GenerateBailoutThunk(cx, masm, NO_FRAME_SIZE_CLASS_ID);
+
+    Linker linker(masm);
+    JitCode *code = linker.newCode<NoGC>(cx, JSC::OTHER_CODE);
+
+#ifdef JS_ION_PERF
+    writePerfSpewerJitCodeProfile(code, "BailoutHandler");
+#endif
+
+    return code;
 }
 
 JitCode *
@@ -89,11 +99,33 @@ JitRuntime::generateDebugTrapHandler(JSContext *cx)
 JitCode *
 JitRuntime::generateExceptionTailStub(JSContext *cx)
 {
-    MOZ_ASSUME_UNREACHABLE("generateExceptionTailStub");
+    MacroAssembler masm;
+
+    masm.handleFailureWithHandlerTail();
+
+    Linker linker(masm);
+    JitCode *code = linker.newCode<NoGC>(cx, JSC::OTHER_CODE);
+
+#ifdef JS_ION_PERF
+    writePerfSpewerJitCodeProfile(code, "ExceptionTailStub");
+#endif
+
+    return code;
 }
 
 JitCode *
 JitRuntime::generateBailoutTailStub(JSContext *cx)
 {
-    MOZ_ASSUME_UNREACHABLE("generateBailoutTailStub");
+    MacroAssembler masm;
+
+    masm.generateBailoutTail(r1, r2);
+
+    Linker linker(masm);
+    JitCode *code = linker.newCode<NoGC>(cx, JSC::OTHER_CODE);
+
+#ifdef JS_ION_PERF
+    writePerfSpewerJitCodeProfile(code, "BailoutTailStub");
+#endif
+
+    return code;
 }
