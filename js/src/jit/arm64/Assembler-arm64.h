@@ -230,6 +230,11 @@ static const Scale ScalePointer = TimesEight;
 
 static MOZ_CONSTEXPR_VAR ARMRegister ScratchRegister64 = { Registers::ip0, 64 };
 static MOZ_CONSTEXPR_VAR ARMRegister ScratchRegister32 = { Registers::ip0, 32 };
+static MOZ_CONSTEXPR_VAR Register ScratchRegister = { Registers::ip0  };
+
+static MOZ_CONSTEXPR_VAR ARMRegister SecondScratchRegister64 = { Registers::ip1, 64 };
+static MOZ_CONSTEXPR_VAR ARMRegister SecondScratchRegister32 = { Registers::ip1, 32 };
+static MOZ_CONSTEXPR_VAR Register SecondScratchRegister = { Registers::ip1  };
 
 static MOZ_CONSTEXPR_VAR Register OsrFrameReg = { Registers::x3};
 static MOZ_CONSTEXPR_VAR Register ArgumentsRectifierReg = { Registers::x8};
