@@ -1,5 +1,5 @@
 // -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
-// vim: set ts=8 sts=2 et sw=2 tw=99:
+// vim: set ts=8 sts=4 et sw=4 tw=99:
 //
 // Copyright 2013, ARM Limited
 // All rights reserved.
@@ -642,35 +642,36 @@ class MacroAssemblerCompat : public MacroAssemblerARM64
         cmp(ARMRegister(a, 32), Operand(ARMRegister(b, 32)));
     }
     void cmp32(const Operand &lhs, Imm32 rhs) {
-      JS_ASSERT(0 && "cmp32");
+        JS_ASSERT(0 && "cmp32");
     }
     void cmp32(const Operand &lhs, Register rhs) {
-      JS_ASSERT(0 && "cmp32");
+        JS_ASSERT(0 && "cmp32");
     }
 
     void cmpPtr(Register lhs, ImmWord rhs) {
         cmp(ARMRegister(lhs, 64), Operand(rhs.value));
     }
-  void cmpPtr(Register lhs, ImmPtr rhs) {
-    JS_ASSERT(0 && "cmpPtr");
-  }
-  void cmpPtr(Register lhs, Register rhs) {
-    JS_ASSERT(0 && "cmpPtr");
-  }
-  void cmpPtr(Register lhs, ImmGCPtr rhs) {
-    JS_ASSERT(0 && "cmpPtr");
-  }
-  void cmpPtr(Register lhs, Imm32 rhs) {
-    JS_ASSERT(0 && "cmpPtr");
-  }
-  void cmpPtr(const Address &lhs, Register rhs) {
-    JS_ASSERT(0 && "cmpPtr");
-  }
-  void cmpPtr(const Address &lhs, ImmWord rhs) {
-    JS_ASSERT(0 && "cmpPtr");
-  }
-  void cmpPtr(const Address &lhs, ImmPtr rhs) {
-    JS_ASSERT(0 && "cmpPtr");  }
+    void cmpPtr(Register lhs, ImmPtr rhs) {
+        JS_ASSERT(0 && "cmpPtr");
+    }
+    void cmpPtr(Register lhs, Register rhs) {
+        JS_ASSERT(0 && "cmpPtr");
+    }
+    void cmpPtr(Register lhs, ImmGCPtr rhs) {
+        JS_ASSERT(0 && "cmpPtr");
+    }
+    void cmpPtr(Register lhs, Imm32 rhs) {
+        JS_ASSERT(0 && "cmpPtr");
+    }
+    void cmpPtr(const Address &lhs, Register rhs) {
+        JS_ASSERT(0 && "cmpPtr");
+    }
+    void cmpPtr(const Address &lhs, ImmWord rhs) {
+        JS_ASSERT(0 && "cmpPtr");
+    }
+    void cmpPtr(const Address &lhs, ImmPtr rhs) {
+        JS_ASSERT(0 && "cmpPtr");
+    }
 
     void testPtr(Register lhs, Register rhs) {
         test32(lhs, rhs);
