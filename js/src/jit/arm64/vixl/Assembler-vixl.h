@@ -204,9 +204,9 @@ class ARMRegister : public CPURegister {
 
   constexpr ARMRegister(unsigned code, unsigned size)
       : CPURegister(code, size, kARMRegister) {}
+
   explicit ARMRegister(Register r, unsigned size) : CPURegister(r.code(), size, kARMRegister) {
   }
-
   bool IsValid() const {
     VIXL_ASSERT(IsRegister() || IsNone());
     return IsValidRegister();

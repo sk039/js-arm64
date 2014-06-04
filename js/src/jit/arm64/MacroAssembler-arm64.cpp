@@ -51,7 +51,7 @@ MacroAssembler::clampDoubleToUint8(FloatRegister input, Register output) {
 }
 
 void
-MacroAssemblerARM64::handleFailureWithHandlerTail()
+MacroAssemblerCompat::handleFailureWithHandlerTail()
 {
     brk(0x13);
 }
