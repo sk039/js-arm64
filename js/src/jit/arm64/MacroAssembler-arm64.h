@@ -286,13 +286,13 @@ class MacroAssemblerCompat : public MacroAssemblerARM64
         push(SecondScratchRegister);
     }
     void moveValue(const Value &val, Register dest) {
-        ma_mov(ImmWord(val.asRawBits()), ARMRegister(dest, 64));
+        movePtr(ImmWord(val.asRawBits()), dest);
     }
     void moveValue(const Value &src, const ValueOperand &dest) {
-        ma_mov(ImmWord(src.asRawBits()), ARMRegister(dest.valueReg(), 64));
+        movePtr(ImmWord(src.asRawBits()), dest.valueReg());
     }
     void moveValue(const ValueOperand &src, const ValueOperand &dest) {
-        AssemblerVIXL::mov(ARMRegister(dest.valueReg(), 64), ARMRegister(src.valueReg(), 64));
+        movePtr(src.valueReg(), dest.valueReg());
     }
 
     CodeOffsetLabel pushWithPatch(ImmWord imm) {
@@ -445,7 +445,7 @@ class MacroAssemblerCompat : public MacroAssemblerARM64
     }
 
     void movePtr(Register src, Register dest) {
-        JS_ASSERT(0 && "movePtr");
+        mov(ARMRegister(dest, 64), ARMRegister(src, 64));
     }
     void movePtr(Register src, const ARMOperand &dest) {
         JS_ASSERT(0 && "movePtr");
@@ -466,7 +466,7 @@ class MacroAssemblerCompat : public MacroAssemblerARM64
         JS_ASSERT(0 && "move32");
     }
     void move32(Register src, Register dest) {
-        JS_ASSERT(0 && "move32");
+        mov(ARMRegister(dest, 32), ARMRegister(src, 32));
     }
 
     void not32(Register reg) {
@@ -664,7 +664,7 @@ class MacroAssemblerCompat : public MacroAssemblerARM64
     }
 
     void testPtr(Register lhs, Register rhs) {
-        test32(lhs, rhs);
+        tst(ARMRegister(lhs, 64), Operand(ARMRegister(rhs, 64)));
     }
 
     void loadDouble(const Address &src, FloatRegister dest) {

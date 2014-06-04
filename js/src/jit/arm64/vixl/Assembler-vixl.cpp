@@ -1556,9 +1556,9 @@ Instr AssemblerVIXL::ImmFP64(double imm) {
 
 // Code generation helpers.
 void AssemblerVIXL::MoveWide(const ARMRegister& rd,
-                         uint64_t imm,
-                         int shift,
-                         MoveWideImmediateOp mov_op) {
+                             uint64_t imm,
+                             int shift,
+                             MoveWideImmediateOp mov_op) {
   if (shift >= 0) {
     // Explicit shift specified.
     VIXL_ASSERT((shift == 0) || (shift == 16) ||
