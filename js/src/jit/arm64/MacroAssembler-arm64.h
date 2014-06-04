@@ -590,7 +590,7 @@ class MacroAssemblerCompat : public MacroAssemblerARM64
         and_(d, d, Operand(imm.value));
     }
     void and32(Imm32 imm, Register dest) {
-        ARMRegister d(dest, 64);
+        ARMRegister d(dest, 32);
         and_(d, d, Operand(imm.value));
     }
     void and32(Register src, Register dest) {
