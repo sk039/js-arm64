@@ -68,9 +68,9 @@ class ARMOperand
 {
   public:
     enum Kind {
-      REG,
-      FPREG,
-      MEM
+        REG,
+        FPREG,
+        MEM
     };
 
   private:
