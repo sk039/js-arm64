@@ -143,10 +143,13 @@ class MacroAssemblerARM64 : public Assembler
 class MacroAssemblerCompat : public MacroAssemblerARM64
 {
   protected:
+    bool enoughMemory_;
     uint32_t framePushed_;
 
     MacroAssemblerCompat()
-      : MacroAssemblerARM64() // FIXME: Integrate the Assembler with some buffer.
+      : MacroAssemblerARM64(), // FIXME: Integrate the Assembler with some buffer.
+        enoughMemory_(true),
+        framePushed_(0)
     { }
 
   protected:
@@ -159,8 +162,7 @@ class MacroAssemblerCompat : public MacroAssemblerARM64
         return 0;
     }
     bool oom() const {
-        JS_ASSERT(0 && "oom");
-        return false;
+        return Assembler::oom() || !enoughMemory_;
     }
 
     template <typename T>

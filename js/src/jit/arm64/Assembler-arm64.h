@@ -43,6 +43,11 @@ class Assembler : public AssemblerVIXL {
 
     void finish();
 
+    bool oom() const {
+        // FIXME: Currently not possible to OOM.
+        return false;
+    }
+
     void executableCopy(void *buffer) {
         JS_ASSERT(0 && "executableCopy()");
     }
