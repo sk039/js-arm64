@@ -391,6 +391,7 @@ if CONFIG['ENABLE_ION']:
             'jit/arm64/vixl/Disasm-vixl.cpp',
             'jit/arm64/vixl/Instructions-vixl.cpp',
             'jit/arm64/vixl/Instrument-vixl.cpp',
+	    'jit/arm64/vixl/MacroAssembler-vixl.cpp',
             'jit/arm64/vixl/VIXL-Utils-vixl.cpp'
         ]
         if CONFIG['JS_ARM64_SIMULATOR']:

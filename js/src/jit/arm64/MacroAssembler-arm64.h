@@ -27,29 +27,21 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef VIXL_A64_MACRO_ASSEMBLER_A64_H_
-#define VIXL_A64_MACRO_ASSEMBLER_A64_H_
+#ifndef jit_arm64_MacroAssembler_arm64_h
+#define jit_arm64_MacroAssembler_arm64_h
 
 #include "jit/IonFrames.h"
 #include "jit/MoveResolver.h"
 
-#include "jit/arm64/vixl/VIXL-Globals-vixl.h"
 #include "jit/arm64/Assembler-arm64.h"
 #include "jit/arm64/vixl/Debugger-vixl.h"
+#include "jit/arm64/vixl/MacroAssembler-vixl.h"
+#include "jit/arm64/vixl/VIXL-Globals-vixl.h"
+
 class Operand {
     // lolwut? it looks like CodeGenerator is accessing this directly?
     // That should probably be changed
 };
-#define LS_MACRO_LIST(V)                                      \
-  V(Ldrb, Register&, rt, LDRB_w)                              \
-  V(Strb, Register&, rt, STRB_w)                              \
-  V(Ldrsb, Register&, rt, rt.Is64Bits() ? LDRSB_x : LDRSB_w)  \
-  V(Ldrh, Register&, rt, LDRH_w)                              \
-  V(Strh, Register&, rt, STRH_w)                              \
-  V(Ldrsh, Register&, rt, rt.Is64Bits() ? LDRSH_x : LDRSH_w)  \
-  V(Ldr, CPURegister&, rt, LoadOpFor(rt))                     \
-  V(Str, CPURegister&, rt, StoreOpFor(rt))                    \
-  V(Ldrsw, Register&, rt, LDRSW_x)
 
 namespace js {
 namespace jit {
@@ -112,42 +104,14 @@ class ARMOperand
     { }
 };
 
-class MacroAssemblerARM64 : public Assembler
-{
-  public:
-    // FIXME: Oh no. This is temporary, I swear!
-    // FIXME: Integrate the Assembler with some buffer.
-    byte horribleTempBuffer_[4096];
-
-  public:
-    MacroAssemblerARM64()
-      : Assembler(horribleTempBuffer_, 4096)
-    { }
-  protected:
-    void ma_mov(ImmWord w, ARMRegister dest) {
-        uint64_t val = w.value;
-        bool first = true;
-        for (int i = 0; i < 64; i+=16) {
-            uint64_t cur = val & (0xffffll << i);
-            if (cur == 0)
-                continue;
-            if (first)
-                movz(dest, cur);
-            else
-                movk(dest, cur);
-            first = false;
-        }
-    }
-};
-
-class MacroAssemblerCompat : public MacroAssemblerARM64
+class MacroAssemblerCompat : public MacroAssemblerVIXL
 {
   protected:
     bool enoughMemory_;
     uint32_t framePushed_;
 
     MacroAssemblerCompat()
-      : MacroAssemblerARM64(), // FIXME: Integrate the Assembler with some buffer.
+      : MacroAssemblerVIXL(NULL, 0), // FIXME: Integrate the Assembler with some buffer.
         enoughMemory_(true),
         framePushed_(0)
     { }
@@ -1692,47 +1656,7 @@ class MacroAssemblerCompat : public MacroAssemblerARM64
 
 typedef MacroAssemblerCompat MacroAssemblerSpecific;
 
-enum BranchType {
-  // Copies of architectural conditions.
-  // The associated conditions can be used in place of those, the code will
-  // take care of reinterpreting them with the correct type.
-  integer_eq = eq,
-  integer_ne = ne,
-  integer_hs = hs,
-  integer_lo = lo,
-  integer_mi = mi,
-  integer_pl = pl,
-  integer_vs = vs,
-  integer_vc = vc,
-  integer_hi = hi,
-  integer_ls = ls,
-  integer_ge = ge,
-  integer_lt = lt,
-  integer_gt = gt,
-  integer_le = le,
-  integer_al = al,
-  integer_nv = nv,
-
-  // These two are *different* from the architectural codes al and nv.
-  // 'always' is used to generate unconditional branches.
-  // 'never' is used to not generate a branch (generally as the inverse
-  // branch type of 'always).
-  always, never,
-  // cbz and cbnz
-  reg_zero, reg_not_zero,
-  // tbz and tbnz
-  reg_bit_clear, reg_bit_set,
-
-  // Aliases.
-  kBranchTypeFirstCondition = eq,
-  kBranchTypeLastCondition = nv,
-  kBranchTypeFirstUsingReg = reg_zero,
-  kBranchTypeFirstUsingBit = reg_bit_clear
-};
-
-enum DiscardMoveMode { kDontDiscardForSameWReg, kDiscardForSameWReg };
-
 } // namespace jit
 } // namespace js
 
-#endif  // VIXL_A64_MACRO_ASSEMBLER_A64_H_
+#endif // jit_arm64_MacroAssembler_arm64_h
