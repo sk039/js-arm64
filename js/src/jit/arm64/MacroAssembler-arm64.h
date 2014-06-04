@@ -1110,7 +1110,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     // Note that the |dest| register here may be ScratchReg, so we shouldn't
     // use it.
     void unboxInt32(const ValueOperand &src, Register dest) {
-        JS_ASSERT(0 && "unboxInt32");
+        move32(src.payloadReg(), dest);
     }
     void unboxInt32(const ARMOperand &src, Register dest) {
         JS_ASSERT(0 && "unboxInt32");
@@ -1119,6 +1119,9 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         JS_ASSERT(0 && "unboxInt32");
     }
     void unboxDouble(const Address &src, FloatRegister dest) {
+        JS_ASSERT(0 && "unboxDouble");
+    }
+    void unboxDouble(const ValueOperand &src, FloatRegister dest) {
         JS_ASSERT(0 && "unboxDouble");
     }
 
@@ -1133,7 +1136,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
 
     void unboxBoolean(const ValueOperand &src, Register dest) {
-        JS_ASSERT(0 && "unboxBoolean");
+        move32(src.payloadReg(), dest);
     }
     void unboxBoolean(const ARMOperand &src, Register dest) {
         JS_ASSERT(0 && "unboxBoolean");
@@ -1146,9 +1149,6 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         JS_ASSERT(0 && "unboxMagic");
     }
 
-    void unboxDouble(const ValueOperand &src, FloatRegister dest) {
-        JS_ASSERT(0 && "unboxDouble");
-    }
     void unboxPrivate(const ValueOperand &src, const Register dest) {
         JS_ASSERT(0 && "unboxPrivate");
     }
