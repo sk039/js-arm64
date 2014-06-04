@@ -1639,7 +1639,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         JS_ASSERT(0 && "inc64");
     }
     void breakpoint() {
-        brk(0x0); // ARM lets us include a specific code in the breakpoint.
+        Brk();
     }
     // FIXME: Should be in Assembler?
     // FIXME: Should be const?
