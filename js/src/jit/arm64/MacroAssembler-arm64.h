@@ -470,11 +470,11 @@ class MacroAssemblerCompat : public MacroAssemblerARM64
     }
 
     void not32(Register reg) {
-        ARMRegister r(reg, 64);
+        ARMRegister r(reg, 32);
         orn(r, wzr, r);
     }
     void neg32(Register reg) {
-        ARMRegister r(reg, 64);
+        ARMRegister r(reg, 32);
         neg(r, Operand(r));
     }
 
