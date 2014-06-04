@@ -209,16 +209,16 @@ class MacroAssemblerCompat : public MacroAssemblerARM64
 
     void reserveStack(uint32_t amount) {
         if (amount)
-            sub(wsp, wsp, Operand(amount));
+            sub(sp, sp, Operand(amount));
         adjustFrame(amount);
     }
     void freeStack(uint32_t amount) {
         if (amount)
-            add(wsp, wsp, Operand(amount));
+            add(sp, sp, Operand(amount));
         adjustFrame(-amount);
     }
     void freeStack(Register amount) {
-        add(wsp, wsp, ARMRegister(amount, 64));
+        add(sp, sp, ARMRegister(amount, 64));
     }
 
     void storeValue(ValueOperand val, ARMOperand dest) {
@@ -262,16 +262,16 @@ class MacroAssemblerCompat : public MacroAssemblerARM64
         JS_ASSERT(0 && "tagValue");
     }
     void pushValue(ValueOperand val) {
-        str(ARMRegister(val.valueReg(), 64), MemOperand(wsp, -8, PreIndex));
+        str(ARMRegister(val.valueReg(), 64), MemOperand(sp, -8, PreIndex));
     }
     void Push(const Register &reg) {
-        str(ARMRegister(reg, 64), MemOperand(wsp, -8, PreIndex));
+        str(ARMRegister(reg, 64), MemOperand(sp, -8, PreIndex));
     }
     void Push(const ValueOperand &val) {
-        str(ARMRegister(val.valueReg(), 64), MemOperand(wsp, -8, PreIndex));
+        str(ARMRegister(val.valueReg(), 64), MemOperand(sp, -8, PreIndex));
     }
     void popValue(ValueOperand val) {
-        ldr(ARMRegister(val.valueReg(), 64), MemOperand(wsp, 8, PostIndex));
+        ldr(ARMRegister(val.valueReg(), 64), MemOperand(sp, 8, PostIndex));
     }
     void pushValue(const Value &val) {
         moveValue(val, SecondScratchRegister);
