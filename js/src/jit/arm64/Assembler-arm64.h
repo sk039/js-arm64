@@ -1,5 +1,5 @@
 // -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
-// vim: set ts=8 sts=2 et sw=2 tw=99:
+// vim: set ts=8 sts=4 et sw=4 tw=99:
 //
 // Copyright 2013, ARM Limited
 // All rights reserved.
@@ -227,17 +227,18 @@ GetTempRegForIntArg(uint32_t usedIntArgs, uint32_t usedFloatArgs, Register *out)
 static const uint32_t AlignmentAtPrologue = 0;
 static const uint32_t AlignmentMidPrologue = 8;
 static const Scale ScalePointer = TimesEight;
+static const uint32_t AlignmentAtAsmJSPrologue = sizeof(void*);
 
 static MOZ_CONSTEXPR_VAR ARMRegister ScratchRegister64 = { Registers::ip0, 64 };
 static MOZ_CONSTEXPR_VAR ARMRegister ScratchRegister32 = { Registers::ip0, 32 };
-static MOZ_CONSTEXPR_VAR Register ScratchRegister = { Registers::ip0  };
+static MOZ_CONSTEXPR_VAR Register ScratchRegister = { Registers::ip0 };
 
 static MOZ_CONSTEXPR_VAR ARMRegister SecondScratchRegister64 = { Registers::ip1, 64 };
 static MOZ_CONSTEXPR_VAR ARMRegister SecondScratchRegister32 = { Registers::ip1, 32 };
-static MOZ_CONSTEXPR_VAR Register SecondScratchRegister = { Registers::ip1  };
+static MOZ_CONSTEXPR_VAR Register SecondScratchRegister = { Registers::ip1 };
 
 static MOZ_CONSTEXPR_VAR Register OsrFrameReg = { Registers::x3};
-static MOZ_CONSTEXPR_VAR Register ArgumentsRectifierReg = { Registers::x8};
+static MOZ_CONSTEXPR_VAR Register ArgumentsRectifierReg = { Registers::x8 };
 static MOZ_CONSTEXPR_VAR Register CallTempReg0 = { Registers::x5 };
 static MOZ_CONSTEXPR_VAR Register CallTempReg1 = { Registers::x6 };
 static MOZ_CONSTEXPR_VAR Register CallTempReg2 = { Registers::x7 };
@@ -275,27 +276,27 @@ static MOZ_CONSTEXPR_VAR Register r6 = { Registers::x6 };
 static MOZ_CONSTEXPR_VAR Register r7 = { Registers::x7 };
 static MOZ_CONSTEXPR_VAR Register r8 = { Registers::x8 };
 static MOZ_CONSTEXPR_VAR Register r9 = { Registers::x9 };
-static MOZ_CONSTEXPR_VAR Register r10 = { Registers::x10};
-static MOZ_CONSTEXPR_VAR Register r11 = { Registers::x11};
-static MOZ_CONSTEXPR_VAR Register r12 = { Registers::x12};
-static MOZ_CONSTEXPR_VAR Register r13 = { Registers::x13};
-static MOZ_CONSTEXPR_VAR Register r14 = { Registers::x14};
-static MOZ_CONSTEXPR_VAR Register r15 = { Registers::x15};
-static MOZ_CONSTEXPR_VAR Register r16 = { Registers::x16};
-static MOZ_CONSTEXPR_VAR Register r17 = { Registers::x17};
-static MOZ_CONSTEXPR_VAR Register r18 = { Registers::x18};
-static MOZ_CONSTEXPR_VAR Register r19 = { Registers::x19};
-static MOZ_CONSTEXPR_VAR Register r20 = { Registers::x20};
-static MOZ_CONSTEXPR_VAR Register r21 = { Registers::x21};
-static MOZ_CONSTEXPR_VAR Register r22 = { Registers::x22};
-static MOZ_CONSTEXPR_VAR Register r23 = { Registers::x23};
-static MOZ_CONSTEXPR_VAR Register r24 = { Registers::x24};
-static MOZ_CONSTEXPR_VAR Register r25 = { Registers::x25};
-static MOZ_CONSTEXPR_VAR Register r26 = { Registers::x26};
-static MOZ_CONSTEXPR_VAR Register r27 = { Registers::x27};
-static MOZ_CONSTEXPR_VAR Register r28 = { Registers::x28};
-static MOZ_CONSTEXPR_VAR Register r29 = { Registers::x29};
-static MOZ_CONSTEXPR_VAR Register r30 = { Registers::x30};
+static MOZ_CONSTEXPR_VAR Register r10 = { Registers::x10 };
+static MOZ_CONSTEXPR_VAR Register r11 = { Registers::x11 };
+static MOZ_CONSTEXPR_VAR Register r12 = { Registers::x12 };
+static MOZ_CONSTEXPR_VAR Register r13 = { Registers::x13 };
+static MOZ_CONSTEXPR_VAR Register r14 = { Registers::x14 };
+static MOZ_CONSTEXPR_VAR Register r15 = { Registers::x15 };
+static MOZ_CONSTEXPR_VAR Register r16 = { Registers::x16 };
+static MOZ_CONSTEXPR_VAR Register r17 = { Registers::x17 };
+static MOZ_CONSTEXPR_VAR Register r18 = { Registers::x18 };
+static MOZ_CONSTEXPR_VAR Register r19 = { Registers::x19 };
+static MOZ_CONSTEXPR_VAR Register r20 = { Registers::x20 };
+static MOZ_CONSTEXPR_VAR Register r21 = { Registers::x21 };
+static MOZ_CONSTEXPR_VAR Register r22 = { Registers::x22 };
+static MOZ_CONSTEXPR_VAR Register r23 = { Registers::x23 };
+static MOZ_CONSTEXPR_VAR Register r24 = { Registers::x24 };
+static MOZ_CONSTEXPR_VAR Register r25 = { Registers::x25 };
+static MOZ_CONSTEXPR_VAR Register r26 = { Registers::x26 };
+static MOZ_CONSTEXPR_VAR Register r27 = { Registers::x27 };
+static MOZ_CONSTEXPR_VAR Register r28 = { Registers::x28 };
+static MOZ_CONSTEXPR_VAR Register r29 = { Registers::x29 };
+static MOZ_CONSTEXPR_VAR Register r30 = { Registers::x30 };
 static MOZ_CONSTEXPR_VAR ValueOperand JSReturnOperand = ValueOperand(JSReturnReg);
 
 // Registers used in the GenerateFFIIonExit Enable Activation block.
@@ -317,6 +318,8 @@ static MOZ_CONSTEXPR_VAR Register JSReturnReg_Type = r3;
 static MOZ_CONSTEXPR_VAR Register JSReturnReg_Data = r2;
 
 static MOZ_CONSTEXPR_VAR FloatRegister NANReg = { FloatRegisters::d14 };
-} // jit
-} // js
-#endif
+
+} // namespace jit
+} // namespace js
+
+#endif // A64_ASSEMBLER_A64_H_
