@@ -1980,7 +1980,7 @@ CodeGenerator::visitOutOfLineCallPostWriteBarrier(OutOfLineCallPostWriteBarrier 
     }
 
     Register runtimereg = regs.takeAny();
-    masm.mov(ImmPtr(GetIonContext()->runtime), runtimereg);
+    masm.movePtr(ImmPtr(GetIonContext()->runtime), runtimereg);
 
     void (*fun)(JSRuntime*, JSObject*) = isGlobal ? PostGlobalWriteBarrier : PostWriteBarrier;
     masm.setupUnalignedABICall(2, regs.takeAny());
@@ -5373,11 +5373,11 @@ JitCompartment::generateStringConcatStub(JSContext *cx, ExecutionMode mode)
     masm.ret();
 
     masm.bind(&leftEmpty);
-    masm.mov(rhs, output);
+    masm.movePtr(rhs, output);
     masm.ret();
 
     masm.bind(&rightEmpty);
-    masm.mov(lhs, output);
+    masm.movePtr(lhs, output);
     masm.ret();
 
     masm.bind(&isFatInlineTwoByte);
@@ -5668,9 +5668,9 @@ CodeGenerator::visitBoundsCheckRange(LBoundsCheckRange *lir)
             return bailoutCmp32(Assembler::BelowOrEqual, ToOperand(lir->length()), Imm32(nmax),
                                 lir->snapshot());
         }
-        masm.mov(ImmWord(index), temp);
+        masm.movePtr(ImmWord(index), temp);
     } else {
-        masm.mov(ToRegister(lir->index()), temp);
+        masm.movePtr(ToRegister(lir->index()), temp);
     }
 
     // If the minimum and maximum differ then do an underflow check first.
@@ -8232,7 +8232,7 @@ CodeGenerator::emitInstanceOf(LInstruction *ins, JSObject *prototypeObject)
         Label isObject;
         ValueOperand lhsValue = ToValue(ins, LInstanceOfV::LHS);
         masm.branchTestObject(Assembler::Equal, lhsValue, &isObject);
-        masm.mov(ImmWord(0), output);
+        masm.movePtr(ImmWord(0), output);
         masm.jump(&done);
         masm.bind(&isObject);
         objReg = masm.extractObject(lhsValue, output);
@@ -8255,7 +8255,7 @@ CodeGenerator::emitInstanceOf(LInstruction *ins, JSObject *prototypeObject)
         // Test for the target prototype object.
         Label notPrototypeObject;
         masm.branchPtr(Assembler::NotEqual, output, ImmGCPtr(prototypeObject), &notPrototypeObject);
-        masm.mov(ImmWord(1), output);
+        masm.movePtr(ImmWord(1), output);
         masm.jump(&done);
         masm.bind(&notPrototypeObject);
 

@@ -253,7 +253,7 @@ bool
 BaselineCompiler::emitPrologue()
 {
     masm.push(BaselineFrameReg);
-    masm.mov(BaselineStackReg, BaselineFrameReg);
+    masm.movePtr(BaselineStackReg, BaselineFrameReg);
 
     masm.subPtr(Imm32(BaselineFrame::Size()), BaselineStackReg);
     masm.checkStackAlignment();
@@ -399,7 +399,7 @@ BaselineCompiler::emitEpilogue()
     // Pop SPS frame if necessary
     emitSPSPop();
 
-    masm.mov(BaselineFrameReg, BaselineStackReg);
+    masm.movePtr(BaselineFrameReg, BaselineStackReg);
     masm.pop(BaselineFrameReg);
 
     masm.ret();

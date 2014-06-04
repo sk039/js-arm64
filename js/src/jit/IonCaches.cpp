@@ -3025,7 +3025,7 @@ GetElementIC::attachGetProp(JSContext *cx, HandleScript outerScript, IonScript *
     masm.unboxString(val, scratch);
     masm.passABIArg(scratch);
     masm.callWithABI(JS_FUNC_TO_DATA_PTR(void *, EqualStringsHelper));
-    masm.mov(ReturnReg, scratch);
+    masm.movePtr(ReturnReg, scratch);
 
     if (!volatileRegs.has(objReg))
         masm.pop(objReg);
@@ -3217,7 +3217,7 @@ GenerateGetTypedArrayElement(JSContext *cx, MacroAssembler &masm, IonCache::Stub
         masm.setupUnalignedABICall(1, temp);
         masm.passABIArg(str);
         masm.callWithABI(JS_FUNC_TO_DATA_PTR(void *, GetIndexFromString));
-        masm.mov(ReturnReg, indexReg);
+        masm.movePtr(ReturnReg, indexReg);
 
         RegisterSet ignore = RegisterSet();
         ignore.add(indexReg);
@@ -4192,7 +4192,7 @@ NameIC::attachReadSlot(JSContext *cx, HandleScript outerScript, IonScript *ion,
 
     // Don't guard the base of the proto chain the name was found on. It will be guarded
     // by GenerateReadSlot().
-    masm.mov(scopeChainReg(), scratchReg);
+    masm.movePtr(scopeChainReg(), scratchReg);
     GenerateScopeChainGuards(masm, scopeChain, holderBase, scratchReg, &failures,
                              /* skipLastGuard = */true);
 

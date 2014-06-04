@@ -6387,7 +6387,7 @@ GenerateFFIInterpreterExit(ModuleCompiler &m, const ModuleCompiler::ExitDescript
 
     // argument 1: exitIndex
     if (i->kind() == ABIArg::GPR)
-        masm.mov(ImmWord(exitIndex), i->gpr());
+        masm.movePtr(ImmWord(exitIndex), i->gpr());
     else
         masm.store32(Imm32(exitIndex), Address(StackPointer, i->offsetFromArgBase()));
     i++;
@@ -6395,7 +6395,7 @@ GenerateFFIInterpreterExit(ModuleCompiler &m, const ModuleCompiler::ExitDescript
     // argument 2: argc
     unsigned argc = exit.sig().args().length();
     if (i->kind() == ABIArg::GPR)
-        masm.mov(ImmWord(argc), i->gpr());
+        masm.movePtr(ImmWord(argc), i->gpr());
     else
         masm.store32(Imm32(argc), Address(StackPointer, i->offsetFromArgBase()));
     i++;
@@ -6837,7 +6837,7 @@ GenerateInterruptExit(ModuleCompiler &m, Label *throwLabel)
 
     // We know that StackPointer is word-aligned, but not necessarily
     // stack-aligned, so we need to align it dynamically.
-    masm.mov(StackPointer, ABIArgGenerator::NonVolatileReg);
+    masm.movePtr(StackPointer, ABIArgGenerator::NonVolatileReg);
 #if defined(JS_CODEGEN_X86)
     // Ensure that at least one slot is pushed for passing 'cx' below.
     masm.push(Imm32(0));
@@ -6858,7 +6858,7 @@ GenerateInterruptExit(ModuleCompiler &m, Label *throwLabel)
     masm.branchIfFalseBool(ReturnReg, throwLabel);
 
     // Restore the StackPointer to it's position before the call.
-    masm.mov(ABIArgGenerator::NonVolatileReg, StackPointer);
+    masm.movePtr(ABIArgGenerator::NonVolatileReg, StackPointer);
 
     // Restore the machine state to before the interrupt.
     masm.PopRegsInMask(AllRegsExceptSP); // restore all GP/FP registers (except SP)
@@ -6872,7 +6872,7 @@ GenerateInterruptExit(ModuleCompiler &m, Label *throwLabel)
     masm.as_mrs(r4);
     masm.as_vmrs(r5);
     // Save the stack pointer in a non-volatile register.
-    masm.mov(sp,r6);
+    masm.movePtr(sp,r6);
     // Align the stack.
     masm.ma_and(Imm32(~7), sp, sp);
 
@@ -6890,7 +6890,7 @@ GenerateInterruptExit(ModuleCompiler &m, Label *throwLabel)
 
     // Restore the machine state to before the interrupt. this will set the pc!
     masm.PopRegsInMask(RegisterSet(GeneralRegisterSet(0), FloatRegisterSet(FloatRegisters::AllMask)));   // restore all FP registers
-    masm.mov(r6,sp);
+    masm.movePtr(r6,sp);
     masm.as_vmsr(r5);
     masm.as_msr(r4);
     // Restore all GP registers
@@ -6941,7 +6941,7 @@ GenerateThrowExit(ModuleCompiler &m, Label *throwLabel)
     masm.PopRegsInMask(NonVolatileRegs);
     JS_ASSERT(masm.framePushed() == 0);
 
-    masm.mov(ImmWord(0), ReturnReg);
+    masm.movePtr(ImmWord(0), ReturnReg);
     masm.ret();
 
     return !masm.oom();

@@ -1708,7 +1708,7 @@ MacroAssembler::convertValueToInt(ValueOperand value, MDefinition *maybeInput,
     // The value is null or undefined in truncation contexts - just emit 0.
     if (isNull.used())
         bind(&isNull);
-    mov(ImmWord(0), output);
+    movePtr(ImmWord(0), output);
     jump(&done);
 
     // Try converting a string into a double, then jump to the double case.

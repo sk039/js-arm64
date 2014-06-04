@@ -468,16 +468,6 @@ class MacroAssemblerCompat : public MacroAssemblerARM64
     void move32(Register src, Register dest) {
         JS_ASSERT(0 && "move32");
     }
-    void mov(ImmWord word, Register dest) {
-        JS_ASSERT(0 && "mov");
-    }
-    void mov(ImmPtr imm, Register dest) {
-        mov(ImmWord(uintptr_t(imm.value)), dest);
-    }
-
-    void mov(Register src, Register dest) {
-        JS_ASSERT(0 && "mov");
-    }
 
     void not32(Register reg) {
         ARMRegister r(reg, 64);
