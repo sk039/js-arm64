@@ -1800,15 +1800,6 @@ Assembler::patchConstantPoolLoad(void* loadAddr, void* constPoolAddr)
     return true;
 }
 
-uint32_t
-Assembler::placeConstantPoolBarrier(int offset)
-{
-    // BUG: 700526
-    // this is still an active path, however, we do not hit it in the test
-    // suite at all.
-    MOZ_ASSUME_UNREACHABLE("ARMAssembler holdover");
-}
-
 // Control flow stuff:
 
 // bx can *only* branch to a register
