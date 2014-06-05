@@ -1107,10 +1107,9 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         JS_ASSERT(0 && "boxNonDouble");
     }
 
-    // Note that the |dest| register here may be ScratchReg, so we shouldn't
-    // use it.
+    // Note that the |dest| register here may be ScratchReg, so we shouldn't use it.
     void unboxInt32(const ValueOperand &src, Register dest) {
-        move32(src.payloadReg(), dest);
+        move32(src.valueReg(), dest);
     }
     void unboxInt32(const ARMOperand &src, Register dest) {
         JS_ASSERT(0 && "unboxInt32");
@@ -1136,7 +1135,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
 
     void unboxBoolean(const ValueOperand &src, Register dest) {
-        move32(src.payloadReg(), dest);
+        move32(src.valueReg(), dest);
     }
     void unboxBoolean(const ARMOperand &src, Register dest) {
         JS_ASSERT(0 && "unboxBoolean");
