@@ -111,7 +111,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     uint32_t framePushed_;
 
     MacroAssemblerCompat()
-      : MacroAssemblerVIXL(NULL, 0), // FIXME: Integrate the Assembler with some buffer.
+      : MacroAssemblerVIXL(),
         enoughMemory_(true),
         framePushed_(0)
     { }

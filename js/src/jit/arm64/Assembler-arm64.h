@@ -37,8 +37,8 @@ namespace jit {
 
 class Assembler : public AssemblerVIXL {
   public:
-    Assembler(byte* buffer, unsigned buffer_size)
-      : AssemblerVIXL(buffer, buffer_size)
+    Assembler()
+      : AssemblerVIXL()
     { }
 
     void finish();
@@ -92,7 +92,10 @@ class Assembler : public AssemblerVIXL {
         JS_ASSERT(0 && "flushBuffer()");
     }
     unsigned int bytesNeeded() {
-        return buffer_size_;
+        return SizeOfCodeGenerated();
+        // TODO: + jumpRelocationTableBytes()
+        // TODO: + dataRelocationTableBytes()
+        // TODO: + preBarrierTableBytes()
     }
     int actualOffset(int curOffset) {
         return curOffset;

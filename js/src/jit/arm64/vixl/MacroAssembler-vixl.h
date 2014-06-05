@@ -92,8 +92,8 @@ enum DiscardMoveMode { kDontDiscardForSameWReg, kDiscardForSameWReg };
 class MacroAssemblerVIXL : public Assembler
 {
   public:
-    MacroAssemblerVIXL(byte * buffer, unsigned buffer_size)
-      : Assembler(buffer, buffer_size),
+    MacroAssemblerVIXL()
+      : Assembler(),
         sp_(sp),
         tmp_list_(ip0, ip1),
         fptmp_list_(d31)

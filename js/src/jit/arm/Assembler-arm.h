@@ -1293,8 +1293,7 @@ class Assembler : public AssemblerShared
         isFinished(false),
         dtmActive(false),
         dtmCond(Always)
-    {
-    }
+    { }
 
     // We need to wait until an AutoIonContextAlloc is created by the
     // IonMacroAssembler, before allocating any space.

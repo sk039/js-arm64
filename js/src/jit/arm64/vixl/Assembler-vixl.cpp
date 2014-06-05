@@ -379,28 +379,16 @@ MemOperand::IsPostIndex() const
 }
 
 // Assembler
-AssemblerVIXL::AssemblerVIXL(byte* buffer, unsigned buffer_size)
-  : buffer_size_(buffer_size)
-{
-    buffer_ = reinterpret_cast<Instruction*>(buffer);
-    pc_ = buffer_;
-    Reset();
-}
-
-AssemblerVIXL::~AssemblerVIXL()
-{
-    VIXL_ASSERT(finalized_ || (pc_ == buffer_));
-}
-
 void
 AssemblerVIXL::Reset()
 {
 #ifdef DEBUG
-    VIXL_ASSERT((pc_ >= buffer_) && (pc_ < buffer_ + buffer_size_));
-    memset(buffer_, 0, pc_ - buffer_);
+    // TODO: VIXL_ASSERT((pc_ >= buffer_) && (pc_ < buffer_ + buffer_size_));
+    // TODO: memset(buffer_, 0, pc_ - buffer_);
     finalized_ = false;
 #endif
-    pc_ = buffer_;
+    // TODO: pc_ = buffer_;
+    pc_ = nullptr;
 }
 
 void

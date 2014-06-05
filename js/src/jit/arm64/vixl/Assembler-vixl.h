@@ -36,15 +36,18 @@
 #include "jit/shared/Assembler-shared.h"
 #include "jit/shared/IonAssemblerBufferWithConstantPools.h"
 #include "jit/IonSpewer.h"
-#include <list>
 
 namespace js {
 namespace jit {
 
-typedef uint64_t RegList;
-static const int kRegListSizeInBits = sizeof(RegList) * 8;
+// Exciting buffer logic, before it gets replaced with the new hotness.
+class AssemblerVIXL;
+typedef js::jit::AssemblerBufferWithConstantPool<1024, 4, Instruction, AssemblerVIXL, 1> ARMBuffer;
 
 // Registers.
+
+typedef uint64_t RegList;
+static const int kRegListSizeInBits = sizeof(RegList) * 8;
 
 // Some CPURegister methods can return ARMRegister and ARMFPRegister types, so we
 // need to declare them in advance.
@@ -622,13 +625,23 @@ class Label {
 class AssemblerVIXL : public AssemblerShared
 {
   public:
-    AssemblerVIXL(byte* buffer, unsigned buffer_size);
+    AssemblerVIXL()
+      : armbuffer_(4, 4, 0, &pools_[0], 8), // FIXME: What on earth is this
+        pc_(nullptr) // FIXME: Yeah this thing needs some lovin'.
+    {
+#ifdef DEBUG
+        finalized_ = false;
+#endif
+    }
 
     // The destructor asserts that one of the following is true:
     //  * The Assembler object has not been used.
     //  * Nothing has been emitted since the last Reset() call.
     //  * Nothing has been emitted since the last FinalizeCode() call.
-    ~AssemblerVIXL();
+    ~AssemblerVIXL() {
+        // FIXME: Probably useful to assert the above, once we hook up ARMBuffer.
+        // VIXL_ASSERT(finalized_ || (pc_ == buffer_));
+    }
 
     // System functions.
 
@@ -1600,10 +1613,9 @@ class AssemblerVIXL : public AssemblerShared
         return scale << FPScale_offset;
     }
 
-    // Size of the code generated in bytes
+    // Size of the code generated in bytes, including pools.
     uint64_t SizeOfCodeGenerated() const {
-        VIXL_ASSERT((pc_ >= buffer_) && (pc_ < (buffer_ + buffer_size_)));
-        return pc_ - buffer_;
+        return armbuffer_.size();
     }
 
   protected:
@@ -1691,44 +1703,67 @@ class AssemblerVIXL : public AssemblerShared
     void Emit(Instr instruction) {
         VIXL_STATIC_ASSERT(sizeof(*pc_) == 1);
         VIXL_STATIC_ASSERT(sizeof(instruction) == kInstructionSize);
-        VIXL_ASSERT((pc_ + sizeof(instruction)) <= (buffer_ + buffer_size_));
+        // TODO: VIXL_ASSERT((pc_ + sizeof(instruction)) <= (buffer_ + buffer_size_));
 
 #ifdef DEBUG
         finalized_ = false;
 #endif
 
-        memcpy(pc_, &instruction, sizeof(instruction));
+        armbuffer_.putInt(*(uint32_t*)(&instruction));
         pc_ += sizeof(instruction);
         CheckBufferSpace();
     }
 
     // Emit data inline in the instruction stream.
     void EmitData(void const * data, unsigned size) {
+        JS_ASSERT(0 && "EmitData()");
+#if 0
         VIXL_STATIC_ASSERT(sizeof(*pc_) == 1);
-        VIXL_ASSERT((pc_ + size) <= (buffer_ + buffer_size_));
+        // TODO: VIXL_ASSERT((pc_ + size) <= (buffer_ + buffer_size_));
 
 #ifdef DEBUG
         finalized_ = false;
 #endif
+
 
         // TODO: Record this 'instruction' as data, so that it can be disassembled
         // correctly.
         memcpy(pc_, data, size);
         pc_ += size;
         CheckBufferSpace();
+#endif
     }
 
     inline void CheckBufferSpace() {
-        VIXL_ASSERT(pc_ < (buffer_ + buffer_size_));
+        VIXL_ASSERT(!armbuffer_.oom());
+        // TODO: VIXL_ASSERT(pc_ < (buffer_ + buffer_size_));
         // FIXME: Integration with constant pool?
     }
 
+  public:
+    // Interface used by IonAssemblerBufferWithConstantPools.
+    static void insertTokenIntoTag(uint32_t instSize, uint8_t *load_, int32_t token) {
+        MOZ_ASSUME_UNREACHABLE("insertTokenIntoTag");
+    }
+    static bool patchConstantPoolLoad(void *loadAddr, void *constPoolAddr) {
+        MOZ_ASSUME_UNREACHABLE("patchConstantPoolLoad");
+    }
+    static uint32_t placeConstantPoolBarrier(int offset) {
+        MOZ_ASSUME_UNREACHABLE("placeConstantPoolBarrier");
+    }
+    static void writePoolGuard(BufferOffset branch, Instruction *inst, BufferOffset dest) {
+        MOZ_ASSUME_UNREACHABLE("writePoolGuard");
+    }
+
+  private:
     // The buffer into which code and relocation info are generated.
-    Instruction* buffer_;
+    ARMBuffer armbuffer_;
+
+    // Literal pools.
+    mozilla::Array<Pool, 4> pools_;
 
   protected:
-    // Buffer size, in bytes.
-    unsigned buffer_size_;
+    // Pointer of current instruction (into the ARMBuffer).
     Instruction* pc_;
 
 #ifdef DEBUG
