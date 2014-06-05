@@ -1765,6 +1765,10 @@ class Assembler : public AssemblerShared
     // take the stub value that was written in before, and write in an actual load
     // using the index we'd computed previously as well as the address of the pool start.
     static bool patchConstantPoolLoad(void* loadAddr, void* constPoolAddr);
+    // this is a callback for when we have filled a pool, and MUST flush it now.
+    // The pool requires the assembler to place a branch past the pool, and it
+    // calls this function.
+    static uint32_t placeConstantPoolBarrier(int offset);
     // END API
 
     // move our entire pool into the instruction stream
