@@ -64,15 +64,13 @@ class CPURegister {
     kNoRegister
   };
 
-  constexpr CPURegister() : code_(0), size_(0), type_(kNoRegister) {
-    //  VIXL_ASSERT(!IsValid());
-    //    VIXL_ASSERT(IsNone());
-  }
+  MOZ_CONSTEXPR CPURegister()
+    : code_(0), size_(0), type_(kNoRegister)
+  { }
 
-  constexpr CPURegister(unsigned code, unsigned size, RegisterType type)
-      : code_(code), size_(size), type_(type) {
-    //VIXL_ASSERT(IsValidOrNone());
-  }
+  MOZ_CONSTEXPR CPURegister(unsigned code, unsigned size, RegisterType type)
+    : code_(code), size_(size), type_(type)
+  { }
 
   unsigned code() const {
     VIXL_ASSERT(IsValid());
