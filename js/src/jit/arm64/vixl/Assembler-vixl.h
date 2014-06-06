@@ -645,6 +645,28 @@ class AssemblerVIXL : public AssemblerShared
 
     // System functions.
 
+    // Helper function for use with the ARMBuffer.
+    // We need to wait until an AutoIonContextAlloc is created by the
+    // IonMacroAssembler before allocating any space.
+    void initWithAllocator() {
+        armbuffer_.initWithAllocator();
+
+        // Set up the backwards double region.
+        new (&pools_[2]) Pool(1024, 8, 4, 8, 8, armbuffer_.LifoAlloc_, true);
+        // Set up the backwards 32-bit region.
+        new (&pools_[3]) Pool(4096, 4, 4, 8, 4, armbuffer_.LifoAlloc_, true);
+
+        // Set up the forwards double region.
+        new (&pools_[0]) Pool(1024, 8, 4, 8, 8, armbuffer_.LifoAlloc_, false, false, &pools_[2]);
+        // Set up the forwards 32-bit region.
+        new (&pools_[1]) Pool(4096, 4, 4, 8, 4, armbuffer_.LifoAlloc_, false, true, &pools_[3]);
+
+        for (int i = 0; i < 4; i++) {
+            if (pools_[i].poolData == nullptr)
+                armbuffer_.fail_oom();
+        }
+    }
+
     // Start generating code from the beginning of the buffer, discarding any code
     // and data that has already been emitted into the buffer.
     //
@@ -1755,7 +1777,7 @@ class AssemblerVIXL : public AssemblerShared
         MOZ_ASSUME_UNREACHABLE("writePoolGuard");
     }
 
-  private:
+  protected:
     // The buffer into which code and relocation info are generated.
     ARMBuffer armbuffer_;
 

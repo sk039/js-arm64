@@ -220,9 +220,14 @@ class MacroAssembler : public MacroAssemblerSpecific
         }
 
         moveResolver_.setAllocator(*icx->temp);
+
 #ifdef JS_CODEGEN_ARM
         initWithAllocator();
         m_buffer.id = icx->getNextAssemblerId();
+#endif
+
+#ifdef JS_CODEGEN_ARM64
+        armbuffer_.id = icx->getNextAssemblerId();
 #endif
     }
 
@@ -238,10 +243,17 @@ class MacroAssembler : public MacroAssemblerSpecific
         ionContext_.construct(cx, (js::jit::TempAllocator *)nullptr);
         alloc_.construct(cx);
         moveResolver_.setAllocator(*ionContext_.ref().temp);
+
 #ifdef JS_CODEGEN_ARM
         initWithAllocator();
         m_buffer.id = GetIonContext()->getNextAssemblerId();
 #endif
+
+#ifdef JS_CODEGEN_ARM64
+        initWithAllocator();
+        armbuffer_.id = GetIonContext()->getNextAssemblerId();
+#endif
+
         if (ion) {
             setFramePushed(ion->frameSize());
             if (pc && cx->runtime()->spsProfiler.enabled()) {
@@ -265,6 +277,11 @@ class MacroAssembler : public MacroAssemblerSpecific
 #ifdef JS_CODEGEN_ARM
         initWithAllocator();
         m_buffer.id = 0;
+#endif
+
+#ifdef JS_CODEGEN_ARM64
+        initWithAllocator();
+        armbuffer_.id = 0;
 #endif
     }
 
