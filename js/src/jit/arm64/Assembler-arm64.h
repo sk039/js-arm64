@@ -177,6 +177,14 @@ class Assembler : public AssemblerVIXL {
         JS_ASSERT(0 && "updateBoundsCheck()");
     }
 
+    static int32_t extractCodeLabelOffset(uint8_t *code) {
+        JS_ASSERT(0 && "extractCodeLabelOffset");
+        return 0;
+    }
+    static void patchInstructionImmediate(uint8_t *code, PatchedImmPtr imm) {
+        JS_ASSERT(0 && "patchInstructionImmediate");
+    }
+
     js::Vector<CodeLabel, 0, SystemAllocPolicy> codeLabels_;
 
     CompactBufferWriter jumpRelocations_;

@@ -275,6 +275,7 @@ class FloatRegisters
 };
 
 static const uint32_t CodeAlignment = 8;
+static const bool StackKeptAligned = false; // FIXME: Verify.
 static const uint32_t StackAlignment = 16;
 static const uint32_t NativeFrameSize = sizeof(void*);
 
