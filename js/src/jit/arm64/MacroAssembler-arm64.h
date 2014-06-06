@@ -120,12 +120,8 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     MoveResolver moveResolver_;
 
   public:
-    // FIXME: This is the size of the buffer -- should really be in Assembler.
-    int32_t size() const {
-        JS_ASSERT(0 && "size");
-        return 0;
-    }
     bool oom() const {
+        // FIXME: jandem is trying to knock out enoughMemory_ now... needs rebasing.
         return Assembler::oom() || !enoughMemory_;
     }
 
@@ -1392,9 +1388,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
 
     // Emit a JMP that can be toggled to a CMP. See ToggleToJmp(), ToggleToCmp().
     CodeOffsetLabel toggledJump(Label *label) {
-        JS_ASSERT(0 && "OffsetLabel ");
-        CodeOffsetLabel offset(size());
-        return offset;
+        MOZ_ASSUME_UNREACHABLE("toggledJump");
     }
 
     void bind(Label *label) {

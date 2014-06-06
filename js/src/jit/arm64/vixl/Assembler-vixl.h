@@ -1635,6 +1635,10 @@ class AssemblerVIXL : public AssemblerShared
         return scale << FPScale_offset;
     }
 
+    uint64_t size() const {
+        return SizeOfCodeGenerated();
+    }
+
     // Size of the code generated in bytes, including pools.
     uint64_t SizeOfCodeGenerated() const {
         return armbuffer_.size();
