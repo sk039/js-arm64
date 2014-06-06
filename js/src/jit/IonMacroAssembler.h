@@ -227,6 +227,7 @@ class MacroAssembler : public MacroAssemblerSpecific
 #endif
 
 #ifdef JS_CODEGEN_ARM64
+        initWithAllocator();
         armbuffer_.id = icx->getNextAssemblerId();
 #endif
     }
