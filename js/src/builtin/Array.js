@@ -660,6 +660,82 @@ function ArrayKeys() {
     return CreateArrayIterator(this, ITEM_KIND_KEY);
 }
 
+/* ES6 rev 25 (2014 May 22) 22.1.2.1 */
+function ArrayFrom(arrayLike, mapfn=undefined, thisArg=undefined) {
+    // Step 1.
+    var C = this;
+
+    // Steps 2-3.
+    var items = ToObject(arrayLike);
+
+    // Steps 4-5.
+    var mapping = (mapfn !== undefined);
+    if (mapping && !IsCallable(mapfn))
+        ThrowError(JSMSG_NOT_FUNCTION, DecompileArg(1, mapfn));
+
+    // All elements defined by this algorithm have the same attrs:
+    var attrs = ATTR_CONFIGURABLE | ATTR_ENUMERABLE | ATTR_WRITABLE;
+
+    // Steps 6-8.
+    var usingIterator = items["@@iterator"];
+    if (usingIterator !== undefined) {
+        // Steps 8.a-c.
+        var A = IsConstructor(C) ? new C() : [];
+
+        // Steps 8.d-e.
+        var iterator = callFunction(usingIterator, items);
+
+        // Step 8.f.
+        var k = 0;
+
+        // Steps 8.g.i-vi.
+        // These steps cannot be implemented using a for-of loop.
+        // See <https://bugs.ecmascript.org/show_bug.cgi?id=2883>.
+        var next;
+        while (true) {
+            // Steps 8.g.ii-vi.
+            next = iterator.next();
+            if (!IsObject(next))
+                ThrowError(JSMSG_NEXT_RETURNED_PRIMITIVE);
+            if (next.done)
+                break;  // Substeps of 8.g.iv are implemented below.
+            var nextValue = next.value;
+
+            // Steps 8.g.vii-viii.
+            var mappedValue = mapping ? callFunction(mapfn, thisArg, nextValue, k) : nextValue;
+
+            // Steps 8.g.ix-xi.
+            _DefineDataProperty(A, k++, mappedValue, attrs);
+        }
+    } else {
+        // Step 9 is an assertion: items is not an Iterator. Testing this is
+        // literally the very last thing we did, so we don't assert here.
+
+        // Steps 10-12.
+        // FIXME: Array operations should use ToLength (bug 924058).
+        var len = ToInteger(items.length);
+
+        // Steps 13-15.
+        var A = IsConstructor(C) ? new C(len) : NewDenseArray(len);
+
+        // Steps 16-17.
+        for (var k = 0; k < len; k++) {
+            // Steps 17.a-c.
+            var kValue = items[k];
+
+            // Steps 17.d-e.
+            var mappedValue = mapping ? callFunction(mapfn, thisArg, kValue, k) : kValue;
+
+            // Steps 17.f-g.
+            _DefineDataProperty(A, k, mappedValue, attrs);
+        }
+    }
+
+    // Steps 8.g.iv.1-3 and 18-20 are the same.
+    A.length = k;
+    return A;
+}
+
 #ifdef ENABLE_PARALLEL_JS
 
 /*
@@ -692,7 +768,7 @@ function ArrayMapPar(func, mode) {
       break parallel;
 
     var slicesInfo = ComputeSlicesInfo(length);
-    ForkJoin(mapThread, 0, slicesInfo.count, ForkJoinMode(mode));
+    ForkJoin(mapThread, 0, slicesInfo.count, ForkJoinMode(mode), buffer);
     return buffer;
   }
 
@@ -741,7 +817,7 @@ function ArrayReducePar(func, mode) {
     var numSlices = slicesInfo.count;
     var subreductions = NewDenseArray(numSlices);
 
-    ForkJoin(reduceThread, 0, numSlices, ForkJoinMode(mode));
+    ForkJoin(reduceThread, 0, numSlices, ForkJoinMode(mode), null);
 
     var accumulator = subreductions[0];
     for (var i = 1; i < numSlices; i++)
@@ -800,7 +876,7 @@ function ArrayScanPar(func, mode) {
     var numSlices = slicesInfo.count;
 
     // Scan slices individually (see comment on phase1()).
-    ForkJoin(phase1, 0, numSlices, ForkJoinMode(mode));
+    ForkJoin(phase1, 0, numSlices, ForkJoinMode(mode), buffer);
 
     // Compute intermediates array (see comment on phase2()).
     var intermediates = [];
@@ -816,7 +892,7 @@ function ArrayScanPar(func, mode) {
     // We start from slice 1 instead of 0 since there is no work to be done
     // for slice 0.
     if (numSlices > 1)
-      ForkJoin(phase2, 1, numSlices, ForkJoinMode(mode));
+      ForkJoin(phase2, 1, numSlices, ForkJoinMode(mode), buffer);
     return buffer;
   }
 
@@ -1030,7 +1106,7 @@ function ArrayFilterPar(func, mode) {
       UnsafePutElements(counts, i, 0);
 
     var survivors = new Uint8Array(length);
-    ForkJoin(findSurvivorsThread, 0, numSlices, ForkJoinMode(mode));
+    ForkJoin(findSurvivorsThread, 0, numSlices, ForkJoinMode(mode), survivors);
 
     // Step 2. Compress the slices into one contiguous set.
     var count = 0;
@@ -1038,7 +1114,7 @@ function ArrayFilterPar(func, mode) {
       count += counts[i];
     var buffer = NewDenseArray(count);
     if (count > 0)
-      ForkJoin(copySurvivorsThread, 0, numSlices, ForkJoinMode(mode));
+      ForkJoin(copySurvivorsThread, 0, numSlices, ForkJoinMode(mode), buffer);
 
     return buffer;
   }
@@ -1148,7 +1224,7 @@ function ArrayStaticBuildPar(length, func, mode) {
       break parallel;
 
     var slicesInfo = ComputeSlicesInfo(length);
-    ForkJoin(constructThread, 0, slicesInfo.count, ForkJoinMode(mode));
+    ForkJoin(constructThread, 0, slicesInfo.count, ForkJoinMode(mode), buffer);
     return buffer;
   }
 

@@ -14,6 +14,7 @@
 
 #include "mozilla/css/Loader.h"
 #include "mozilla/dom/Element.h"
+#include "mozilla/dom/FragmentOrElement.h"
 #include "mozilla/dom/ShadowRoot.h"
 #include "mozilla/Preferences.h"
 #include "nsCSSStyleSheet.h"
@@ -220,28 +221,6 @@ IsScopedStyleElement(nsIContent* aContent)
          aContent->HasAttr(kNameSpaceID_None, nsGkAtoms::scoped);
 }
 
-static void
-SetIsElementInStyleScopeFlagOnSubtree(Element* aElement)
-{
-  if (aElement->IsElementInStyleScope()) {
-    return;
-  }
-
-  aElement->SetIsElementInStyleScope();
-
-  nsIContent* n = aElement->GetNextNode(aElement);
-  while (n) {
-    if (n->IsElementInStyleScope()) {
-      n = n->GetNextNonChildNode(aElement);
-    } else {
-      if (n->IsElement()) {
-        n->SetIsElementInStyleScope();
-      }
-      n = n->GetNextNode(aElement);
-    }
-  }
-}
-
 static bool
 HasScopedStyleSheetChild(nsIContent* aContent)
 {
@@ -317,11 +296,16 @@ nsStyleLinkElement::DoUpdateStyleSheet(nsIDocument* aOldDocument,
 
   Element* oldScopeElement = GetScopeElement(mStyleSheet);
 
-  if (mStyleSheet && aOldDocument) {
-    // We're removing the link element from the document, unload the
-    // stylesheet.  We want to do this even if updates are disabled, since
-    // otherwise a sheet with a stale linking element pointer will be hanging
-    // around -- not good!
+  if (mStyleSheet && (aOldDocument || aOldShadowRoot)) {
+    MOZ_ASSERT(!(aOldDocument && aOldShadowRoot),
+               "ShadowRoot content is never in document, thus "
+               "there should not be a old document and old "
+               "ShadowRoot simultaneously.");
+
+    // We're removing the link element from the document or shadow tree,
+    // unload the stylesheet.  We want to do this even if updates are
+    // disabled, since otherwise a sheet with a stale linking element pointer
+    // will be hanging around -- not good!
     if (aOldShadowRoot) {
       aOldShadowRoot->RemoveSheet(mStyleSheet);
     } else {
@@ -342,8 +326,7 @@ nsStyleLinkElement::DoUpdateStyleSheet(nsIDocument* aOldDocument,
     return NS_OK;
   }
 
-  nsCOMPtr<nsIDocument> doc = thisContent->GetDocument();
-
+  nsCOMPtr<nsIDocument> doc = thisContent->GetCrossShadowCurrentDoc();
   if (!doc || !doc->CSSLoader()->GetEnabled()) {
     return NS_OK;
   }
@@ -392,7 +375,7 @@ nsStyleLinkElement::DoUpdateStyleSheet(nsIDocument* aOldDocument,
   Element* scopeElement = isScoped ? thisContent->GetParentElement() : nullptr;
   if (scopeElement) {
     NS_ASSERTION(isInline, "non-inline style must not have scope element");
-    SetIsElementInStyleScopeFlagOnSubtree(scopeElement);
+    scopeElement->SetIsElementInStyleScopeFlagOnSubtree(true);
   }
 
   bool doneLoading = false;
@@ -484,6 +467,6 @@ nsStyleLinkElement::UpdateStyleSheetScopedness(bool aIsNowScoped)
     UpdateIsElementInStyleScopeFlagOnSubtree(oldScopeElement);
   }
   if (newScopeElement) {
-    SetIsElementInStyleScopeFlagOnSubtree(newScopeElement);
+    newScopeElement->SetIsElementInStyleScopeFlagOnSubtree(true);
   }
 }

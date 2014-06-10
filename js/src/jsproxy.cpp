@@ -427,7 +427,7 @@ DirectProxyHandler::delete_(JSContext *cx, HandleObject proxy, HandleId id, bool
 {
     assertEnteredPolicy(cx, proxy, id, SET);
     RootedObject target(cx, proxy->as<ProxyObject>().target());
-    return JS_DeletePropertyById2(cx, target, id, bp);
+    return JSObject::deleteGeneric(cx, target, id, bp);
 }
 
 bool
@@ -915,7 +915,7 @@ ScriptedIndirectProxyHandler::has(JSContext *cx, HandleObject proxy, HandleId id
     RootedValue fval(cx), value(cx);
     if (!GetDerivedTrap(cx, handler, cx->names().has, &fval))
         return false;
-    if (!js_IsCallable(fval))
+    if (!IsCallable(fval))
         return BaseProxyHandler::has(cx, proxy, id, bp);
     return Trap1(cx, handler, fval, id, &value) &&
            ValueToBool(value, bp);
@@ -928,7 +928,7 @@ ScriptedIndirectProxyHandler::hasOwn(JSContext *cx, HandleObject proxy, HandleId
     RootedValue fval(cx), value(cx);
     if (!GetDerivedTrap(cx, handler, cx->names().hasOwn, &fval))
         return false;
-    if (!js_IsCallable(fval))
+    if (!IsCallable(fval))
         return BaseProxyHandler::hasOwn(cx, proxy, id, bp);
     return Trap1(cx, handler, fval, id, &value) &&
            ValueToBool(value, bp);
@@ -950,7 +950,7 @@ ScriptedIndirectProxyHandler::get(JSContext *cx, HandleObject proxy, HandleObjec
     RootedValue fval(cx);
     if (!GetDerivedTrap(cx, handler, cx->names().get, &fval))
         return false;
-    if (!js_IsCallable(fval))
+    if (!IsCallable(fval))
         return BaseProxyHandler::get(cx, proxy, receiver, id, vp);
     return Trap(cx, handler, fval, 2, argv.begin(), vp);
 }
@@ -972,7 +972,7 @@ ScriptedIndirectProxyHandler::set(JSContext *cx, HandleObject proxy, HandleObjec
     RootedValue fval(cx);
     if (!GetDerivedTrap(cx, handler, cx->names().set, &fval))
         return false;
-    if (!js_IsCallable(fval))
+    if (!IsCallable(fval))
         return BaseProxyHandler::set(cx, proxy, receiver, id, strict, vp);
     return Trap(cx, handler, fval, 3, argv.begin(), &value);
 }
@@ -984,7 +984,7 @@ ScriptedIndirectProxyHandler::keys(JSContext *cx, HandleObject proxy, AutoIdVect
     RootedValue value(cx);
     if (!GetDerivedTrap(cx, handler, cx->names().keys, &value))
         return false;
-    if (!js_IsCallable(value))
+    if (!IsCallable(value))
         return BaseProxyHandler::keys(cx, proxy, props);
     return Trap(cx, handler, value, 0, nullptr, &value) &&
            ArrayToIdVector(cx, value, props);
@@ -998,7 +998,7 @@ ScriptedIndirectProxyHandler::iterate(JSContext *cx, HandleObject proxy, unsigne
     RootedValue value(cx);
     if (!GetDerivedTrap(cx, handler, cx->names().iterate, &value))
         return false;
-    if (!js_IsCallable(value))
+    if (!IsCallable(value))
         return BaseProxyHandler::iterate(cx, proxy, flags, vp);
     return Trap(cx, handler, value, 0, nullptr, vp) &&
            ReturnedValueMustNotBePrimitive(cx, proxy, cx->names().iterate, vp);
@@ -1093,95 +1093,6 @@ class ScriptedDirectProxyHandler : public DirectProxyHandler {
 
 // This variable exists solely to provide a unique address for use as an identifier.
 static const char sScriptedDirectProxyHandlerFamily = 0;
-
-// Aux.2 FromGenericPropertyDescriptor(Desc)
-static bool
-FromGenericPropertyDescriptor(JSContext *cx, MutableHandle<PropDesc> desc, MutableHandleValue rval)
-{
-    // Aux.2 step 1
-    if (desc.isUndefined()) {
-        rval.setUndefined();
-        return true;
-    }
-
-    // steps 3-9
-    if (!desc.makeObject(cx))
-        return false;
-    rval.set(desc.descriptorValue());
-    return true;
-}
-
-/*
- * Aux.3 NormalizePropertyDescriptor(Attributes)
- *
- * NOTE: to minimize code duplication, the code for this function is shared with
- * that for Aux.4 NormalizeAndCompletePropertyDescriptor (see below). The
- * argument complete is used to distinguish between the two.
- */
-static bool
-NormalizePropertyDescriptor(JSContext *cx, MutableHandleValue vp, bool complete = false)
-{
-    // Aux.4 step 1
-    if (complete && vp.isUndefined())
-        return true;
-
-    // Aux.3 steps 1-2 / Aux.4 steps 2-3
-    Rooted<PropDesc> desc(cx);
-    if (!desc.initialize(cx, vp.get()))
-        return false;
-    if (complete)
-        desc.complete();
-    JS_ASSERT(vp.isObject()); // due to desc->initialize
-    RootedObject attributes(cx, &vp.toObject());
-
-    /*
-     * Aux.3 step 3 / Aux.4 step 4
-     *
-     * NOTE: Aux.4 step 4 actually specifies FromPropertyDescriptor here.
-     * However, the way FromPropertyDescriptor is implemented (PropDesc::
-     * makeObject) is actually closer to FromGenericPropertyDescriptor,
-     * and is in fact used to implement the latter, so we might as well call it
-     * directly.
-     */
-    if (!FromGenericPropertyDescriptor(cx, &desc, vp))
-        return false;
-    if (vp.isUndefined())
-        return true;
-    RootedObject descObj(cx, &vp.toObject());
-
-    // Aux.3 steps 4-5 / Aux.4 steps 5-6
-    AutoIdVector props(cx);
-    if (!GetPropertyNames(cx, attributes, 0, &props))
-        return false;
-    size_t n = props.length();
-    for (size_t i = 0; i < n; ++i) {
-        RootedId id(cx, props[i]);
-        if (JSID_IS_ATOM(id)) {
-            JSAtom *atom = JSID_TO_ATOM(id);
-            const JSAtomState &atomState = cx->names();
-            if (atom == atomState.value || atom == atomState.writable ||
-                atom == atomState.get || atom == atomState.set ||
-                atom == atomState.enumerable || atom == atomState.configurable)
-            {
-                continue;
-            }
-        }
-
-        RootedValue v(cx);
-        if (!JSObject::getGeneric(cx, descObj, attributes, id, &v))
-            return false;
-        if (!JSObject::defineGeneric(cx, descObj, id, v, nullptr, nullptr, JSPROP_ENUMERATE))
-            return false;
-    }
-    return true;
-}
-
-// Aux.4 NormalizeAndCompletePropertyDescriptor(Attributes)
-static inline bool
-NormalizeAndCompletePropertyDescriptor(JSContext *cx, MutableHandleValue vp)
-{
-    return NormalizePropertyDescriptor(cx, vp, true);
-}
 
 static inline bool
 IsDataDescriptor(const PropertyDescriptor &desc)
@@ -2384,15 +2295,6 @@ Proxy::defineProperty(JSContext *cx, HandleObject proxy, HandleId id,
 }
 
 bool
-Proxy::defineProperty(JSContext *cx, HandleObject proxy, HandleId id, HandleValue v)
-{
-    JS_CHECK_RECURSION(cx, return false);
-    Rooted<PropertyDescriptor> desc(cx);
-    return ParsePropertyDescriptorObject(cx, proxy, v, &desc) &&
-           Proxy::defineProperty(cx, proxy, id, &desc);
-}
-
-bool
 Proxy::getOwnPropertyNames(JSContext *cx, HandleObject proxy, AutoIdVector &props)
 {
     JS_CHECK_RECURSION(cx, return false);
@@ -2920,30 +2822,14 @@ js::proxy_SetGenericAttributes(JSContext *cx, HandleObject obj, HandleId id, uns
     return Proxy::defineProperty(cx, obj, id, &desc);
 }
 
-static bool
-proxy_DeleteGeneric(JSContext *cx, HandleObject obj, HandleId id, bool *succeeded)
+bool
+js::proxy_DeleteGeneric(JSContext *cx, HandleObject obj, HandleId id, bool *succeeded)
 {
     bool deleted;
     if (!Proxy::delete_(cx, obj, id, &deleted))
         return false;
     *succeeded = deleted;
     return js_SuppressDeletedProperty(cx, obj, id);
-}
-
-bool
-js::proxy_DeleteProperty(JSContext *cx, HandleObject obj, HandlePropertyName name, bool *succeeded)
-{
-    RootedId id(cx, NameToId(name));
-    return proxy_DeleteGeneric(cx, obj, id, succeeded);
-}
-
-bool
-js::proxy_DeleteElement(JSContext *cx, HandleObject obj, uint32_t index, bool *succeeded)
-{
-    RootedId id(cx);
-    if (!IndexToId(cx, index, &id))
-        return false;
-    return proxy_DeleteGeneric(cx, obj, id, succeeded);
 }
 
 void

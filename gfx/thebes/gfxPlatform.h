@@ -178,9 +178,6 @@ public:
       CreateOffscreenSurface(const IntSize& size,
                              gfxContentType contentType) = 0;
 
-    virtual already_AddRefed<gfxASurface> OptimizeImage(gfxImageSurface *aSurface,
-                                                        gfxImageFormat format);
-
     /**
      * Beware that these methods may return DrawTargets which are not fully supported
      * on the current platform and might fail silently in subtle ways. This is a massive
@@ -384,6 +381,13 @@ public:
      * (for fonts that include Graphite tables)
      */
     bool UseGraphiteShaping();
+
+    /**
+     * Whether to use the harfbuzz shaper (depending on script complexity).
+     *
+     * This allows harfbuzz to be enabled selectively via the preferences.
+     */
+    bool UseHarfBuzzForScript(int32_t aScriptCode);
 
     // check whether format is supported on a platform or not (if unclear, returns true)
     virtual bool IsFontFormatSupported(nsIURI *aFontURI, uint32_t aFormatFlags) { return false; }
@@ -611,6 +615,9 @@ protected:
     // whether to always search font cmaps globally 
     // when doing system font fallback
     int8_t  mFallbackUsesCmaps;
+
+    // which scripts should be shaped with harfbuzz
+    int32_t mUseHarfBuzzScripts;
 
     // max character limit for words in word cache
     int32_t mWordCacheCharLimit;
