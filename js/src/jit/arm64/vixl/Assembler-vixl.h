@@ -1782,6 +1782,14 @@ class AssemblerVIXL : public AssemblerShared
     static void writePoolGuard(BufferOffset branch, Instruction *inst, BufferOffset dest) {
         MOZ_ASSUME_UNREACHABLE("writePoolGuard");
     }
+    static void writePoolHeader(uint8_t *start, Pool *p, bool isNatural);
+    static void writePoolFooter(uint8_t *start, Pool *p, bool isNatural);
+
+    // Static interface used by IonAssemblerBufferWithConstantPools.
+    static ptrdiff_t getBranchOffset(const Instruction *i);
+    static void retargetNearBranch(Instruction *i, int offset, Condition cond, bool final = true);
+    static void retargetNearBranch(Instruction *i, int offset, bool final = true);
+    static void retargetFarBranch(Instruction *i, uint8_t **slot, uint8_t *dest, Condition cond);
 
   protected:
     // The buffer into which code and relocation info are generated.

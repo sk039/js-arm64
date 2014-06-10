@@ -2097,6 +2097,126 @@ AssemblerVIXL::StorePairNonTemporalOpFor(const CPURegister& rt, const CPURegiste
     return rt.Is64Bits() ? STNP_d : STNP_s;
 }
 
+// FIXME: Share with arm/Assembler-arm.cpp
+struct PoolHeader
+{
+    uint32_t data;
+
+    struct Header
+    {
+        // size should take into account the pool header.
+        // size is in units of Instruction (4bytes), not byte
+        // FIXME: Don't we need special bits on MSVC to make this packed?
+        // FIXME: I guess we never cross-compile for ARM on Windows.
+        union {
+            struct {
+                uint32_t size : 15;
+                bool isNatural : 1;
+                uint32_t ONES : 16;
+            };
+            uint32_t data;
+        };
+
+        Header(int size_, bool isNatural_)
+          : size(size_),
+            isNatural(isNatural_),
+            ONES(0xffff)
+        { }
+
+        Header(uint32_t data)
+          : data(data)
+        {
+            JS_STATIC_ASSERT(sizeof(Header) == sizeof(uint32_t));
+            JS_ASSERT(ONES == 0xffff);
+        }
+
+        uint32_t raw() const {
+            return data;
+        }
+    };
+
+    PoolHeader(int size_, bool isNatural_)
+      : data(Header(size_, isNatural_).raw())
+    { }
+
+    uint32_t size() const {
+        Header tmp(data);
+        return tmp.size;
+    }
+    uint32_t isNatural() const {
+        Header tmp(data);
+        return tmp.isNatural;
+    }
+
+    /*
+    static bool isTHIS(const Instruction &i) {
+        return (*i.raw() & 0xffff0000) == 0xffff0000;
+    }
+    static const PoolHeader *asTHIS(const Instruction &i) {
+        if (!isTHIS(i))
+            return nullptr;
+        return static_cast<const PoolHeader*>(&i);
+    }
+    */
+};
+
+// FIXME: Share with Assembler-arm.cpp
+void
+AssemblerVIXL::writePoolHeader(uint8_t *start, Pool *p, bool isNatural)
+{
+    JS_STATIC_ASSERT(sizeof(PoolHeader) == 4);
+
+    // Get the total size of the pool.
+    uint8_t *pool = start + sizeof(PoolHeader);
+    pool = p[0].addPoolSize(pool);
+    pool = p[1].addPoolSize(pool);
+    pool = p[1].other->addPoolSize(pool);
+    pool = p[0].other->addPoolSize(pool);
+
+    uintptr_t size = pool - start;
+    JS_ASSERT((size & 0x3) == 0); // addPoolSize() performs alignment.
+    size = size >> 2;
+    JS_ASSERT(size < (1 << 15));
+
+    PoolHeader header(size, isNatural);
+    *(PoolHeader *)start = header;
+}
+
+// FIXME: Share with Assembler-arm.cpp
+void
+AssemblerVIXL::writePoolFooter(uint8_t *start, Pool *p, bool isNatural)
+{
+    return;
+}
+
+ptrdiff_t
+AssemblerVIXL::getBranchOffset(const Instruction *i)
+{
+    if (!i->IsUncondBranchImm()) // TODO: What about IsCondBranchImm too?
+        return 0;
+
+    JS_ASSERT(0 && "getBranchOffset");
+    return 0;
+}
+
+void
+AssemblerVIXL::retargetNearBranch(Instruction *i, int offset, Condition cond, bool final)
+{
+    JS_ASSERT(0 && "retargetNearBranch() w/ Condition");
+}
+
+void
+AssemblerVIXL::retargetNearBranch(Instruction *i, int offset, bool final)
+{
+    JS_ASSERT(0 && "retargetNearBranch()");
+}
+
+void
+AssemblerVIXL::retargetFarBranch(Instruction *i, uint8_t **slot, uint8_t *dest, Condition cond)
+{
+    JS_ASSERT(0 && "retargetFarBranch()");
+}
+
 void
 AssemblerVIXL::RecordLiteral(int64_t imm, unsigned size)
 {

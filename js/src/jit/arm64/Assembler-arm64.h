@@ -106,8 +106,10 @@ class Assembler : public AssemblerVIXL {
     static uint8_t *PatchableJumpAddress(JitCode *code, uint32_t index) {
         JS_ASSERT(0 && "patchableJumpAddress");
     }
-    void executableCopy(unsigned char *code){
-        JS_ASSERT(0 && "executableCopy");
+    void executableCopy(uint8_t *buffer){
+        // TODO: JS_ASSERT(isFinished);
+        armbuffer_.executableCopy(buffer);
+        // TODO: AutoFlushICache
     }
     void setPrinter(Sprinter *sp) {
         JS_ASSERT(0 && "setPrinter()");
