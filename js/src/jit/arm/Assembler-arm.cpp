@@ -526,11 +526,11 @@ jit::PatchJump(CodeLocationJump &jump_, CodeLocationLabel label)
     int jumpOffset = label.raw() - jump_.raw();
     if (BOffImm::isInRange(jumpOffset)) {
         // This instruction started off as a branch, and will remain one
-        Assembler::retargetNearBranch(jump, jumpOffset, c);
+        Assembler::RetargetNearBranch(jump, jumpOffset, c);
     } else {
         // This instruction started off as a branch, but now needs to be demoted to an ldr.
         uint8_t **slot = reinterpret_cast<uint8_t**>(jump_.jumpTableEntry());
-        Assembler::retargetFarBranch(jump, slot, label.raw(), c);
+        Assembler::RetargetFarBranch(jump, slot, label.raw(), c);
     }
 }
 
@@ -1751,7 +1751,7 @@ Assembler::as_FImm32Pool(VFPRegister dest, float value, ARMBuffer::PoolEntry *pe
 
 // Pool callbacks stuff:
 void
-Assembler::insertTokenIntoTag(uint32_t instSize, uint8_t *load_, int32_t token)
+Assembler::InsertTokenIntoTag(uint32_t instSize, uint8_t *load_, int32_t token)
 {
     uint32_t *load = (uint32_t*) load_;
     PoolHintPun php;
@@ -1759,10 +1759,10 @@ Assembler::insertTokenIntoTag(uint32_t instSize, uint8_t *load_, int32_t token)
     php.phd.setIndex(token);
     *load = php.raw;
 }
-// patchConstantPoolLoad takes the address of the instruction that wants to be patched, and
+// PatchConstantPoolLoad takes the address of the instruction that wants to be patched, and
 //the address of the start of the constant pool, and figures things out from there.
 bool
-Assembler::patchConstantPoolLoad(void* loadAddr, void* constPoolAddr)
+Assembler::PatchConstantPoolLoad(void* loadAddr, void* constPoolAddr)
 {
     PoolHintData data = *(PoolHintData*)loadAddr;
     uint32_t *instAddr = (uint32_t*) loadAddr;
@@ -1801,12 +1801,19 @@ Assembler::patchConstantPoolLoad(void* loadAddr, void* constPoolAddr)
 }
 
 uint32_t
-Assembler::placeConstantPoolBarrier(int offset)
+Assembler::PlaceConstantPoolBarrier(int offset)
 {
     // BUG: 700526
     // this is still an active path, however, we do not hit it in the test
     // suite at all.
     MOZ_ASSUME_UNREACHABLE("ARMAssembler holdover");
+}
+
+void
+Assembler::WritePoolGuard(BufferOffset branch, Instruction *dest, BufferOffset afterPool)
+{
+    BOffImm off = afterPool.diffB<BOffImm>(branch);
+    *dest = InstBImm(off, Always);
 }
 
 // Control flow stuff:
@@ -1821,12 +1828,7 @@ Assembler::as_bx(Register r, Condition c, bool isPatchable)
         m_buffer.markGuard();
     return ret;
 }
-void
-Assembler::writePoolGuard(BufferOffset branch, Instruction *dest, BufferOffset afterPool)
-{
-    BOffImm off = afterPool.diffB<BOffImm>(branch);
-    *dest = InstBImm(off, Always);
-}
+
 // Branch can branch to an immediate *or* to a register.
 // Branches to immediates are pc relative, branches to registers
 // are absolute
@@ -2385,7 +2387,7 @@ Assembler::leaveNoPool()
 }
 
 ptrdiff_t
-Assembler::getBranchOffset(const Instruction *i_)
+Assembler::GetBranchOffset(const Instruction *i_)
 {
     if (!i_->is<InstBranchImm>())
         return 0;
@@ -2396,15 +2398,15 @@ Assembler::getBranchOffset(const Instruction *i_)
     return dest.decode();
 }
 void
-Assembler::retargetNearBranch(Instruction *i, int offset, bool final)
+Assembler::RetargetNearBranch(Instruction *i, int offset, bool final)
 {
     Assembler::Condition c;
     i->extractCond(&c);
-    retargetNearBranch(i, offset, c, final);
+    RetargetNearBranch(i, offset, c, final);
 }
 
 void
-Assembler::retargetNearBranch(Instruction *i, int offset, Condition cond, bool final)
+Assembler::RetargetNearBranch(Instruction *i, int offset, Condition cond, bool final)
 {
     // Retargeting calls is totally unsupported!
     JS_ASSERT_IF(i->is<InstBranchImm>(), i->is<InstBImm>() || i->is<InstBLImm>());
@@ -2419,7 +2421,7 @@ Assembler::retargetNearBranch(Instruction *i, int offset, Condition cond, bool f
 }
 
 void
-Assembler::retargetFarBranch(Instruction *i, uint8_t **slot, uint8_t *dest, Condition cond)
+Assembler::RetargetFarBranch(Instruction *i, uint8_t **slot, uint8_t *dest, Condition cond)
 {
     int32_t offset = reinterpret_cast<uint8_t*>(slot) - reinterpret_cast<uint8_t*>(i);
     if (!i->is<InstLDR>()) {
@@ -2483,7 +2485,7 @@ struct PoolHeader : Instruction {
 
 
 void
-Assembler::writePoolHeader(uint8_t *start, Pool *p, bool isNatural)
+Assembler::WritePoolHeader(uint8_t *start, Pool *p, bool isNatural)
 {
     STATIC_ASSERT(sizeof(PoolHeader) == 4);
     uint8_t *pool = start+4;
@@ -2502,7 +2504,7 @@ Assembler::writePoolHeader(uint8_t *start, Pool *p, bool isNatural)
 
 
 void
-Assembler::writePoolFooter(uint8_t *start, Pool *p, bool isNatural)
+Assembler::WritePoolFooter(uint8_t *start, Pool *p, bool isNatural)
 {
     return;
 }

@@ -2162,7 +2162,7 @@ struct PoolHeader
 
 // FIXME: Share with Assembler-arm.cpp
 void
-AssemblerVIXL::writePoolHeader(uint8_t *start, Pool *p, bool isNatural)
+AssemblerVIXL::WritePoolHeader(uint8_t *start, Pool *p, bool isNatural)
 {
     JS_STATIC_ASSERT(sizeof(PoolHeader) == 4);
 
@@ -2184,37 +2184,37 @@ AssemblerVIXL::writePoolHeader(uint8_t *start, Pool *p, bool isNatural)
 
 // FIXME: Share with Assembler-arm.cpp
 void
-AssemblerVIXL::writePoolFooter(uint8_t *start, Pool *p, bool isNatural)
+AssemblerVIXL::WritePoolFooter(uint8_t *start, Pool *p, bool isNatural)
 {
     return;
 }
 
 ptrdiff_t
-AssemblerVIXL::getBranchOffset(const Instruction *i)
+AssemblerVIXL::GetBranchOffset(const Instruction *i)
 {
     if (!i->IsUncondBranchImm()) // TODO: What about IsCondBranchImm too?
         return 0;
 
-    JS_ASSERT(0 && "getBranchOffset");
+    JS_ASSERT(0 && "GetBranchOffset");
     return 0;
 }
 
 void
-AssemblerVIXL::retargetNearBranch(Instruction *i, int offset, Condition cond, bool final)
+AssemblerVIXL::RetargetNearBranch(Instruction *i, int offset, Condition cond, bool final)
 {
-    JS_ASSERT(0 && "retargetNearBranch() w/ Condition");
+    JS_ASSERT(0 && "RetargetNearBranch() w/ Condition");
 }
 
 void
-AssemblerVIXL::retargetNearBranch(Instruction *i, int offset, bool final)
+AssemblerVIXL::RetargetNearBranch(Instruction *i, int offset, bool final)
 {
-    JS_ASSERT(0 && "retargetNearBranch()");
+    JS_ASSERT(0 && "RetargetNearBranch()");
 }
 
 void
-AssemblerVIXL::retargetFarBranch(Instruction *i, uint8_t **slot, uint8_t *dest, Condition cond)
+AssemblerVIXL::RetargetFarBranch(Instruction *i, uint8_t **slot, uint8_t *dest, Condition cond)
 {
-    JS_ASSERT(0 && "retargetFarBranch()");
+    JS_ASSERT(0 && "RetargetFarBranch()");
 }
 
 void

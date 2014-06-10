@@ -485,7 +485,7 @@ struct AssemblerBufferWithConstantPool : public AssemblerBuffer<SliceSize, Inst>
                 curIndex ++;
                 // loop over all of the pools, copying them into place.
                 uint8_t *poolDest = (uint8_t*)dest;
-                Asm::writePoolHeader(poolDest, cur->data, cur->isNatural);
+                Asm::WritePoolHeader(poolDest, cur->data, cur->isNatural);
                 poolDest += headerSize;
                 for (int idx = 0; idx < numPoolKinds; idx++) {
                     Pool *curPool = &cur->data[idx];
@@ -503,7 +503,7 @@ struct AssemblerBufferWithConstantPool : public AssemblerBuffer<SliceSize, Inst>
                     poolDest += curPool->immSize * curPool->numEntries;
                 }
                 // write a footer in place
-                Asm::writePoolFooter(poolDest, cur->data, cur->isNatural);
+                Asm::WritePoolFooter(poolDest, cur->data, cur->isNatural);
                 poolDest += footerSize;
                 // at this point, poolDest had better still be aligned to a chunk boundary.
                 dest = (Chunk*) poolDest;
@@ -540,7 +540,7 @@ struct AssemblerBufferWithConstantPool : public AssemblerBuffer<SliceSize, Inst>
                 return BufferOffset();
             int poolId = p - pools;
             IonSpew(IonSpew_Pools, "[%d] Entry has token %d, offset ~%d", id, token, size());
-            Asm::insertTokenIntoTag(instSize, inst, token);
+            Asm::InsertTokenIntoTag(instSize, inst, token);
             JS_ASSERT(poolId < (1 << poolKindBits));
             JS_ASSERT(poolId >= 0);
             // Figure out the offset within like-kinded pool entries
@@ -838,12 +838,12 @@ struct AssemblerBufferWithConstantPool : public AssemblerBuffer<SliceSize, Inst>
                 int codeOffset = fakePoolOffset - iter->getOffset() - newPoolInfo.size
                                                 + (numSkips * p->immSize) - skippedBytes;
 
-                // That is, patchConstantPoolLoad wants to be handed the address of the
+                // That is, PatchConstantPoolLoad wants to be handed the address of the
                 // pool entry that is being loaded.  We need to do a non-trivial amount
                 // of math here, since the pool that we've made does not actually reside there
                 // in memory.
                 IonSpew(IonSpew_Pools, "[%d] Fixing offset to %d", id, codeOffset - magicAlign);
-                if (!Asm::patchConstantPoolLoad(inst, (uint8_t*)inst + codeOffset - magicAlign)) {
+                if (!Asm::PatchConstantPoolLoad(inst, (uint8_t*)inst + codeOffset - magicAlign)) {
                     // NOTE: if removing this entry happens to change the alignment of the next
                     // block, chances are you will have a bad time.
                     // ADDENDUM: this CANNOT happen on ARM, because the only elements that
@@ -934,7 +934,7 @@ struct AssemblerBufferWithConstantPool : public AssemblerBuffer<SliceSize, Inst>
                  --iter, --idx) {
                 pools[poolIdx].updateLimiter(*iter);
                 Inst *inst = this->getInst(*iter);
-                Asm::insertTokenIntoTag(pools[poolIdx].instSize, (uint8_t*)inst, outcasts[poolIdx].end()-1-iter);
+                Asm::InsertTokenIntoTag(pools[poolIdx].instSize, (uint8_t*)inst, outcasts[poolIdx].end()-1-iter);
                 pools[poolIdx].insertEntry(&outcastEntries[poolIdx][idx*pools[poolIdx].immSize], *iter, this->LifoAlloc_);
             }
             delete[] outcastEntries[poolIdx];
@@ -981,7 +981,7 @@ struct AssemblerBufferWithConstantPool : public AssemblerBuffer<SliceSize, Inst>
             this->markNextAsBranch();
             this->putBlob(guardSize, nullptr);
             BufferOffset afterPool = this->nextOffset();
-            Asm::writePoolGuard(branch, this->getInst(branch), afterPool);
+            Asm::WritePoolGuard(branch, this->getInst(branch), afterPool);
             markGuard();
             perforatedNode->isNatural = false;
             if (shouldMarkAsBranch)
@@ -1032,12 +1032,12 @@ struct AssemblerBufferWithConstantPool : public AssemblerBuffer<SliceSize, Inst>
                     // We need to manually compute the offset, including a possible bias.
                     int codeOffset = poolOffset - iter->getOffset();
 
-                    // That is, patchConstantPoolLoad wants to be handed the address of the
+                    // That is, PatchConstantPoolLoad wants to be handed the address of the
                     // pool entry that is being loaded.  We need to do a non-trivial amount
                     // of math here, since the pool that we've made does not actually reside there
                     // in memory.
                     IonSpew(IonSpew_Pools, "[%d] Fixing offset to %d", id, codeOffset - magicAlign);
-                    Asm::patchConstantPoolLoad(inst, (uint8_t*)inst + codeOffset - magicAlign);
+                    Asm::PatchConstantPoolLoad(inst, (uint8_t*)inst + codeOffset - magicAlign);
                 }
             }
 
@@ -1069,7 +1069,7 @@ struct AssemblerBufferWithConstantPool : public AssemblerBuffer<SliceSize, Inst>
     }
     void patchBranch(Inst *i, int curpool, BufferOffset branch) {
         const Inst *ci = i;
-        ptrdiff_t offset = Asm::getBranchOffset(ci);
+        ptrdiff_t offset = Asm::GetBranchOffset(ci);
 
         // If the offset is 0, then there is nothing to do.
         if (offset == 0)
@@ -1090,7 +1090,7 @@ struct AssemblerBufferWithConstantPool : public AssemblerBuffer<SliceSize, Inst>
             }
             // Can't assert anything here, since the first pool may be after the target.
         }
-        Asm::retargetNearBranch(i, offset, false);
+        Asm::RetargetNearBranch(i, offset, false);
     }
 
     // Mark the next instruction as a valid guard.  This means we can place a pool here.
@@ -1133,7 +1133,7 @@ struct AssemblerBufferWithConstantPool : public AssemblerBuffer<SliceSize, Inst>
             this->markNextAsBranch();
             this->putBlob(guardSize, nullptr);
             BufferOffset afterPool = this->nextOffset();
-            Asm::writePoolGuard(branch, this->getInst(branch), afterPool);
+            Asm::WritePoolGuard(branch, this->getInst(branch), afterPool);
             markGuard();
             if (perforatedNode != nullptr)
                 perforatedNode->isNatural = false;

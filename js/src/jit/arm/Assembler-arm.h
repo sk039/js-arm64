@@ -1757,14 +1757,14 @@ class Assembler : public AssemblerShared
 
     // API for speaking with the IonAssemblerBufferWithConstantPools
     // generate an initial placeholder instruction that we want to later fix up
-    static void insertTokenIntoTag(uint32_t size, uint8_t *load, int32_t token);
+    static void InsertTokenIntoTag(uint32_t size, uint8_t *load, int32_t token);
     // take the stub value that was written in before, and write in an actual load
     // using the index we'd computed previously as well as the address of the pool start.
-    static bool patchConstantPoolLoad(void* loadAddr, void* constPoolAddr);
+    static bool PatchConstantPoolLoad(void* loadAddr, void* constPoolAddr);
     // this is a callback for when we have filled a pool, and MUST flush it now.
     // The pool requires the assembler to place a branch past the pool, and it
     // calls this function.
-    static uint32_t placeConstantPoolBarrier(int offset);
+    static uint32_t PlaceConstantPoolBarrier(int offset);
     // END API
 
     // move our entire pool into the instruction stream
@@ -1776,17 +1776,17 @@ class Assembler : public AssemblerShared
     void leaveNoPool();
     // this should return a BOffImm, but I didn't want to require everyplace that used the
     // AssemblerBuffer to make that class.
-    static ptrdiff_t getBranchOffset(const Instruction *i);
-    static void retargetNearBranch(Instruction *i, int offset, Condition cond, bool final = true);
-    static void retargetNearBranch(Instruction *i, int offset, bool final = true);
-    static void retargetFarBranch(Instruction *i, uint8_t **slot, uint8_t *dest, Condition cond);
+    static ptrdiff_t GetBranchOffset(const Instruction *i);
+    static void RetargetNearBranch(Instruction *i, int offset, Condition cond, bool final = true);
+    static void RetargetNearBranch(Instruction *i, int offset, bool final = true);
+    static void RetargetFarBranch(Instruction *i, uint8_t **slot, uint8_t *dest, Condition cond);
 
-    static void writePoolHeader(uint8_t *start, Pool *p, bool isNatural);
-    static void writePoolFooter(uint8_t *start, Pool *p, bool isNatural);
-    static void writePoolGuard(BufferOffset branch, Instruction *inst, BufferOffset dest);
+    static void WritePoolHeader(uint8_t *start, Pool *p, bool isNatural);
+    static void WritePoolFooter(uint8_t *start, Pool *p, bool isNatural);
+    static void WritePoolGuard(BufferOffset branch, Instruction *inst, BufferOffset dest);
 
 
-    static uint32_t patchWrite_NearCallSize();
+    static uint32_t PatchWrite_NearCallSize();
     static uint32_t nopSize() { return 4; }
     static void patchWrite_NearCall(CodeLocationLabel start, CodeLocationLabel toCall);
     static void patchDataWithValueCheck(CodeLocationLabel label, PatchedImmPtr newValue,
