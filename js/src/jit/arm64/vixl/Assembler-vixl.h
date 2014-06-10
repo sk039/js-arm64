@@ -240,7 +240,9 @@ class ARMFPRegister : public CPURegister
     {
       VIXL_ASSERT(IsValidARMFPRegister());
     }
-
+    MOZ_CONSTEXPR inline ARMFPRegister(FloatRegister r, unsigned size)
+        : CPURegister(r.code_, size, kARMFPRegister)
+    { }
     MOZ_CONSTEXPR inline ARMFPRegister(unsigned code, unsigned size)
       : CPURegister(code, size, kARMFPRegister)
     { }

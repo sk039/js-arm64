@@ -124,7 +124,22 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         // FIXME: jandem is trying to knock out enoughMemory_ now... needs rebasing.
         return Assembler::oom() || !enoughMemory_;
     }
-
+    void doBaseIndex(const CPURegister &rt, const BaseIndex &addr, LoadStoreOp op) {
+        // Can use ONLY an indexed-reg load
+        if (addr.offset == 0) {
+            LoadStoreMacro(rt, MemOperand(ARMRegister(addr.base, 64),
+                                          ARMRegister(addr.index, 64),
+                                          LSL, unsigned(addr.scale)), op);
+            return;
+        }
+        // TODO: should only add here when we can fit it into a single operand.
+        Add(SecondScratchRegister64,
+            ARMRegister(addr.base, 64),
+            Operand(ARMRegister(addr.index, 64),
+                    LSL,
+                    unsigned(addr.scale)));
+        LoadStoreMacro(rt, MemOperand(SecondScratchRegister64, addr.offset), op);
+    }
     template <typename T>
     void Push(const T &t) {
         JS_ASSERT(0 && "Push()");
@@ -489,34 +504,40 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         JS_ASSERT(0 && "storePtr");
     }
     void storePtr(ImmPtr imm, const Address &address) {
-        JS_ASSERT(0 && "storePtr");
+        Mov(SecondScratchRegister64, uint64_t(imm.value));
+        Str(SecondScratchRegister64, MemOperand(ARMRegister(address.base, 64), address.offset));
     }
     void storePtr(ImmGCPtr imm, const Address &address) {
         JS_ASSERT(0 && "storePtr");
     }
     void storePtr(Register src, const Address &address) {
-        JS_ASSERT(0 && "storePtr");
+        Str(ARMRegister(src, 64), MemOperand(ARMRegister(address.base, 64), address.offset));
     }
     void storePtr(Register src, const BaseIndex &address) {
-        JS_ASSERT(0 && "storePtr");
+        doBaseIndex(ARMRegister(src, 64), address, STR_x);
     }
     void storePtr(Register src, const ARMOperand &dest) {
         JS_ASSERT(0 && "storePtr");
     }
     void storePtr(Register src, AbsoluteAddress address) {
-        JS_ASSERT(0 && "storePtr");
+        Mov(SecondScratchRegister64, uint64_t(address.addr));
+        Str(ARMRegister(src, 64), MemOperand(SecondScratchRegister64));
     }
     void store32(Register src, AbsoluteAddress address) {
-        JS_ASSERT(0 && "store32");
+        Mov(SecondScratchRegister64, uint64_t(address.addr));
+        Str(ARMRegister(src, 32), MemOperand(SecondScratchRegister64));
     }
     void rshiftPtr(Imm32 imm, Register dest) {
-        JS_ASSERT(0 && "rshiftPtr");
+        ARMRegister d(dest, 64);
+        Lsr(d, d, imm.value);
     }
     void rshiftPtrArithmetic(Imm32 imm, Register dest) {
-        JS_ASSERT(0 && "rshiftPtrArithmetic");
+        ARMRegister d(dest, 64);
+        Asr(d, d, imm.value);
     }
     void lshiftPtr(Imm32 imm, Register dest) {
-        JS_ASSERT(0 && "lshiftPtr");
+        ARMRegister d(dest, 64);
+        Lsl(d, d, imm.value);
     }
     void xorPtr(Imm32 imm, Register dest) {
         ARMRegister d(dest, 64);
@@ -604,25 +625,26 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         Cmp(ARMRegister(lhs, 64), Operand(rhs.value));
     }
     void cmpPtr(Register lhs, ImmPtr rhs) {
-        JS_ASSERT(0 && "cmpPtr");
+        Cmp(ARMRegister(lhs, 64), Operand(uint64_t(rhs.value)));
     }
     void cmpPtr(Register lhs, Register rhs) {
-        JS_ASSERT(0 && "cmpPtr");
+        Cmp(ARMRegister(lhs, 64), ARMRegister(rhs, 64));
     }
     void cmpPtr(Register lhs, ImmGCPtr rhs) {
         JS_ASSERT(0 && "cmpPtr");
     }
-    void cmpPtr(Register lhs, Imm32 rhs) {
-        JS_ASSERT(0 && "cmpPtr");
-    }
+
     void cmpPtr(const Address &lhs, Register rhs) {
-        JS_ASSERT(0 && "cmpPtr");
+        Ldr(SecondScratchRegister64, MemOperand(ARMRegister(lhs.base, 64), lhs.offset));
+        Cmp(SecondScratchRegister64, Operand(ARMRegister(rhs, 64)));
     }
     void cmpPtr(const Address &lhs, ImmWord rhs) {
-        JS_ASSERT(0 && "cmpPtr");
+        Ldr(SecondScratchRegister64, MemOperand(ARMRegister(lhs.base, 64), lhs.offset));
+        Cmp(SecondScratchRegister64, Operand(rhs.value));
     }
     void cmpPtr(const Address &lhs, ImmPtr rhs) {
-        JS_ASSERT(0 && "cmpPtr");
+        Ldr(SecondScratchRegister64, MemOperand(ARMRegister(lhs.base, 64), lhs.offset));
+        Cmp(SecondScratchRegister64, Operand(uint64_t(rhs.value)));
     }
 
     void testPtr(Register lhs, Register rhs) {
@@ -630,69 +652,100 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
 
     void loadDouble(const Address &src, FloatRegister dest) {
-        JS_ASSERT(0 && "loadDouble");
+        Ldr(ARMFPRegister(dest, 64), MemOperand(ARMRegister(src.base,64), src.offset));
     }
     void loadDouble(const BaseIndex &src, FloatRegister dest) {
-        JS_ASSERT(0 && "loadDouble");
+        if (src.offset == 0) {
+            Ldr(ARMFPRegister(dest, 64), MemOperand(ARMRegister(src.base, 64),
+                                                    ARMRegister(src.index, 64),
+                                                    LSL,
+                                                    unsigned(src.scale)));
+            return;
+        }
+        Add(SecondScratchRegister64, ARMRegister(src.base, 64), Operand(ARMRegister(src.index, 64), LSL, unsigned(src.scale)));
+        Ldr(ARMFPRegister(dest, 64), MemOperand(SecondScratchRegister64, src.offset));
     }
     void loadFloatAsDouble(const Address &addr, FloatRegister dest) {
-        JS_ASSERT(0 && "loadFloatAsDouble");
+        Ldr(ARMFPRegister(dest, 32), MemOperand(ARMRegister(addr.base,64), addr.offset));
+        fcvt(ARMFPRegister(dest, 64), ARMFPRegister(dest, 32));
     }
     void loadFloatAsDouble(const BaseIndex &src, FloatRegister dest) {
-        JS_ASSERT(0 && "loadFloatAsDouble");
+        if (src.offset == 0) {
+            Ldr(ARMFPRegister(dest, 32), MemOperand(ARMRegister(src.base, 64),
+                                                    ARMRegister(src.index, 64),
+                                                    LSL,
+                                                    unsigned(src.scale)));
+
+        } else {
+            Add(SecondScratchRegister64, ARMRegister(src.base, 64), Operand(ARMRegister(src.index, 64), LSL, unsigned(src.scale)));
+            Ldr(ARMFPRegister(dest, 32), MemOperand(SecondScratchRegister64, src.offset));
+        }
+        fcvt(ARMFPRegister(dest, 64), ARMFPRegister(dest, 32));
     }
 
     void loadFloat32(const Address &addr, FloatRegister dest) {
-        JS_ASSERT(0 && "loadFloat32");
+        Ldr(ARMFPRegister(dest, 32), MemOperand(ARMRegister(addr.base,64), addr.offset));
     }
     void loadFloat32(const BaseIndex &src, FloatRegister dest) {
-        JS_ASSERT(0 && "loadFloat32");
+        if (src.offset == 0) {
+            Ldr(ARMFPRegister(dest, 32), MemOperand(ARMRegister(src.base, 64),
+                                                    ARMRegister(src.index, 64),
+                                                    LSL,
+                                                    unsigned(src.scale)));
+
+        } else {
+            Add(SecondScratchRegister64, ARMRegister(src.base, 64), Operand(ARMRegister(src.index, 64), LSL, unsigned(src.scale)));
+            Ldr(ARMFPRegister(dest, 32), MemOperand(SecondScratchRegister64, src.offset));
+        }
     }
 
     void storeDouble(FloatRegister src, const Address &dest) {
-        JS_ASSERT(0 && "storeDouble");
+        Str(ARMFPRegister(src, 64), MemOperand(ARMRegister(dest.base, 64), dest.offset));
     }
     void storeDouble(FloatRegister src, const BaseIndex &dest) {
-        JS_ASSERT(0 && "storeDouble");
+        doBaseIndex(ARMFPRegister(src, 64), dest, STR_d);
     }
     void storeFloat32(FloatRegister src, Address addr) {
-        JS_ASSERT(0 && "storeFloat32");
+        Str(ARMFPRegister(src, 32), MemOperand(ARMRegister(addr.base, 64), addr.offset));
     }
     void storeFloat32(FloatRegister src, BaseIndex addr) {
-        JS_ASSERT(0 && "storeFloat32");
+        doBaseIndex(ARMFPRegister(src, 32), addr, STR_s);
     }
 
     void moveDouble(FloatRegister src, FloatRegister dest) {
-        JS_ASSERT(0 && "moveDouble");
+        fmov(ARMFPRegister(dest, 64), ARMFPRegister(src, 64));
     }
     void zeroDouble(FloatRegister reg) {
-        JS_ASSERT(0 && "zeroDouble");
+        fmov(ARMFPRegister(reg, 64), xzr);
     }
     void zeroFloat32(FloatRegister reg) {
-        JS_ASSERT(0 && "zeroFloat32");
+        fmov(ARMFPRegister(reg, 32), wzr);
     }
     void negateDouble(FloatRegister reg) {
-        JS_ASSERT(0 && "negateDouble");
+        ARMFPRegister dest(reg, 64);
+        fneg(dest, dest);
     }
     void negateFloat(FloatRegister reg) {
-        JS_ASSERT(0 && "negateFloat");
+        ARMFPRegister dest(reg, 32);
+        fneg(dest, dest);
+
     }
     void addDouble(FloatRegister src, FloatRegister dest) {
-        JS_ASSERT(0 && "addDouble");
+        fadd(ARMFPRegister(dest, 64), ARMFPRegister(dest, 64), ARMFPRegister(src, 64));
     }
     void subDouble(FloatRegister src, FloatRegister dest) {
-        JS_ASSERT(0 && "subDouble");
+        fsub(ARMFPRegister(dest, 64), ARMFPRegister(dest, 64), ARMFPRegister(src, 64));
     }
     void mulDouble(FloatRegister src, FloatRegister dest) {
-        JS_ASSERT(0 && "mulDouble");
+        fmul(ARMFPRegister(dest, 64), ARMFPRegister(dest, 64), ARMFPRegister(src, 64));
     }
     void divDouble(FloatRegister src, FloatRegister dest) {
-        JS_ASSERT(0 && "divDouble");
+        fdiv(ARMFPRegister(dest, 64), ARMFPRegister(dest, 64), ARMFPRegister(src, 64));
     }
 
 
     void moveFloat32(FloatRegister src, FloatRegister dest) {
-        JS_ASSERT(0 && "moveFloat32");
+        fmov(ARMFPRegister(dest, 32), ARMFPRegister(src, 32));
     }
 
     void moveFloatAsDouble(Register src, FloatRegister dest) {
@@ -725,40 +778,40 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
 
     void load32(const Address &address, Register dest) {
-        JS_ASSERT(0 && "load32");
+        Ldr(ARMRegister(dest, 32), MemOperand(ARMRegister(address.base, 64), address.offset));
     }
     void load32(const BaseIndex &src, Register dest) {
-        JS_ASSERT(0 && "load32");
+        doBaseIndex(ARMRegister(dest, 32), src, LDR_w);
     }
-    void load32(const ARMOperand &src, Register dst) {
-        JS_ASSERT(0 && "load32");
-    }
+    //void load32(const ARMOperand &src, Register dst) {
+    //  JS_ASSERT(0 && "load32");
+    //}
     void load8SignExtend(const Address &address, Register dest) {
-        JS_ASSERT(0 && "load8SignExtend");
+        Ldrsb(ARMRegister(dest, 32), MemOperand(ARMRegister(address.base, 64), address.offset));
     }
     void load8SignExtend(const BaseIndex &src, Register dest) {
-        JS_ASSERT(0 && "load8SignExtend");
+        doBaseIndex(ARMRegister(dest, 32), src, LDRSB_w);
     }
 
     void load8ZeroExtend(const Address &address, Register dest) {
-        JS_ASSERT(0 && "load8ZeroExtend");
+        Ldrb(ARMRegister(dest, 64), MemOperand(ARMRegister(address.base, 64), address.offset));
     }
     void load8ZeroExtend(const BaseIndex &src, Register dest) {
-        JS_ASSERT(0 && "load8ZeroExtend");
+        doBaseIndex(ARMRegister(dest, 32), src, LDRB_w);
     }
 
     void load16SignExtend(const Address &address, Register dest) {
-        JS_ASSERT(0 && "load16SignExtend");
+        Ldrsh(ARMRegister(dest, 32), MemOperand(ARMRegister(address.base, 64), address.offset));
     }
     void load16SignExtend(const BaseIndex &src, Register dest) {
-        JS_ASSERT(0 && "load16SignExtend");
+        doBaseIndex(ARMRegister(dest, 32), src, LDRSH_w);
     }
 
     void load16ZeroExtend(const Address &address, Register dest) {
-        JS_ASSERT(0 && "load16ZeroExtend");
+        Ldrh(ARMRegister(dest, 32), MemOperand(ARMRegister(address.base, 64), address.offset));
     }
     void load16ZeroExtend(const BaseIndex &src, Register dest) {
-        JS_ASSERT(0 && "load16ZeroExtend");
+        doBaseIndex(ARMRegister(dest, 32), src, LDRH_w);
     }
 
     template <typename S, typename T>
@@ -767,53 +820,72 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
 
     void add32(Register src, Register dest) {
-        JS_ASSERT(0 && "add32");
+        Add(ARMRegister(dest, 32), ARMRegister(src, 32), Operand(ARMRegister(src, 32)));
     }
     void add32(Imm32 imm, Register dest) {
-        JS_ASSERT(0 && "add32");
+        Add(ARMRegister(dest, 32), ARMRegister(dest, 32), Operand(imm.value));
     }
     void add32(Imm32 imm, const Address &dest) {
-        JS_ASSERT(0 && "add32");
+        Ldr(SecondScratchRegister32, MemOperand(ARMRegister(dest.base, 64), dest.offset));
+        Add(SecondScratchRegister32, SecondScratchRegister32, Operand(imm.value));
+        Str(SecondScratchRegister32, MemOperand(ARMRegister(dest.base, 64), dest.offset));
     }
     void sub32(Imm32 imm, Register dest) {
-        JS_ASSERT(0 && "sub32");
+        Sub(ARMRegister(dest, 32), ARMRegister(dest, 32), Operand(imm.value));
     }
     void sub32(Register src, Register dest) {
-        JS_ASSERT(0 && "sub32");
+        Sub(ARMRegister(dest, 32), ARMRegister(src, 32), Operand(ARMRegister(src, 32)));
     }
 
     void addPtr(Register src, Register dest) {
-        JS_ASSERT(0 && "addPtr");
+        ARMRegister d(dest, 64);
+        ARMRegister s(src, 64);
+        Add(d, d, Operand(s));
     }
     void addPtr(Imm32 imm, Register dest) {
-        JS_ASSERT(0 && "addPtr");
+        ARMRegister d(dest, 64);
+        Add(d, d, Operand(imm.value));
     }
     void addPtr(Imm32 imm, const Address &dest) {
-        JS_ASSERT(0 && "addPtr");
+        Ldr(SecondScratchRegister64, MemOperand(ARMRegister(dest.base, 64), dest.offset));
+        Add(SecondScratchRegister64, SecondScratchRegister64, Operand(imm.value));
+        Str(SecondScratchRegister64, MemOperand(ARMRegister(dest.base, 64), dest.offset));
     }
+#if 0
     void addPtr(Imm32 imm, const ARMOperand &dest) {
         JS_ASSERT(0 && "addPtr");
     }
+#endif
     void addPtr(ImmWord imm, Register dest) {
-        JS_ASSERT(0 && "addPtr");
+        Add(ARMRegister(dest, 64), ARMRegister(dest, 64), Operand(imm.value));
     }
     void addPtr(ImmPtr imm, Register dest) {
-        JS_ASSERT(0 && "addPtr");
+        Add(ARMRegister(dest, 64), ARMRegister(dest, 64), Operand(uint64_t(imm.value)));
     }
     void addPtr(const Address &src, Register dest) {
-        JS_ASSERT(0 && "addPtr");
+        Ldr(SecondScratchRegister64, MemOperand(ARMRegister(src.base, 64), src.offset));
+        ARMRegister d(dest, 64);
+        Add(d, d, Operand(SecondScratchRegister64));
     }
     void subPtr(Imm32 imm, Register dest) {
-        JS_ASSERT(0 && "subPtr");
+        ARMRegister d(dest, 64);
+        Sub(d, d, Operand(imm.value));
     }
     void subPtr(Register src, Register dest) {
-        JS_ASSERT(0 && "subPtr");
+        ARMRegister d(dest, 64);
+        ARMRegister s(src, 64);
+        Sub(d, d, Operand(s));
+
     }
     void subPtr(const Address &addr, Register dest) {
-        JS_ASSERT(0 && "subPtr");
+        Ldr(SecondScratchRegister64, MemOperand(ARMRegister(addr.base, 64), addr.offset));
+        ARMRegister d(dest, 64);
+        Sub(d, d, Operand(SecondScratchRegister64));
     }
     void subPtr(Register src, const Address &dest) {
-        JS_ASSERT(0 && "subPtr");
+        Ldr(SecondScratchRegister64, MemOperand(ARMRegister(dest.base, 64), dest.offset));
+        Sub(SecondScratchRegister64, SecondScratchRegister64, Operand(ARMRegister(src, 64)));
+        Str(SecondScratchRegister64, MemOperand(ARMRegister(dest.base, 64), dest.offset));
     }
     void ret() {
         JS_ASSERT(0 && "ret");
@@ -821,15 +893,15 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
 
     void j(Condition code , Label *dest)
     {
-        JS_ASSERT(0 && "j");
+        b(dest, code);
     }
     void j(Label *dest)
     {
-        JS_ASSERT(0 && "j");
+        b(dest, Always);
     }
 
     void branch(Condition cond, Label *label) {
-      JS_ASSERT(0 && "branch");
+        b(label, cond);
     }
 
     void branch16(Condition cond, Register lhs, Register rhs, Label *label) {
