@@ -48,9 +48,6 @@ class Assembler : public AssemblerVIXL {
         return false;
     }
 
-    void executableCopy(void *buffer) {
-        JS_ASSERT(0 && "executableCopy()");
-    }
     void copyJumpRelocationTable(uint8_t *dest) {
         JS_ASSERT(0 && "copyJumpRelocationTable()");
     }
