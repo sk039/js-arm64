@@ -655,14 +655,13 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         Ldr(ARMFPRegister(dest, 64), MemOperand(ARMRegister(src.base,64), src.offset));
     }
     void loadDouble(const BaseIndex &src, FloatRegister dest) {
+        ARMRegister base(src.base, 64);
+        ARMRegister index(src.index, 64);
         if (src.offset == 0) {
-            Ldr(ARMFPRegister(dest, 64), MemOperand(ARMRegister(src.base, 64),
-                                                    ARMRegister(src.index, 64),
-                                                    LSL,
-                                                    unsigned(src.scale)));
+            Ldr(ARMFPRegister(dest, 64), MemOperand(base, index, LSL, unsigned(src.scale)));
             return;
         }
-        Add(SecondScratchRegister64, ARMRegister(src.base, 64), Operand(ARMRegister(src.index, 64), LSL, unsigned(src.scale)));
+        Add(SecondScratchRegister64, base, Operand(index, LSL, unsigned(src.scale)));
         Ldr(ARMFPRegister(dest, 64), MemOperand(SecondScratchRegister64, src.offset));
     }
     void loadFloatAsDouble(const Address &addr, FloatRegister dest) {
@@ -670,14 +669,12 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         fcvt(ARMFPRegister(dest, 64), ARMFPRegister(dest, 32));
     }
     void loadFloatAsDouble(const BaseIndex &src, FloatRegister dest) {
+        ARMRegister base(src.base, 64);
+        ARMRegister index(src.index, 64);
         if (src.offset == 0) {
-            Ldr(ARMFPRegister(dest, 32), MemOperand(ARMRegister(src.base, 64),
-                                                    ARMRegister(src.index, 64),
-                                                    LSL,
-                                                    unsigned(src.scale)));
-
+            Ldr(ARMFPRegister(dest, 32), MemOperand(base, index, LSL, unsigned(src.scale)));
         } else {
-            Add(SecondScratchRegister64, ARMRegister(src.base, 64), Operand(ARMRegister(src.index, 64), LSL, unsigned(src.scale)));
+            Add(SecondScratchRegister64, base, Operand(index, LSL, unsigned(src.scale)));
             Ldr(ARMFPRegister(dest, 32), MemOperand(SecondScratchRegister64, src.offset));
         }
         fcvt(ARMFPRegister(dest, 64), ARMFPRegister(dest, 32));
@@ -687,14 +684,12 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         Ldr(ARMFPRegister(dest, 32), MemOperand(ARMRegister(addr.base,64), addr.offset));
     }
     void loadFloat32(const BaseIndex &src, FloatRegister dest) {
+        ARMRegister base(src.base, 64);
+        ARMRegister index(src.index, 64);
         if (src.offset == 0) {
-            Ldr(ARMFPRegister(dest, 32), MemOperand(ARMRegister(src.base, 64),
-                                                    ARMRegister(src.index, 64),
-                                                    LSL,
-                                                    unsigned(src.scale)));
-
+            Ldr(ARMFPRegister(dest, 32), MemOperand(base, index, LSL, unsigned(src.scale)));
         } else {
-            Add(SecondScratchRegister64, ARMRegister(src.base, 64), Operand(ARMRegister(src.index, 64), LSL, unsigned(src.scale)));
+            Add(SecondScratchRegister64, base, Operand(index, LSL, unsigned(src.scale)));
             Ldr(ARMFPRegister(dest, 32), MemOperand(SecondScratchRegister64, src.offset));
         }
     }
@@ -851,11 +846,6 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         Add(SecondScratchRegister64, SecondScratchRegister64, Operand(imm.value));
         Str(SecondScratchRegister64, MemOperand(ARMRegister(dest.base, 64), dest.offset));
     }
-#if 0
-    void addPtr(Imm32 imm, const ARMOperand &dest) {
-        JS_ASSERT(0 && "addPtr");
-    }
-#endif
     void addPtr(ImmWord imm, Register dest) {
         Add(ARMRegister(dest, 64), ARMRegister(dest, 64), Operand(imm.value));
     }
@@ -863,8 +853,8 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         Add(ARMRegister(dest, 64), ARMRegister(dest, 64), Operand(uint64_t(imm.value)));
     }
     void addPtr(const Address &src, Register dest) {
-        Ldr(SecondScratchRegister64, MemOperand(ARMRegister(src.base, 64), src.offset));
         ARMRegister d(dest, 64);
+        Ldr(SecondScratchRegister64, MemOperand(ARMRegister(src.base, 64), src.offset));
         Add(d, d, Operand(SecondScratchRegister64));
     }
     void subPtr(Imm32 imm, Register dest) {
@@ -875,7 +865,6 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         ARMRegister d(dest, 64);
         ARMRegister s(src, 64);
         Sub(d, d, Operand(s));
-
     }
     void subPtr(const Address &addr, Register dest) {
         Ldr(SecondScratchRegister64, MemOperand(ARMRegister(addr.base, 64), addr.offset));
@@ -891,12 +880,10 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         JS_ASSERT(0 && "ret");
     }
 
-    void j(Condition code , Label *dest)
-    {
+    void j(Condition code , Label *dest) {
         b(dest, code);
     }
-    void j(Label *dest)
-    {
+    void j(Label *dest) {
         b(dest, Always);
     }
 
@@ -931,7 +918,6 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     void branch32(Condition cond, AbsoluteAddress lhs, Register rhs, Label *label) {
         JS_ASSERT(0 && "branch32");
     }
-
 
     void branchSub32(Condition cond, const ARMOperand &lhs, Register rhs, Label *label) {
         JS_ASSERT(0 && "branchSub32");
@@ -1037,7 +1023,6 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     void branchTestNumber(Condition cond, Register tag, Label *label) {
         JS_ASSERT(0 && "branchTestNumber");
     }
-
 
     void branchTestUndefined(Condition cond, const ARMOperand &operand, Label *label) {
         JS_ASSERT(0 && "branchTestUndefined");
@@ -1213,7 +1198,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
 
     void unboxMagic(const ValueOperand &src, Register dest) {
-        JS_ASSERT(0 && "unboxMagic");
+        move32(src.valueReg(), dest);
     }
 
     void unboxPrivate(const ValueOperand &src, const Register dest) {
@@ -1538,12 +1523,9 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         JS_ASSERT(0 && "callWithABI");
     }
 
-
-
     CodeOffsetLabel labelForPatch() {
         JS_ASSERT(0 && "labelForPatch");
     }
-
 
     void handleFailureWithHandler(void *handler) {
         JS_ASSERT(0 && "handleFailureWithHandler");
@@ -1571,8 +1553,8 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
 
     // FIXME: See CodeGeneratorX64 calls to noteAsmJSGlobalAccess.
-    void patchAsmJSGlobalAccess(CodeOffsetLabel patchAt, uint8_t *code, uint8_t *globalData,
-                                unsigned globalDataOffset)
+    void patchAsmJSGlobalAccess(CodeOffsetLabel patchAt, uint8_t *code,
+                                uint8_t *globalData, unsigned globalDataOffset)
     {
         JS_ASSERT(0 && "patchAsmJSGlobalAccess");
     }
@@ -1670,6 +1652,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         add32(src, dest);
         branch(cond, label);
     }
+
     template <typename T>
     void branchSub32(Condition cond, T src, Register dest, Label *label) {
         sub32(src, dest);
