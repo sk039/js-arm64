@@ -49,13 +49,16 @@ class Assembler : public AssemblerVIXL {
     }
 
     void copyJumpRelocationTable(uint8_t *dest) {
-        JS_ASSERT(0 && "copyJumpRelocationTable()");
+        if (jumpRelocations_.length())
+            memcpy(dest, jumpRelocations_.buffer(), jumpRelocations_.length());
     }
     void copyDataRelocationTable(uint8_t *dest) {
-        JS_ASSERT(0 && "copyDataRelocationTable()");
+        if (dataRelocations_.length())
+            memcpy(dest, dataRelocations_.buffer(), dataRelocations_.length());
     }
     void copyPreBarrierTable(uint8_t *dest) {
-        JS_ASSERT(0 && "copyPreBarrierTable()");
+        if (preBarriers_.length())
+            memcpy(dest, preBarriers_.buffer(), preBarriers_.length());
     }
 
     bool addCodeLabel(CodeLabel label) {
