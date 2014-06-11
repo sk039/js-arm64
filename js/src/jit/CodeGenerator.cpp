@@ -5442,6 +5442,7 @@ JitCompartment::generateStringConcatStub(JSContext *cx, ExecutionMode mode)
 JitCode *
 JitRuntime::generateMallocStub(JSContext *cx)
 {
+#ifndef JS_CODEGEN_ARM64 // FIXME: Get rid of this, augh!
     const Register regReturn = CallTempReg0;
     const Register regNBytes = CallTempReg0;
 
@@ -5475,11 +5476,18 @@ JitRuntime::generateMallocStub(JSContext *cx)
 #endif
 
     return code;
+#else // JS_CODEGEN_ARM64
+    MacroAssembler masm(cx);
+    masm.breakpoint();
+    Linker linker(masm);
+    return linker.newCode<NoGC>(cx, JSC::OTHER_CODE);
+#endif // JS_CODEGEN_ARM64
 }
 
 JitCode *
 JitRuntime::generateFreeStub(JSContext *cx)
 {
+#ifndef JS_CODEGEN_ARM64 // FIXME: Augh handle this
     const Register regSlots = CallTempReg0;
 
     MacroAssembler masm(cx);
@@ -5509,6 +5517,12 @@ JitRuntime::generateFreeStub(JSContext *cx)
 #endif
 
     return code;
+#else // JS_CODEGEN_ARM64
+    MacroAssembler masm(cx);
+    masm.breakpoint();
+    Linker linker(masm);
+    return linker.newCode<NoGC>(cx, JSC::OTHER_CODE);
+#endif // JS_CODEGEN_ARM64
 }
 
 typedef bool (*CharCodeAtFn)(JSContext *, HandleString, int32_t, uint32_t *);

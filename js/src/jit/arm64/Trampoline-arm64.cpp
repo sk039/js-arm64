@@ -32,61 +32,74 @@ static const RegisterSet AllRegs =
 JitCode *
 JitRuntime::generateEnterJIT(JSContext *cx, EnterJitType type)
 {
-    MOZ_ASSUME_UNREACHABLE("generateEnterJIT");
+    // FIXME: Actually implement.
+    MacroAssembler masm;
+    masm.breakpoint();
+    Linker linker(masm);
+    return linker.newCode<NoGC>(cx, JSC::OTHER_CODE);
 }
 
 JitCode *
 JitRuntime::generateInvalidator(JSContext *cx)
 {
-    MOZ_ASSUME_UNREACHABLE("generateInvalidator");
+    // FIXME: Actually implement.
+    MacroAssembler masm;
+    masm.breakpoint();
+    Linker linker(masm);
+    return linker.newCode<NoGC>(cx, JSC::OTHER_CODE);
 }
 
 JitCode *
 JitRuntime::generateArgumentsRectifier(JSContext *cx, ExecutionMode mode, void **returnAddrOut)
 {
-    MOZ_ASSUME_UNREACHABLE("generateArgumentsRectifier");
+    // FIXME: Actually implement.
+    MacroAssembler masm;
+    masm.breakpoint();
+    Linker linker(masm);
+    return linker.newCode<NoGC>(cx, JSC::OTHER_CODE);
 }
 
 static void
 GenerateBailoutThunk(JSContext *cx, MacroAssembler &masm, uint32_t frameClass)
 {
-    MOZ_ASSUME_UNREACHABLE("GenerateBailoutThunk");
+    // FIXME: Actually implement.
 }
 
 JitCode *
 JitRuntime::generateBailoutTable(JSContext *cx, uint32_t frameClass)
 {
-    MOZ_ASSUME_UNREACHABLE("arm64 does not use bailout tables");
+    // FIXME: Actually implement.
+    MacroAssembler masm;
+    masm.breakpoint();
+    Linker linker(masm);
+    return linker.newCode<NoGC>(cx, JSC::OTHER_CODE);
 }
 
 JitCode *
 JitRuntime::generateBailoutHandler(JSContext *cx)
 {
     MacroAssembler masm(cx);
-
     masm.breakpoint();
-    //GenerateBailoutThunk(cx, masm, NO_FRAME_SIZE_CLASS_ID);
-
     Linker linker(masm);
-    JitCode *code = linker.newCode<NoGC>(cx, JSC::OTHER_CODE);
-
-#ifdef JS_ION_PERF
-    writePerfSpewerJitCodeProfile(code, "BailoutHandler");
-#endif
-
-    return code;
+    return linker.newCode<NoGC>(cx, JSC::OTHER_CODE);
 }
 
 JitCode *
 JitRuntime::generateVMWrapper(JSContext *cx, const VMFunction &f)
 {
-    MOZ_ASSUME_UNREACHABLE("generateVMWrapper");
+    MacroAssembler masm(cx);
+    masm.breakpoint();
+    Linker linker(masm);
+    return linker.newCode<NoGC>(cx, JSC::OTHER_CODE);
 }
 
 JitCode *
 JitRuntime::generatePreBarrier(JSContext *cx, MIRType type)
 {
-    MOZ_ASSUME_UNREACHABLE("generatePreBarrier");
+    MacroAssembler masm(cx);
+    masm.breakpoint();
+    Linker linker(masm);
+    return linker.newCode<NoGC>(cx, JSC::OTHER_CODE);
 }
 
 typedef bool (*HandleDebugTrapFn)(JSContext *, BaselineFrame *, uint8_t *, bool *);
@@ -95,41 +108,26 @@ static const VMFunction HandleDebugTrapInfo = FunctionInfo<HandleDebugTrapFn>(Ha
 JitCode *
 JitRuntime::generateDebugTrapHandler(JSContext *cx)
 {
-    MOZ_ASSUME_UNREACHABLE("generateDebugTrapHandler");
+    MacroAssembler masm(cx);
+    masm.breakpoint();
+    Linker linker(masm);
+    return linker.newCode<NoGC>(cx, JSC::OTHER_CODE);
 }
 
 JitCode *
 JitRuntime::generateExceptionTailStub(JSContext *cx)
 {
-    MacroAssembler masm;
-
+    MacroAssembler masm(cx);
     masm.breakpoint();
-    //masm.handleFailureWithHandlerTail();
-
     Linker linker(masm);
-    JitCode *code = linker.newCode<NoGC>(cx, JSC::OTHER_CODE);
-
-#ifdef JS_ION_PERF
-    writePerfSpewerJitCodeProfile(code, "ExceptionTailStub");
-#endif
-
-    return code;
+    return linker.newCode<NoGC>(cx, JSC::OTHER_CODE);
 }
 
 JitCode *
 JitRuntime::generateBailoutTailStub(JSContext *cx)
 {
-    MacroAssembler masm;
-
+    MacroAssembler masm(cx);
     masm.breakpoint();
-    //masm.generateBailoutTail(r1, r2);
-
     Linker linker(masm);
-    JitCode *code = linker.newCode<NoGC>(cx, JSC::OTHER_CODE);
-
-#ifdef JS_ION_PERF
-    writePerfSpewerJitCodeProfile(code, "BailoutTailStub");
-#endif
-
-    return code;
+    return linker.newCode<NoGC>(cx, JSC::OTHER_CODE);
 }
