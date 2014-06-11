@@ -144,13 +144,16 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     void Push(const T &t) {
         JS_ASSERT(0 && "Push()");
     }
+
+    // FIXME: This is the same on every arch.
+    // FIXME: If we can share framePushed_, we can share this.
+    // FIXME: Or just make it at the highest level.
     CodeOffsetLabel PushWithPatch(ImmWord word) {
-        JS_ASSERT(0 && "PushWithPatch");
-        return CodeOffsetLabel(0x0);
+        framePushed_ += sizeof(word.value);
+        return pushWithPatch(word);
     }
     CodeOffsetLabel PushWithPatch(ImmPtr ptr) {
-        JS_ASSERT(0 && "PushWithPatch");
-        return CodeOffsetLabel(0x0);
+        return PushWithPatch(ImmWord(uintptr_t(ptr.value)));
     }
 
     // FIXME: Should be in assembler, or IonMacroAssembler shouldn't use.
@@ -273,7 +276,9 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
 
     CodeOffsetLabel pushWithPatch(ImmWord imm) {
-        JS_ASSERT(0 && "pushWithPatch");
+        CodeOffsetLabel label = movWithPatch(imm, ScratchRegister);
+        push(ScratchRegister);
+        return label;
     }
 
     CodeOffsetLabel movWithPatch(ImmWord imm, Register dest) {
