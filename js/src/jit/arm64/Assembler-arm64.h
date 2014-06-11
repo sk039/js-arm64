@@ -72,7 +72,15 @@ class Assembler : public AssemblerVIXL {
         return codeLabels_[i];
     }
     void processCodeLabels(uint8_t *rawCode) {
-        JS_ASSERT(0 && "processCodeLabels()");
+        for (size_t i = 0; i < codeLabels_.length(); i++) {
+            CodeLabel label = codeLabels_[i];
+            Bind(rawCode, label.dest(), rawCode + actualOffset(label.src()->offset()));
+        }
+    }
+
+    void Bind(uint8_t *rawCode, AbsoluteLabel *label, const void *address) {
+        uint32_t off = actualOffset(label->offset());
+        *reinterpret_cast<const void **>(rawCode + off) = address;
     }
 
     // Size of the jump relocation table, in bytes.
