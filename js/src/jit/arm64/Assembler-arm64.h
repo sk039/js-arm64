@@ -74,25 +74,22 @@ class Assembler : public AssemblerVIXL {
 
     // Size of the jump relocation table, in bytes.
     size_t jumpRelocationTableBytes() const {
-        JS_ASSERT(0 && "jumpRelocationTableBytes()");
-        return 0;
+        return jumpRelocations_.length();
     }
     size_t dataRelocationTableBytes() const {
-        JS_ASSERT(0 && "dataRelocationTableBytes()");
-        return 0;
+        return dataRelocations_.length();
     }
     size_t preBarrierTableBytes() const {
-        JS_ASSERT(0 && "preBarrierTableBytes()");
-        return 0;
+        return preBarriers_.length();
+    }
+    unsigned int bytesNeeded() {
+        return SizeOfCodeGenerated() +
+            jumpRelocationTableBytes() +
+            dataRelocationTableBytes() +
+            preBarrierTableBytes();
     }
     void flushBuffer() {
         JS_ASSERT(0 && "flushBuffer()");
-    }
-    unsigned int bytesNeeded() {
-        return SizeOfCodeGenerated();
-        // TODO: + jumpRelocationTableBytes()
-        // TODO: + dataRelocationTableBytes()
-        // TODO: + preBarrierTableBytes()
     }
     int actualOffset(int curOffset) {
         return curOffset;

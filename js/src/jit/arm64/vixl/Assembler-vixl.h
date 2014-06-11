@@ -1795,6 +1795,11 @@ class AssemblerVIXL : public AssemblerShared
     // The buffer into which code and relocation info are generated.
     ARMBuffer armbuffer_;
 
+    CompactBufferWriter jumpRelocations_;
+    CompactBufferWriter dataRelocations_;
+    CompactBufferWriter relocations_;
+    CompactBufferWriter preBarriers_;
+
     // Literal pools.
     mozilla::Array<Pool, 4> pools_;
 
