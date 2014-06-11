@@ -718,11 +718,10 @@ class SimulatorRuntime
     // Synchronize access between main thread and compilation/PJS threads.
     PRLock *lock_;
     mozilla::DebugOnly<PRThread *> lockOwner_;
-    Decoder *decoder_;
 
   public:
     SimulatorRuntime()
-      : lock_(nullptr), lockOwner_(nullptr), decoder_(nullptr)
+      : lock_(nullptr), lockOwner_(nullptr)
     { }
 
     ~SimulatorRuntime() {
@@ -730,7 +729,6 @@ class SimulatorRuntime
         if (lock_)
             PR_DestroyLock(lock_);
 #endif
-        js_delete(decoder_);
     }
 
     bool init() {
@@ -739,16 +737,7 @@ class SimulatorRuntime
         if (!lock_)
             return false;
 #endif
-        decoder_ = js_new<Decoder>();
-        if (!decoder_) {
-            PR_DestroyLock(lock_);
-            return false;
-        }
         return true;
-    }
-
-    Decoder *decoder() const {
-        return decoder_;
     }
 };
 

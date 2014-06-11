@@ -65,7 +65,17 @@ SimSystemRegister SimSystemRegister::DefaultValueFor(SystemRegister id) {
 
 
 Simulator::Simulator(SimulatorRuntime* srt) {
-  this->init(srt->decoder(), stdout);
+  // TODO: Handle OOM. Probably MOZ_CRASH.
+  decoder_ = js_new<Decoder>();
+  if (!decoder_) {
+    MOZ_ReportAssertionFailure("[unhandlable oom] Decoder", __FILE__, __LINE__);
+    MOZ_CRASH();
+  }
+
+  // FIXME: This just leaks the Decoder object for now, which is probably OK.
+  // FIXME: We should free it at some point.
+  // FIXME: Note that it can't be stored in the SimulatorRuntime due to lifetime conflicts.
+  this->init(decoder_, stdout);
 }
 
 
