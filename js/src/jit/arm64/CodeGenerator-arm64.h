@@ -224,12 +224,10 @@ class OutOfLineBailout : public OutOfLineCodeBase<CodeGeneratorARM64>
 {
   protected: // Silence Clang warning.
     LSnapshot *snapshot_;
-    uint32_t frameSize_;
 
   public:
-    OutOfLineBailout(LSnapshot *snapshot, uint32_t frameSize)
-      : snapshot_(snapshot),
-        frameSize_(frameSize)
+    OutOfLineBailout(LSnapshot *snapshot)
+      : snapshot_(snapshot)
     { }
 
     bool accept(CodeGeneratorARM64 *codegen);

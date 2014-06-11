@@ -63,7 +63,9 @@ JitCode *
 JitRuntime::generateBailoutHandler(JSContext *cx)
 {
     MacroAssembler masm(cx);
-    GenerateBailoutThunk(cx, masm, NO_FRAME_SIZE_CLASS_ID);
+
+    masm.breakpoint();
+    //GenerateBailoutThunk(cx, masm, NO_FRAME_SIZE_CLASS_ID);
 
     Linker linker(masm);
     JitCode *code = linker.newCode<NoGC>(cx, JSC::OTHER_CODE);
@@ -101,7 +103,8 @@ JitRuntime::generateExceptionTailStub(JSContext *cx)
 {
     MacroAssembler masm;
 
-    masm.handleFailureWithHandlerTail();
+    masm.breakpoint();
+    //masm.handleFailureWithHandlerTail();
 
     Linker linker(masm);
     JitCode *code = linker.newCode<NoGC>(cx, JSC::OTHER_CODE);
@@ -118,7 +121,8 @@ JitRuntime::generateBailoutTailStub(JSContext *cx)
 {
     MacroAssembler masm;
 
-    masm.generateBailoutTail(r1, r2);
+    masm.breakpoint();
+    //masm.generateBailoutTail(r1, r2);
 
     Linker linker(masm);
     JitCode *code = linker.newCode<NoGC>(cx, JSC::OTHER_CODE);

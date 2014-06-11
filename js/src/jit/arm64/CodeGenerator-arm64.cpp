@@ -412,27 +412,19 @@ static const uint32_t FrameSizes[] = { 128, 256, 512, 1024 };
 FrameSizeClass
 FrameSizeClass::FromDepth(uint32_t frameDepth)
 {
-    for (uint32_t i = 0; i < JS_ARRAY_LENGTH(FrameSizes); i++) {
-        if (frameDepth < FrameSizes[i])
-            return FrameSizeClass(i);
-    }
-
     return FrameSizeClass::None();
 }
 
 FrameSizeClass
 FrameSizeClass::ClassLimit()
 {
-    return FrameSizeClass(JS_ARRAY_LENGTH(FrameSizes));
+    return FrameSizeClass(0);
 }
 
 uint32_t
 FrameSizeClass::frameSize() const
 {
-    JS_ASSERT(class_ != NO_FRAME_SIZE_CLASS_ID);
-    JS_ASSERT(class_ < JS_ARRAY_LENGTH(FrameSizes));
-
-    return FrameSizes[class_];
+    MOZ_ASSUME_UNREACHABLE("arm64 does not use frame size classes");
 }
 
 ValueOperand
