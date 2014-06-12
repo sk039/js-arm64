@@ -1711,8 +1711,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     // FIXME: Should be in Assembler?
     // FIXME: Should be const?
     uint32_t currentOffset() {
-        JS_ASSERT(0 && "currentOffset");
-        return 0;
+        return nextOffset().getOffset();
     }
 
   protected:
