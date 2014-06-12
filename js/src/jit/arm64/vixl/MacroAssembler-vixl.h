@@ -94,7 +94,7 @@ class MacroAssemblerVIXL : public Assembler
   public:
     MacroAssemblerVIXL()
       : Assembler(),
-        sp_(sp),
+        sp_(ARMRegister(Registers::StackPointer, 64)),
         tmp_list_(ip0, ip1),
         fptmp_list_(d31)
     { }

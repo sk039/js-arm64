@@ -107,7 +107,13 @@ class Registers {
 
     static Code FromName(const char *name);
 
-    static const Code StackPointer = sp;
+    // The StackPointer must be 16-byte aligned at all times per ABI.
+    // This makes pushing single registers impossible without using another stack pointer.
+    // So we use a normal register.
+    // FIXME: Most code is probably 16-byte aligned, just broken up into parts.
+    // FIXME: Can we use sp by merging the pushes?
+    static const Code StackPointer = x28;
+
     static const Code Invalid = invalid_reg;
 
     static const uint32_t Total = 32;
@@ -141,7 +147,7 @@ class Registers {
         (1 << Registers::x21) | (1 << Registers::x22) |
         (1 << Registers::x23) | (1 << Registers::x24) |
         (1 << Registers::x25) | (1 << Registers::x26) |
-        (1 << Registers::x27) | (1 << Registers::x28) |
+        (1 << Registers::x27) |
         (1 << Registers::x29) | (1 << Registers::x30);
 
     // FIXME: Validate
@@ -149,6 +155,7 @@ class Registers {
 
     // FIXME: Validate
     static const uint32_t NonAllocatableMask =
+        (1 << Registers::x28) | // FIXME: Keeping this?
         (1 << Registers::ip0) | // FIXME: Make this scratch0?
         (1 << Registers::ip1) | // FIXME: Make this scratch1?
         (1 << Registers::tls) |

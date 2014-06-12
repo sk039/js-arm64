@@ -159,10 +159,18 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         JS_ASSERT(0 && "push");
     }
 
+    void push(Register reg) {
+        MacroAssemblerVIXL::Push(ARMRegister(reg, 64));
+    }
+
     // FIXME: Should be in assembler, or IonMacroAssembler shouldn't use.
     template <typename T>
     void pop(const T t) {
         JS_ASSERT(0 && "pop");
+    }
+
+    void pop(Register reg) {
+        MacroAssemblerVIXL::Pop(ARMRegister(reg, 64));
     }
 
     void implicitPop(uint32_t args) {
