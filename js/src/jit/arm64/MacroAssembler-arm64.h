@@ -140,9 +140,34 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
                     unsigned(addr.scale)));
         LoadStoreMacro(rt, MemOperand(SecondScratchRegister64, addr.offset), op);
     }
+
     template <typename T>
-    void Push(const T &t) {
-        JS_ASSERT(0 && "Push()");
+    void Push(const T t) {
+        push(t);
+        adjustFrame(sizeof(T));
+    }
+
+    template <typename T>
+    void Pop(const T t) {
+        pop(t);
+        adjustFrame(-sizeof(T));
+    }
+
+    // FIXME: Should be in assembler, or IonMacroAssembler shouldn't use.
+    template <typename T>
+    void push(const T t) {
+        JS_ASSERT(0 && "push");
+    }
+
+    // FIXME: Should be in assembler, or IonMacroAssembler shouldn't use.
+    template <typename T>
+    void pop(const T t) {
+        JS_ASSERT(0 && "pop");
+    }
+
+    void implicitPop(uint32_t args) {
+        JS_ASSERT(args % sizeof(intptr_t) == 0);
+        adjustFrame(-args);
     }
 
     // FIXME: This is the same on every arch.
@@ -156,26 +181,6 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         return PushWithPatch(ImmWord(uintptr_t(ptr.value)));
     }
 
-    // FIXME: Should be in assembler, or IonMacroAssembler shouldn't use.
-    template <typename T>
-    void push(const T &t) {
-        JS_ASSERT(0 && "push");
-    }
-
-    template <typename T>
-    void Pop(const T &t) {
-        JS_ASSERT(0 && "Pop()");
-    }
-
-    // FIXME: Should be in assembler, or IonMacroAssembler shouldn't use.
-    template <typename T>
-    void pop(const T &t) {
-        JS_ASSERT(0 && "pop");
-    }
-    void implicitPop(uint32_t args) {
-        JS_ASSERT(args % sizeof(intptr_t) == 0);
-        adjustFrame(-args);
-    }
     uint32_t framePushed() const {
         return framePushed_;
     }
