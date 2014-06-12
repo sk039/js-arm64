@@ -47,7 +47,7 @@ struct IndexInfo;
 struct IndexUpdateInfo;
 struct ObjectStoreInfo;
 
-struct FileHandleData;
+struct MutableFileData;
 struct BlobOrFileData;
 
 class IDBObjectStore MOZ_FINAL : public nsISupports,
@@ -282,8 +282,9 @@ public:
     aName.Assign(mName);
   }
 
-  JS::Value
-  GetKeyPath(JSContext* aCx, ErrorResult& aRv);
+  void
+  GetKeyPath(JSContext* aCx, JS::MutableHandle<JS::Value> aResult,
+             ErrorResult& aRv);
 
   already_AddRefed<DOMStringList>
   GetIndexNames(ErrorResult& aRv);
@@ -386,8 +387,8 @@ protected:
   ClearStructuredCloneBuffer(JSAutoStructuredCloneBuffer& aBuffer);
 
   static bool
-  ReadFileHandle(JSStructuredCloneReader* aReader,
-                 FileHandleData* aRetval);
+  ReadMutableFile(JSStructuredCloneReader* aReader,
+                  MutableFileData* aRetval);
 
   static bool
   ReadBlobOrFile(JSStructuredCloneReader* aReader,
