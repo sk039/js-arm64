@@ -1454,10 +1454,24 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
 
     void bind(Label *label) {
-        JS_ASSERT(0 && "bind");
+        // Bind to the next instruction.
+        bind(label, nextOffset());
+    }
+    void bind(Label *label, BufferOffset boff) {
+        if (!label->used()) {
+            label->bind(boff.getOffset());
+            return;
+        }
+
+        JS_ASSERT(0 && "bind (Actual case)");
     }
     void bind(RepatchLabel* label) {
-        JS_ASSERT(0 && "bind");
+        if (!label->used()) {
+            label->bind(nextOffset().getOffset());
+            return;
+        }
+
+        JS_ASSERT(0 && "bind (RepatchLabel)");
     }
 
     void writeDataRelocation(const Value &val) {

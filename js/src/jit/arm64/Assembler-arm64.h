@@ -61,6 +61,10 @@ class Assembler : public AssemblerVIXL {
             memcpy(dest, preBarriers_.buffer(), preBarriers_.length());
     }
 
+    BufferOffset nextOffset() {
+        return armbuffer_.nextOffset();
+    }
+
     bool addCodeLabel(CodeLabel label) {
         JS_ASSERT(0 && "addCodeLabel()");
         return false;
