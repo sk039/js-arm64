@@ -87,10 +87,30 @@ JitRuntime::generateBailoutHandler(JSContext *cx)
 JitCode *
 JitRuntime::generateVMWrapper(JSContext *cx, const VMFunction &f)
 {
+    JS_ASSERT(functionWrappers_);
+    JS_ASSERT(functionWrappers_->initialized());
+    VMWrapperMap::AddPtr p = functionWrappers_->lookupForAdd(&f);
+    if (p)
+        return p->value();
+
     MacroAssembler masm(cx);
     masm.breakpoint();
+
     Linker linker(masm);
-    return linker.newCode<NoGC>(cx, JSC::OTHER_CODE);
+    JitCode *wrapper = linker.newCode<NoGC>(cx, JSC::OTHER_CODE);
+    if (!wrapper)
+        return nullptr;
+
+#ifdef JS_ION_PERF
+    writePerfSpewerJitCodeProfile(wrapper, "VMWrapper");
+#endif
+
+    // linker.newCode may trigger a GC and sweep functionWrappers_ so we have to
+    // use relookupOrAdd instead of add.
+    if (!functionWrappers_->relookupOrAdd(p, &f, wrapper))
+        return nullptr;
+
+    return wrapper;
 }
 
 JitCode *
