@@ -21,8 +21,8 @@ static MOZ_CONSTEXPR_VAR Register BaselineStackReg {Registers::sp};
 // R0 == JSReturnReg, and R2 uses registers not
 // preserved across calls.  R1 value should be
 // preserved across calls.
-static MOZ_CONSTEXPR_VAR Register R0_{Registers::x1};
-static MOZ_CONSTEXPR_VAR Register R1_{Registers::x2};
+static MOZ_CONSTEXPR_VAR Register R0_{Registers::x2};
+static MOZ_CONSTEXPR_VAR Register R1_{Registers::x19};
 static MOZ_CONSTEXPR_VAR Register R2_{Registers::x0};
 static MOZ_CONSTEXPR_VAR ValueOperand R0(R0_);
 static MOZ_CONSTEXPR_VAR ValueOperand R1(R1_);
@@ -55,4 +55,4 @@ static MOZ_CONSTEXPR_VAR FloatRegister FloatReg1   {FloatRegisters::v1};
 
 #endif // JS_ION
 
-#endif /* jit_arm64_BaselineRegisters_arm64_h */
+#endif // jit_arm64_BaselineRegisters_arm64_h

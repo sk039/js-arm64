@@ -35,44 +35,44 @@ EmitRepushTailCallReg(MacroAssembler &masm)
 inline void
 EmitCallIC(CodeOffsetLabel *patchOffset, MacroAssembler &masm)
 {
-    JS_ASSERT(0 && "EmitCallIC");
+    masm.Brk(11);
 }
 
 inline void
 EmitEnterTypeMonitorIC(MacroAssembler &masm,
                        size_t monitorStubOffset = ICMonitoredStub::offsetOfFirstMonitorStub())
 {
-    JS_ASSERT(0 && "EmitEnterTypeMonitorIC");
+    masm.Brk(12);
 }
 
 inline void
 EmitReturnFromIC(MacroAssembler &masm)
 {
-    JS_ASSERT(0 && "EmitReturnFromIC");
+    masm.Brk(13);
 }
 
 inline void
 EmitChangeICReturnAddress(MacroAssembler &masm, Register reg)
 {
-    JS_ASSERT(0 && "EmitChangeICReturnAddress");
+    masm.Brk(14);
 }
 
 inline void
 EmitTailCallVM(JitCode *target, MacroAssembler &masm, uint32_t argSize)
 {
-    JS_ASSERT(0 && "EmitTailCallVM");
+    masm.Brk(15);
 }
 
 inline void
 EmitCreateStubFrameDescriptor(MacroAssembler &masm, Register reg)
 {
-    JS_ASSERT(0 && "EmitTailCallVM");
+    masm.Brk(16);
 }
 
 inline void
 EmitCallVM(JitCode *target, MacroAssembler &masm)
 {
-    JS_ASSERT(0 && "EmitTailCallVM");
+    masm.Brk(17);
 }
 
 // Size of vales pushed by EmitEnterStubFrame.
@@ -82,45 +82,45 @@ static const uint32_t STUB_FRAME_SAVED_STUB_OFFSET = sizeof(void *);
 inline void
 EmitEnterStubFrame(MacroAssembler &masm, Register scratch)
 {
-    JS_ASSERT(0 && "EmitTailCallVM");
+    masm.Brk(18);
 }
 
 inline void
 EmitLeaveStubFrame(MacroAssembler &masm, bool calledIntoIon = false)
 {
-    JS_ASSERT(0 && "EmitTailCallVM");
+    masm.Brk(19);
 }
 
 inline void
 EmitStowICValues(MacroAssembler &masm, int values)
 {
-    JS_ASSERT(0 && "EmitTailCallVM");
+    masm.Brk(20);
 }
 
 inline void
 EmitUnstowICValues(MacroAssembler &masm, int values, bool discard = false)
 {
-    JS_ASSERT(0 && "EmitTailCallVM");
+    masm.Brk(21);
 }
 
 inline void
 EmitCallTypeUpdateIC(MacroAssembler &masm, JitCode *code, uint32_t objectOffset)
 {
     JS_ASSERT(R2 == ValueOperand(r0));
-    JS_ASSERT(0 && "EmitTailCallVM");
+    masm.Brk(22);
 }
 
 template <typename AddrType>
 inline void
 EmitPreBarrier(MacroAssembler &masm, const AddrType &addr, MIRType type)
 {
-    JS_ASSERT(0 && "EmitTailCallVM");
+    masm.Brk(23);
 }
 
 inline void
 EmitStubGuardFailure(MacroAssembler &masm)
 {
-    JS_ASSERT(0 && "EmitTailCallVM");
+    masm.Brk(24);
 }
 
 
@@ -129,4 +129,4 @@ EmitStubGuardFailure(MacroAssembler &masm)
 
 #endif // JS_ION
 
-#endif /* jit_arm64_BaselineHelpers_arm64_h */
+#endif // jit_arm64_BaselineHelpers_arm64_h
