@@ -150,7 +150,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     template <typename T>
     void Pop(const T t) {
         pop(t);
-        adjustFrame(-sizeof(T));
+        adjustFrame(-1 * (int32_t)(sizeof(T)));
     }
 
     // FIXME: Should be in assembler, or IonMacroAssembler shouldn't use.
