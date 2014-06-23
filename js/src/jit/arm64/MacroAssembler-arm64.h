@@ -446,10 +446,10 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         JS_ASSERT(0 && "movePtr");
     }
     void movePtr(ImmWord imm, Register dest) {
-        JS_ASSERT(0 && "movePtr");
+        Mov(ARMRegister(dest, 64), (int64_t)imm.value);
     }
     void movePtr(ImmPtr imm, Register dest) {
-        JS_ASSERT(0 && "movePtr");
+        Mov(ARMRegister(dest, 64), (int64_t)imm.value);
     }
     void movePtr(AsmJSImmPtr imm, Register dest) {
         JS_ASSERT(0 && "movePtr");
@@ -458,7 +458,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         JS_ASSERT(0 && "movePtr");
     }
     void move32(Imm32 imm, Register dest) {
-        JS_ASSERT(0 && "move32");
+        Mov(ARMRegister(dest, 32), (int64_t)imm.value);
     }
     void move32(Register src, Register dest) {
         Mov(ARMRegister(dest, 32), ARMRegister(src, 32));
