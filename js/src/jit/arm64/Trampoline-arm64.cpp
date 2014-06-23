@@ -76,8 +76,9 @@ JitRuntime::generateBailoutTable(JSContext *cx, uint32_t frameClass)
 }
 
 JitCode *
-JitRuntime::generateBailoutHandler(JSContext *cx)
+JitRuntime::generateBailoutHandler(JSContext *cx, ExecutionMode mode)
 {
+    // FIXME: Actually implement.
     MacroAssembler masm(cx);
     masm.breakpoint();
     Linker linker(masm);

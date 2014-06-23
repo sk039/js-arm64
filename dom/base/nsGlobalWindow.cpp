@@ -2359,6 +2359,7 @@ nsGlobalWindow::SetNewDocument(nsIDocument* aDocument,
 #endif
 
   AutoJSAPI jsapi;
+  jsapi.Init();
   JSContext *cx = jsapi.cx();
 
   if (!mDoc) {
@@ -3616,7 +3617,11 @@ nsGlobalWindow::GetPerformance(ErrorResult& aError)
 {
   FORWARD_TO_INNER_OR_THROW(GetPerformance, (aError), aError, nullptr);
 
-  return nsPIDOMWindow::GetPerformance();
+  nsPerformance* p = nsPIDOMWindow::GetPerformance();
+  if (!p) {
+    aError.Throw(NS_ERROR_FAILURE);
+  }
+  return p;
 }
 
 NS_IMETHODIMP
@@ -8001,6 +8006,7 @@ PostMessageEvent::Run()
                     "should have been passed an outer window!");
 
   AutoJSAPI jsapi;
+  jsapi.Init();
   JSContext* cx = jsapi.cx();
 
   // If we bailed before this point we're going to leak mMessage, but

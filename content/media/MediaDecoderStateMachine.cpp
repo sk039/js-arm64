@@ -217,6 +217,7 @@ MediaDecoderStateMachine::MediaDecoderStateMachine(MediaDecoder* aDecoder,
   mDropAudioUntilNextDiscontinuity(false),
   mDropVideoUntilNextDiscontinuity(false),
   mDecodeToSeekTarget(false),
+  mCurrentTimeBeforeSeek(0),
   mLastFrameStatus(MediaDecoderOwner::NEXT_FRAME_UNINITIALIZED),
   mTimerId(0)
 {
@@ -774,6 +775,17 @@ MediaDecoderStateMachine::OnAudioDecoded(AudioData* aAudioSample)
       if (!mDropAudioUntilNextDiscontinuity) {
         // We must be after the discontinuity; we're receiving samples
         // at or after the seek target.
+        if (mCurrentSeekTarget.mType == SeekTarget::PrevSyncPoint &&
+            mCurrentSeekTarget.mTime > mCurrentTimeBeforeSeek &&
+            audio->mTime < mCurrentTimeBeforeSeek) {
+          // We are doing a fastSeek, but we ended up *before* the previous
+          // playback position. This is surprising UX, so switch to an accurate
+          // seek and decode to the seek target. This is not conformant to the
+          // spec, fastSeek should always be fast, but until we get the time to
+          // change all Readers to seek to the keyframe after the currentTime
+          // in this case, we'll just decode forward. Bug 1026330.
+          mCurrentSeekTarget.mType = SeekTarget::Accurate;
+        }
         if (mCurrentSeekTarget.mType == SeekTarget::PrevSyncPoint) {
           // Non-precise seek; we can stop the seek at the first sample.
           AudioQueue().Push(audio.forget());
@@ -950,6 +962,17 @@ MediaDecoderStateMachine::OnVideoDecoded(VideoData* aVideoSample)
       if (!mDropVideoUntilNextDiscontinuity) {
         // We must be after the discontinuity; we're receiving samples
         // at or after the seek target.
+        if (mCurrentSeekTarget.mType == SeekTarget::PrevSyncPoint &&
+            mCurrentSeekTarget.mTime > mCurrentTimeBeforeSeek &&
+            video->mTime < mCurrentTimeBeforeSeek) {
+          // We are doing a fastSeek, but we ended up *before* the previous
+          // playback position. This is surprising UX, so switch to an accurate
+          // seek and decode to the seek target. This is not conformant to the
+          // spec, fastSeek should always be fast, but until we get the time to
+          // change all Readers to seek to the keyframe after the currentTime
+          // in this case, we'll just decode forward. Bug 1026330.
+          mCurrentSeekTarget.mType = SeekTarget::Accurate;
+        }
         if (mCurrentSeekTarget.mType == SeekTarget::PrevSyncPoint) {
           // Non-precise seek; we can stop the seek at the first sample.
           VideoQueue().Push(video.forget());
@@ -1706,8 +1729,7 @@ void MediaDecoderStateMachine::Play()
 
 void MediaDecoderStateMachine::ResetPlayback()
 {
-  NS_ASSERTION(OnDecodeThread(), "Should be on decode thread.");
-  MOZ_ASSERT(mState == DECODER_STATE_SEEKING);
+  MOZ_ASSERT(mState == DECODER_STATE_SEEKING || mState == DECODER_STATE_SHUTDOWN);
   mVideoFrameEndTime = -1;
   mAudioStartTime = -1;
   mAudioEndTime = -1;
@@ -2310,8 +2332,8 @@ void MediaDecoderStateMachine::DecodeSeek()
   mDecoder->StopProgressUpdates();
 
   bool currentTimeChanged = false;
-  const int64_t mediaTime = GetMediaTime();
-  if (mediaTime != seekTime) {
+  mCurrentTimeBeforeSeek = GetMediaTime();
+  if (mCurrentTimeBeforeSeek != seekTime) {
     currentTimeChanged = true;
     // Stop playback now to ensure that while we're outside the monitor
     // dispatching SeekingStarted, playback doesn't advance and mess with
@@ -2365,7 +2387,7 @@ void MediaDecoderStateMachine::DecodeSeek()
         res = mReader->Seek(seekTime,
                             mStartTime,
                             mEndTime,
-                            mediaTime);
+                            mCurrentTimeBeforeSeek);
       }
     }
     if (NS_FAILED(res)) {
@@ -2527,9 +2549,32 @@ nsresult MediaDecoderStateMachine::RunStateMachine()
         StopPlayback();
       }
 
+      // Put a task in the decode queue to abort any decoding operations.
+      // The reader is not supposed to put any tasks to deliver samples into
+      // the queue after we call this (unless we request another sample from it).
+      RefPtr<nsIRunnable> task;
+      task = NS_NewRunnableMethod(mReader, &MediaDecoderReader::ResetDecode);
+      mDecodeTaskQueue->Dispatch(task);
+
+      {
+        // Wait for the thread decoding to abort decoding operations and run
+        // any pending callbacks. This is important, as we don't want any
+        // pending tasks posted to the task queue by the reader to deliver
+        // any samples after we've posted the reader Shutdown() task below,
+        // as the sample-delivery tasks will keep video frames alive until
+        // after we've called Reader::Shutdown(), and shutdown on B2G will
+        // fail as there are outstanding video frames alive.
+        ReentrantMonitorAutoExit exitMon(mDecoder->GetReentrantMonitor());
+        mDecodeTaskQueue->Flush();
+      }
+
+      // We must reset playback so that all references to frames queued
+      // in the state machine are dropped, else the Shutdown() call below
+      // can fail on B2G.
+      ResetPlayback();
+
       // Put a task in the decode queue to shutdown the reader.
-      RefPtr<nsIRunnable> task(
-        NS_NewRunnableMethod(mReader, &MediaDecoderReader::Shutdown));
+      task = NS_NewRunnableMethod(mReader, &MediaDecoderReader::Shutdown);
       mDecodeTaskQueue->Dispatch(task);
 
       StopAudioThread();
@@ -2548,9 +2593,6 @@ nsresult MediaDecoderStateMachine::RunStateMachine()
         mDecodeTaskQueue->Shutdown();
         mDecodeTaskQueue = nullptr;
       }
-
-      AudioQueue().Reset();
-      VideoQueue().Reset();
 
       // The reader's listeners hold references to the state machine,
       // creating a cycle which keeps the state machine and its shared

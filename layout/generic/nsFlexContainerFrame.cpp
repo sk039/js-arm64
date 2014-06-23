@@ -1056,7 +1056,7 @@ nsFlexContainerFrame::GenerateFlexItemForChild(
   return item;
 }
 
-nsresult
+void
 nsFlexContainerFrame::
   ResolveFlexItemMaxContentSizing(nsPresContext* aPresContext,
                                   FlexItem& aFlexItem,
@@ -1066,7 +1066,7 @@ nsFlexContainerFrame::
   if (IsAxisHorizontal(aAxisTracker.GetMainAxis())) {
     // Nothing to do -- this function is only for measuring flex items
     // in a vertical flex container.
-    return NS_OK;
+    return;
   }
 
   if (NS_AUTOHEIGHT != aFlexItem.GetFlexBaseSize()) {
@@ -1074,7 +1074,7 @@ nsFlexContainerFrame::
     // with a base size of "auto" (or equivalent).
     // XXXdholbert If & when we handle "min-height: min-content" for flex items,
     // we'll want to resolve that in this function, too.
-    return NS_OK;
+    return;
   }
 
   // If we get here, we're vertical and our main size ended up being
@@ -1148,8 +1148,6 @@ nsFlexContainerFrame::
 
   aFlexItem.SetFlexBaseSizeAndMainSize(childDesiredHeight);
   aFlexItem.SetHadMeasuringReflow();
-
-  return NS_OK;
 }
 
 FlexItem::FlexItem(nsIFrame* aChildFrame,
@@ -2623,7 +2621,7 @@ AddNewFlexLineToList(LinkedList<FlexLine>& aLines,
   return newLine;
 }
 
-nsresult
+void
 nsFlexContainerFrame::GenerateFlexLines(
   nsPresContext* aPresContext,
   const nsHTMLReflowState& aReflowState,
@@ -2706,9 +2704,8 @@ nsFlexContainerFrame::GenerateFlexLines(
       item = GenerateFlexItemForChild(aPresContext, childFrame,
                                       aReflowState, aAxisTracker);
 
-      nsresult rv = ResolveFlexItemMaxContentSizing(aPresContext, *item,
-                                                    aReflowState, aAxisTracker);
-      NS_ENSURE_SUCCESS(rv,rv);
+      ResolveFlexItemMaxContentSizing(aPresContext, *item,
+                                      aReflowState, aAxisTracker);
     }
 
     nscoord itemInnerHypotheticalMainSize = item->GetMainSize();
@@ -2738,8 +2735,6 @@ nsFlexContainerFrame::GenerateFlexLines(
     }
     itemIdxInContainer++;
   }
-
-  return NS_OK;
 }
 
 // Retrieves the content-box main-size of our flex container from the
@@ -2753,10 +2748,10 @@ nsFlexContainerFrame::GetMainSizeFromReflowState(
   if (IsAxisHorizontal(aAxisTracker.GetMainAxis())) {
     // Horizontal case is easy -- our main size is our computed width
     // (which is already resolved).
-    return aReflowState.ComputedWidth();
+    return aReflowState.ComputedISize();
   }
 
-  return GetEffectiveComputedHeight(aReflowState);
+  return GetEffectiveComputedBSize(aReflowState);
 }
 
 // Returns the largest outer hypothetical main-size of any line in |aLines|.
@@ -2842,20 +2837,20 @@ nsFlexContainerFrame::ComputeCrossSize(const nsHTMLReflowState& aReflowState,
     // Cross axis is horizontal: our cross size is our computed width
     // (which is already resolved).
     *aIsDefinite = true;
-    return aReflowState.ComputedWidth();
+    return aReflowState.ComputedISize();
   }
 
-  nscoord effectiveComputedHeight = GetEffectiveComputedHeight(aReflowState);
-  if (effectiveComputedHeight != NS_INTRINSICSIZE) {
+  nscoord effectiveComputedBSize = GetEffectiveComputedBSize(aReflowState);
+  if (effectiveComputedBSize != NS_INTRINSICSIZE) {
     // Cross-axis is vertical, and we have a fixed height:
     *aIsDefinite = true;
     if (aAvailableHeightForContent == NS_UNCONSTRAINEDSIZE ||
-        effectiveComputedHeight < aAvailableHeightForContent) {
+        effectiveComputedBSize < aAvailableHeightForContent) {
       // Not in a fragmenting context, OR no need to fragment because we have
       // more available height than we need. Either way, just use our fixed
       // height.  (Note that the reflow state has already done the appropriate
       // min/max-height clamping.)
-      return effectiveComputedHeight;
+      return effectiveComputedBSize;
     }
 
     // Fragmenting *and* our fixed height is too tall for available height:
@@ -2869,7 +2864,7 @@ nsFlexContainerFrame::ComputeCrossSize(const nsHTMLReflowState& aReflowState,
     if (aSumLineCrossSizes <= aAvailableHeightForContent) {
       return aAvailableHeightForContent;
     }
-    return std::min(effectiveComputedHeight, aSumLineCrossSizes);
+    return std::min(effectiveComputedBSize, aSumLineCrossSizes);
   }
 
   // Cross axis is vertical and we have auto-height: shrink-wrap our line(s),
@@ -2916,14 +2911,15 @@ static void
 ResolveReflowedChildAscent(nsIFrame* aFrame,
                            nsHTMLReflowMetrics& aChildDesiredSize)
 {
+  WritingMode wm = aChildDesiredSize.GetWritingMode();
   if (aChildDesiredSize.BlockStartAscent() ==
       nsHTMLReflowMetrics::ASK_FOR_BASELINE) {
     // Use GetFirstLineBaseline(), or just GetBaseline() if that fails.
     nscoord ascent;
-    if (nsLayoutUtils::GetFirstLineBaseline(aFrame, &ascent)) {
+    if (nsLayoutUtils::GetFirstLineBaseline(wm, aFrame, &ascent)) {
       aChildDesiredSize.SetBlockStartAscent(ascent);
     } else {
-      aChildDesiredSize.SetBlockStartAscent(aFrame->GetBaseline());
+      aChildDesiredSize.SetBlockStartAscent(aFrame->GetLogicalBaseline(wm));
     }
   }
 }
@@ -2945,7 +2941,7 @@ ComputePhysicalAscentFromLogicalAscent(nscoord aLogicalAscent,
                               aAxisTracker.GetCrossAxis());
 }
 
-nsresult
+void
 nsFlexContainerFrame::SizeItemInCrossAxis(
   nsPresContext* aPresContext,
   const FlexboxAxisTracker& aAxisTracker,
@@ -2964,7 +2960,7 @@ nsFlexContainerFrame::SizeItemInCrossAxis(
                "In vert flex container, we depend on FlexItem constructor to "
                "convert 'align-self: baseline' to 'align-self: flex-start'");
     aItem.SetCrossSize(aChildReflowState.ComputedWidth());
-    return NS_OK;
+    return;
   }
 
   MOZ_ASSERT(!aItem.HadMeasuringReflow(),
@@ -3028,8 +3024,6 @@ nsFlexContainerFrame::SizeItemInCrossAxis(
     ResolveReflowedChildAscent(aItem.Frame(), childDesiredSize);
     aItem.SetAscent(childDesiredSize.BlockStartAscent());
   }
-
-  return NS_OK;
 }
 
 void
@@ -3129,11 +3123,11 @@ nsFlexContainerFrame::Reflow(nsPresContext*           aPresContext,
                                                           axisTracker);
 
   nsAutoTArray<StrutInfo, 1> struts;
-  nsresult rv = DoFlexLayout(aPresContext, aDesiredSize, aReflowState, aStatus,
-                             contentBoxMainSize, availableHeightForContent,
-                             struts, axisTracker);
+  DoFlexLayout(aPresContext, aDesiredSize, aReflowState, aStatus,
+               contentBoxMainSize, availableHeightForContent,
+               struts, axisTracker);
 
-  if (NS_SUCCEEDED(rv) && !struts.IsEmpty()) {
+  if (!struts.IsEmpty()) {
     // We're restarting flex layout, with new knowledge of collapsed items.
     DoFlexLayout(aPresContext, aDesiredSize, aReflowState, aStatus,
                  contentBoxMainSize, availableHeightForContent,
@@ -3169,7 +3163,7 @@ private:
   MOZ_DECL_USE_GUARD_OBJECT_NOTIFIER
 };
 
-nsresult
+void
 nsFlexContainerFrame::DoFlexLayout(nsPresContext*           aPresContext,
                                    nsHTMLReflowMetrics&     aDesiredSize,
                                    const nsHTMLReflowState& aReflowState,
@@ -3184,11 +3178,10 @@ nsFlexContainerFrame::DoFlexLayout(nsPresContext*           aPresContext,
   LinkedList<FlexLine> lines;
   AutoFlexLineListClearer cleanupLines(lines);
 
-  nsresult rv = GenerateFlexLines(aPresContext, aReflowState,
-                                  aContentBoxMainSize,
-                                  aAvailableHeightForContent,
-                                  aStruts, aAxisTracker, lines);
-  NS_ENSURE_SUCCESS(rv, rv);
+  GenerateFlexLines(aPresContext, aReflowState,
+                    aContentBoxMainSize,
+                    aAvailableHeightForContent,
+                    aStruts, aAxisTracker, lines);
 
   aContentBoxMainSize =
     ClampFlexContainerMainSize(aReflowState, aAxisTracker,
@@ -3218,10 +3211,9 @@ nsFlexContainerFrame::DoFlexLayout(nsPresContext*           aPresContext,
         } else {
           childReflowState.SetComputedHeight(item->GetMainSize());
         }
-
-        nsresult rv = SizeItemInCrossAxis(aPresContext, aAxisTracker,
-                                          childReflowState, *item);
-        NS_ENSURE_SUCCESS(rv, rv);
+        
+        SizeItemInCrossAxis(aPresContext, aAxisTracker,
+                            childReflowState, *item);
       }
     }
     // Now that we've finished with this line's items, size the line itself:
@@ -3250,7 +3242,7 @@ nsFlexContainerFrame::DoFlexLayout(nsPresContext*           aPresContext,
     BuildStrutInfoFromCollapsedItems(lines.getFirst(), aStruts);
     if (!aStruts.IsEmpty()) {
       // Restart flex layout, using our struts.
-      return NS_OK;
+      return;
     }
   }
 
@@ -3486,7 +3478,6 @@ nsFlexContainerFrame::DoFlexLayout(nsPresContext*           aPresContext,
                                  aReflowState, aStatus);
 
   NS_FRAME_SET_TRUNCATION(aStatus, aReflowState, aDesiredSize)
-  return NS_OK;
 }
 
 /* virtual */ nscoord

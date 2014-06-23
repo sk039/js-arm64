@@ -170,6 +170,11 @@ struct TileClient
     mManager = aManager;
   }
 
+  void SetCompositableClient(CompositableClient* aCompositableClient)
+  {
+    mCompositableClient = aCompositableClient;
+  }
+
   bool IsPlaceholderTile()
   {
     return mBackBuffer == nullptr && mFrontBuffer == nullptr;
@@ -224,6 +229,7 @@ struct TileClient
   RefPtr<gfxSharedReadLock> mBackLock;
   RefPtr<gfxSharedReadLock> mFrontLock;
   RefPtr<ClientLayerManager> mManager;
+  CompositableClient* mCompositableClient;
 #ifdef GFX_TILEDLAYER_DEBUG_OVERLAY
   TimeStamp        mLastUpdate;
 #endif
@@ -266,12 +272,6 @@ struct BasicTiledLayerPaintData {
    * critical displayport is not set.
    */
   LayerIntRect mCriticalDisplayPort;
-
-  /*
-   * The viewport of the content from the nearest ancestor layer that
-   * represents scrollable content with a display port set.
-   */
-  LayerRect mViewport;
 
   /*
    * The render resolution of the document that the content this layer
@@ -342,9 +342,6 @@ public:
    */
   bool AboutToCheckerboard(const FrameMetrics& aContentMetrics,
                            const FrameMetrics& aCompositorMetrics);
-private:
-  bool mLastProgressiveUpdateWasLowPrecision;
-  bool mProgressiveUpdateWasInDanger;
 };
 
 /**

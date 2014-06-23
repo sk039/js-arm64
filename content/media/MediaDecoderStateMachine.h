@@ -988,6 +988,11 @@ protected:
   // mCurrentSeekTarget.
   bool mDecodeToSeekTarget;
 
+  // We record the playback position before we seek in order to
+  // determine where the seek terminated relative to the playback position
+  // we were at before the seek.
+  int64_t mCurrentTimeBeforeSeek;
+
   // Stores presentation info required for playback. The decoder monitor
   // must be held when accessing this.
   MediaInfo mInfo;

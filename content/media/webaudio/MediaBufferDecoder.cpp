@@ -16,6 +16,7 @@
 #include "DecoderTraits.h"
 #include "AudioContext.h"
 #include "AudioBuffer.h"
+#include "nsAutoPtr.h"
 #include "nsIScriptObjectPrincipal.h"
 #include "nsIScriptError.h"
 #include "nsMimeTypes.h"
@@ -151,7 +152,7 @@ private:
   nsCOMPtr<nsIThreadPool> mThreadPool;
   nsCOMPtr<nsIPrincipal> mPrincipal;
   nsRefPtr<BufferDecoder> mBufferDecoder;
-  nsAutoPtr<MediaDecoderReader> mDecoderReader;
+  nsRefPtr<MediaDecoderReader> mDecoderReader;
 };
 
 NS_IMETHODIMP
@@ -412,15 +413,11 @@ WebAudioDecodeJob::AllocateBuffer()
   MOZ_ASSERT(!mOutput);
   MOZ_ASSERT(NS_IsMainThread());
 
-  // We need the global for the context so that we can enter its compartment.
-  JSObject* global = mContext->GetGlobalJSObject();
-  if (NS_WARN_IF(!global)) {
+  AutoJSAPI jsapi;
+  if (NS_WARN_IF(!jsapi.InitUsingWin(mContext->GetOwner()))) {
     return false;
   }
-
-  AutoJSAPI jsapi;
   JSContext* cx = jsapi.cx();
-  JSAutoCompartment ac(cx, global);
 
   // Now create the AudioBuffer
   ErrorResult rv;
@@ -450,6 +447,7 @@ MediaBufferDecoder::AsyncDecodeMedia(const char* aContentType, uint8_t* aBuffer,
       new ReportResultTask(aDecodeJob,
                            &WebAudioDecodeJob::OnFailure,
                            WebAudioDecodeJob::UnknownContent);
+    JS_free(nullptr, aBuffer);
     NS_DispatchToMainThread(event);
     return;
   }
@@ -459,6 +457,7 @@ MediaBufferDecoder::AsyncDecodeMedia(const char* aContentType, uint8_t* aBuffer,
       new ReportResultTask(aDecodeJob,
                            &WebAudioDecodeJob::OnFailure,
                            WebAudioDecodeJob::UnknownError);
+    JS_free(nullptr, aBuffer);
     NS_DispatchToMainThread(event);
     return;
   }
@@ -482,12 +481,24 @@ bool
 MediaBufferDecoder::EnsureThreadPoolInitialized()
 {
   if (!mThreadPool) {
-    mThreadPool = SharedThreadPool::Get(NS_LITERAL_CSTRING("MediaBufferDecoder"));
+    mThreadPool = do_CreateInstance(NS_THREADPOOL_CONTRACTID);
     if (!mThreadPool) {
       return false;
     }
+    mThreadPool->SetName(NS_LITERAL_CSTRING("MediaBufferDecoder"));
   }
   return true;
+}
+
+void
+MediaBufferDecoder::Shutdown() {
+  if (mThreadPool) {
+    // Setting threadLimit to 0 causes threads to exit when all events have
+    // been run, like nsIThreadPool::Shutdown(), but doesn't run a nested event
+    // loop nor wait until this has happened.
+    mThreadPool->SetThreadLimit(0);
+    mThreadPool = nullptr;
+  }
 }
 
 WebAudioDecodeJob::WebAudioDecodeJob(const nsACString& aContentType,

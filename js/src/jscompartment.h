@@ -132,6 +132,10 @@ struct JSCompartment
     bool                         isSelfHosting;
     bool                         marked;
 
+    // A null add-on ID means that the compartment is not associated with an
+    // add-on.
+    JSAddonId                    *addonId;
+
 #ifdef DEBUG
     bool                         firedOnNewGlobalObject;
 #endif
@@ -225,7 +229,7 @@ struct JSCompartment
                                 size_t *tiArrayTypeTables,
                                 size_t *tiObjectTypeTables,
                                 size_t *compartmentObject,
-                                size_t *compartmentTables,
+                                size_t *shapesCompartmentTables,
                                 size_t *crossCompartmentWrappers,
                                 size_t *regexpCompartment,
                                 size_t *debuggeesSet,

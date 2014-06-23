@@ -225,9 +225,7 @@ JSRope::copyNonPureCharsInternal(ThreadSafeContext *cx, ScopedJSFreePtr<jschar> 
     return true;
 }
 
-template <typename CharT>
-static void
-CopyChars(CharT *dest, const JSLinearString &str);
+namespace js {
 
 template <>
 void
@@ -247,6 +245,8 @@ CopyChars(Latin1Char *dest, const JSLinearString &str)
     AutoCheckCannotGC nogc;
     PodCopy(dest, str.latin1Chars(nogc), str.length());
 }
+
+} /* namespace js */
 
 template<JSRope::UsingBarrier b, typename CharT>
 JSFlatString *
@@ -320,7 +320,7 @@ JSRope::flattenInternal(ExclusiveContext *maybecx)
                 }
                 JSString *child = str->d.s.u2.left;
                 JS_ASSERT(child->isRope());
-                str->d.s.u2.nonInlineCharsTwoByte = left.nonInlineChars();
+                str->setNonInlineChars(left.nonInlineChars<CharT>(nogc));
                 child->d.u1.flattenData = uintptr_t(str) | Tag_VisitRightChild;
                 str = child;
             }
@@ -507,11 +507,10 @@ JSDependentString::copyNonPureCharsZ(ThreadSafeContext *cx, ScopedJSFreePtr<jsch
     return true;
 }
 
+template <typename CharT>
 JSFlatString *
-JSDependentString::undepend(ExclusiveContext *cx)
+JSDependentString::undependInternal(ExclusiveContext *cx)
 {
-    JS_ASSERT(JSString::isDependent());
-
     /*
      * We destroy the base() pointer in undepend, so we need a pre-barrier. We
      * don't need a post-barrier because there aren't any outgoing pointers
@@ -520,22 +519,34 @@ JSDependentString::undepend(ExclusiveContext *cx)
     JSString::writeBarrierPre(base());
 
     size_t n = length();
-    size_t size = (n + 1) * sizeof(jschar);
-    jschar *s = (jschar *) cx->malloc_(size);
+    CharT *s = cx->pod_malloc<CharT>(n + 1);
     if (!s)
         return nullptr;
 
-    PodCopy(s, nonInlineChars(), n);
-    s[n] = 0;
-    d.s.u2.nonInlineCharsTwoByte = s;
+    AutoCheckCannotGC nogc;
+    PodCopy(s, nonInlineChars<CharT>(nogc), n);
+    s[n] = '\0';
+    setNonInlineChars<CharT>(s);
 
     /*
      * Transform *this into an undepended string so 'base' will remain rooted
      * for the benefit of any other dependent string that depends on *this.
      */
-    d.u1.flags = UNDEPENDED_FLAGS;
+    if (IsSame<CharT, Latin1Char>::value)
+        d.u1.flags = UNDEPENDED_FLAGS | LATIN1_CHARS_BIT;
+    else
+        d.u1.flags = UNDEPENDED_FLAGS;
 
     return &this->asFlat();
+}
+
+JSFlatString *
+JSDependentString::undepend(ExclusiveContext *cx)
+{
+    JS_ASSERT(JSString::isDependent());
+    return hasLatin1Chars()
+           ? undependInternal<Latin1Char>(cx)
+           : undependInternal<jschar>(cx);
 }
 
 template <typename CharT>
@@ -742,6 +753,65 @@ StaticStrings::isStatic(JSAtom *atom)
       default:
         return false;
     }
+}
+
+AutoStableStringChars::~AutoStableStringChars()
+{
+    if (ownsChars_) {
+        MOZ_ASSERT(state_ == Latin1 || state_ == TwoByte);
+        if (state_ == Latin1)
+            js_free(const_cast<Latin1Char*>(latin1Chars_));
+        else
+            js_free(const_cast<jschar*>(twoByteChars_));
+    }
+}
+
+bool
+AutoStableStringChars::init(JSContext *cx, JSString *s)
+{
+    s_ = s->ensureLinear(cx);
+    if (!s_)
+        return false;
+
+    MOZ_ASSERT(state_ == Uninitialized);
+
+    if (s_->hasLatin1Chars()) {
+        state_ = Latin1;
+        latin1Chars_ = s_->rawLatin1Chars();
+    } else {
+        state_ = TwoByte;
+        twoByteChars_ = s_->rawTwoByteChars();
+    }
+
+    return true;
+}
+
+bool
+AutoStableStringChars::initTwoByte(JSContext *cx, JSString *s)
+{
+    s_ = s->ensureLinear(cx);
+    if (!s_)
+        return false;
+
+    MOZ_ASSERT(state_ == Uninitialized);
+
+    if (s_->hasTwoByteChars()) {
+        state_ = TwoByte;
+        twoByteChars_ = s_->rawTwoByteChars();
+        return true;
+    }
+
+    jschar *chars = cx->pod_malloc<jschar>(s_->length() + 1);
+    if (!chars)
+        return false;
+
+    CopyAndInflateChars(chars, s_->rawLatin1Chars(), s_->length());
+    chars[s_->length()] = 0;
+
+    state_ = TwoByte;
+    ownsChars_ = true;
+    twoByteChars_ = chars;
+    return true;
 }
 
 #ifdef DEBUG

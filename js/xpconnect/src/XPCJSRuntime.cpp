@@ -80,8 +80,11 @@ const char* const XPCJSRuntime::mStrings[] = {
     "__iterator__",         // IDX_ITERATOR
     "__exposedProps__",     // IDX_EXPOSEDPROPS
     "eval",                 // IDX_EVAL
-    "controllers",           // IDX_CONTROLLERS
+    "controllers",          // IDX_CONTROLLERS
     "realFrameElement",     // IDX_REALFRAMEELEMENT
+    "length",               // IDX_LENGTH
+    "name",                 // IDX_NAME
+    "undefined",            // IDX_UNDEFINED
 };
 
 /***************************************************************************/
@@ -517,6 +520,14 @@ bool
 IsInContentXBLScope(JSObject *obj)
 {
     return IsContentXBLScope(js::GetObjectCompartment(obj));
+}
+
+bool
+IsInAddonScope(JSObject *obj)
+{
+    // We always eagerly create compartment privates for addon scopes.
+    XPCWrappedNativeScope *scope = GetObjectScope(obj);
+    return scope && scope->IsAddonScope();
 }
 
 bool
@@ -1457,6 +1468,7 @@ XPCJSRuntime::CustomOutOfMemoryCallback()
 
     // If this fails, it fails silently.
     dumper->DumpMemoryInfoToTempDir(NS_LITERAL_STRING("due-to-JS-OOM"),
+                                    /* anonymize = */ false,
                                     /* minimizeMemoryUsage = */ false);
 }
 
@@ -1571,8 +1583,8 @@ ReloadPrefsCallback(const char *pref, void *data)
     bool useNativeRegExp = Preferences::GetBool(JS_OPTIONS_DOT_STR "native_regexp") && !safeMode;
 
     bool parallelParsing = Preferences::GetBool(JS_OPTIONS_DOT_STR "parallel_parsing");
-    bool parallelIonCompilation = Preferences::GetBool(JS_OPTIONS_DOT_STR
-                                                       "ion.parallel_compilation");
+    bool offthreadIonCompilation = Preferences::GetBool(JS_OPTIONS_DOT_STR
+                                                       "ion.offthread_compilation");
     bool useBaselineEager = Preferences::GetBool(JS_OPTIONS_DOT_STR
                                                  "baselinejit.unsafe_eager_compilation");
     bool useIonEager = Preferences::GetBool(JS_OPTIONS_DOT_STR "ion.unsafe_eager_compilation");
@@ -1585,7 +1597,7 @@ ReloadPrefsCallback(const char *pref, void *data)
                              .setNativeRegExp(useNativeRegExp);
 
     JS_SetParallelParsingEnabled(rt, parallelParsing);
-    JS_SetParallelIonCompilationEnabled(rt, parallelIonCompilation);
+    JS_SetOffthreadIonCompilationEnabled(rt, offthreadIonCompilation);
     JS_SetGlobalJitCompilerOption(rt, JSJITCOMPILER_BASELINE_USECOUNT_TRIGGER,
                                   useBaselineEager ? 0 : -1);
     JS_SetGlobalJitCompilerOption(rt, JSJITCOMPILER_ION_USECOUNT_TRIGGER,
@@ -1681,11 +1693,17 @@ XPCJSRuntime::~XPCJSRuntime()
     Preferences::UnregisterCallback(ReloadPrefsCallback, JS_OPTIONS_DOT_STR, this);
 }
 
+// If |*anonymizeID| is non-zero and this is a user compartment, the name will
+// be anonymized.
 static void
-GetCompartmentName(JSCompartment *c, nsCString &name, bool replaceSlashes)
+GetCompartmentName(JSCompartment *c, nsCString &name, int *anonymizeID,
+                   bool replaceSlashes)
 {
     if (js::IsAtomsCompartment(c)) {
         name.AssignLiteral("atoms");
+    } else if (*anonymizeID && !js::IsSystemCompartment(c)) {
+        name.AppendPrintf("<anonymized-%d>", *anonymizeID);
+        *anonymizeID += 1;
     } else if (JSPrincipals *principals = JS_GetCompartmentPrincipals(c)) {
         nsJSPrincipals::get(principals)->GetScriptLocation(name);
 
@@ -1699,6 +1717,31 @@ GetCompartmentName(JSCompartment *c, nsCString &name, bool replaceSlashes)
             if (!location.IsEmpty() && !location.Equals(name)) {
                 name.AppendLiteral(", ");
                 name.Append(location);
+            }
+        }
+
+        // We might have a file:// URL that includes paths from the local
+        // filesystem, which should be omitted if we're anonymizing.
+        if (*anonymizeID) {
+            static const char *filePrefix = "file://";
+            int filePos = name.Find(filePrefix);
+            if (filePos >= 0) {
+                int pathPos = filePos + strlen(filePrefix);
+                int lastSlashPos = -1;
+                for (int i = pathPos; i < int(name.Length()); i++) {
+                    if (name[i] == '/' || name[i] == '\\') {
+                        lastSlashPos = i;
+                    }
+                }
+                if (lastSlashPos != -1) {
+                    name.ReplaceASCII(pathPos, lastSlashPos - pathPos,
+                                      "<anonymized>");
+                } else {
+                    // Something went wrong. Anonymize the entire path to be
+                    // safe.
+                    name.Truncate(pathPos);
+                    name += "<anonymized?!>";
+                }
             }
         }
 
@@ -1747,7 +1790,7 @@ class JSMainRuntimeTemporaryPeakReporter MOZ_FINAL : public nsIMemoryReporter
     NS_DECL_ISUPPORTS
 
     NS_IMETHOD CollectReports(nsIHandleReportCallback* aHandleReport,
-                              nsISupports* aData)
+                              nsISupports* aData, bool aAnonymize)
     {
         return MOZ_COLLECT_REPORT("js-main-runtime-temporary-peak",
             KIND_OTHER, UNITS_BYTES,
@@ -1850,7 +1893,9 @@ static nsresult
 ReportZoneStats(const JS::ZoneStats &zStats,
                 const xpc::ZoneStatsExtras &extras,
                 nsIMemoryReporterCallback *cb,
-                nsISupports *closure, size_t *gcTotalOut = nullptr)
+                nsISupports *closure,
+                bool anonymize,
+                size_t *gcTotalOut = nullptr)
 {
     const nsAutoCString& pathPrefix = extras.pathPrefix;
     size_t gcTotal = 0, sundriesGCHeap = 0, sundriesMallocHeap = 0;
@@ -1906,6 +1951,11 @@ ReportZoneStats(const JS::ZoneStats &zStats,
 
         MOZ_ASSERT(!zStats.isTotals);
 
+        // We don't do notable string detection when anonymizing, because
+        // there's a good chance its for crash submission, and the memory
+        // required for notable string detection is high.
+        MOZ_ASSERT(!anonymize);
+
         nsDependentCString notableString(info.buffer);
 
         // Viewing about:memory generates many notable strings which contain
@@ -1949,7 +1999,7 @@ ReportZoneStats(const JS::ZoneStats &zStats,
     }
 
     nsCString nonNotablePath = pathPrefix;
-    nonNotablePath += zStats.isTotals
+    nonNotablePath += (zStats.isTotals || anonymize)
                     ? NS_LITERAL_CSTRING("strings/")
                     : NS_LITERAL_CSTRING("strings/string(<non-notable strings>)/");
 
@@ -2013,109 +2063,6 @@ ReportZoneStats(const JS::ZoneStats &zStats,
 }
 
 static nsresult
-ReportClassStats(const ClassInfo &classInfo, const nsACString &path,
-                 nsIHandleReportCallback *cb, nsISupports *closure,
-                 size_t &gcTotal)
-{
-    // We deliberately don't use ZCREPORT_BYTES, so that these per-class values
-    // don't go into sundries.
-
-    if (classInfo.objectsGCHeap > 0) {
-        REPORT_GC_BYTES(path + NS_LITERAL_CSTRING("objects/gc-heap"),
-            classInfo.objectsGCHeap,
-            "Objects, including fixed slots.");
-    }
-
-    if (classInfo.objectsMallocHeapSlots > 0) {
-        REPORT_BYTES(path + NS_LITERAL_CSTRING("objects/malloc-heap/slots"),
-            KIND_HEAP, classInfo.objectsMallocHeapSlots,
-            "Non-fixed object slots.");
-    }
-
-    if (classInfo.objectsMallocHeapElementsNonAsmJS > 0) {
-        REPORT_BYTES(path + NS_LITERAL_CSTRING("objects/malloc-heap/elements/non-asm.js"),
-            KIND_HEAP, classInfo.objectsMallocHeapElementsNonAsmJS,
-            "Non-asm.js indexed elements.");
-    }
-
-    // asm.js arrays are heap-allocated on some platforms and
-    // non-heap-allocated on others.  We never put them under sundries,
-    // because (a) in practice they're almost always larger than the sundries
-    // threshold, and (b) we'd need a third category of sundries ("non-heap"),
-    // which would be a pain.
-    size_t mallocHeapElementsAsmJS = classInfo.objectsMallocHeapElementsAsmJS;
-    size_t nonHeapElementsAsmJS    = classInfo.objectsNonHeapElementsAsmJS;
-    MOZ_ASSERT(mallocHeapElementsAsmJS == 0 || nonHeapElementsAsmJS == 0);
-    if (mallocHeapElementsAsmJS > 0) {
-        REPORT_BYTES(path + NS_LITERAL_CSTRING("objects/malloc-heap/elements/asm.js"),
-            KIND_HEAP, mallocHeapElementsAsmJS,
-            "asm.js array buffer elements on the malloc heap.");
-    }
-    if (nonHeapElementsAsmJS > 0) {
-        REPORT_BYTES(path + NS_LITERAL_CSTRING("objects/non-heap/elements/asm.js"),
-            KIND_NONHEAP, nonHeapElementsAsmJS,
-            "asm.js array buffer elements outside both the malloc heap and "
-            "the GC heap.");
-    }
-
-    if (classInfo.objectsNonHeapElementsMapped > 0) {
-        REPORT_BYTES(path + NS_LITERAL_CSTRING("objects/non-heap/elements/mapped"),
-            KIND_NONHEAP, classInfo.objectsNonHeapElementsMapped,
-            "Memory-mapped array buffer elements.");
-    }
-
-    if (classInfo.objectsNonHeapCodeAsmJS > 0) {
-        REPORT_BYTES(path + NS_LITERAL_CSTRING("objects/non-heap/code/asm.js"),
-            KIND_NONHEAP, classInfo.objectsNonHeapCodeAsmJS,
-            "AOT-compiled asm.js code.");
-    }
-
-    if (classInfo.objectsMallocHeapMisc > 0) {
-        REPORT_BYTES(path + NS_LITERAL_CSTRING("objects/malloc-heap/misc"),
-            KIND_HEAP, classInfo.objectsMallocHeapMisc,
-            "Miscellaneous object data.");
-    }
-
-    if (classInfo.shapesGCHeapTree > 0) {
-        REPORT_GC_BYTES(path + NS_LITERAL_CSTRING("shapes/gc-heap/tree"),
-            classInfo.shapesGCHeapTree,
-        "Shapes in a property tree.");
-    }
-
-    if (classInfo.shapesGCHeapDict > 0) {
-        REPORT_GC_BYTES(path + NS_LITERAL_CSTRING("shapes/gc-heap/dict"),
-            classInfo.shapesGCHeapDict,
-        "Shapes in dictionary mode.");
-    }
-
-    if (classInfo.shapesGCHeapBase > 0) {
-        REPORT_GC_BYTES(path + NS_LITERAL_CSTRING("shapes/gc-heap/base"),
-            classInfo.shapesGCHeapBase,
-            "Base shapes, which collate data common to many shapes.");
-    }
-
-    if (classInfo.shapesMallocHeapTreeTables > 0) {
-        REPORT_BYTES(path + NS_LITERAL_CSTRING("shapes/malloc-heap/tree-tables"),
-            KIND_HEAP, classInfo.shapesMallocHeapTreeTables,
-            "Property tables of shapes in a property tree.");
-    }
-
-    if (classInfo.shapesMallocHeapDictTables > 0) {
-        REPORT_BYTES(path + NS_LITERAL_CSTRING("shapes/malloc-heap/dict-tables"),
-            KIND_HEAP, classInfo.shapesMallocHeapDictTables,
-            "Property tables of shapes in dictionary mode.");
-    }
-
-    if (classInfo.shapesMallocHeapTreeKids > 0) {
-        REPORT_BYTES(path + NS_LITERAL_CSTRING("shapes/malloc-heap/tree-kids"),
-            KIND_HEAP, classInfo.shapesMallocHeapTreeKids,
-            "Kid hashes of shapes in a property tree.");
-    }
-
-    return NS_OK;
-}
-
-static nsresult
 ReportCompartmentStats(const JS::CompartmentStats &cStats,
                        const xpc::CompartmentStatsExtras &extras,
                        amIAddonManager *addonManager,
@@ -2127,9 +2074,6 @@ ReportCompartmentStats(const JS::CompartmentStats &cStats,
     size_t gcTotal = 0, sundriesGCHeap = 0, sundriesMallocHeap = 0;
     nsAutoCString cJSPathPrefix = extras.jsPathPrefix;
     nsAutoCString cDOMPathPrefix = extras.domPathPrefix;
-    nsresult rv;
-
-    MOZ_ASSERT(!gcTotalOut == cStats.isTotals);
 
     // Only attempt to prefix if we got a location and the path wasn't already
     // prefixed.
@@ -2150,25 +2094,26 @@ ReportCompartmentStats(const JS::CompartmentStats &cStats,
         }
     }
 
-    nsCString nonNotablePath = cJSPathPrefix;
-    nonNotablePath += cStats.isTotals
-                    ? NS_LITERAL_CSTRING("classes/")
-                    : NS_LITERAL_CSTRING("classes/class(<non-notable classes>)/");
+    ZCREPORT_GC_BYTES(cJSPathPrefix + NS_LITERAL_CSTRING("objects/gc-heap/ordinary"),
+        cStats.objectsGCHeapOrdinary,
+        "Ordinary objects, i.e. not otherwise distinguished by memory "
+        "reporters.");
 
-    rv = ReportClassStats(cStats.classInfo, nonNotablePath, cb, closure,
-                          gcTotal);
-    NS_ENSURE_SUCCESS(rv, rv);
+    ZCREPORT_GC_BYTES(cJSPathPrefix + NS_LITERAL_CSTRING("objects/gc-heap/function"),
+        cStats.objectsGCHeapFunction,
+        "Function objects.");
 
-    for (size_t i = 0; i < cStats.notableClasses.length(); i++) {
-        MOZ_ASSERT(!cStats.isTotals);
-        const JS::NotableClassInfo& classInfo = cStats.notableClasses[i];
+    ZCREPORT_GC_BYTES(cJSPathPrefix + NS_LITERAL_CSTRING("objects/gc-heap/dense-array"),
+        cStats.objectsGCHeapDenseArray,
+        "Dense array objects.");
 
-        nsCString classPath = cJSPathPrefix +
-            nsPrintfCString("classes/class(%s)/", classInfo.className_);
+    ZCREPORT_GC_BYTES(cJSPathPrefix + NS_LITERAL_CSTRING("objects/gc-heap/slow-array"),
+        cStats.objectsGCHeapSlowArray,
+        "Slow array objects.");
 
-        rv = ReportClassStats(classInfo, classPath, cb, closure, gcTotal);
-        NS_ENSURE_SUCCESS(rv, rv);
-    }
+    ZCREPORT_GC_BYTES(cJSPathPrefix + NS_LITERAL_CSTRING("objects/gc-heap/cross-compartment-wrapper"),
+        cStats.objectsGCHeapCrossCompartmentWrapper,
+        "Cross-compartment wrapper objects.");
 
     // Note that we use cDOMPathPrefix here.  This is because we measure orphan
     // DOM nodes in the JS reporter, but we want to report them in a "dom"
@@ -2177,6 +2122,41 @@ ReportCompartmentStats(const JS::CompartmentStats &cStats,
         cStats.objectsPrivate,
         "Orphan DOM nodes, i.e. those that are only reachable from JavaScript "
         "objects.");
+
+    ZCREPORT_GC_BYTES(cJSPathPrefix + NS_LITERAL_CSTRING("shapes/gc-heap/tree/global-parented"),
+        cStats.shapesGCHeapTreeGlobalParented,
+        "Shapes that (a) are in a property tree, and (b) represent an object "
+        "whose parent is the global object.");
+
+    ZCREPORT_GC_BYTES(cJSPathPrefix + NS_LITERAL_CSTRING("shapes/gc-heap/tree/non-global-parented"),
+        cStats.shapesGCHeapTreeNonGlobalParented,
+        "Shapes that (a) are in a property tree, and (b) represent an object "
+        "whose parent is not the global object.");
+
+    ZCREPORT_GC_BYTES(cJSPathPrefix + NS_LITERAL_CSTRING("shapes/gc-heap/dict"),
+        cStats.shapesGCHeapDict,
+        "Shapes that are in dictionary mode.");
+
+    ZCREPORT_GC_BYTES(cJSPathPrefix + NS_LITERAL_CSTRING("shapes/gc-heap/base"),
+        cStats.shapesGCHeapBase,
+        "Base shapes, which collate data common to many shapes.");
+
+    ZCREPORT_BYTES(cJSPathPrefix + NS_LITERAL_CSTRING("shapes/malloc-heap/tree-tables"),
+        cStats.shapesMallocHeapTreeTables,
+        "Property tables belonging to shapes that are in a property tree.");
+
+    ZCREPORT_BYTES(cJSPathPrefix + NS_LITERAL_CSTRING("shapes/malloc-heap/dict-tables"),
+        cStats.shapesMallocHeapDictTables,
+        "Property tables that belong to shapes that are in dictionary mode.");
+
+    ZCREPORT_BYTES(cJSPathPrefix + NS_LITERAL_CSTRING("shapes/malloc-heap/tree-shape-kids"),
+        cStats.shapesMallocHeapTreeShapeKids,
+        "Kid hashes that belong to shapes that are in a property tree.");
+
+    ZCREPORT_BYTES(cJSPathPrefix + NS_LITERAL_CSTRING("shapes/malloc-heap/compartment-tables"),
+        cStats.shapesMallocHeapCompartmentTables,
+        "Compartment-wide tables storing shape information used during object "
+        "construction.");
 
     ZCREPORT_GC_BYTES(cJSPathPrefix + NS_LITERAL_CSTRING("scripts/gc-heap"),
         cStats.scriptsGCHeap,
@@ -2219,10 +2199,6 @@ ReportCompartmentStats(const JS::CompartmentStats &cStats,
         cStats.compartmentObject,
         "The JSCompartment object itself.");
 
-    ZCREPORT_BYTES(cJSPathPrefix + NS_LITERAL_CSTRING("compartment-tables"),
-        cStats.compartmentTables,
-        "Compartment-wide tables storing shape and type object information.");
-
     ZCREPORT_BYTES(cJSPathPrefix + NS_LITERAL_CSTRING("cross-compartment-wrapper-table"),
         cStats.crossCompartmentWrappersTable,
         "The cross-compartment wrapper table.");
@@ -2234,6 +2210,64 @@ ReportCompartmentStats(const JS::CompartmentStats &cStats,
     ZCREPORT_BYTES(cJSPathPrefix + NS_LITERAL_CSTRING("debuggees-set"),
         cStats.debuggeesSet,
         "The debuggees set.");
+
+    ZCREPORT_BYTES(cJSPathPrefix + NS_LITERAL_CSTRING("objects/malloc-heap/slots"),
+        cStats.objectsExtra.mallocHeapSlots,
+        "Non-fixed object slot arrays, which represent object properties.");
+
+    ZCREPORT_BYTES(cJSPathPrefix + NS_LITERAL_CSTRING("objects/malloc-heap/elements/non-asm.js"),
+        cStats.objectsExtra.mallocHeapElementsNonAsmJS,
+        "Non-asm.js indexed elements.");
+
+    // asm.js arrays are heap-allocated on some platforms and
+    // non-heap-allocated on others.  We never put them under sundries,
+    // because (a) in practice they're almost always larger than the sundries
+    // threshold, and (b) we'd need a third category of sundries ("non-heap"),
+    // which would be a pain.
+    size_t mallocHeapElementsAsmJS = cStats.objectsExtra.mallocHeapElementsAsmJS;
+    size_t nonHeapElementsAsmJS    = cStats.objectsExtra.nonHeapElementsAsmJS;
+    MOZ_ASSERT(mallocHeapElementsAsmJS == 0 || nonHeapElementsAsmJS == 0);
+    if (mallocHeapElementsAsmJS > 0) {
+        REPORT_BYTES(cJSPathPrefix + NS_LITERAL_CSTRING("objects/malloc-heap/elements/asm.js"),
+            KIND_HEAP, mallocHeapElementsAsmJS,
+            "asm.js array buffer elements on the malloc heap.");
+    }
+    if (nonHeapElementsAsmJS > 0) {
+        REPORT_BYTES(cJSPathPrefix + NS_LITERAL_CSTRING("objects/non-heap/elements/asm.js"),
+            KIND_NONHEAP, nonHeapElementsAsmJS,
+            "asm.js array buffer elements outside both the malloc heap and "
+            "the GC heap.");
+    }
+
+    if (cStats.objectsExtra.nonHeapElementsMapped > 0) {
+        REPORT_BYTES(cJSPathPrefix + NS_LITERAL_CSTRING("objects/non-heap/elements/mapped"),
+            KIND_NONHEAP, cStats.objectsExtra.nonHeapElementsMapped,
+            "Memory-mapped array buffer elements.");
+    }
+
+    REPORT_BYTES(cJSPathPrefix + NS_LITERAL_CSTRING("objects/non-heap/code/asm.js"),
+        KIND_NONHEAP, cStats.objectsExtra.nonHeapCodeAsmJS,
+        "AOT-compiled asm.js code.");
+
+    ZCREPORT_BYTES(cJSPathPrefix + NS_LITERAL_CSTRING("objects/malloc-heap/asm.js-module-data"),
+        cStats.objectsExtra.mallocHeapAsmJSModuleData,
+        "asm.js module data.");
+
+    ZCREPORT_BYTES(cJSPathPrefix + NS_LITERAL_CSTRING("objects/malloc-heap/arguments-data"),
+        cStats.objectsExtra.mallocHeapArgumentsData,
+        "Data belonging to Arguments objects.");
+
+    ZCREPORT_BYTES(cJSPathPrefix + NS_LITERAL_CSTRING("objects/malloc-heap/regexp-statics"),
+        cStats.objectsExtra.mallocHeapRegExpStatics,
+        "Data belonging to the RegExpStatics object.");
+
+    ZCREPORT_BYTES(cJSPathPrefix + NS_LITERAL_CSTRING("objects/malloc-heap/property-iterator-data"),
+        cStats.objectsExtra.mallocHeapPropertyIteratorData,
+        "Data belonging to property iterator objects.");
+
+    ZCREPORT_BYTES(cJSPathPrefix + NS_LITERAL_CSTRING("objects/malloc-heap/ctypes-data"),
+        cStats.objectsExtra.mallocHeapCtypesData,
+        "Data belonging to ctypes objects.");
 
     if (sundriesGCHeap > 0) {
         // We deliberately don't use ZCREPORT_GC_BYTES here.
@@ -2289,7 +2323,9 @@ ReportJSRuntimeExplicitTreeStats(const JS::RuntimeStats &rtStats,
                                  const nsACString &rtPath,
                                  amIAddonManager* addonManager,
                                  nsIMemoryReporterCallback *cb,
-                                 nsISupports *closure, size_t *rtTotalOut)
+                                 nsISupports *closure,
+                                 bool anonymize,
+                                 size_t *rtTotalOut)
 {
     nsresult rv;
 
@@ -2299,15 +2335,14 @@ ReportJSRuntimeExplicitTreeStats(const JS::RuntimeStats &rtStats,
         const JS::ZoneStats &zStats = rtStats.zoneStatsVector[i];
         const xpc::ZoneStatsExtras *extras =
           static_cast<const xpc::ZoneStatsExtras*>(zStats.extra);
-        rv = ReportZoneStats(zStats, *extras, cb, closure, &gcTotal);
+        rv = ReportZoneStats(zStats, *extras, cb, closure, anonymize, &gcTotal);
         NS_ENSURE_SUCCESS(rv, rv);
     }
 
     for (size_t i = 0; i < rtStats.compartmentStatsVector.length(); i++) {
-        const JS::CompartmentStats &cStats = rtStats.compartmentStatsVector[i];
+        JS::CompartmentStats cStats = rtStats.compartmentStatsVector[i];
         const xpc::CompartmentStatsExtras *extras =
             static_cast<const xpc::CompartmentStatsExtras*>(cStats.extra);
-
         rv = ReportCompartmentStats(cStats, *extras, addonManager, cb, closure,
                                     &gcTotal);
         NS_ENSURE_SUCCESS(rv, rv);
@@ -2340,12 +2375,6 @@ ReportJSRuntimeExplicitTreeStats(const JS::RuntimeStats &rtStats,
         "Transient data (mostly parse nodes) held by the JSRuntime during "
         "compilation.");
 
-#ifdef JS_YARR
-    RREPORT_BYTES(rtPath + NS_LITERAL_CSTRING("runtime/regexp-data"),
-        KIND_NONHEAP, rtStats.runtime.regexpData,
-        "Regexp JIT data.");
-#endif
-
     RREPORT_BYTES(rtPath + NS_LITERAL_CSTRING("runtime/interpreter-stack"),
         KIND_HEAP, rtStats.runtime.interpreterStack,
         "JS interpreter frames.");
@@ -2354,9 +2383,13 @@ ReportJSRuntimeExplicitTreeStats(const JS::RuntimeStats &rtStats,
         KIND_HEAP, rtStats.runtime.mathCache,
         "The math cache.");
 
-    RREPORT_BYTES(rtPath + NS_LITERAL_CSTRING("runtime/source-data-cache"),
-        KIND_HEAP, rtStats.runtime.sourceDataCache,
-        "The source data cache, which holds decompressed script source code.");
+    RREPORT_BYTES(rtPath + NS_LITERAL_CSTRING("runtime/uncompressed-source-cache"),
+        KIND_HEAP, rtStats.runtime.uncompressedSourceCache,
+        "The uncompressed source code cache.");
+
+    RREPORT_BYTES(rtPath + NS_LITERAL_CSTRING("runtime/compressed-source-sets"),
+        KIND_HEAP, rtStats.runtime.compressedSourceSet,
+        "The table indexing compressed source code in the runtime.");
 
     RREPORT_BYTES(rtPath + NS_LITERAL_CSTRING("runtime/script-data"),
         KIND_HEAP, rtStats.runtime.scriptData,
@@ -2379,9 +2412,14 @@ ReportJSRuntimeExplicitTreeStats(const JS::RuntimeStats &rtStats,
         // count as path separators. Consumers of memory reporters (e.g.
         // about:memory) will convert them back to / after doing path
         // splitting.
-        nsDependentCString filename(scriptSourceInfo.filename_);
-        nsCString escapedFilename(filename);
-        escapedFilename.ReplaceSubstring("/", "\\");
+        nsCString escapedFilename;
+        if (anonymize) {
+            escapedFilename.AppendPrintf("<anonymized-source-%d>", int(i));
+        } else {
+            nsDependentCString filename(scriptSourceInfo.filename_);
+            escapedFilename.Append(filename);
+            escapedFilename.ReplaceSubstring("/", "\\");
+        }
 
         nsCString notablePath = rtPath +
             nsPrintfCString("runtime/script-sources/source(scripts=%d, %s)/",
@@ -2497,15 +2535,17 @@ nsresult
 ReportJSRuntimeExplicitTreeStats(const JS::RuntimeStats &rtStats,
                                  const nsACString &rtPath,
                                  nsIMemoryReporterCallback *cb,
-                                 nsISupports *closure, size_t *rtTotalOut)
+                                 nsISupports *closure,
+                                 bool anonymize,
+                                 size_t *rtTotalOut)
 {
     nsCOMPtr<amIAddonManager> am;
     if (XRE_GetProcessType() == GeckoProcessType_Default) {
         // Only try to access the service from the main process.
         am = do_GetService("@mozilla.org/addons/integration;1");
     }
-    return ReportJSRuntimeExplicitTreeStats(rtStats, rtPath, am.get(), cb,
-                                            closure, rtTotalOut);
+    return ReportJSRuntimeExplicitTreeStats(rtStats, rtPath, am.get(),
+                                            cb, closure, anonymize, rtTotalOut);
 }
 
 
@@ -2516,37 +2556,37 @@ class JSMainRuntimeCompartmentsReporter MOZ_FINAL : public nsIMemoryReporter
   public:
     NS_DECL_ISUPPORTS
 
-    typedef js::Vector<nsCString, 0, js::SystemAllocPolicy> Paths;
+    struct Data {
+        int anonymizeID;
+        js::Vector<nsCString, 0, js::SystemAllocPolicy> paths;
+    };
 
-    static void CompartmentCallback(JSRuntime *rt, void* data, JSCompartment *c) {
+    static void CompartmentCallback(JSRuntime *rt, void* vdata, JSCompartment *c) {
         // silently ignore OOM errors
-        Paths *paths = static_cast<Paths *>(data);
+        Data *data = static_cast<Data *>(vdata);
         nsCString path;
-        GetCompartmentName(c, path, true);
+        GetCompartmentName(c, path, &data->anonymizeID, /* replaceSlashes = */ true);
         path.Insert(js::IsSystemCompartment(c)
                     ? NS_LITERAL_CSTRING("js-main-runtime-compartments/system/")
                     : NS_LITERAL_CSTRING("js-main-runtime-compartments/user/"),
                     0);
-        paths->append(path);
+        data->paths.append(path);
     }
 
     NS_IMETHOD CollectReports(nsIMemoryReporterCallback *cb,
-                              nsISupports *closure)
+                              nsISupports *closure, bool anonymize)
     {
         // First we collect the compartment paths.  Then we report them.  Doing
         // the two steps interleaved is a bad idea, because calling |cb|
         // from within CompartmentCallback() leads to all manner of assertions.
 
-        // Collect.
-
-        Paths paths;
+        Data data;
+        data.anonymizeID = anonymize ? 1 : 0;
         JS_IterateCompartments(nsXPConnect::GetRuntimeInstance()->Runtime(),
-                               &paths, CompartmentCallback);
+                               &data, CompartmentCallback);
 
-        // Report.
-        for (size_t i = 0; i < paths.length(); i++)
-            // These ones don't need a description, hence the "".
-            REPORT(nsCString(paths[i]), KIND_OTHER, UNITS_COUNT, 1,
+        for (size_t i = 0; i < data.paths.length(); i++)
+            REPORT(nsCString(data.paths[i]), KIND_OTHER, UNITS_COUNT, 1,
                 "A live compartment in the main JSRuntime.");
 
         return NS_OK;
@@ -2616,14 +2656,16 @@ class XPCJSRuntimeStats : public JS::RuntimeStats
     WindowPaths *mWindowPaths;
     WindowPaths *mTopWindowPaths;
     bool mGetLocations;
+    int mAnonymizeID;
 
   public:
     XPCJSRuntimeStats(WindowPaths *windowPaths, WindowPaths *topWindowPaths,
-                      bool getLocations)
+                      bool getLocations, bool anonymize)
       : JS::RuntimeStats(JSMallocSizeOf),
         mWindowPaths(windowPaths),
         mTopWindowPaths(topWindowPaths),
-        mGetLocations(getLocations)
+        mGetLocations(getLocations),
+        mAnonymizeID(anonymize ? 1 : 0)
     {}
 
     ~XPCJSRuntimeStats() {
@@ -2669,7 +2711,7 @@ class XPCJSRuntimeStats : public JS::RuntimeStats
     {
         xpc::CompartmentStatsExtras *extras = new xpc::CompartmentStatsExtras;
         nsCString cName;
-        GetCompartmentName(c, cName, true);
+        GetCompartmentName(c, cName, &mAnonymizeID, /* replaceSlashes = */ true);
         if (mGetLocations) {
             CompartmentPrivate *cp = GetCompartmentPrivate(c);
             if (cp)
@@ -2740,7 +2782,8 @@ nsresult
 JSReporter::CollectReports(WindowPaths *windowPaths,
                            WindowPaths *topWindowPaths,
                            nsIMemoryReporterCallback *cb,
-                           nsISupports *closure)
+                           nsISupports *closure,
+                           bool anonymize)
 {
     XPCJSRuntime *xpcrt = nsXPConnect::GetRuntimeInstance();
 
@@ -2756,10 +2799,14 @@ JSReporter::CollectReports(WindowPaths *windowPaths,
         addonManager = do_GetService("@mozilla.org/addons/integration;1");
     }
     bool getLocations = !!addonManager;
-    XPCJSRuntimeStats rtStats(windowPaths, topWindowPaths, getLocations);
+    XPCJSRuntimeStats rtStats(windowPaths, topWindowPaths, getLocations,
+                              anonymize);
     OrphanReporter orphanReporter(XPCConvert::GetISupportsFromJSObject);
-    if (!JS::CollectRuntimeStats(xpcrt->Runtime(), &rtStats, &orphanReporter))
+    if (!JS::CollectRuntimeStats(xpcrt->Runtime(), &rtStats, &orphanReporter,
+                                 anonymize))
+    {
         return NS_ERROR_FAILURE;
+    }
 
     size_t xpconnect = xpcrt->SizeOfIncludingThis(JSMallocSizeOf);
 
@@ -2777,7 +2824,7 @@ JSReporter::CollectReports(WindowPaths *windowPaths,
     rv = xpc::ReportJSRuntimeExplicitTreeStats(rtStats,
                                                NS_LITERAL_CSTRING("explicit/js-non-window/"),
                                                addonManager, cb, closure,
-                                               &rtTotal);
+                                               anonymize, &rtTotal);
     NS_ENSURE_SUCCESS(rv, rv);
 
     // Report the sums of the compartment numbers.
@@ -2790,7 +2837,7 @@ JSReporter::CollectReports(WindowPaths *windowPaths,
 
     xpc::ZoneStatsExtras zExtrasTotal;
     zExtrasTotal.pathPrefix.AssignLiteral("js-main-runtime/zones/");
-    rv = ReportZoneStats(rtStats.zTotals, zExtrasTotal, cb, closure);
+    rv = ReportZoneStats(rtStats.zTotals, zExtrasTotal, cb, closure, anonymize);
     NS_ENSURE_SUCCESS(rv, rv);
 
     // Report the sum of the runtime/ numbers.
@@ -2946,7 +2993,10 @@ CompartmentNameCallback(JSRuntime *rt, JSCompartment *comp,
                         char *buf, size_t bufsize)
 {
     nsCString name;
-    GetCompartmentName(comp, name, false);
+    // This is called via the JSAPI and isn't involved in memory reporting, so
+    // we don't need to anonymize compartment names.
+    int anonymizeID = 0;
+    GetCompartmentName(comp, name, &anonymizeID, /* replaceSlashes = */ false);
     if (name.Length() >= bufsize)
         name.Truncate(bufsize - 1);
     memcpy(buf, name.get(), name.Length() + 1);
@@ -3142,8 +3192,8 @@ XPCJSRuntime::XPCJSRuntime(nsXPConnect* aXPConnect)
     const size_t kSystemCodeBuffer = 10 * 1024;
 
     // Our "default" stack is what we use in configurations where we don't have
-    // a compelling reason to do things differently. This is effectively 1MB on
-    // 32-bit platforms and 2MB on 64-bit platforms.
+    // a compelling reason to do things differently. This is effectively 512KB
+    // on 32-bit platforms and 1MB on 64-bit platforms.
     const size_t kDefaultStackQuota = 128 * sizeof(size_t) * 1024;
 
     // Set stack sizes for different configurations. It's probably not great for
@@ -3157,7 +3207,7 @@ XPCJSRuntime::XPCJSRuntime(nsXPConnect* aXPConnect)
     const size_t kTrustedScriptBuffer = 180 * 1024;
 #elif defined(MOZ_ASAN)
     // ASan requires more stack space due to red-zones, so give it double the
-    // default (2MB on 32-bit, 4MB on 64-bit). ASAN stack frame measurements
+    // default (1MB on 32-bit, 2MB on 64-bit). ASAN stack frame measurements
     // were not taken at the time of this writing, so we hazard a guess that
     // ASAN builds have roughly thrice the stack overhead as normal builds.
     // On normal builds, the largest stack frame size we might encounter is
@@ -3165,11 +3215,11 @@ XPCJSRuntime::XPCJSRuntime(nsXPConnect* aXPConnect)
     const size_t kStackQuota =  2 * kDefaultStackQuota;
     const size_t kTrustedScriptBuffer = 246 * 1024;
 #elif defined(XP_WIN)
-    // 1MB is the default stack size on Windows, so the default 1MB stack quota
-    // we'd get on win32 is slightly too large. Use 900k instead. And since
-    // windows stack frames are 3.4k each, let's use a buffer of 50k.
+    // 1MB is the default stack size on Windows, so use 900k. And since 32-bit
+    // Windows stack frames are 3.4k each, let's use a buffer of 48k and double
+    // that for 64-bit.
     const size_t kStackQuota = 900 * 1024;
-    const size_t kTrustedScriptBuffer = 50 * 1024;
+    const size_t kTrustedScriptBuffer = 12 * sizeof(size_t) * 1024;
     // The following two configurations are linux-only. Given the numbers above,
     // we use 50k and 100k trusted buffers on 32-bit and 64-bit respectively.
 #elif defined(DEBUG)

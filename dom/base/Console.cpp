@@ -15,6 +15,7 @@
 #include "nsGlobalWindow.h"
 #include "nsJSUtils.h"
 #include "nsPerformance.h"
+#include "ScriptSettings.h"
 #include "WorkerPrivate.h"
 #include "WorkerRunnable.h"
 #include "xpcprivate.h"
@@ -323,14 +324,18 @@ private:
       wp = wp->GetParent();
     }
 
-    AutoPushJSContext cx(wp->ParentJSContext());
-    ClearException ce(cx);
-
     nsPIDOMWindow* window = wp->GetWindow();
     NS_ENSURE_TRUE_VOID(window);
 
     nsRefPtr<nsGlobalWindow> win = static_cast<nsGlobalWindow*>(window);
     NS_ENSURE_TRUE_VOID(win);
+
+    AutoJSAPI jsapi;
+    if (NS_WARN_IF(!jsapi.Init(win))) {
+      return;
+    }
+    JSContext* cx = jsapi.cx();
+    ClearException ce(cx);
 
     ErrorResult error;
     nsRefPtr<Console> console = win->GetConsole(error);
@@ -432,18 +437,18 @@ private:
       wp = wp->GetParent();
     }
 
-    AutoPushJSContext cx(wp->ParentJSContext());
-    ClearException ce(cx);
-
-    JS::Rooted<JSObject*> global(cx, JS::CurrentGlobalOrNull(cx));
-    NS_ENSURE_TRUE_VOID(global);
-    JSAutoCompartment ac(cx, global);
-
     nsPIDOMWindow* window = wp->GetWindow();
     NS_ENSURE_TRUE_VOID(window);
 
     nsRefPtr<nsGlobalWindow> win = static_cast<nsGlobalWindow*>(window);
     NS_ENSURE_TRUE_VOID(win);
+
+    AutoJSAPI jsapi;
+    if (NS_WARN_IF(!jsapi.Init(win))) {
+      return;
+    }
+    JSContext* cx = jsapi.cx();
+    ClearException ce(cx);
 
     ErrorResult error;
     nsRefPtr<Console> console = win->GetConsole(error);
@@ -907,7 +912,7 @@ Console::Method(JSContext* aCx, MethodName aMethodName,
 
       ErrorResult rv;
       nsRefPtr<nsPerformance> performance = win->GetPerformance(rv);
-      if (rv.Failed()) {
+      if (rv.Failed() || !performance) {
         return;
       }
 

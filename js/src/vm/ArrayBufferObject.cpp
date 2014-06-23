@@ -9,6 +9,7 @@
 #include "mozilla/Alignment.h"
 #include "mozilla/FloatingPoint.h"
 #include "mozilla/PodOperations.h"
+#include "mozilla/TaggedAnonymousMemory.h"
 
 #include <string.h>
 #ifndef XP_WIN
@@ -431,7 +432,7 @@ ArrayBufferObject::prepareForAsmJS(JSContext *cx, Handle<ArrayBufferObject*> buf
     if (!data)
         return false;
 # else
-    data = mmap(nullptr, AsmJSMappedSize, PROT_NONE, MAP_PRIVATE | MAP_ANON, -1, 0);
+    data = MozTaggedAnonymousMmap(nullptr, AsmJSMappedSize, PROT_NONE, MAP_PRIVATE | MAP_ANON, -1, 0, "asm-js-reserved");
     if (data == MAP_FAILED)
         return false;
 # endif
@@ -765,7 +766,7 @@ ArrayBufferObject::stealContents(JSContext *cx, Handle<ArrayBufferObject*> buffe
 }
 
 /* static */ void
-ArrayBufferObject::addSizeOfExcludingThis(JSObject *obj, mozilla::MallocSizeOf mallocSizeOf, JS::ClassInfo *info)
+ArrayBufferObject::addSizeOfExcludingThis(JSObject *obj, mozilla::MallocSizeOf mallocSizeOf, JS::ObjectsExtraSizes *sizes)
 {
     ArrayBufferObject &buffer = AsArrayBuffer(obj);
 
@@ -776,14 +777,14 @@ ArrayBufferObject::addSizeOfExcludingThis(JSObject *obj, mozilla::MallocSizeOf m
 #if defined (JS_CPU_X64)
         // On x64, ArrayBufferObject::prepareForAsmJS switches the
         // ArrayBufferObject to use mmap'd storage.
-        info->objectsNonHeapElementsAsmJS += buffer.byteLength();
+        sizes->nonHeapElementsAsmJS += buffer.byteLength();
 #else
-        info->objectsMallocHeapElementsAsmJS += mallocSizeOf(buffer.dataPointer());
+        sizes->mallocHeapElementsAsmJS += mallocSizeOf(buffer.dataPointer());
 #endif
     } else if (MOZ_UNLIKELY(buffer.isMappedArrayBuffer())) {
-        info->objectsNonHeapElementsMapped += buffer.byteLength();
+        sizes->nonHeapElementsMapped += buffer.byteLength();
     } else if (buffer.dataPointer()) {
-        info->objectsMallocHeapElementsNonAsmJS += mallocSizeOf(buffer.dataPointer());
+        sizes->mallocHeapElementsNonAsmJS += mallocSizeOf(buffer.dataPointer());
     }
 }
 

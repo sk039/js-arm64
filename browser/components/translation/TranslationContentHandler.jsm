@@ -121,23 +121,31 @@ TranslationContentHandler.prototype = {
         // translated text.
         let translationDocument = this.global.content.translationDocument ||
                                   new TranslationDocument(this.global.content.document);
-        let bingTranslation = new BingTranslation(translationDocument,
-                                                  msg.data.from,
-                                                  msg.data.to);
+        let bingTranslator = new BingTranslator(translationDocument,
+                                                msg.data.from,
+                                                msg.data.to);
 
         this.global.content.translationDocument = translationDocument;
         translationDocument.translatedFrom = msg.data.from;
         translationDocument.translatedTo = msg.data.to;
         translationDocument.translationError = false;
 
-        bingTranslation.translate().then(
-          success => {
-            this.global.sendAsyncMessage("Translation:Finished", {success: true});
+        bingTranslator.translate().then(
+          result => {
+            this.global.sendAsyncMessage("Translation:Finished", {
+              characterCount: result.characterCount,
+              from: msg.data.from,
+              to: msg.data.to,
+              success: true
+            });
             translationDocument.showTranslation();
           },
           error => {
             translationDocument.translationError = true;
-            this.global.sendAsyncMessage("Translation:Finished", {success: false});
+            let data = {success: false};
+            if (error == "unavailable")
+              data.unavailable = true;
+            this.global.sendAsyncMessage("Translation:Finished", data);
           }
         );
         break;
