@@ -477,7 +477,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         JS_ASSERT(0 && "loadPtr");
     }
     void loadPtr(const Address &address, Register dest) {
-        JS_ASSERT(0 && "loadPtr");
+        ldr(ARMRegister(dest, 64), MemOperand(address));
     }
     void loadPtr(const ARMOperand &src, Register dest) {
         JS_ASSERT(0 && "loadPtr");

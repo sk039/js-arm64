@@ -566,6 +566,11 @@ class MemOperand
                         const Operand& offset,
                         AddrMode addrmode = Offset);
 
+    // Adapter constructors using C++11 delegating.
+    explicit MemOperand(Address addr)
+      : MemOperand(ARMRegister(addr.base, 64), (ptrdiff_t)addr.offset)
+    { }
+
     const ARMRegister& base() const { return base_; }
     const ARMRegister& regoffset() const { return regoffset_; }
     ptrdiff_t offset() const { return offset_; }
