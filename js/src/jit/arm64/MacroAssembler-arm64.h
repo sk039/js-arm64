@@ -243,10 +243,10 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         JS_ASSERT(0 && "loadValue");
     }
     void loadValue(Address src, Register val) {
-        Ldr(ARMRegister(val, 64), MemOperand(ARMRegister(src.base, 64), src.offset));
+        Ldr(ARMRegister(val, 64), MemOperand(src));
     }
     void loadValue(Address src, ValueOperand val) {
-        Ldr(ARMRegister(val.valueReg(), 64), MemOperand(ARMRegister(src.base, 64), src.offset));
+        Ldr(ARMRegister(val.valueReg(), 64), MemOperand(src));
     }
     void loadValue(const BaseIndex &src, ValueOperand val) {
         JS_ASSERT(0 && "loadValue");

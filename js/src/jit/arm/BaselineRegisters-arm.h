@@ -20,7 +20,10 @@ namespace jit {
 // r13 = stack-pointer
 // r11 = frame-pointer
 static MOZ_CONSTEXPR_VAR Register BaselineFrameReg = r11;
-static MOZ_CONSTEXPR_VAR Register BaselineStackReg = sp;
+
+// The BaselineStackReg must not be |sp|, because that register
+// is treated as xzr/wzr for purposes of loading and storing.
+static MOZ_CONSTEXPR_VAR Register BaselineStackReg = r12;
 
 // ValueOperands R0, R1, and R2.
 // R0 == JSReturnReg, and R2 uses registers not
