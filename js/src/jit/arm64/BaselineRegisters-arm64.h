@@ -14,7 +14,7 @@
 namespace js {
 namespace jit {
 
-static MOZ_CONSTEXPR_VAR Register BaselineFrameReg {Registers::fp};
+static MOZ_CONSTEXPR_VAR Register BaselineFrameReg {Registers::x11};
 static MOZ_CONSTEXPR_VAR Register BaselineStackReg {Registers::sp};
 
 // ValueOperands R0, R1, and R2.
@@ -34,8 +34,8 @@ static MOZ_CONSTEXPR_VAR ValueOperand R2(R2_);
 static MOZ_CONSTEXPR_VAR Register BaselineTailCallReg {Registers::x30};
 static MOZ_CONSTEXPR_VAR Register BaselineStubReg     {Registers::x9};
 
-static MOZ_CONSTEXPR_VAR Register ExtractTemp0        {Registers::x3 };
-static MOZ_CONSTEXPR_VAR Register ExtractTemp1        {Registers::x4 };
+static MOZ_CONSTEXPR_VAR Register ExtractTemp0        {Registers::x3};
+static MOZ_CONSTEXPR_VAR Register ExtractTemp1        {Registers::x4};
 
 // Register used internally by MacroAssemblerARM.
 static MOZ_CONSTEXPR_VAR Register BaselineSecondScratchReg {Registers::x6};
