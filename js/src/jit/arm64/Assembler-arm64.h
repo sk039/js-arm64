@@ -257,11 +257,11 @@ static const Scale ScalePointer = TimesEight;
 static const uint32_t AlignmentAtAsmJSPrologue = sizeof(void*);
 
 // As an invariant across architectures, within asm.js code:
-//    $sp % StackAlignment = (AsmJSSizeOfRetAddr + masm.framePushed) % StackAlignment
+//    $sp % StackAlignment = (AsmJSFrameSize + masm.framePushed) % StackAlignment
 // On arm64, this naturally falls out of the fact that the 'call' instruction
 // pushes the return address on the stack and masm.framePushed = 0 at the first
 // instruction of the prologue.
-static const uint32_t AsmJSSizeOfRetAddr = sizeof(void*);
+static const uint32_t AsmJSFrameSize = sizeof(void*);
 
 static MOZ_CONSTEXPR_VAR ARMRegister ScratchRegister64 = { Registers::ip0, 64 };
 static MOZ_CONSTEXPR_VAR ARMRegister ScratchRegister32 = { Registers::ip0, 32 };

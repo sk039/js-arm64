@@ -580,6 +580,15 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         ARMRegister s(src, 64);
         Orr(d, d, Operand(s));
     }
+    void or32(Imm32 imm, Register dest) {
+        ARMRegister d(dest, 32);
+        Orr(d, d, Operand(imm.value));
+    }
+    void or32(Register src, Register dest) {
+        ARMRegister d(dest, 32);
+        ARMRegister s(src, 32);
+        Orr(d, d, Operand(s));
+    }
     void or32(Imm32 imm, const Address &dest) {
         load32(dest, SecondScratchRegister);
         Orr(SecondScratchRegister32, SecondScratchRegister32, Operand(imm.value));
@@ -1035,6 +1044,9 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     void branchTestString(Condition cond, Register tag, Label *label) {
         JS_ASSERT(0 && "branchTestString");
     }
+    void branchTestSymbol(Condition cond, Register tag, Label *label) {
+        JS_ASSERT(0 && "branchTestSymbol");
+    }
     void branchTestObject(Condition cond, Register tag, Label *label) {
         JS_ASSERT(0 && "branchTestObject");
     }
@@ -1087,6 +1099,9 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     void branchTestString(Condition cond, const ValueOperand &src, Label *label) {
         JS_ASSERT(0 && "branchTestString");
     }
+    void branchTestSymbol(Condition cond, const ValueOperand &src, Label *label) {
+        JS_ASSERT(0 && "branchTestSymbol");
+    }
     void branchTestObject(Condition cond, const ValueOperand &src, Label *label) {
         JS_ASSERT(0 && "branchTestObject");
     }
@@ -1113,6 +1128,9 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
     void branchTestString(Condition cond, const BaseIndex &address, Label *label) {
         JS_ASSERT(0 && "branchTestString");
+    }
+    void branchTestSymbol(Condition cond, const BaseIndex &address, Label *label) {
+        JS_ASSERT(0 && "branchTestSymbol");
     }
     void branchTestObject(Condition cond, const BaseIndex &address, Label *label) {
         JS_ASSERT(0 && "branchTestObject");
@@ -1293,6 +1311,9 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     Condition testString(Condition cond, const ValueOperand &value) {
         JS_ASSERT(0 && "testString");
     }
+    Condition testSymbol(Condition cond, const ValueOperand &value) {
+        JS_ASSERT(0 && "testSymbol");
+    }
     Condition testObject(Condition cond, const ValueOperand &value) {
         JS_ASSERT(0 && "testObject");
     }
@@ -1323,6 +1344,10 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
     Condition testString(Condition cond, Register tag) {
         JS_ASSERT(0 && "testString");
+        return Condition::Zero;
+    }
+    Condition testSymbol(Condition cond, Register tag) {
+        JS_ASSERT(0 && "testSymbol");
         return Condition::Zero;
     }
     Condition testObject(Condition cond, Register tag) {
@@ -1378,6 +1403,10 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         JS_ASSERT(0 && "testString");
         return Condition::Zero;
     }
+    Condition testSymbol(Condition cond, const Address &address) {
+        JS_ASSERT(0 && "testSymbol");
+        return Condition::Zero;
+    }
     Condition testObject(Condition cond, const Address &address) {
         JS_ASSERT(0 && "testObject");
         return Condition::Zero;
@@ -1401,6 +1430,10 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
     Condition testString(Condition cond, const BaseIndex &src) {
         JS_ASSERT(0 && "testString");
+        return Condition::Zero;
+    }
+    Condition testSymbol(Condition cond, const BaseIndex &src) {
+        JS_ASSERT(0 && "testSymbol");
         return Condition::Zero;
     }
     Condition testInt32(Condition cond, const BaseIndex &src) {
