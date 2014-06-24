@@ -423,6 +423,11 @@ AssemblerVIXL::bind(Label* label)
 int
 AssemblerVIXL::UpdateAndGetByteOffsetTo(Label* label)
 {
+    JS_ASSERT(label->bound());
+
+    // FIXME: Yeah this isn't right.
+    return label->offset();
+
 #if 0
     int offset;
     VIXL_STATIC_ASSERT(sizeof(*pc_) == 1);
@@ -446,74 +451,125 @@ void
 AssemblerVIXL::br(const ARMRegister& xn)
 {
     VIXL_ASSERT(xn.Is64Bits());
+
+    armbuffer_.markNextAsBranch();
     Emit(BR | Rn(xn));
+
+    // Mark that a pool can be placed after the unconditional branch.
+    armbuffer_.markGuard();
 }
 
 void
 AssemblerVIXL::blr(const ARMRegister& xn)
 {
     VIXL_ASSERT(xn.Is64Bits());
+
+    armbuffer_.markNextAsBranch();
     Emit(BLR | Rn(xn));
+
+    // Mark that a pool can be placed after the unconditional branch.
+    armbuffer_.markGuard();
 }
 
 void
 AssemblerVIXL::ret(const ARMRegister& xn)
 {
     VIXL_ASSERT(xn.Is64Bits());
+
+    armbuffer_.markNextAsBranch();
     Emit(RET | Rn(xn));
+
+    // Mark that a pool can be placed after the unconditional branch.
+    armbuffer_.markGuard();
 }
 
 void
 AssemblerVIXL::b(int imm26)
 {
+    armbuffer_.markNextAsBranch();
     Emit(B | ImmUncondBranch(imm26));
+
+    // Mark that a pool can be placed after the unconditional branch.
+    armbuffer_.markGuard();
 }
 
 void
 AssemblerVIXL::b(int imm19, Condition cond)
 {
+    armbuffer_.markNextAsBranch();
     Emit(B_cond | ImmCondBranch(imm19) | cond);
+
+    // Mark that a pool can be placed after an unconditional branch.
+    if (cond == Always)
+        armbuffer_.markGuard();
 }
 
 void
 AssemblerVIXL::b(Label* label)
 {
-    b(UpdateAndGetInstructionOffsetTo(label));
+    if (armbuffer_.oom())
+        return;
+
+    armbuffer_.markNextAsBranch();
+
+    if (label->bound()) {
+        b(UpdateAndGetInstructionOffsetTo(label));
+        return;
+    }
+
+    JS_ASSERT(0 && "Implementation of b() with unbound labels");
 }
 
 void
 AssemblerVIXL::b(Label* label, Condition cond)
 {
-    b(UpdateAndGetInstructionOffsetTo(label), cond);
+    if (armbuffer_.oom())
+        return;
+
+    armbuffer_.markNextAsBranch();
+
+    if (label->bound()) {
+        b(UpdateAndGetInstructionOffsetTo(label), cond);
+        return;
+    }
+
+    JS_ASSERT(0 && "Implementation of conditional b() with unbound labels");
 }
 
 void
 AssemblerVIXL::bl(int imm26)
 {
+    armbuffer_.markNextAsBranch();
     Emit(BL | ImmUncondBranch(imm26));
+    armbuffer_.markGuard();
 }
 
 void
 AssemblerVIXL::bl(Label* label)
 {
+    armbuffer_.markNextAsBranch();
     bl(UpdateAndGetInstructionOffsetTo(label));
+    armbuffer_.markGuard();
 }
 
 void
 AssemblerVIXL::cbz(const ARMRegister& rt, int imm19)
 {
+    armbuffer_.markNextAsBranch();
     Emit(SF(rt) | CBZ | ImmCmpBranch(imm19) | Rt(rt));
 }
 
 void
 AssemblerVIXL::cbz(const ARMRegister& rt, Label* label)
 {
+    armbuffer_.markNextAsBranch();
     cbz(rt, UpdateAndGetInstructionOffsetTo(label));
 }
 
 void
 AssemblerVIXL::cbnz(const ARMRegister& rt, int imm19)
 {
+    armbuffer_.markNextAsBranch();
     Emit(SF(rt) | CBNZ | ImmCmpBranch(imm19) | Rt(rt));
 }
 
@@ -527,6 +583,7 @@ void
 AssemblerVIXL::tbz(const ARMRegister& rt, unsigned bit_pos, int imm14)
 {
     VIXL_ASSERT(rt.Is64Bits() || (rt.Is32Bits() && (bit_pos < kWRegSize)));
+    armbuffer_.markNextAsBranch();
     Emit(TBZ | ImmTestBranchBit(bit_pos) | ImmTestBranch(imm14) | Rt(rt));
 }
 
@@ -540,6 +597,7 @@ void
 AssemblerVIXL::tbnz(const ARMRegister& rt, unsigned bit_pos, int imm14)
 {
     VIXL_ASSERT(rt.Is64Bits() || (rt.Is32Bits() && (bit_pos < kWRegSize)));
+    armbuffer_.markNextAsBranch();
     Emit(TBNZ | ImmTestBranchBit(bit_pos) | ImmTestBranch(imm14) | Rt(rt));
 }
 
