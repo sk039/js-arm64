@@ -21,9 +21,8 @@ static MOZ_CONSTEXPR_VAR Register BaselineFrameReg {Registers::x11};
 static MOZ_CONSTEXPR_VAR Register BaselineStackReg {Registers::x12};
 
 // ValueOperands R0, R1, and R2.
-// R0 == JSReturnReg, and R2 uses registers not
-// preserved across calls.  R1 value should be
-// preserved across calls.
+// R0 == JSReturnReg, and R2 uses registers not preserved across calls.
+// R1 value should be preserved across calls.
 static MOZ_CONSTEXPR_VAR Register R0_{Registers::x2};
 static MOZ_CONSTEXPR_VAR Register R1_{Registers::x19};
 static MOZ_CONSTEXPR_VAR Register R2_{Registers::x0};
@@ -32,8 +31,7 @@ static MOZ_CONSTEXPR_VAR ValueOperand R1(R1_);
 static MOZ_CONSTEXPR_VAR ValueOperand R2(R2_);
 
 // BaselineTailCallReg and BaselineStubReg
-// These use registers that are not preserved across
-// calls.
+// These use registers that are not preserved across calls.
 static MOZ_CONSTEXPR_VAR Register BaselineTailCallReg {Registers::x30};
 static MOZ_CONSTEXPR_VAR Register BaselineStubReg     {Registers::x9};
 
