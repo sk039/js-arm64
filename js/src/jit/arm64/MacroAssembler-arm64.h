@@ -975,10 +975,19 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         JS_ASSERT(0 && "branchTest16");
     }
     void branchTest32(Condition cond, Register lhs, Register rhs, Label *label) {
-        JS_ASSERT(0 && "branchTest32");
+        JS_ASSERT(cond == Zero || cond == NonZero || cond == Signed || cond == NotSigned);
+        // x86 prefers |test foo, foo| to |cmp foo, #0|.
+        // Convert the former to the latter for ARM.
+        if (lhs == rhs && (cond == Zero || cond == NonZero))
+            cmp32(lhs, Imm32(0));
+        else
+            test32(lhs, rhs);
+        B(label, cond);
     }
     void branchTest32(Condition cond, Register lhs, Imm32 imm, Label *label) {
-        JS_ASSERT(0 && "branchTest32");
+        JS_ASSERT(cond == Zero || cond == NonZero || cond == Signed || cond == NotSigned);
+        test32(lhs, imm);
+        B(label, cond);
     }
     void branchTest32(Condition cond, const Address &address, Imm32 imm, Label *label) {
         JS_ASSERT(0 && "branchTest32");
