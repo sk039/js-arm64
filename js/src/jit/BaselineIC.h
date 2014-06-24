@@ -1104,34 +1104,38 @@ class ICStubCompiler
 
     inline GeneralRegisterSet availableGeneralRegs(size_t numInputs) const {
         GeneralRegisterSet regs(GeneralRegisterSet::All());
-        JS_ASSERT(!regs.has(BaselineStackReg));
-#if defined(JS_CODEGEN_ARM)
-        JS_ASSERT(!regs.has(BaselineTailCallReg));
-        regs.take(BaselineSecondScratchReg);
-#elif defined(JS_CODEGEN_MIPS)
-        JS_ASSERT(!regs.has(BaselineTailCallReg));
-        JS_ASSERT(!regs.has(BaselineSecondScratchReg));
-#endif
+
         regs.take(BaselineFrameReg);
         regs.take(BaselineStubReg);
-#ifdef JS_CODEGEN_X64
+
+#if defined(JS_CODEGEN_ARM)
+        JS_ASSERT(!regs.has(BaselineStackReg));
+        JS_ASSERT(!regs.has(BaselineTailCallReg));
+        regs.take(BaselineSecondScratchReg);
+#elif defined(JS_CODEGEN_ARM64)
+        JS_ASSERT(regs.has(BaselineStackReg));
+        regs.take(BaselineStackReg);
+        // TODO: BaselineTailCallReg?
+        JS_ASSERT(regs.has(BaselineSecondScratchReg));
+        regs.take(BaselineSecondScratchReg);
+#elif defined(JS_CODEGEN_MIPS)
+        JS_ASSERT(!regs.has(BaselineStackReg));
+        JS_ASSERT(!regs.has(BaselineTailCallReg));
+        JS_ASSERT(!regs.has(BaselineSecondScratchReg));
+#elif defined(JS_CODEGEN_X86)
+        JS_ASSERT(!regs.has(BaselineStackReg));
+#elif defined(JS_CODEGEN_X64)
+        JS_ASSERT(!regs.has(BaselineStackReg));
         regs.take(ExtractTemp0);
         regs.take(ExtractTemp1);
 #endif
 
-        switch (numInputs) {
-          case 0:
-            break;
-          case 1:
+        if (numInputs >= 1)
             regs.take(R0);
-            break;
-          case 2:
-            regs.take(R0);
+        if (numInputs >= 2)
             regs.take(R1);
-            break;
-          default:
+        if (numInputs >= 3)
             MOZ_ASSUME_UNREACHABLE("Invalid numInputs");
-        }
 
         return regs;
     }

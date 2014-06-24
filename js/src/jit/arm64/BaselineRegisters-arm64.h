@@ -38,7 +38,7 @@ static MOZ_CONSTEXPR_VAR Register BaselineStubReg     {Registers::x9};
 static MOZ_CONSTEXPR_VAR Register ExtractTemp0        {Registers::x3};
 static MOZ_CONSTEXPR_VAR Register ExtractTemp1        {Registers::x4};
 
-// Register used internally by MacroAssemblerARM.
+// Register used internally by MacroAssemblerARM64.
 static MOZ_CONSTEXPR_VAR Register BaselineSecondScratchReg {Registers::x6};
 
 // R7 - R9 are generally available for use within stubcode.
