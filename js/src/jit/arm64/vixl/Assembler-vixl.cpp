@@ -454,8 +454,6 @@ AssemblerVIXL::br(const ARMRegister& xn)
 
     armbuffer_.markNextAsBranch();
     Emit(BR | Rn(xn));
-
-    // Mark that a pool can be placed after the unconditional branch.
     armbuffer_.markGuard();
 }
 
@@ -466,8 +464,6 @@ AssemblerVIXL::blr(const ARMRegister& xn)
 
     armbuffer_.markNextAsBranch();
     Emit(BLR | Rn(xn));
-
-    // Mark that a pool can be placed after the unconditional branch.
     armbuffer_.markGuard();
 }
 
@@ -478,8 +474,6 @@ AssemblerVIXL::ret(const ARMRegister& xn)
 
     armbuffer_.markNextAsBranch();
     Emit(RET | Rn(xn));
-
-    // Mark that a pool can be placed after the unconditional branch.
     armbuffer_.markGuard();
 }
 
@@ -488,8 +482,6 @@ AssemblerVIXL::b(int imm26)
 {
     armbuffer_.markNextAsBranch();
     Emit(B | ImmUncondBranch(imm26));
-
-    // Mark that a pool can be placed after the unconditional branch.
     armbuffer_.markGuard();
 }
 
@@ -499,7 +491,6 @@ AssemblerVIXL::b(int imm19, Condition cond)
     armbuffer_.markNextAsBranch();
     Emit(B_cond | ImmCondBranch(imm19) | cond);
 
-    // Mark that a pool can be placed after an unconditional branch.
     if (cond == Always)
         armbuffer_.markGuard();
 }
@@ -510,14 +501,22 @@ AssemblerVIXL::b(Label* label)
     if (armbuffer_.oom())
         return;
 
-    armbuffer_.markNextAsBranch();
-
     if (label->bound()) {
         b(UpdateAndGetInstructionOffsetTo(label));
         return;
     }
 
-    JS_ASSERT(0 && "Implementation of b() with unbound labels");
+    // FIXME: It looks like used() and bound() are very similar...
+    if (label->used()) {
+        // TODO: Check that the offset is in valid range.
+        b(UpdateAndGetInstructionOffsetTo(label));
+        return;
+    }
+
+    // Just put in any offset, and we'll patch it up later.
+    b(0x0);
+
+    // TODO: Some debug checks?
 }
 
 void
@@ -526,14 +525,22 @@ AssemblerVIXL::b(Label* label, Condition cond)
     if (armbuffer_.oom())
         return;
 
-    armbuffer_.markNextAsBranch();
-
     if (label->bound()) {
         b(UpdateAndGetInstructionOffsetTo(label), cond);
         return;
     }
 
-    JS_ASSERT(0 && "Implementation of conditional b() with unbound labels");
+    // FIXME: It looks like used() and bound() are very similar...
+    if (label->used()) {
+        // TODO: Check that the offset is in valid range.
+        b(UpdateAndGetInstructionOffsetTo(label));
+        return;
+    }
+
+    // Just put in any offset, and we'll patch it up later.
+    b(0x0);
+
+    // TODO: Some debug checks?
 }
 
 void
@@ -547,9 +554,7 @@ AssemblerVIXL::bl(int imm26)
 void
 AssemblerVIXL::bl(Label* label)
 {
-    armbuffer_.markNextAsBranch();
     bl(UpdateAndGetInstructionOffsetTo(label));
-    armbuffer_.markGuard();
 }
 
 void
@@ -562,7 +567,6 @@ AssemblerVIXL::cbz(const ARMRegister& rt, int imm19)
 void
 AssemblerVIXL::cbz(const ARMRegister& rt, Label* label)
 {
-    armbuffer_.markNextAsBranch();
     cbz(rt, UpdateAndGetInstructionOffsetTo(label));
 }
 

@@ -423,16 +423,16 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         JS_ASSERT(0 && "branchTruncateFloat32");
     }
     void jump(Label *label) {
-        JS_ASSERT(0 && "jump");
+        B(label);
     }
     void jump(RepatchLabel *label) {
-        JS_ASSERT(0 && "jump");
+        JS_ASSERT(0 && "jump (repatchlabel)");
     }
     void jump(Register reg) {
-        JS_ASSERT(0 && "jump");
+        Br(ARMRegister(reg, 64));
     }
     void jump(const Address &addr) {
-        JS_ASSERT(0 && "jump");
+        JS_ASSERT(0 && "jump (address)");
     }
 
     void align(int alignment) {
