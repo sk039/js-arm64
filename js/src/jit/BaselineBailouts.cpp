@@ -1694,6 +1694,7 @@ jit::FinishBailoutToBaseline(BaselineBailoutInfo *bailoutInfo)
       case Bailout_NonBooleanInput:
       case Bailout_NonObjectInput:
       case Bailout_NonStringInput:
+      case Bailout_NonSymbolInput:
       case Bailout_GuardThreadExclusive:
       case Bailout_InitialState:
         // Do nothing.

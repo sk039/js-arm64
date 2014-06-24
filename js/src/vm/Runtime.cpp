@@ -210,6 +210,7 @@ JSRuntime::JSRuntime(JSRuntime *parentRuntime)
     staticStrings(nullptr),
     commonNames(nullptr),
     permanentAtoms(nullptr),
+    wellKnownSymbols(nullptr),
     wrapObjectCallbacks(&DefaultWrapObjectCallbacks),
     preserveWrapperCallback(nullptr),
     jitSupportsFloatingPoint(false),
@@ -306,6 +307,9 @@ JSRuntime::init(uint32_t maxbytes)
 
     atomsZone.forget();
     this->atomsCompartment_ = atomsCompartment.forget();
+
+    if (!symbolRegistry_.init())
+        return false;
 
     if (!scriptDataTable_.init())
         return false;
