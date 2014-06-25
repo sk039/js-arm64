@@ -1322,81 +1322,109 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
 
     Condition testInt32(Condition cond, const ValueOperand &value) {
-        JS_ASSERT(0 && "testInt32");
+        splitTag(value, ScratchReg);
+        return testInt32(cond, ScratchReg);
     }
     Condition testBoolean(Condition cond, const ValueOperand &value) {
-        JS_ASSERT(0 && "testBoolean");
+        splitTag(value, ScratchReg);
+        return testBoolean(cond, ScratchReg);
     }
     Condition testDouble(Condition cond, const ValueOperand &value) {
-        JS_ASSERT(0 && "testDouble");
+        splitTag(value, ScratchReg);
+        return testDouble(cond, ScratchReg);
     }
     Condition testNull(Condition cond, const ValueOperand &value) {
-        JS_ASSERT(0 && "testNull");
+        splitTag(value, ScratchReg);
+        return testNull(cond, ScratchReg);
     }
     Condition testUndefined(Condition cond, const ValueOperand &value) {
-        JS_ASSERT(0 && "testUndefined");
+        splitTag(value, ScratchReg);
+        return testUndefined(cond, ScratchReg);
     }
     Condition testString(Condition cond, const ValueOperand &value) {
-        JS_ASSERT(0 && "testString");
+        splitTag(value, ScratchReg);
+        return testString(cond, ScratchReg);
     }
     Condition testSymbol(Condition cond, const ValueOperand &value) {
-        JS_ASSERT(0 && "testSymbol");
+        splitTag(value, ScratchReg);
+        return testSymbol(cond, ScratchReg);
     }
     Condition testObject(Condition cond, const ValueOperand &value) {
-        JS_ASSERT(0 && "testObject");
+        splitTag(value, ScratchReg);
+        return testObject(cond, ScratchReg);
     }
     Condition testNumber(Condition cond, const ValueOperand &value) {
-        JS_ASSERT(0 && "testNumber");
+        splitTag(value, ScratchReg);
+        return testNumber(cond, ScratchReg);
     }
-
     Condition testPrimitive(Condition cond, const ValueOperand &value) {
-        JS_ASSERT(0 && "testPrimitive");
+        splitTag(value, ScratchReg);
+        return testPrimitive(cond, ScratchReg);
     }
 
     // register-based tests
+    Condition testUndefined(Condition cond, Register tag) {
+        JS_ASSERT(cond == Equal || cond == NotEqual);
+        cmp32(tag, ImmTag(JSVAL_TAG_UNDEFINED));
+        return cond;
+    }
     Condition testInt32(Condition cond, Register tag) {
-        JS_ASSERT(0 && "testInt32");
-        return Condition::Zero;
+        JS_ASSERT(cond == Equal || cond == NotEqual);
+        cmp32(tag, ImmTag(JSVAL_TAG_INT32));
+        return cond;
     }
     Condition testBoolean(Condition cond, Register tag) {
-        JS_ASSERT(0 && "testBoolean");
-        return Condition::Zero;
+        JS_ASSERT(cond == Equal || cond == NotEqual);
+        cmp32(tag, ImmTag(JSVAL_TAG_BOOLEAN));
+        return cond;
     }
     Condition testNull(Condition cond, Register tag) {
-        JS_ASSERT(0 && "testNull");
-        return Condition::Zero;
-    }
-    Condition testUndefined(Condition cond, Register tag) {
-        JS_ASSERT(0 && "testUndefined");
-        return Condition::Zero;
+        JS_ASSERT(cond == Equal || cond == NotEqual);
+        cmp32(tag, ImmTag(JSVAL_TAG_NULL));
+        return cond;
     }
     Condition testString(Condition cond, Register tag) {
-        JS_ASSERT(0 && "testString");
-        return Condition::Zero;
+        JS_ASSERT(cond == Equal || cond == NotEqual);
+        cmp32(tag, ImmTag(JSVAL_TAG_STRING));
+        return cond;
     }
     Condition testSymbol(Condition cond, Register tag) {
-        JS_ASSERT(0 && "testSymbol");
-        return Condition::Zero;
+        JS_ASSERT(cond == Equal || cond == NotEqual);
+        cmp32(tag, ImmTag(JSVAL_TAG_SYMBOL));
+        return cond;
     }
     Condition testObject(Condition cond, Register tag) {
-        JS_ASSERT(0 && "testObject");
-        return Condition::Zero;
+        JS_ASSERT(cond == Equal || cond == NotEqual);
+        cmp32(tag, ImmTag(JSVAL_TAG_OBJECT));
+        return cond;
     }
     Condition testDouble(Condition cond, Register tag) {
-        JS_ASSERT(0 && "testDouble");
-        return Condition::Zero;
+        JS_ASSERT(cond == Equal || cond == NotEqual);
+        cmp32(tag, Imm32(JSVAL_TAG_MAX_DOUBLE));
+        return (cond == Equal) ? BelowOrEqual : Above;
     }
     Condition testNumber(Condition cond, Register tag) {
-        JS_ASSERT(0 && "testNumber");
-        return Condition::Zero;
+        JS_ASSERT(cond == Equal || cond == NotEqual);
+        cmp32(tag, Imm32(JSVAL_UPPER_INCL_TAG_OF_NUMBER_SET));
+        return (cond == Equal) ? BelowOrEqual : Above;
+    }
+    Condition testGCThing(Condition cond, Register tag) {
+        JS_ASSERT(cond == Equal || cond == NotEqual);
+        cmp32(tag, Imm32(JSVAL_LOWER_INCL_TAG_OF_GCTHING_SET));
+        return (cond == Equal) ? AboveOrEqual : Below;
     }
     Condition testMagic(Condition cond, Register tag) {
-        JS_ASSERT(0 && "testMagic");
-        return Condition::Zero;
+        JS_ASSERT(cond == Equal || cond == NotEqual);
+        cmp32(tag, ImmTag(JSVAL_TAG_MAGIC));
+        return cond;
     }
     Condition testPrimitive(Condition cond, Register tag) {
-        JS_ASSERT(0 && "testPrimitive");
-        return Condition::Zero;
+        JS_ASSERT(cond == Equal || cond == NotEqual);
+        cmp32(tag, Imm32(JSVAL_UPPER_EXCL_TAG_OF_PRIMITIVE_SET));
+        return (cond == Equal) ? Below : AboveOrEqual;
+    }
+    Condition testError(Condition cond, Register tag) {
+        return testMagic(cond, tag);
     }
 
     Condition testGCThing(Condition cond, const Address &address) {
