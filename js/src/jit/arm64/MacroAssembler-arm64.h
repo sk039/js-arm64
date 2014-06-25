@@ -775,10 +775,11 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
 
     void splitTag(Register src, Register dest) {
-        JS_ASSERT(0 && "splitTag");
+        // FIXME: Could this be done in a better way?
+        asr(ARMRegister(dest, 64), ARMRegister(src, 64), JSVAL_TAG_SHIFT);
     }
     void splitTag(const ValueOperand &operand, Register dest) {
-        JS_ASSERT(0 && "void ");
+        splitTag(operand.valueReg(), dest);
     }
     void splitTag(const ARMOperand &operand, Register dest) {
         JS_ASSERT(0 && "splitTag");
