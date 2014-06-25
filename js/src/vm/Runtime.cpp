@@ -249,7 +249,7 @@ JitSupportsFloatingPoint()
         return false;
 #endif
 #if defined(JS_ION) && WTF_ARM_ARCH_VERSION == 6
-    if (!js::jit::hasVFP())
+    if (!js::jit::HasVFP())
         return false;
 #endif
 
