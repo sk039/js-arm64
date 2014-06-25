@@ -1036,31 +1036,40 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
 
     void branchTestUndefined(Condition cond, Register tag, Label *label) {
-        JS_ASSERT(0 && "branchTestUndefined()");
+        Condition c = testUndefined(cond, tag);
+        B(label, c);
     }
     void branchTestInt32(Condition cond, Register tag, Label *label) {
-        JS_ASSERT(0 && "branchTestInt32");
+        Condition c = testInt32(cond, tag);
+        B(label, c);
     }
     void branchTestDouble(Condition cond, Register tag, Label *label) {
-        JS_ASSERT(0 && "branchTestDouble");
+        Condition c = testDouble(cond, tag);
+        B(label, c);
     }
     void branchTestBoolean(Condition cond, Register tag, Label *label) {
-        JS_ASSERT(0 && "branchTestBoolean");
+        Condition c = testBoolean(cond, tag);
+        B(label, c);
     }
     void branchTestNull(Condition cond, Register tag, Label *label) {
-        JS_ASSERT(0 && "branchTestNull");
+        Condition c = testNull(cond, tag);
+        B(label, c);
     }
     void branchTestString(Condition cond, Register tag, Label *label) {
-        JS_ASSERT(0 && "branchTestString");
+        Condition c = testString(cond, tag);
+        B(label, c);
     }
     void branchTestSymbol(Condition cond, Register tag, Label *label) {
-        JS_ASSERT(0 && "branchTestSymbol");
+        Condition c = testSymbol(cond, tag);
+        B(label, c);
     }
     void branchTestObject(Condition cond, Register tag, Label *label) {
-        JS_ASSERT(0 && "branchTestObject");
+        Condition c = testObject(cond, tag);
+        B(label, c);
     }
     void branchTestNumber(Condition cond, Register tag, Label *label) {
-        JS_ASSERT(0 && "branchTestNumber");
+        Condition c = testNumber(cond, tag);
+        B(label, c);
     }
 
     void branchTestUndefined(Condition cond, const ARMOperand &operand, Label *label) {
