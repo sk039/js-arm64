@@ -1101,31 +1101,40 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     // Perform a type-test on a full Value loaded into a register.
     // Clobbers the ScratchReg.
     void branchTestUndefined(Condition cond, const ValueOperand &src, Label *label) {
-        JS_ASSERT(0 && "branchTestUndefined");
+        Condition c = testUndefined(cond, src);
+        B(label, c);
     }
     void branchTestInt32(Condition cond, const ValueOperand &src, Label *label) {
-        JS_ASSERT(0 && "branchTestInt32");
+        Condition c = testInt32(cond, src);
+        B(label, c);
     }
     void branchTestBoolean(Condition cond, const ValueOperand &src, Label *label) {
-        JS_ASSERT(0 && "branchTestBoolean");
+        Condition c = testBoolean(cond, src);
+        B(label, c);
     }
     void branchTestDouble(Condition cond, const ValueOperand &src, Label *label) {
-        JS_ASSERT(0 && "branchTestDouble");
+        Condition c = testDouble(cond, src);
+        B(label, c);
     }
     void branchTestNull(Condition cond, const ValueOperand &src, Label *label) {
-        JS_ASSERT(0 && "branchTestNull");
+        Condition c = testNull(cond, src);
+        B(label, c);
     }
     void branchTestString(Condition cond, const ValueOperand &src, Label *label) {
-        JS_ASSERT(0 && "branchTestString");
+        Condition c = testString(cond, src);
+        B(label, c);
     }
     void branchTestSymbol(Condition cond, const ValueOperand &src, Label *label) {
-        JS_ASSERT(0 && "branchTestSymbol");
+        Condition c = testSymbol(cond, src);
+        B(label, c);
     }
     void branchTestObject(Condition cond, const ValueOperand &src, Label *label) {
-        JS_ASSERT(0 && "branchTestObject");
+        Condition c = testObject(cond, src);
+        B(label, c);
     }
     void branchTestNumber(Condition cond, const ValueOperand &src, Label *label) {
-        JS_ASSERT(0 && "branchTestNumber");
+        Condition c = testNumber(cond, src);
+        B(label, c);
     }
 
     // Perform a type-test on a Value addressed by BaseIndex.
