@@ -209,7 +209,7 @@ class ARMRegister : public CPURegister
       : CPURegister(code, size, kARMRegister)
     { }
 
-    explicit ARMRegister(Register r, unsigned size)
+    MOZ_CONSTEXPR ARMRegister(Register r, unsigned size)
       : CPURegister(r.code(), size, kARMRegister)
     { }
 

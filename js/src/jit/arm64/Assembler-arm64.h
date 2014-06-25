@@ -263,13 +263,13 @@ static const uint32_t AlignmentAtAsmJSPrologue = sizeof(void*);
 // instruction of the prologue.
 static const uint32_t AsmJSFrameSize = sizeof(void*);
 
-static MOZ_CONSTEXPR_VAR ARMRegister ScratchRegister64 = { Registers::ip0, 64 };
-static MOZ_CONSTEXPR_VAR ARMRegister ScratchRegister32 = { Registers::ip0, 32 };
-static MOZ_CONSTEXPR_VAR Register ScratchRegister = { Registers::ip0 };
+static MOZ_CONSTEXPR_VAR Register ScratchReg = { Registers::ip0 };
+static MOZ_CONSTEXPR_VAR ARMRegister ScratchReg64 = { ScratchReg, 64 };
+static MOZ_CONSTEXPR_VAR ARMRegister ScratchReg32 = { ScratchReg, 32 };
 
-static MOZ_CONSTEXPR_VAR ARMRegister SecondScratchRegister64 = { Registers::ip1, 64 };
-static MOZ_CONSTEXPR_VAR ARMRegister SecondScratchRegister32 = { Registers::ip1, 32 };
-static MOZ_CONSTEXPR_VAR Register SecondScratchRegister = { Registers::ip1 };
+static MOZ_CONSTEXPR_VAR Register ScratchReg2 = { Registers::ip1 };
+static MOZ_CONSTEXPR_VAR ARMRegister ScratchReg2_64 = { ScratchReg2, 64 };
+static MOZ_CONSTEXPR_VAR ARMRegister ScratchReg2_32 = { ScratchReg2, 32 };
 
 static MOZ_CONSTEXPR_VAR Register OsrFrameReg = { Registers::x3};
 static MOZ_CONSTEXPR_VAR Register ArgumentsRectifierReg = { Registers::x8 };

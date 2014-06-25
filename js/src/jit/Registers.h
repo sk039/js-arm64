@@ -42,20 +42,19 @@ struct Register {
         Register r = { code };
         return r;
     }
-    Code code() const {
-        JS_ASSERT((uint32_t)code_ < Registers::Total);
+    MOZ_CONSTEXPR Code code() const {
         return code_;
     }
     const char *name() const {
         return Registers::GetName(code());
     }
-    bool operator ==(Register other) const {
+    MOZ_CONSTEXPR bool operator ==(Register other) const {
         return code_ == other.code_;
     }
-    bool operator !=(Register other) const {
+    MOZ_CONSTEXPR bool operator !=(Register other) const {
         return code_ != other.code_;
     }
-    bool volatile_() const {
+    MOZ_CONSTEXPR bool volatile_() const {
         return !!((1 << code()) & Registers::VolatileMask);
     }
 };
@@ -76,20 +75,19 @@ struct FloatRegister {
         FloatRegister r = { code };
         return r;
     }
-    Code code() const {
-        JS_ASSERT((uint32_t)code_ < FloatRegisters::Total);
+    MOZ_CONSTEXPR Code code() const {
         return code_;
     }
     const char *name() const {
         return FloatRegisters::GetName(code());
     }
-    bool operator ==(FloatRegister other) const {
+    MOZ_CONSTEXPR bool operator ==(FloatRegister other) const {
         return code_ == other.code_;
     }
-    bool operator !=(FloatRegister other) const {
+    MOZ_CONSTEXPR bool operator !=(FloatRegister other) const {
         return code_ != other.code_;
     }
-    bool volatile_() const {
+    MOZ_CONSTEXPR bool volatile_() const {
         return !!((1 << code()) & FloatRegisters::VolatileMask);
     }
 };

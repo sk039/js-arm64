@@ -133,12 +133,12 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
             return;
         }
         // TODO: should only add here when we can fit it into a single operand.
-        Add(SecondScratchRegister64,
+        Add(ScratchReg2_64,
             ARMRegister(addr.base, 64),
             Operand(ARMRegister(addr.index, 64),
                     LSL,
                     unsigned(addr.scale)));
-        LoadStoreMacro(rt, MemOperand(SecondScratchRegister64, addr.offset), op);
+        LoadStoreMacro(rt, MemOperand(ScratchReg2_64, addr.offset), op);
     }
 
     template <typename T>
@@ -267,16 +267,16 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         Ldr(ARMRegister(val.valueReg(), 64), MemOperand(sp, 8, PostIndex));
     }
     void pushValue(const Value &val) {
-        moveValue(val, SecondScratchRegister);
-        push(ScratchRegister);
+        moveValue(val, ScratchReg2);
+        push(ScratchReg);
     }
     void pushValue(JSValueType type, Register reg) {
-        tagValue(type, reg, ValueOperand(SecondScratchRegister));
-        push(SecondScratchRegister);
+        tagValue(type, reg, ValueOperand(ScratchReg2));
+        push(ScratchReg2);
     }
     void pushValue(const Address &addr) {
-        loadValue(addr, SecondScratchRegister);
-        push(SecondScratchRegister);
+        loadValue(addr, ScratchReg2);
+        push(ScratchReg2);
     }
     void moveValue(const Value &val, Register dest) {
         movePtr(ImmWord(val.asRawBits()), dest);
@@ -289,8 +289,8 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
 
     CodeOffsetLabel pushWithPatch(ImmWord imm) {
-        CodeOffsetLabel label = movWithPatch(imm, ScratchRegister);
-        push(ScratchRegister);
+        CodeOffsetLabel label = movWithPatch(imm, ScratchReg);
+        push(ScratchReg);
         return label;
     }
 
@@ -522,8 +522,8 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         JS_ASSERT(0 && "storePtr");
     }
     void storePtr(ImmPtr imm, const Address &address) {
-        Mov(SecondScratchRegister64, uint64_t(imm.value));
-        Str(SecondScratchRegister64, MemOperand(ARMRegister(address.base, 64), address.offset));
+        Mov(ScratchReg2_64, uint64_t(imm.value));
+        Str(ScratchReg2_64, MemOperand(ARMRegister(address.base, 64), address.offset));
     }
     void storePtr(ImmGCPtr imm, const Address &address) {
         JS_ASSERT(0 && "storePtr");
@@ -538,12 +538,12 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         JS_ASSERT(0 && "storePtr");
     }
     void storePtr(Register src, AbsoluteAddress address) {
-        Mov(SecondScratchRegister64, uint64_t(address.addr));
-        Str(ARMRegister(src, 64), MemOperand(SecondScratchRegister64));
+        Mov(ScratchReg2_64, uint64_t(address.addr));
+        Str(ARMRegister(src, 64), MemOperand(ScratchReg2_64));
     }
     void store32(Register src, AbsoluteAddress address) {
-        Mov(SecondScratchRegister64, uint64_t(address.addr));
-        Str(ARMRegister(src, 32), MemOperand(SecondScratchRegister64));
+        Mov(ScratchReg2_64, uint64_t(address.addr));
+        Str(ARMRegister(src, 32), MemOperand(ScratchReg2_64));
     }
     void rshiftPtr(Imm32 imm, Register dest) {
         ARMRegister d(dest, 64);
@@ -590,9 +590,9 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         Orr(d, d, Operand(s));
     }
     void or32(Imm32 imm, const Address &dest) {
-        load32(dest, SecondScratchRegister);
-        Orr(SecondScratchRegister32, SecondScratchRegister32, Operand(imm.value));
-        store32(SecondScratchRegister, dest);
+        load32(dest, ScratchReg2);
+        Orr(ScratchReg2_32, ScratchReg2_32, Operand(imm.value));
+        store32(ScratchReg2, dest);
 
     }
     void andPtr(Imm32 imm, Register dest) {
@@ -609,14 +609,14 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         And(d, d, Operand(s));
     }
     void and32(Imm32 mask, Address dest) {
-        load32(dest, SecondScratchRegister);
-        And(SecondScratchRegister32, SecondScratchRegister32, Operand(mask.value));
-        store32(SecondScratchRegister, dest);
+        load32(dest, ScratchReg2);
+        And(ScratchReg2_32, ScratchReg2_32, Operand(mask.value));
+        store32(ScratchReg2, dest);
     }
     void and32(Address src, Register dest) {
         ARMRegister d(dest, 32);
-        load32(src, SecondScratchRegister);
-        And(d, d, Operand(SecondScratchRegister32));
+        load32(src, ScratchReg2);
+        And(d, d, Operand(ScratchReg2_32));
     }
 
     void andPtr(Register src, Register dest) {
@@ -629,8 +629,8 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         Tst(ARMRegister(lhs, 32), Operand(ARMRegister(rhs, 32)));
     }
     void test32(const Address &addr, Imm32 imm) {
-        load32(addr, SecondScratchRegister);
-        Tst(SecondScratchRegister32, Operand(imm.value));
+        load32(addr, ScratchReg2);
+        Tst(ScratchReg2_32, Operand(imm.value));
     }
     void test32(Register lhs, Imm32 rhs) {
         Tst(ARMRegister(lhs, 32), Operand(rhs.value));
@@ -662,16 +662,16 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
 
     void cmpPtr(const Address &lhs, Register rhs) {
-        Ldr(SecondScratchRegister64, MemOperand(ARMRegister(lhs.base, 64), lhs.offset));
-        Cmp(SecondScratchRegister64, Operand(ARMRegister(rhs, 64)));
+        Ldr(ScratchReg2_64, MemOperand(ARMRegister(lhs.base, 64), lhs.offset));
+        Cmp(ScratchReg2_64, Operand(ARMRegister(rhs, 64)));
     }
     void cmpPtr(const Address &lhs, ImmWord rhs) {
-        Ldr(SecondScratchRegister64, MemOperand(ARMRegister(lhs.base, 64), lhs.offset));
-        Cmp(SecondScratchRegister64, Operand(rhs.value));
+        Ldr(ScratchReg2_64, MemOperand(ARMRegister(lhs.base, 64), lhs.offset));
+        Cmp(ScratchReg2_64, Operand(rhs.value));
     }
     void cmpPtr(const Address &lhs, ImmPtr rhs) {
-        Ldr(SecondScratchRegister64, MemOperand(ARMRegister(lhs.base, 64), lhs.offset));
-        Cmp(SecondScratchRegister64, Operand(uint64_t(rhs.value)));
+        Ldr(ScratchReg2_64, MemOperand(ARMRegister(lhs.base, 64), lhs.offset));
+        Cmp(ScratchReg2_64, Operand(uint64_t(rhs.value)));
     }
 
     void testPtr(Register lhs, Register rhs) {
@@ -688,8 +688,8 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
             Ldr(ARMFPRegister(dest, 64), MemOperand(base, index, LSL, unsigned(src.scale)));
             return;
         }
-        Add(SecondScratchRegister64, base, Operand(index, LSL, unsigned(src.scale)));
-        Ldr(ARMFPRegister(dest, 64), MemOperand(SecondScratchRegister64, src.offset));
+        Add(ScratchReg2_64, base, Operand(index, LSL, unsigned(src.scale)));
+        Ldr(ARMFPRegister(dest, 64), MemOperand(ScratchReg2_64, src.offset));
     }
     void loadFloatAsDouble(const Address &addr, FloatRegister dest) {
         Ldr(ARMFPRegister(dest, 32), MemOperand(ARMRegister(addr.base,64), addr.offset));
@@ -701,8 +701,8 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         if (src.offset == 0) {
             Ldr(ARMFPRegister(dest, 32), MemOperand(base, index, LSL, unsigned(src.scale)));
         } else {
-            Add(SecondScratchRegister64, base, Operand(index, LSL, unsigned(src.scale)));
-            Ldr(ARMFPRegister(dest, 32), MemOperand(SecondScratchRegister64, src.offset));
+            Add(ScratchReg2_64, base, Operand(index, LSL, unsigned(src.scale)));
+            Ldr(ARMFPRegister(dest, 32), MemOperand(ScratchReg2_64, src.offset));
         }
         fcvt(ARMFPRegister(dest, 64), ARMFPRegister(dest, 32));
     }
@@ -716,8 +716,8 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         if (src.offset == 0) {
             Ldr(ARMFPRegister(dest, 32), MemOperand(base, index, LSL, unsigned(src.scale)));
         } else {
-            Add(SecondScratchRegister64, base, Operand(index, LSL, unsigned(src.scale)));
-            Ldr(ARMFPRegister(dest, 32), MemOperand(SecondScratchRegister64, src.offset));
+            Add(ScratchReg2_64, base, Operand(index, LSL, unsigned(src.scale)));
+            Ldr(ARMFPRegister(dest, 32), MemOperand(ScratchReg2_64, src.offset));
         }
     }
 
@@ -848,9 +848,9 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         Add(ARMRegister(dest, 32), ARMRegister(dest, 32), Operand(imm.value));
     }
     void add32(Imm32 imm, const Address &dest) {
-        Ldr(SecondScratchRegister32, MemOperand(ARMRegister(dest.base, 64), dest.offset));
-        Add(SecondScratchRegister32, SecondScratchRegister32, Operand(imm.value));
-        Str(SecondScratchRegister32, MemOperand(ARMRegister(dest.base, 64), dest.offset));
+        Ldr(ScratchReg2_32, MemOperand(ARMRegister(dest.base, 64), dest.offset));
+        Add(ScratchReg2_32, ScratchReg2_32, Operand(imm.value));
+        Str(ScratchReg2_32, MemOperand(ARMRegister(dest.base, 64), dest.offset));
     }
     void sub32(Imm32 imm, Register dest) {
         Sub(ARMRegister(dest, 32), ARMRegister(dest, 32), Operand(imm.value));
@@ -869,9 +869,9 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         Add(d, d, Operand(imm.value));
     }
     void addPtr(Imm32 imm, const Address &dest) {
-        Ldr(SecondScratchRegister64, MemOperand(ARMRegister(dest.base, 64), dest.offset));
-        Add(SecondScratchRegister64, SecondScratchRegister64, Operand(imm.value));
-        Str(SecondScratchRegister64, MemOperand(ARMRegister(dest.base, 64), dest.offset));
+        Ldr(ScratchReg2_64, MemOperand(ARMRegister(dest.base, 64), dest.offset));
+        Add(ScratchReg2_64, ScratchReg2_64, Operand(imm.value));
+        Str(ScratchReg2_64, MemOperand(ARMRegister(dest.base, 64), dest.offset));
     }
     void addPtr(ImmWord imm, Register dest) {
         Add(ARMRegister(dest, 64), ARMRegister(dest, 64), Operand(imm.value));
@@ -881,8 +881,8 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
     void addPtr(const Address &src, Register dest) {
         ARMRegister d(dest, 64);
-        Ldr(SecondScratchRegister64, MemOperand(ARMRegister(src.base, 64), src.offset));
-        Add(d, d, Operand(SecondScratchRegister64));
+        Ldr(ScratchReg2_64, MemOperand(ARMRegister(src.base, 64), src.offset));
+        Add(d, d, Operand(ScratchReg2_64));
     }
     void subPtr(Imm32 imm, Register dest) {
         ARMRegister d(dest, 64);
@@ -894,14 +894,14 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         Sub(d, d, Operand(s));
     }
     void subPtr(const Address &addr, Register dest) {
-        Ldr(SecondScratchRegister64, MemOperand(ARMRegister(addr.base, 64), addr.offset));
+        Ldr(ScratchReg2_64, MemOperand(ARMRegister(addr.base, 64), addr.offset));
         ARMRegister d(dest, 64);
-        Sub(d, d, Operand(SecondScratchRegister64));
+        Sub(d, d, Operand(ScratchReg2_64));
     }
     void subPtr(Register src, const Address &dest) {
-        Ldr(SecondScratchRegister64, MemOperand(ARMRegister(dest.base, 64), dest.offset));
-        Sub(SecondScratchRegister64, SecondScratchRegister64, Operand(ARMRegister(src, 64)));
-        Str(SecondScratchRegister64, MemOperand(ARMRegister(dest.base, 64), dest.offset));
+        Ldr(ScratchReg2_64, MemOperand(ARMRegister(dest.base, 64), dest.offset));
+        Sub(ScratchReg2_64, ScratchReg2_64, Operand(ARMRegister(src, 64)));
+        Str(ScratchReg2_64, MemOperand(ARMRegister(dest.base, 64), dest.offset));
     }
     void ret() {
         JS_ASSERT(0 && "ret");
