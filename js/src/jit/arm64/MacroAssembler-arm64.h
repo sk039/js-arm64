@@ -1075,19 +1075,10 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     void branchTestUndefined(Condition cond, const ARMOperand &operand, Label *label) {
         JS_ASSERT(0 && "branchTestUndefined");
     }
-    void branchTestUndefined(Condition cond, const Address &address, Label *label) {
-        JS_ASSERT(0 && "branchTestUndefined");
-    }
     void branchTestInt32(Condition cond, const ARMOperand &operand, Label *label) {
         JS_ASSERT(0 && "branchTestInt32");
     }
-    void branchTestInt32(Condition cond, const Address &address, Label *label) {
-        JS_ASSERT(0 && "branchTestInt32");
-    }
     void branchTestDouble(Condition cond, const ARMOperand &operand, Label *label) {
-        JS_ASSERT(0 && "branchTestDouble");
-    }
-    void branchTestDouble(Condition cond, const Address &address, Label *label) {
         JS_ASSERT(0 && "branchTestDouble");
     }
     void branchTestBoolean(Condition cond, const ARMOperand &operand, Label *label) {
@@ -1095,6 +1086,16 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
     void branchTestNull(Condition cond, const ARMOperand &operand, Label *label) {
         JS_ASSERT(0 && "branchTestNull");
+    }
+
+    void branchTestUndefined(Condition cond, const Address &address, Label *label) {
+        JS_ASSERT(0 && "branchTestUndefined");
+    }
+    void branchTestInt32(Condition cond, const Address &address, Label *label) {
+        JS_ASSERT(0 && "branchTestInt32");
+    }
+    void branchTestDouble(Condition cond, const Address &address, Label *label) {
+        JS_ASSERT(0 && "branchTestDouble");
     }
 
     // Perform a type-test on a full Value loaded into a register.
