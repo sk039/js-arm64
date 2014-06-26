@@ -92,6 +92,12 @@ class Registers {
     };
     typedef RegisterID Code;
 
+    typedef uint32_t SetType;
+    static uint32_t SetSize(SetType x) {
+        static_assert(sizeof(SetType) == 4, "SetType must be 32 bits");
+        return mozilla::CountPopulation32(x);
+    }
+
     static const char *GetName(Code code) {
         static const char *const Names[] =
             { "x0",  "x1",  "x2",  "x3",  "x4",  "x5",  "x6",  "x7",  "x8",  "x9",
@@ -224,6 +230,8 @@ class FloatRegisters
     };
     typedef FPRegisterID Code;
 
+    typedef uint32_t SetType;
+
     static const char *GetName(Code code) {
         static const char *const Names[] =
             { "d0",  "d1",  "d2",  "d3",  "d4",  "d5",  "d6",  "d7",  "d8",  "d9",
@@ -285,6 +293,85 @@ static const uint32_t CodeAlignment = 8;
 static const bool StackKeptAligned = false; // FIXME: Verify.
 static const uint32_t StackAlignment = 16;
 static const uint32_t NativeFrameSize = sizeof(void*);
+
+struct FloatRegister {
+    typedef FloatRegisters Codes;
+    typedef Codes::Code Code;
+    typedef Codes::SetType SetType;
+    static uint32_t SetSize(SetType x) {
+        static_assert(sizeof(SetType) == 4, "SetType must be 32 bits");
+        return mozilla::CountPopulation32(x);
+    }
+
+    Code code_;
+
+    static FloatRegister FromCode(uint32_t i) {
+        JS_ASSERT(i < FloatRegisters::Total);
+        FloatRegister r = { (FloatRegisters::Code)i };
+        return r;
+    }
+    Code code() const {
+        JS_ASSERT((uint32_t)code_ < FloatRegisters::Total);
+        return code_;
+    }
+    const char *name() const {
+        return FloatRegisters::GetName(code());
+    }
+    bool volatile_() const {
+        return !!((1 << code()) & FloatRegisters::VolatileMask);
+    }
+    bool operator !=(FloatRegister other) const {
+        return other.code_ != code_;
+    }
+    bool operator ==(FloatRegister other) const {
+        return other.code_ == code_;
+    }
+    bool aliases(FloatRegister other) const {
+        return other.code_ == code_;
+    }
+    uint32_t numAliased() const {
+        return 1;
+    }
+    void aliased(uint32_t aliasIdx, FloatRegister *ret) {
+        JS_ASSERT(aliasIdx == 0);
+        *ret = *this;
+    }
+    // This function mostly exists for the ARM backend.  It is to ensure that two
+    // floating point registers' types are equivalent.  e.g. S0 is not equivalent
+    // to D16, since S0 holds a float32, and D16 holds a Double.
+    // Since all floating point registers on x86 and x64 are equivalent, it is
+    // reasonable for this function to do the same.
+    bool equiv(FloatRegister other) const {
+        return true;
+    }
+    uint32_t size() const {
+        return sizeof(double);
+    }
+    uint32_t numAlignedAliased() {
+        return 1;
+    }
+    void alignedAliased(uint32_t aliasIdx, FloatRegister *ret) {
+        JS_ASSERT(aliasIdx == 0);
+        *ret = *this;
+    }
+    /* TODO: What?
+    static TypedRegisterSet<FloatRegister> ReduceSetForPush(const TypedRegisterSet<FloatRegister> &s);
+    static uint32_t GetSizeInBytes(const TypedRegisterSet<FloatRegister> &s);
+    static uint32_t GetPushSizeInBytes(const TypedRegisterSet<FloatRegister> &s);
+    uint32_t getRegisterDumpOffsetInBytes();
+    */
+};
+
+// Arm/D32 has double registers that cannot be treated as float32.
+// Luckily, our ARMv8 doesn't have the same malfunction.
+static bool hasUnaliasedDouble() {
+    return false;
+}
+// ARM prior to ARMv8 also has doubles that alias multiple floats.
+// Again, ARMv8 is in the clear.
+static bool hasMultiAlias() {
+    return false;
+}
 
 } // namespace jit
 } // namespace js

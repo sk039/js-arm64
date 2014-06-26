@@ -271,6 +271,12 @@ static MOZ_CONSTEXPR_VAR Register ScratchReg2 = { Registers::ip1 };
 static MOZ_CONSTEXPR_VAR ARMRegister ScratchReg2_64 = { ScratchReg2, 64 };
 static MOZ_CONSTEXPR_VAR ARMRegister ScratchReg2_32 = { ScratchReg2, 32 };
 
+static MOZ_CONSTEXPR_VAR FloatRegister ScratchDoubleReg = { FloatRegisters::d31 };
+static MOZ_CONSTEXPR_VAR FloatRegister ReturnDoubleReg = { FloatRegisters::d0 };
+
+static MOZ_CONSTEXPR_VAR FloatRegister ReturnFloat32Reg = { FloatRegisters::s0 };
+static MOZ_CONSTEXPR_VAR FloatRegister ScratchFloat32Reg = { FloatRegisters::s31 };
+
 static MOZ_CONSTEXPR_VAR Register OsrFrameReg = { Registers::x3};
 static MOZ_CONSTEXPR_VAR Register ArgumentsRectifierReg = { Registers::x8 };
 static MOZ_CONSTEXPR_VAR Register CallTempReg0 = { Registers::x5 };
