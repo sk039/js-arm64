@@ -37,7 +37,64 @@ namespace jit {
 void
 MacroAssembler::PushRegsInMask(RegisterSet set)
 {
-    JS_ASSERT(0 && "PushRegsInMask()");
+    // FIXME: Are we storing the full 128 bits or what?
+    int32_t diffF = set.fpus().size() * sizeof(double);
+    int32_t diffG = set.gprs().size() * sizeof(intptr_t);
+
+    // TODO: Clean up this function using helpers. Should be easy.
+    for (GeneralRegisterBackwardIterator iter(set.gprs()); iter.more(); ) {
+        CPURegister src0 = NoCPUReg;
+        CPURegister src1 = NoCPUReg;
+        CPURegister src2 = NoCPUReg;
+        CPURegister src3 = NoCPUReg;
+
+        src0 = ARMRegister(*iter, 64);
+        ++iter;
+
+        if (iter.more()) {
+            src1 = ARMRegister(*iter, 64);
+            ++iter;
+        }
+
+        if (iter.more()) {
+            src2 = ARMRegister(*iter, 64);
+            ++iter;
+        }
+
+        if (iter.more()) {
+            src3 = ARMRegister(*iter, 64);
+            ++iter;
+        }
+
+        MacroAssemblerVIXL::Push(src0, src1, src2, src3);
+    }
+
+    for (FloatRegisterBackwardIterator iter(set.fpus()); iter.more(); ) {
+        CPURegister src0 = NoCPUReg;
+        CPURegister src1 = NoCPUReg;
+        CPURegister src2 = NoCPUReg;
+        CPURegister src3 = NoCPUReg;
+
+        src0 = ARMFPRegister(*iter, 64);
+        ++iter;
+
+        if (iter.more()) {
+            src1 = ARMFPRegister(*iter, 64);
+            ++iter;
+        }
+
+        if (iter.more()) {
+            src2 = ARMFPRegister(*iter, 64);
+            ++iter;
+        }
+
+        if (iter.more()) {
+            src3 = ARMFPRegister(*iter, 64);
+            ++iter;
+        }
+
+        MacroAssemblerVIXL::Push(src0, src1, src2, src3);
+    }
 }
 
 void
