@@ -915,7 +915,6 @@ MacroAssemblerVIXL::Peek(const ARMRegister& dst, const Operand& offset)
 void
 MacroAssemblerVIXL::Claim(const Operand& size)
 {
-
     if (size.IsZero())
         return;
 

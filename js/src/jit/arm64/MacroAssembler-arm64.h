@@ -215,19 +215,19 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         framePushed_ = framePushed;
     }
 
-    // FIXME: This does not work at all with the second stack register.
     void reserveStack(uint32_t amount) {
-        if (amount)
-            sub(sp, sp, Operand(amount));
+        // TODO: This bumps |sp| every time we reserve using a second register.
+        // It would save some instructions if we had a fixed, maximum frame size.
+        MacroAssemblerVIXL::Claim(Operand(amount));
         adjustFrame(amount);
     }
     void freeStack(uint32_t amount) {
-        if (amount)
-            add(sp, sp, Operand(amount));
-        adjustFrame(-amount);
+        MacroAssemblerVIXL::Drop(Operand(amount));
+        adjustFrame(-((int32_t)amount));
     }
     void freeStack(Register amount) {
-        Add(sp, sp, ARMRegister(amount, 64));
+        // TODO: Assert that the amount in the register is a multiple of 16 for sp.
+        Add(GetStackPointer(), GetStackPointer(), ARMRegister(amount, 64));
     }
 
     void storeValue(ValueOperand val, ARMOperand dest) {
