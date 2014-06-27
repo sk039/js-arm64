@@ -479,12 +479,10 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
 
     void not32(Register reg) {
-        ARMRegister r(reg, 32);
-        Orn(r, wzr, r);
+        Orn(ARMRegister(reg, 32), wzr, ARMRegister(reg, 32));
     }
     void neg32(Register reg) {
-        ARMRegister r(reg, 32);
-        Neg(r, Operand(r));
+        Neg(ARMRegister(reg, 32), Operand(ARMRegister(reg, 32)));
     }
 
     void loadPtr(AbsoluteAddress address, Register dest) {
