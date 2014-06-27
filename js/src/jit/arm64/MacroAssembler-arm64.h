@@ -313,7 +313,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         JS_ASSERT(0 && "moveWithPatch");
     }
     CodeOffsetLabel movWithPatch(ImmPtr imm, Register dest) {
-      JS_ASSERT(0 && "moveWithPatch");
+        JS_ASSERT(0 && "moveWithPatch");
     }
 
     void boxValue(JSValueType type, Register src, Register dest) {
@@ -351,21 +351,18 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     void ensureDouble(const ValueOperand &source, FloatRegister dest, Label *failure) {
         JS_ASSERT(0 && "ensureDouble()");
     }
-    void
-    emitSet(Assembler::Condition cond, Register dest)
-    {
+    void emitSet(Assembler::Condition cond, Register dest) {
         Cset(ARMRegister(dest, 64), cond);
     }
 
     template <typename T1, typename T2>
-    void cmpPtrSet(Assembler::Condition cond, T1 lhs, T2 rhs, Register dest)
-    {
+    void cmpPtrSet(Assembler::Condition cond, T1 lhs, T2 rhs, Register dest) {
         cmpPtr(lhs, rhs);
         emitSet(cond, dest);
     }
+
     template <typename T1, typename T2>
-    void cmp32Set(Assembler::Condition cond, T1 lhs, T2 rhs, Register dest)
-    {
+    void cmp32Set(Assembler::Condition cond, T1 lhs, T2 rhs, Register dest) {
         cmp32(lhs, rhs);
         emitSet(cond, dest);
     }
@@ -426,11 +423,13 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         JS_ASSERT(0 && "branchTruncateDouble");
     }
     void convertDoubleToInt32(FloatRegister src, Register dest, Label *fail,
-                              bool negativeZeroCheck = true) {
+                              bool negativeZeroCheck = true)
+    {
         JS_ASSERT(0 && "convertDoubleToInt32");
     }
     void convertFloat32ToInt32(FloatRegister src, Register dest, Label *fail,
-                               bool negativeZeroCheck = true) {
+                               bool negativeZeroCheck = true)
+    {
         JS_ASSERT(0 && "convertFloat32ToInt32");
     }
 
@@ -561,67 +560,52 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         Str(ARMRegister(src, 32), MemOperand(ScratchReg2_64));
     }
     void rshiftPtr(Imm32 imm, Register dest) {
-        ARMRegister d(dest, 64);
-        Lsr(d, d, imm.value);
+        Lsr(ARMRegister(dest, 64), ARMRegister(dest, 64), imm.value);
     }
     void rshiftPtrArithmetic(Imm32 imm, Register dest) {
-        ARMRegister d(dest, 64);
-        Asr(d, d, imm.value);
+        Asr(ARMRegister(dest, 64), ARMRegister(dest, 64), imm.value);
     }
     void lshiftPtr(Imm32 imm, Register dest) {
-        ARMRegister d(dest, 64);
-        Lsl(d, d, imm.value);
+        Lsl(ARMRegister(dest, 64), ARMRegister(dest, 64), imm.value);
     }
     void xorPtr(Imm32 imm, Register dest) {
-        ARMRegister d(dest, 64);
-        Eor(d, d, Operand(imm.value));
+        Eor(ARMRegister(dest, 64), ARMRegister(dest, 64), Operand(imm.value));
     }
     void xor32(Imm32 imm, Register dest) {
-        ARMRegister d(dest, 32);
-        Eor(d, d, Operand(imm.value));
+        Eor(ARMRegister(dest, 32), ARMRegister(dest, 32), Operand(imm.value));
     }
 
     void xorPtr(Register src, Register dest) {
-        ARMRegister d(dest, 64);
-        ARMRegister s(src, 64);
-        Eor(d, d, Operand(s));
+        Eor(ARMRegister(dest, 64), ARMRegister(dest, 64), Operand(ARMRegister(src, 32)));
     }
     void orPtr(Imm32 imm, Register dest) {
-        ARMRegister d(dest, 64);
-        Orr(d, d, Operand(imm.value));
+        Orr(ARMRegister(dest, 64), ARMRegister(dest, 64), Operand(imm.value));
     }
     void orPtr(Register src, Register dest) {
-        ARMRegister d(dest, 64);
-        ARMRegister s(src, 64);
-        Orr(d, d, Operand(s));
+        Orr(ARMRegister(dest, 64), ARMRegister(dest, 64), Operand(ARMRegister(src, 64)));
     }
     void or32(Imm32 imm, Register dest) {
-        ARMRegister d(dest, 32);
-        Orr(d, d, Operand(imm.value));
+        Orr(ARMRegister(dest, 32), ARMRegister(dest, 32), Operand(imm.value));
     }
     void or32(Register src, Register dest) {
-        ARMRegister d(dest, 32);
-        ARMRegister s(src, 32);
-        Orr(d, d, Operand(s));
+        Orr(ARMRegister(dest, 32), ARMRegister(dest, 32), Operand(ARMRegister(src, 32)));
     }
     void or32(Imm32 imm, const Address &dest) {
         load32(dest, ScratchReg2);
         Orr(ScratchReg2_32, ScratchReg2_32, Operand(imm.value));
         store32(ScratchReg2, dest);
-
     }
     void andPtr(Imm32 imm, Register dest) {
-        ARMRegister d(dest, 64);
-        And(d, d, Operand(imm.value));
+        And(ARMRegister(dest, 64), ARMRegister(dest, 64), Operand(imm.value));
+    }
+    void andPtr(Register src, Register dest) {
+        And(ARMRegister(dest, 64), ARMRegister(dest, 64), Operand(ARMRegister(src, 64)));
     }
     void and32(Imm32 imm, Register dest) {
-        ARMRegister d(dest, 32);
-        And(d, d, Operand(imm.value));
+        And(ARMRegister(dest, 32), ARMRegister(dest, 32), Operand(imm.value));
     }
     void and32(Register src, Register dest) {
-        ARMRegister d(dest, 32);
-        ARMRegister s(src, 32);
-        And(d, d, Operand(s));
+        And(ARMRegister(dest, 32), ARMRegister(dest, 32), Operand(ARMRegister(src, 32)));
     }
     void and32(Imm32 mask, Address dest) {
         load32(dest, ScratchReg2);
@@ -629,17 +613,13 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         store32(ScratchReg2, dest);
     }
     void and32(Address src, Register dest) {
-        ARMRegister d(dest, 32);
         load32(src, ScratchReg2);
-        And(d, d, Operand(ScratchReg2_32));
+        And(ARMRegister(dest, 32), ARMRegister(dest, 32), Operand(ScratchReg2_32));
     }
 
-    void andPtr(Register src, Register dest) {
-        ARMRegister d(dest, 64);
-        ARMRegister s(src, 64);
-        And(d, d, Operand(s));
+    void testPtr(Register lhs, Register rhs) {
+        Tst(ARMRegister(lhs, 64), Operand(ARMRegister(rhs, 64)));
     }
-
     void test32(Register lhs, Register rhs) {
         Tst(ARMRegister(lhs, 32), Operand(ARMRegister(rhs, 32)));
     }
@@ -687,10 +667,6 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     void cmpPtr(const Address &lhs, ImmPtr rhs) {
         Ldr(ScratchReg2_64, MemOperand(ARMRegister(lhs.base, 64), lhs.offset));
         Cmp(ScratchReg2_64, Operand(uint64_t(rhs.value)));
-    }
-
-    void testPtr(Register lhs, Register rhs) {
-        Tst(ARMRegister(lhs, 64), Operand(ARMRegister(rhs, 64)));
     }
 
     void loadDouble(const Address &src, FloatRegister dest) {
@@ -777,7 +753,6 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         fdiv(ARMFPRegister(dest, 64), ARMFPRegister(dest, 64), ARMFPRegister(src, 64));
     }
 
-
     void moveFloat32(FloatRegister src, FloatRegister dest) {
         fmov(ARMFPRegister(dest, 32), ARMFPRegister(src, 32));
     }
@@ -787,7 +762,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
 
     void splitTag(Register src, Register dest) {
         // FIXME: Could this be done in a better way?
-        asr(ARMRegister(dest, 64), ARMRegister(src, 64), JSVAL_TAG_SHIFT);
+        Asr(ARMRegister(dest, 64), ARMRegister(src, 64), JSVAL_TAG_SHIFT);
     }
     void splitTag(const ValueOperand &operand, Register dest) {
         splitTag(operand.valueReg(), dest);
@@ -817,9 +792,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     void load32(const BaseIndex &src, Register dest) {
         doBaseIndex(ARMRegister(dest, 32), src, LDR_w);
     }
-    //void load32(const ARMOperand &src, Register dst) {
-    //  JS_ASSERT(0 && "load32");
-    //}
+
     void load8SignExtend(const Address &address, Register dest) {
         Ldrsb(ARMRegister(dest, 32), MemOperand(ARMRegister(address.base, 64), address.offset));
     }
