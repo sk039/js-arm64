@@ -113,5 +113,30 @@ MacroAssemblerCompat::handleFailureWithHandlerTail()
     brk(0x13);
 }
 
+void
+MacroAssemblerCompat::setupABICall(uint32_t args)
+{
+    JS_ASSERT(!inCall_);
+    inCall_ = true;
+
+    args_ = args;
+    passedIntArgs_ = 0;
+    passedFloatArgs_ = 0;
+    stackForCall_ = ShadowStackSpace;
+}
+
+// FIXME: This could probably be shared code. Looks like all the arches are the same,
+// just using arch-specific functions for no reason.
+void
+MacroAssemblerCompat::setupUnalignedABICall(uint32_t args, Register scratch)
+{
+    setupABICall(args);
+    dynamicAlignment_ = true;
+
+    movePtr(StackPointer, scratch);
+    andPtr(Imm32(~(StackAlignment - 1)), StackPointer);
+    push(scratch);
+}
+
 } // namespace jit
 } // namespace js

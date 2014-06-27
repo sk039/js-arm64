@@ -110,10 +110,25 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     bool enoughMemory_;
     uint32_t framePushed_;
 
+    // TODO: Can this be moved out of the MacroAssembler and into some shared code?
+    // TODO: All the code seems to be arch-independent, and it's weird to have this here.
+    bool inCall_;
+    uint32_t args_;
+    uint32_t passedIntArgs_;
+    uint32_t passedFloatArgs_;
+    uint32_t stackForCall_;
+    bool dynamicAlignment_;
+
     MacroAssemblerCompat()
       : MacroAssemblerVIXL(),
         enoughMemory_(true),
-        framePushed_(0)
+        framePushed_(0),
+        inCall_(false),
+        args_(0),
+        passedIntArgs_(0),
+        passedFloatArgs_(0),
+        stackForCall_(0),
+        dynamicAlignment_(false)
     { }
 
   protected:
@@ -1592,6 +1607,10 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         JS_ASSERT(0 && "computeEffectiveAddress");
     }
 
+  private:
+    void setupABICall(uint32_t args);
+
+  public:
     // Setup a call to C/C++ code, given the number of general arguments it
     // takes. Note that this only supports cdecl.
     //
@@ -1605,9 +1624,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
 
     // Sets up an ABI call for when the alignment is not known. This may need a
     // scratch register.
-    void setupUnalignedABICall(uint32_t args, Register scratch) {
-        JS_ASSERT(0 && "setupUnalignedABICall");
-    }
+    void setupUnalignedABICall(uint32_t args, Register scratch);
 
     // Arguments must be assigned to a C/C++ call in order. They are moved
     // in parallel immediately before performing the call. This process may
