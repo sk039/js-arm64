@@ -1002,8 +1002,7 @@ ICUseCount_Fallback::Compiler::generateStubCode(MacroAssembler &masm)
         masm.push(BaselineStackReg);
 
         // Push IonJSFrameLayout pointer.
-        masm.loadBaselineFramePtr(R0.scratchReg(), R0.scratchReg());
-        masm.push(R0.scratchReg());
+        masm.pushBaselineFramePtr(R0.scratchReg(), R0.scratchReg());
 
         // Push stub pointer.
         masm.push(BaselineStubReg);
