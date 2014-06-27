@@ -113,12 +113,10 @@ class Registers {
 
     static Code FromName(const char *name);
 
-    // The StackPointer must be 16-byte aligned at all times per ABI.
-    // This makes pushing single registers impossible without using another stack pointer.
-    // So we use a normal register.
-    // FIXME: Most code is probably 16-byte aligned, just broken up into parts.
-    // FIXME: Can we use sp by merging the pushes?
-    static const Code StackPointer = x28;
+    // If SP is used as the base register for a memory load or store, then the value
+    // of the stack pointer prior to adding any offset must be quadword (16 byte) aligned,
+    // or else a stack aligment exception will be generated.
+    static const Code StackPointer = sp;
 
     static const Code Invalid = invalid_reg;
 
