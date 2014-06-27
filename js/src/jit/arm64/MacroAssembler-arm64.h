@@ -226,8 +226,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         adjustFrame(-((int32_t)amount));
     }
     void freeStack(Register amount) {
-        // TODO: Assert that the amount in the register is a multiple of 16 for sp.
-        Add(GetStackPointer(), GetStackPointer(), ARMRegister(amount, 64));
+        MacroAssemblerVIXL::Drop(Operand(ARMRegister(amount, 64)));
     }
 
     void storeValue(ValueOperand val, ARMOperand dest) {
