@@ -759,13 +759,10 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         fmov(ARMFPRegister(reg, 32), wzr);
     }
     void negateDouble(FloatRegister reg) {
-        ARMFPRegister dest(reg, 64);
-        fneg(dest, dest);
+        fneg(ARMFPRegister(reg, 64), ARMFPRegister(reg, 64));
     }
     void negateFloat(FloatRegister reg) {
-        ARMFPRegister dest(reg, 32);
-        fneg(dest, dest);
-
+        fneg(ARMFPRegister(reg, 32), ARMFPRegister(reg, 32));
     }
     void addDouble(FloatRegister src, FloatRegister dest) {
         fadd(ARMFPRegister(dest, 64), ARMFPRegister(dest, 64), ARMFPRegister(src, 64));
@@ -784,7 +781,6 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     void moveFloat32(FloatRegister src, FloatRegister dest) {
         fmov(ARMFPRegister(dest, 32), ARMFPRegister(src, 32));
     }
-
     void moveFloatAsDouble(Register src, FloatRegister dest) {
         JS_ASSERT(0 && "moveFloatAsDouble");
     }
@@ -879,8 +875,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         Add(ARMRegister(dest, 64), ARMRegister(dest, 64), Operand(ARMRegister(src, 64)));
     }
     void addPtr(Imm32 imm, Register dest) {
-        ARMRegister d(dest, 64);
-        Add(d, d, Operand(imm.value));
+        Add(ARMRegister(dest, 64), ARMRegister(dest, 64), Operand(imm.value));
     }
     void addPtr(Imm32 imm, const Address &dest) {
         Ldr(ScratchReg2_64, MemOperand(ARMRegister(dest.base, 64), dest.offset));
