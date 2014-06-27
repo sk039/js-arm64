@@ -270,20 +270,20 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         JS_ASSERT(0 && "tagValue");
     }
     void pushValue(ValueOperand val) {
-        Str(ARMRegister(val.valueReg(), 64), MemOperand(sp, -8, PreIndex));
+        MacroAssemblerVIXL::Push(ARMRegister(val.valueReg(), 64));
     }
     void Push(const Register &reg) {
-        Str(ARMRegister(reg, 64), MemOperand(sp, -8, PreIndex));
+        MacroAssemblerVIXL::Push(ARMRegister(reg, 64));
     }
     void Push(const ValueOperand &val) {
-        Str(ARMRegister(val.valueReg(), 64), MemOperand(sp, -8, PreIndex));
+        MacroAssemblerVIXL::Push(ARMRegister(val.valueReg(), 64));
     }
     void popValue(ValueOperand val) {
-        Ldr(ARMRegister(val.valueReg(), 64), MemOperand(sp, 8, PostIndex));
+        MacroAssemblerVIXL::Pop(ARMRegister(val.valueReg(), 64));
     }
     void pushValue(const Value &val) {
         moveValue(val, ScratchReg2);
-        push(ScratchReg);
+        push(ScratchReg2);
     }
     void pushValue(JSValueType type, Register reg) {
         tagValue(type, reg, ValueOperand(ScratchReg2));
