@@ -880,7 +880,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         Str(ScratchReg2_64, MemOperand(ARMRegister(dest.base, 64), dest.offset));
     }
     void ret() {
-        JS_ASSERT(0 && "ret");
+        Ret(); // Stores address into lr.
     }
 
     void j(Condition code , Label *dest) {
@@ -1297,48 +1297,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         JS_ASSERT(0 && "loadConstantFloat32");
     }
 
-    Condition testInt32(Condition cond, const ValueOperand &value) {
-        splitTag(value, ScratchReg);
-        return testInt32(cond, ScratchReg);
-    }
-    Condition testBoolean(Condition cond, const ValueOperand &value) {
-        splitTag(value, ScratchReg);
-        return testBoolean(cond, ScratchReg);
-    }
-    Condition testDouble(Condition cond, const ValueOperand &value) {
-        splitTag(value, ScratchReg);
-        return testDouble(cond, ScratchReg);
-    }
-    Condition testNull(Condition cond, const ValueOperand &value) {
-        splitTag(value, ScratchReg);
-        return testNull(cond, ScratchReg);
-    }
-    Condition testUndefined(Condition cond, const ValueOperand &value) {
-        splitTag(value, ScratchReg);
-        return testUndefined(cond, ScratchReg);
-    }
-    Condition testString(Condition cond, const ValueOperand &value) {
-        splitTag(value, ScratchReg);
-        return testString(cond, ScratchReg);
-    }
-    Condition testSymbol(Condition cond, const ValueOperand &value) {
-        splitTag(value, ScratchReg);
-        return testSymbol(cond, ScratchReg);
-    }
-    Condition testObject(Condition cond, const ValueOperand &value) {
-        splitTag(value, ScratchReg);
-        return testObject(cond, ScratchReg);
-    }
-    Condition testNumber(Condition cond, const ValueOperand &value) {
-        splitTag(value, ScratchReg);
-        return testNumber(cond, ScratchReg);
-    }
-    Condition testPrimitive(Condition cond, const ValueOperand &value) {
-        splitTag(value, ScratchReg);
-        return testPrimitive(cond, ScratchReg);
-    }
-
-    // register-based tests
+    // Register-based tests.
     Condition testUndefined(Condition cond, Register tag) {
         JS_ASSERT(cond == Equal || cond == NotEqual);
         cmp32(tag, ImmTag(JSVAL_TAG_UNDEFINED));
@@ -1403,51 +1362,95 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         return testMagic(cond, tag);
     }
 
-    Condition testGCThing(Condition cond, const Address &address) {
-        JS_ASSERT(0 && "testGCThing");
-        return Condition::Zero;
+    // ValueOperand-based tests.
+    Condition testInt32(Condition cond, const ValueOperand &value) {
+        splitTag(value, ScratchReg);
+        return testInt32(cond, ScratchReg);
     }
-    Condition testMagic(Condition cond, const Address &address) {
-        JS_ASSERT(0 && "testMagic");
-        return Condition::Zero;
+    Condition testBoolean(Condition cond, const ValueOperand &value) {
+        splitTag(value, ScratchReg);
+        return testBoolean(cond, ScratchReg);
     }
-    Condition testInt32(Condition cond, const Address &address) {
-        JS_ASSERT(0 && "testInt32");
-        return Condition::Zero;
+    Condition testDouble(Condition cond, const ValueOperand &value) {
+        splitTag(value, ScratchReg);
+        return testDouble(cond, ScratchReg);
     }
-    Condition testDouble(Condition cond, const Address &address) {
-        JS_ASSERT(0 && "testDouble");
-        return Condition::Zero;
+    Condition testNull(Condition cond, const ValueOperand &value) {
+        splitTag(value, ScratchReg);
+        return testNull(cond, ScratchReg);
     }
-    Condition testBoolean(Condition cond, const Address &address) {
-        JS_ASSERT(0 && "testBoolean");
-        return Condition::Zero;
+    Condition testUndefined(Condition cond, const ValueOperand &value) {
+        splitTag(value, ScratchReg);
+        return testUndefined(cond, ScratchReg);
     }
-    Condition testNull(Condition cond, const Address &address) {
-        JS_ASSERT(0 && "testNull");
-        return Condition::Zero;
+    Condition testString(Condition cond, const ValueOperand &value) {
+        splitTag(value, ScratchReg);
+        return testString(cond, ScratchReg);
     }
-    Condition testUndefined(Condition cond, const Address &address) {
-        JS_ASSERT(0 && "testUndefined");
-        return Condition::Zero;
+    Condition testSymbol(Condition cond, const ValueOperand &value) {
+        splitTag(value, ScratchReg);
+        return testSymbol(cond, ScratchReg);
     }
-    Condition testString(Condition cond, const Address &address) {
-        JS_ASSERT(0 && "testString");
-        return Condition::Zero;
+    Condition testObject(Condition cond, const ValueOperand &value) {
+        splitTag(value, ScratchReg);
+        return testObject(cond, ScratchReg);
     }
-    Condition testSymbol(Condition cond, const Address &address) {
-        JS_ASSERT(0 && "testSymbol");
-        return Condition::Zero;
+    Condition testNumber(Condition cond, const ValueOperand &value) {
+        splitTag(value, ScratchReg);
+        return testNumber(cond, ScratchReg);
     }
-    Condition testObject(Condition cond, const Address &address) {
-        JS_ASSERT(0 && "testObject");
-        return Condition::Zero;
-    }
-    Condition testNumber(Condition cond, const Address &address) {
-        JS_ASSERT(0 && "testNumber");
-        return Condition::Zero;
+    Condition testPrimitive(Condition cond, const ValueOperand &value) {
+        splitTag(value, ScratchReg);
+        return testPrimitive(cond, ScratchReg);
     }
 
+    // Address-based tests.
+    Condition testGCThing(Condition cond, const Address &address) {
+        splitTag(address, ScratchReg);
+        return testGCThing(cond, ScratchReg);
+    }
+    Condition testMagic(Condition cond, const Address &address) {
+        splitTag(address, ScratchReg);
+        return testMagic(cond, ScratchReg);
+    }
+    Condition testInt32(Condition cond, const Address &address) {
+        splitTag(address, ScratchReg);
+        return testInt32(cond, ScratchReg);
+    }
+    Condition testDouble(Condition cond, const Address &address) {
+        splitTag(address, ScratchReg);
+        return testDouble(cond, ScratchReg);
+    }
+    Condition testBoolean(Condition cond, const Address &address) {
+        splitTag(address, ScratchReg);
+        return testBoolean(cond, ScratchReg);
+    }
+    Condition testNull(Condition cond, const Address &address) {
+        splitTag(address, ScratchReg);
+        return testNull(cond, ScratchReg);
+    }
+    Condition testUndefined(Condition cond, const Address &address) {
+        splitTag(address, ScratchReg);
+        return testUndefined(cond, ScratchReg);
+    }
+    Condition testString(Condition cond, const Address &address) {
+        splitTag(address, ScratchReg);
+        return testString(cond, ScratchReg);
+    }
+    Condition testSymbol(Condition cond, const Address &address) {
+        splitTag(address, ScratchReg);
+        return testSymbol(cond, ScratchReg);
+    }
+    Condition testObject(Condition cond, const Address &address) {
+        splitTag(address, ScratchReg);
+        return testObject(cond, ScratchReg);
+    }
+    Condition testNumber(Condition cond, const Address &address) {
+        splitTag(address, ScratchReg);
+        return testNumber(cond, ScratchReg);
+    }
+
+    // BaseIndex-based tests.
     Condition testUndefined(Condition cond, const BaseIndex &src) {
         JS_ASSERT(0 && "testUndefined");
         return Condition::Zero;
