@@ -769,7 +769,8 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         JS_ASSERT(0 && "splitTag");
     }
     void splitTag(const Address &operand, Register dest) {
-        JS_ASSERT(0 && "splitTag");
+        loadPtr(operand, dest);
+        splitTag(dest, dest);
     }
     void splitTag(const BaseIndex &operand, Register dest) {
         JS_ASSERT(0 && "splitTag");
