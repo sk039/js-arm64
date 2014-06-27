@@ -1208,7 +1208,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         JS_ASSERT(0 && "unboxInt32");
     }
     void unboxInt32(const Address &src, Register dest) {
-        JS_ASSERT(0 && "unboxInt32");
+        load32(src, dest);
     }
     void unboxDouble(const Address &src, FloatRegister dest) {
         JS_ASSERT(0 && "unboxDouble");
@@ -1234,7 +1234,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         JS_ASSERT(0 && "unboxBoolean");
     }
     void unboxBoolean(const Address &src, Register dest) {
-        JS_ASSERT(0 && "unboxBoolean");
+        load32(src, dest);
     }
 
     void unboxMagic(const ValueOperand &src, Register dest) {
