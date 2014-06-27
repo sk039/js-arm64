@@ -215,6 +215,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         framePushed_ = framePushed;
     }
 
+    // FIXME: This does not work at all with the second stack register.
     void reserveStack(uint32_t amount) {
         if (amount)
             sub(sp, sp, Operand(amount));
