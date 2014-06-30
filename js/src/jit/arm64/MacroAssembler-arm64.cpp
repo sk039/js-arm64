@@ -134,7 +134,7 @@ MacroAssemblerCompat::setupUnalignedABICall(uint32_t args, Register scratch)
     dynamicAlignment_ = true;
 
     int32_t alignment = ~(StackAlignment - 1);
-    And(ARMRegister(scratch, 64), ARMRegister(GetStackPointer()), Operand(alignment));
+    And(ARMRegister(scratch, 64), GetStackPointer(), Operand(alignment));
     push(scratch);
 }
 
