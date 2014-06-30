@@ -133,8 +133,8 @@ MacroAssemblerCompat::setupUnalignedABICall(uint32_t args, Register scratch)
     setupABICall(args);
     dynamicAlignment_ = true;
 
-    movePtr(StackPointer, scratch);
-    andPtr(Imm32(~(StackAlignment - 1)), StackPointer);
+    int32_t alignment = ~(StackAlignment - 1);
+    And(ARMRegister(scratch, 64), ARMRegister(GetStackPointer()), Operand(alignment));
     push(scratch);
 }
 

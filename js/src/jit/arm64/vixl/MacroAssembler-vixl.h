@@ -94,7 +94,7 @@ class MacroAssemblerVIXL : public Assembler
   public:
     MacroAssemblerVIXL()
       : Assembler(),
-        sp_(sp), // ARMRegister sp uses a different internal code. See kSPRegInternalCode.
+        sp_(x28),
         tmp_list_(ip0, ip1),
         fptmp_list_(d31)
     { }
