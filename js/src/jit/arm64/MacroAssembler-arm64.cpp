@@ -138,5 +138,55 @@ MacroAssemblerCompat::setupUnalignedABICall(uint32_t args, Register scratch)
     push(scratch);
 }
 
+void
+MacroAssemblerCompat::passABIArg(const MoveOperand &from, MoveOp::Type type)
+{
+    if (!enoughMemory_)
+        return;
+
+    Register activeSP = Register::FromCode(GetStackPointer().code());
+
+    if (type == MoveOp::GENERAL) {
+        Register dest;
+        if (GetIntArgReg(passedIntArgs_++, passedFloatArgs_, &dest)) {
+            if (!from.isGeneralReg() || from.reg() != dest)
+                enoughMemory_ = moveResolver_.addMove(from, MoveOperand(dest), type);
+            return;
+        }
+
+        enoughMemory_ = moveResolver_.addMove(from, MoveOperand(activeSP, stackForCall_), type);
+        stackForCall_ += sizeof(int64_t);
+        return;
+    }
+
+    JS_ASSERT(type == MoveOp::FLOAT32 || type == MoveOp::DOUBLE);
+
+    FloatRegister fdest;
+    if (GetFloatArgReg(passedIntArgs_, passedFloatArgs_++, &fdest)) {
+        if (!from.isFloatReg() || from.floatReg() != fdest) 
+            enoughMemory_ = moveResolver_.addMove(from, MoveOperand(fdest), type);
+        return;
+    }
+
+    enoughMemory_ = moveResolver_.addMove(from, MoveOperand(activeSP, stackForCall_), type);
+    switch (type) {
+      case MoveOp::FLOAT32: stackForCall_ += sizeof(float);  break;
+      case MoveOp::DOUBLE:  stackForCall_ += sizeof(double); break;
+      default: MOZ_ASSUME_UNREACHABLE("Unexpected float register class argument type");
+    }
+}
+
+void
+MacroAssemblerCompat::passABIArg(Register reg)
+{
+    passABIArg(MoveOperand(reg), MoveOp::GENERAL);
+}
+
+void
+MacroAssemblerCompat::passABIArg(FloatRegister reg, MoveOp::Type type)
+{
+    passABIArg(MoveOperand(reg), type);
+}
+
 } // namespace jit
 } // namespace js

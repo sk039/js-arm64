@@ -239,6 +239,13 @@ GetIntArgReg(uint32_t usedIntArgs, uint32_t usedFloatArgs, Register *out)
     return false;
 }
 
+static inline bool
+GetFloatArgReg(uint32_t usedIntArgs, uint32_t usedFloatArgs, FloatRegister *out)
+{
+    JS_ASSERT(0 && "TODO");
+    return false;
+}
+
 // Get a register in which we plan to put a quantity that will be used as an
 // integer argument.  This differs from GetIntArgReg in that if we have no more
 // actual argument registers to use we will fall back on using whatever

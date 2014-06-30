@@ -1591,19 +1591,13 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
 
     // Arguments must be assigned to a C/C++ call in order. They are moved
     // in parallel immediately before performing the call. This process may
-    // temporarily use more stack, in which case esp-relative addresses will be
-    // automatically adjusted. It is extremely important that esp-relative
+    // temporarily use more stack, in which case sp-relative addresses will be
+    // automatically adjusted. It is extremely important that sp-relative
     // addresses are computed *after* setupABICall(). Furthermore, no
     // operations should be emitted while setting arguments.
-    void passABIArg(const MoveOperand &from, MoveOp::Type type) {
-        JS_ASSERT(0 && "passABIArg");
-    }
-    void passABIArg(Register reg) {
-        JS_ASSERT(0 && "passABIArg");
-    }
-    void passABIArg(FloatRegister reg, MoveOp::Type type) {
-        JS_ASSERT(0 && "passABIArg");
-    }
+    void passABIArg(const MoveOperand &from, MoveOp::Type type);
+    void passABIArg(Register reg);
+    void passABIArg(FloatRegister reg, MoveOp::Type type);
 
   private:
     void callWithABIPre(uint32_t *stackAdjust) {
