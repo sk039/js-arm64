@@ -167,9 +167,10 @@ public:
 
 
     // add in a font face
-    // weight - 0 == unknown, [100, 900] otherwise (multiples of 100)
+    // weight - [100, 900] (multiples of 100)
     // stretch = [NS_FONT_STRETCH_ULTRA_CONDENSED, NS_FONT_STRETCH_ULTRA_EXPANDED]
     // italic style = constants in gfxFontConstants.h, e.g. NS_FONT_STYLE_NORMAL
+    // language override = result of calling gfxFontStyle::ParseFontLanguageOverride
     // TODO: support for unicode ranges not yet implemented
     gfxFontEntry *AddFontFace(const nsAString& aFamilyName,
                               const nsTArray<gfxFontFaceSrc>& aFontFaceSrcList,
@@ -177,7 +178,7 @@ public:
                               int32_t aStretch,
                               uint32_t aItalicStyle,
                               const nsTArray<gfxFontFeature>& aFeatureSettings,
-                              const nsString& aLanguageOverride,
+                              uint32_t aLanguageOverride,
                               gfxSparseBitSet *aUnicodeRanges = nullptr);
 
     // add in a font face for which we have the gfxFontEntry already
@@ -294,7 +295,7 @@ public:
         // entry and the corresponding "real" font entry.
         struct Key {
             nsCOMPtr<nsIURI>        mURI;
-            nsCOMPtr<nsIPrincipal>  mPrincipal;
+            nsCOMPtr<nsIPrincipal>  mPrincipal; // use nullptr with data: URLs
             gfxFontEntry           *mFontEntry;
             bool                    mPrivate;
 
@@ -333,8 +334,10 @@ public:
             static KeyTypePointer KeyToPointer(KeyType aKey) { return &aKey; }
 
             static PLDHashNumber HashKey(const KeyTypePointer aKey) {
-                uint32_t principalHash;
-                aKey->mPrincipal->GetHashValue(&principalHash);
+                uint32_t principalHash = 0;
+                if (aKey->mPrincipal) {
+                    aKey->mPrincipal->GetHashValue(&principalHash);
+                }
                 return mozilla::HashGeneric(principalHash + int(aKey->mPrivate),
                                             nsURIHashKey::HashKey(aKey->mURI),
                                             HashFeatures(aKey->mFontEntry->mFeatureSettings),
@@ -365,7 +368,7 @@ public:
             }
 
             nsCOMPtr<nsIURI>       mURI;
-            nsCOMPtr<nsIPrincipal> mPrincipal;
+            nsCOMPtr<nsIPrincipal> mPrincipal; // or nullptr for data: URLs
 
             // The "real" font entry corresponding to this downloaded font.
             // The font entry MUST notify the cache when it is destroyed
