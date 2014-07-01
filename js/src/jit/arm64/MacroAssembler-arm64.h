@@ -1705,6 +1705,9 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         JS_ASSERT(0 && "call");
     }
 
+    void call(Register target) {
+        JS_ASSERT(0 && "call");
+    }
     void call(JitCode *target) {
         JS_ASSERT(0 && "call");
     }

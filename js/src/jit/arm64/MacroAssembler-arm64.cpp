@@ -206,11 +206,12 @@ void
 MacroAssemblerCompat::callWithABI(void *fun, MoveOp::Type result)
 {
     // Load the target into an intra-call-use register.
-    loadPtr(ImmWord(fun), ip0);
+    Register callTarget = Register::FromCode(Registers::ip0);
+    movePtr(ImmWord((uintptr_t)fun), callTarget);
 
     uint32_t stackAdjust;
     callWithABIPre(&stackAdjust);
-    call(ip0);
+    call(callTarget);
     callWithABIPost(stackAdjust, result);
 }
 
