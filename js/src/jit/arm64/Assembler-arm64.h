@@ -232,18 +232,25 @@ class ABIArgGenerator
 // FIXME: ugh. why is this not a static member of Assembler?
 void PatchJump(CodeLocationJump &jump_, CodeLocationLabel label);
 
+static const uint32_t NumIntArgRegs = 8;
+static const uint32_t NumFloatArgRegs = 8;
+
 static inline bool
 GetIntArgReg(uint32_t usedIntArgs, uint32_t usedFloatArgs, Register *out)
 {
-    JS_ASSERT(0 && "TODO");
-    return false;
+    if (usedIntArgs >= NumIntArgRegs)
+        return false;
+    *out = Register::FromCode(usedIntArgs);
+    return true;
 }
 
 static inline bool
 GetFloatArgReg(uint32_t usedIntArgs, uint32_t usedFloatArgs, FloatRegister *out)
 {
-    JS_ASSERT(0 && "TODO");
-    return false;
+    if (usedFloatArgs >= NumFloatArgRegs)
+        return false;
+    *out = FloatRegister::FromCode(usedFloatArgs);
+    return true;
 }
 
 // Get a register in which we plan to put a quantity that will be used as an
