@@ -1706,7 +1706,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
 
     void call(Register target) {
-        JS_ASSERT(0 && "call");
+        Blr(ARMRegister(target, 64));
     }
     void call(JitCode *target) {
         JS_ASSERT(0 && "call");
@@ -1722,7 +1722,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         JS_ASSERT(0 && "callIonFromAsmJS");
     }
 
-    // Emit a BLX or NOP instruction. ToggleCall can be used to patch
+    // Emit a BLR or NOP instruction. ToggleCall can be used to patch
     // this instruction.
     CodeOffsetLabel toggledCall(JitCode *target, bool enabled) {
         MOZ_ASSUME_UNREACHABLE("toggledCall()");
