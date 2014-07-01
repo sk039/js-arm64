@@ -188,5 +188,31 @@ MacroAssemblerCompat::passABIArg(FloatRegister reg, MoveOp::Type type)
     passABIArg(MoveOperand(reg), type);
 }
 
+void
+MacroAssemblerCompat::callWithABIPre(uint32_t *stackAdjust)
+{
+    // TODO: Implement.
+    Brk(0x1111);
+}
+
+void
+MacroAssemblerCompat::callWithABIPost(uint32_t stackAdjust, MoveOp::Type result)
+{
+    // TODO: Implement.
+    Brk(0x1222);
+}
+
+void
+MacroAssemblerCompat::callWithABI(void *fun, MoveOp::Type result)
+{
+    // Load the target into an intra-call-use register.
+    loadPtr(ImmWord(fun), ip0);
+
+    uint32_t stackAdjust;
+    callWithABIPre(&stackAdjust);
+    call(ip0);
+    callWithABIPost(stackAdjust, result);
+}
+
 } // namespace jit
 } // namespace js

@@ -1604,18 +1604,12 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     void passABIArg(FloatRegister reg, MoveOp::Type type);
 
   private:
-    void callWithABIPre(uint32_t *stackAdjust) {
-        JS_ASSERT(0 && "callWithABIPre");
-    }
-    void callWithABIPost(uint32_t stackAdjust, MoveOp::Type result) {
-        JS_ASSERT(0 && "callWithABIPost");
-    }
+    void callWithABIPre(uint32_t *stackAdjust);
+    void callWithABIPost(uint32_t stackAdjust, MoveOp::Type result);
 
   public:
     // Emits a call to a C/C++ function, resolving all argument moves.
-    void callWithABI(void *fun, MoveOp::Type result = MoveOp::GENERAL) {
-        JS_ASSERT(0 && "callWithABI");
-    }
+    void callWithABI(void *fun, MoveOp::Type result = MoveOp::GENERAL);
     void callWithABI(AsmJSImmPtr imm, MoveOp::Type result = MoveOp::GENERAL) {
         JS_ASSERT(0 && "callWithABI");
     }
