@@ -490,7 +490,8 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
 
     void loadPtr(AbsoluteAddress address, Register dest) {
-        JS_ASSERT(0 && "loadPtr");
+        movePtr(ImmWord((uintptr_t)address.addr), ScratchReg);
+        ldr(ARMRegister(dest, 64), MemOperand(ARMRegister(ScratchReg, 64)));
     }
     void loadPtr(const Address &address, Register dest) {
         ldr(ARMRegister(dest, 64), MemOperand(address));
@@ -970,7 +971,8 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         B(label, cond);
     }
     void branchTest32(Condition cond, const Address &address, Imm32 imm, Label *label) {
-        JS_ASSERT(0 && "branchTest32");
+        load32(address, ScratchReg);
+        branchTest32(cond, ScratchReg, imm, label);
     }
     void branchTest32(Condition cond, AbsoluteAddress &address, Imm32 imm, Label *label) {
         JS_ASSERT(0 && "branchTest32");
