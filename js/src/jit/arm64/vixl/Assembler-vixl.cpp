@@ -2272,7 +2272,10 @@ AssemblerVIXL::WritePoolFooter(uint8_t *start, Pool *p, bool isNatural)
 ptrdiff_t
 AssemblerVIXL::GetBranchOffset(const Instruction *i)
 {
-    JS_ASSERT(i->BranchType() != UnknownBranchType);   
+    // FIXME: This appears to use "0" to communicate "is not actually a branch".
+    //JS_ASSERT(i->BranchType() != UnknownBranchType);
+    if (i->BranchType() == UnknownBranchType)
+        return 0;
     return (ptrdiff_t)i->ImmPCOffsetTarget() - (ptrdiff_t)i;
 }
 
@@ -2296,7 +2299,18 @@ AssemblerVIXL::RetargetNearBranch(Instruction *i, int offset, Condition cond, bo
 void
 AssemblerVIXL::RetargetNearBranch(Instruction *i, int offset, bool final)
 {
-    JS_ASSERT(0 && "RetargetNearBranch()");
+    switch (i->BranchType()) {
+      case UncondBranchType:
+        b(i, offset); // FIXME: Is this right? What about BL()?
+        break;
+
+      case CondBranchType:
+      case CompareBranchType:
+      case TestBranchType:
+      case UnknownBranchType:
+      default:
+        MOZ_ASSUME_UNREACHABLE("Unsupported branch type");
+    }
 }
 
 void
