@@ -778,15 +778,18 @@ class AssemblerVIXL : public AssemblerShared
 
     // Unconditional branch to PC offset.
     void b(int imm26);
+    static void b(Instruction *at, int imm26);
 
     // Conditional branch to PC offset.
     void b(int imm19, Condition cond);
+    static void b(Instruction *at, int imm19, Condition cond);
 
     // Branch with link to label.
     void bl(Label* label);
 
     // Branch with link to PC offset.
     void bl(int imm26);
+    static void bl(Instruction *at, int imm26);
 
     // Compare and branch to label if zero.
 
@@ -1745,6 +1748,13 @@ class AssemblerVIXL : public AssemblerShared
         armbuffer_.putInt(*(uint32_t*)(&instruction));
         pc_ += sizeof(instruction);
         CheckBufferSpace();
+    }
+
+    // Emit the instruction at |at|.
+    static void Emit(Instruction *at, Instr instruction) {
+        VIXL_STATIC_ASSERT(sizeof(instruction) == kInstructionSize);
+        uint32_t *addr = (uint32_t *)at;
+        *addr = *(uint32_t *)(&instruction);
     }
 
     // Emit data inline in the instruction stream.

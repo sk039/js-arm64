@@ -486,6 +486,12 @@ AssemblerVIXL::b(int imm26)
 }
 
 void
+AssemblerVIXL::b(Instruction *at, int imm26)
+{
+    Emit(at, B | ImmUncondBranch(imm26));
+}
+
+void
 AssemblerVIXL::b(int imm19, Condition cond)
 {
     armbuffer_.markNextAsBranch();
@@ -493,6 +499,12 @@ AssemblerVIXL::b(int imm19, Condition cond)
 
     if (cond == Always)
         armbuffer_.markGuard();
+}
+
+void
+AssemblerVIXL::b(Instruction *at, int imm19, Condition cond)
+{
+    Emit(at, B_cond | ImmCondBranch(imm19) | cond);
 }
 
 void
@@ -549,6 +561,12 @@ AssemblerVIXL::bl(int imm26)
     armbuffer_.markNextAsBranch();
     Emit(BL | ImmUncondBranch(imm26));
     armbuffer_.markGuard();
+}
+
+void
+AssemblerVIXL::bl(Instruction *at, int imm26)
+{
+    Emit(at, BL | ImmUncondBranch(imm26));
 }
 
 void
@@ -2261,7 +2279,18 @@ AssemblerVIXL::GetBranchOffset(const Instruction *i)
 void
 AssemblerVIXL::RetargetNearBranch(Instruction *i, int offset, Condition cond, bool final)
 {
-    JS_ASSERT(0 && "RetargetNearBranch() w/ Condition");
+    switch (i->BranchType()) {
+      case CondBranchType:
+        b(i, offset, cond); // FIXME: Is this right? What about BL()?
+        break;
+
+      case UncondBranchType:
+      case CompareBranchType:
+      case TestBranchType:
+      case UnknownBranchType:
+      default:
+        MOZ_ASSUME_UNREACHABLE("Unsupported branch type");
+    }
 }
 
 void
