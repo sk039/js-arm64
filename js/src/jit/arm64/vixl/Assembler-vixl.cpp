@@ -2254,11 +2254,8 @@ AssemblerVIXL::WritePoolFooter(uint8_t *start, Pool *p, bool isNatural)
 ptrdiff_t
 AssemblerVIXL::GetBranchOffset(const Instruction *i)
 {
-    if (!i->IsUncondBranchImm()) // TODO: What about IsCondBranchImm too?
-        return 0;
-
-    JS_ASSERT(0 && "GetBranchOffset");
-    return 0;
+    JS_ASSERT(i->BranchType() != UnknownBranchType);   
+    return (ptrdiff_t)i->ImmPCOffsetTarget() - (ptrdiff_t)i;
 }
 
 void

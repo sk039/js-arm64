@@ -152,7 +152,7 @@ LSDataSize CalcLSPairDataSize(LoadStorePairOp op) {
 }
 
 
-Instruction* Instruction::ImmPCOffsetTarget() {
+Instruction* Instruction::ImmPCOffsetTarget() const {
   ptrdiff_t offset;
   if (IsPCRelAddressing()) {
     // PC-relative addressing. Only ADR is supported.
@@ -163,7 +163,7 @@ Instruction* Instruction::ImmPCOffsetTarget() {
     // Relative branch offsets are instruction-size-aligned.
     offset = ImmBranch() << kInstructionSizeLog2;
   }
-  return this + offset;
+  return (Instruction *)(this + offset);
 }
 
 

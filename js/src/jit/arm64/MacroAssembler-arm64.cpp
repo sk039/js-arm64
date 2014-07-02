@@ -98,13 +98,15 @@ MacroAssembler::PushRegsInMask(RegisterSet set)
 }
 
 void
-MacroAssembler::PopRegsInMaskIgnore(RegisterSet set, RegisterSet ignore) {
-    JS_ASSERT(0 && "PopRegsInMaskIgnore()");
+MacroAssembler::PopRegsInMaskIgnore(RegisterSet set, RegisterSet ignore)
+{
+    Brk(0x2224);
 }
 
 void
-MacroAssembler::clampDoubleToUint8(FloatRegister input, Register output) {
-    JS_ASSERT(0 && "clampDoubleToUint8()");
+MacroAssembler::clampDoubleToUint8(FloatRegister input, Register output)
+{
+    Brk(0x2225);
 }
 
 void
