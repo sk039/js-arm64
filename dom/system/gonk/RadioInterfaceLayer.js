@@ -1576,6 +1576,15 @@ RadioInterfaceLayer.prototype = {
     return this.radioInterfaces[clientId];
   },
 
+  getClientIdForEmergencyCall: function() {
+    for (let cid = 0; cid < this.numRadioInterfaces; ++cid) {
+      if (gRadioEnabledController._isRadioAbleToEnableAtClient(cid)) {
+        return cid;
+      }
+    }
+    return -1;
+  },
+
   setMicrophoneMuted: function(muted) {
     for (let clientId = 0; clientId < this.numRadioInterfaces; clientId++) {
       let radioInterface = this.radioInterfaces[clientId];
@@ -1632,9 +1641,7 @@ WorkerMessenger.prototype = {
           libcutils.property_get("ro.moz.ril.send_stk_profile_dl", "false") == "true",
         dataRegistrationOnDemand: RILQUIRKS_DATA_REGISTRATION_ON_DEMAND,
         subscriptionControl: RILQUIRKS_SUBSCRIPTION_CONTROL
-      },
-      rilEmergencyNumbers: libcutils.property_get("ril.ecclist") ||
-                           libcutils.property_get("ro.ril.ecclist")
+      }
     };
 
     this.send(null, "setInitialOptions", options);
