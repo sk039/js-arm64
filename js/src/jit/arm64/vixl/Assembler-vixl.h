@@ -1706,7 +1706,7 @@ class AssemblerVIXL : public AssemblerShared
       const CPURegister& rt, const CPURegister& rt2);
 
 
- private:
+  private:
     // Instruction helpers.
     void MoveWide(const ARMRegister& rd, uint64_t imm, int shift, MoveWideImmediateOp mov_op);
     void DataProcShiftedRegister(const ARMRegister& rd, const ARMRegister& rn,
@@ -1750,6 +1750,8 @@ class AssemblerVIXL : public AssemblerShared
         CheckBufferSpace();
     }
 
+  // FIXME: This interface should not be public.
+  public:
     // Emit the instruction at |at|.
     static void Emit(Instruction *at, Instr instruction) {
         VIXL_STATIC_ASSERT(sizeof(instruction) == kInstructionSize);
@@ -1757,6 +1759,7 @@ class AssemblerVIXL : public AssemblerShared
         *addr = *(uint32_t *)(&instruction);
     }
 
+  private:
     // Emit data inline in the instruction stream.
     void EmitData(void const * data, unsigned size) {
         JS_ASSERT(0 && "EmitData()");

@@ -41,7 +41,9 @@ class Assembler : public AssemblerVIXL {
       : AssemblerVIXL()
     { }
 
-    void finish();
+    void finish() {
+        AssemblerVIXL::FinalizeCode();
+    }
 
     bool oom() const {
         // FIXME: Currently not possible to OOM.
@@ -146,16 +148,14 @@ class Assembler : public AssemblerVIXL {
     static void patchWrite_NearCall(CodeLocationLabel start, CodeLocationLabel toCall) {
         JS_ASSERT(0 && "patchWrite_NearCall()");
     }
-    static void patchDataWithValueCheck(CodeLocationLabel label, PatchedImmPtr newValue,
-                                        PatchedImmPtr expectedValue)
-    {
-        JS_ASSERT(0 && "patchDataWithValueCheck()");
-    }
-    static void patchDataWithValueCheck(CodeLocationLabel label, ImmPtr newValue,
-                                        ImmPtr expectedValue)
-    {
-        JS_ASSERT(0 && "patchDataWithValueCheck()");
-    }
+    static void patchDataWithValueCheck(CodeLocationLabel label,
+                                        PatchedImmPtr newValue,
+                                        PatchedImmPtr expected);
+
+    static void patchDataWithValueCheck(CodeLocationLabel label,
+                                        ImmPtr newValue,
+                                        ImmPtr expected);
+
     static void patchWrite_Imm32(CodeLocationLabel label, Imm32 imm) {
         JS_ASSERT(0 && "patchWrite_Imm32()");
     }

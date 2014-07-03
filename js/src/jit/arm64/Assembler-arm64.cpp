@@ -38,15 +38,28 @@ const Register ABIArgGenerator::NonArgReturnVolatileReg1 = r5;
 namespace js {
 namespace jit {
 
-void
-Assembler::finish()
-{
-    AssemblerVIXL::FinalizeCode();
-}
-
+// FIXME: Shouldn't this be a static method of Assembler?
 void
 PatchJump(CodeLocationJump &jump_, CodeLocationLabel label) {
     JS_ASSERT(0 && "PatchJump()");
+}
+
+// FIXME: Static, so should be capitalized.
+void
+Assembler::patchDataWithValueCheck(CodeLocationLabel label, PatchedImmPtr newValue,
+                                   PatchedImmPtr expected)
+{
+    Instruction *i = (Instruction *)label.raw();
+
+    // FIXME: Just emits a breakpoint for now until we can test it.
+    AssemblerVIXL::Emit(i, BRK | AssemblerVIXL::ImmException(0x7777));
+}
+
+// FIXME: Static, so should be capitalized.
+void
+Assembler::patchDataWithValueCheck(CodeLocationLabel label, ImmPtr newValue, ImmPtr expected)
+{
+    patchDataWithValueCheck(label, PatchedImmPtr(newValue.value), PatchedImmPtr(expected.value));
 }
 
 } // namespace jit
