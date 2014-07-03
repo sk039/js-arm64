@@ -194,8 +194,40 @@ void Simulator::RunFrom(Instruction* first) {
 
 
 int64_t Simulator::call(uint8_t* entry, int argument_count, ...) {
-  JS_ASSERT(0 && "Simulator::call()");
-  return -1;
+  va_list parameters;
+  va_start(parameters, argument_count);
+
+  ResetState();
+
+  // First eight arguments passed in registers.
+  MOZ_ASSERT(argument_count >= 1);
+  set_xreg(0, va_arg(parameters, int64_t));
+  if (argument_count >= 2)
+    set_xreg(1, va_arg(parameters, int64_t));
+  if (argument_count >= 3)
+    set_xreg(2, va_arg(parameters, int64_t));
+  if (argument_count >= 4)
+    set_xreg(3, va_arg(parameters, int64_t));
+  if (argument_count >= 5)
+    set_xreg(4, va_arg(parameters, int64_t));
+  if (argument_count >= 6)
+    set_xreg(5, va_arg(parameters, int64_t));
+  if (argument_count >= 7)
+    set_xreg(6, va_arg(parameters, int64_t));
+  if (argument_count >= 8)
+    set_xreg(7, va_arg(parameters, int64_t));
+
+  // Remaining arguments passed on stack.
+  // FIXME: Handle this case.
+  JS_ASSERT(argument_count <= 8);
+
+  // Execute the simulation.
+  // FIXME: Assert that the stack is sane.
+  RunFrom((Instruction *)entry);
+
+  // Get return value.
+  int64_t result = xreg(0);
+  return result;
 }
 
 
