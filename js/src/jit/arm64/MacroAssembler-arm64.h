@@ -1707,6 +1707,10 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         JS_ASSERT(0 && "call");
     }
 
+    void call(AsmJSImmPtr imm) {
+        JS_ASSERT(0 && "call(AsmJSImmPtr)");
+    }
+
     void call(Register target) {
         Blr(ARMRegister(target, 64));
     }
@@ -1730,7 +1734,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         MOZ_ASSUME_UNREACHABLE("toggledCall()");
     }
 
-    static size_t ToggledCallSize() {
+    static size_t ToggledCallSize(uint8_t *code) {
         JS_ASSERT(0 && "ToggledCallSize");
     }
 

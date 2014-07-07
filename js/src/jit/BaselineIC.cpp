@@ -1968,6 +1968,8 @@ DoCompareFallback(JSContext *cx, BaselineFrame *frame, ICCompare_Fallback *stub_
         }
     }
 
+    stub->noteUnoptimizableAccess();
+
     return true;
 }
 

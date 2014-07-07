@@ -633,7 +633,7 @@ class AssemblerVIXL : public AssemblerShared
 {
   public:
     AssemblerVIXL()
-      : armbuffer_(4, 4, 0, &pools_[0], 8), // FIXME: What on earth is this
+      : armbuffer_(4, 4, 0, &pools_[0], 8, 0xEAFFFFFF, 0), // FIXME: What on earth is this
         pc_(nullptr) // FIXME: Yeah this thing needs some lovin'.
     {
 #ifdef DEBUG

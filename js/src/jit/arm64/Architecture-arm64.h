@@ -7,7 +7,9 @@
 #ifndef jit_arm64_Architecture_arm64_h
 #define jit_arm64_Architecture_arm64_h
 
+#include "mozilla/MathAlgorithms.h"
 #include "mozilla/Assertions.h"
+
 #include "js/Utility.h"
 
 namespace js {
