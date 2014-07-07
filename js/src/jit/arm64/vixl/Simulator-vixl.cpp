@@ -197,8 +197,6 @@ int64_t Simulator::call(uint8_t* entry, int argument_count, ...) {
   va_list parameters;
   va_start(parameters, argument_count);
 
-  ResetState();
-
   // First eight arguments passed in registers.
   MOZ_ASSERT(argument_count >= 1);
   set_xreg(0, va_arg(parameters, int64_t));
