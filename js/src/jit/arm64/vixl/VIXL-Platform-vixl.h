@@ -39,9 +39,9 @@ namespace jit {
 
 #ifdef JS_ARM64_SIMULATOR
 // Currently we assume running the simulator implies running on x86 hardware.
-inline void HostBreakpoint() { asm("int3"); }
+inline void HostBreakpoint(int imm16 = 0) { asm("int3"); }
 #else
-inline void HostBreakpoint() { asm("brk"); }
+inline void HostBreakpoint(int imm16 = 0) { asm("brk"); }
 #endif
 
 } // namespace jit

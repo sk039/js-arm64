@@ -2470,7 +2470,12 @@ void Simulator::VisitSystem(Instruction* instr) {
 
 void Simulator::VisitException(Instruction* instr) {
   switch (instr->Mask(ExceptionMask)) {
-    case BRK: HostBreakpoint(); break;
+    case BRK: {
+      int lowbit  = ImmException_offset;
+      int highbit = ImmException_offset + ImmException_width - 1;
+      HostBreakpoint(instr->Bits(highbit, lowbit));
+      break;
+    }
     case HLT:
       // The Printf pseudo instruction is so useful, we include it in the
       // default simulator.
