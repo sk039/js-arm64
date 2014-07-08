@@ -284,7 +284,7 @@ static MOZ_CONSTEXPR_VAR FloatRegister ReturnDoubleReg = { FloatRegisters::d0 };
 static MOZ_CONSTEXPR_VAR FloatRegister ReturnFloat32Reg = { FloatRegisters::s0 };
 static MOZ_CONSTEXPR_VAR FloatRegister ScratchFloat32Reg = { FloatRegisters::s31 };
 
-static MOZ_CONSTEXPR_VAR Register OsrFrameReg = { Registers::x3};
+static MOZ_CONSTEXPR_VAR Register OsrFrameReg = { Registers::x5 };
 static MOZ_CONSTEXPR_VAR Register ArgumentsRectifierReg = { Registers::x8 };
 static MOZ_CONSTEXPR_VAR Register CallTempReg0 = { Registers::x5 };
 static MOZ_CONSTEXPR_VAR Register CallTempReg1 = { Registers::x6 };
@@ -310,6 +310,10 @@ static MOZ_CONSTEXPR_VAR Register IntArgReg0 = { Registers::x0 };
 static MOZ_CONSTEXPR_VAR Register IntArgReg1 = { Registers::x1 };
 static MOZ_CONSTEXPR_VAR Register IntArgReg2 = { Registers::x2 };
 static MOZ_CONSTEXPR_VAR Register IntArgReg3 = { Registers::x3 };
+static MOZ_CONSTEXPR_VAR Register IntArgReg4 = { Registers::x4 };
+static MOZ_CONSTEXPR_VAR Register IntArgReg5 = { Registers::x5 };
+static MOZ_CONSTEXPR_VAR Register IntArgReg6 = { Registers::x6 };
+static MOZ_CONSTEXPR_VAR Register IntArgReg7 = { Registers::x7 };
 static MOZ_CONSTEXPR_VAR Register GlobalReg =  { Registers::x10 };
 static MOZ_CONSTEXPR_VAR Register HeapReg = { Registers::x11 };
 

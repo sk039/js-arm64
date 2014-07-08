@@ -25,18 +25,97 @@ static const RegisterSet AllRegs =
 
 /* This method generates a trampoline on x64 for a c++ function with
  * the following signature:
- *   bool blah(void *code, int argc, Value *argv, JSObject *scopeChain,
- *               Value *vp)
- *   ...using standard x64 fastcall calling convention
+ *   bool blah(void *code, int argc, Value *argv, JSObject *scopeChain, Value *vp)
+ *   ...using standard AArch64 calling convention
  */
 JitCode *
 JitRuntime::generateEnterJIT(JSContext *cx, EnterJitType type)
 {
-    // FIXME: Actually implement.
-    MacroAssembler masm;
+    MacroAssembler masm(cx);
+
+    const Register reg_code = IntArgReg0;
+    const Register reg_argc = IntArgReg1;
+    const Register reg_argv = IntArgReg2;
+    const Register reg_scopeChain = IntArgReg3;
+    const Register reg_vp = IntArgReg4;
+    JS_ASSERT(OsrFrameReg == IntArgReg5);
+
+    // TODO: Save old stack frame pointer, set new stack frame pointer.
+
+    // Save callee-save integer registers.
+    masm.MacroAssemblerVIXL::Push(x19, x20, x21, x22);
+    masm.MacroAssemblerVIXL::Push(x23, x24, x25, x26);
+    masm.MacroAssemblerVIXL::Push(x27, x28);
+
+    // Save callee-save floating-point registers.
+    // AArch64 ABI specifies that only the lower 64 bits must be saved.
+    masm.MacroAssemblerVIXL::Push( d8,  d9, d10, d11);
+    masm.MacroAssemblerVIXL::Push(d12, d13, d14, d15);
+
+    // TODO: Push the EnterJIT SPS mark.
+    //masm.spsMarkJit(&cx->runtime()->spsProfiler, ???, ???);
+
+    // TODO: Remember stack depth without padding and arguments.
+    // TODO: Note that we could just push more false registers above...
+
+    // TODO: Remember the number of bytes occupied by argument vector.
+
+    // TODO: Guarantee 16-byte alignment.
+
+    // IonJSFrameLayout is as follows (higher is higher in memory):
+    //  N*64  - [ JS argument vector ]
+    //  64    - numActualArgs
+    //  64    - calleeToken
+    //  64    - frameDescriptor
+    //  64    - returnAddress
+
+    // TODO: Loop over argv vector, pushing arguments onto stack in reverse order.
+    {
+        Label noArguments;
+        masm.branchTestPtr(Assembler::Zero, reg_argc, reg_argc, &noArguments);
+        masm.breakpoint(); // TODO: Implement argument pushing.
+        masm.bind(&noArguments);
+    }
+
+    // Push numActualArgs and the calleeToken.
+    masm.MacroAssemblerVIXL::Push(ARMRegister(reg_argc, 64), ARMRegister(reg_scopeChain, 64));
+
+    // Push the frameDescriptor.
+    // TODO: x19 must contain the number of bytes pushed on the frame.
     masm.breakpoint();
+    masm.makeFrameDescriptor(r19, JitFrame_Entry);
+    masm.Push(r19);
+
+    if (type == EnterJitBaseline) {
+        Label notOsr;
+        masm.branchTestPtr(Assembler::Zero, OsrFrameReg, OsrFrameReg, &notOsr);
+        masm.breakpoint(); // TODO: Handle Baseline with OSR, which is complicated.
+        masm.bind(&notOsr);
+    }
+
+    // Call function.
+    masm.call(reg_code);
+
+    // TODO: Unwind the EnterJIT SPS mark.
+    //masm.spsUnmarkJit(&cx->runtime()->spsProfiler, ???);
+
+    // Restore callee-save floating-point registers.
+    masm.MacroAssemblerVIXL::Pop(d15, d14, d13, d12);
+    masm.MacroAssemblerVIXL::Pop(d11, d10,  d9,  d8);
+
+    // Restore callee-save integer registers.
+    masm.MacroAssemblerVIXL::Pop(x28, x27, x26, x25);
+    masm.MacroAssemblerVIXL::Pop(x24, x23, x22, x21);
+    masm.MacroAssemblerVIXL::Pop(x20, x19);
+
     Linker linker(masm);
-    return linker.newCode<NoGC>(cx, JSC::OTHER_CODE);
+    JitCode *code = linker.newCode<NoGC>(cx, JSC::OTHER_CODE);
+
+#ifdef JS_ION_PERF
+    writePerfSpewerJitCodeProfile(code, "EnterJIT");
+#endif
+
+    return code;
 }
 
 JitCode *
