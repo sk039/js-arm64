@@ -993,7 +993,8 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         JS_ASSERT(0 && "branchPtr");
     }
     void branchTestPtr(Condition cond, Register lhs, Register rhs, Label *label) {
-        JS_ASSERT(0 && "branchTestPtr");
+        Tst(ARMRegister(lhs, 64), Operand(ARMRegister(rhs, 64)));
+        B(label, cond);
     }
     void branchTestPtr(Condition cond, Register lhs, Imm32 imm, Label *label) {
         JS_ASSERT(0 && "branchTestPtr");
