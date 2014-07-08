@@ -33,6 +33,9 @@ JitRuntime::generateEnterJIT(JSContext *cx, EnterJitType type)
 {
     MacroAssembler masm(cx);
 
+    // For purposes of this function, use |sp| as the stack pointer.
+    masm.SetStackPointer(sp);
+
     const Register reg_code = IntArgReg0;
     const Register reg_argc = IntArgReg1;
     const Register reg_argv = IntArgReg2;
@@ -82,7 +85,6 @@ JitRuntime::generateEnterJIT(JSContext *cx, EnterJitType type)
 
     // Push the frameDescriptor.
     // TODO: x19 must contain the number of bytes pushed on the frame.
-    masm.breakpoint();
     masm.makeFrameDescriptor(r19, JitFrame_Entry);
     masm.Push(r19);
 
