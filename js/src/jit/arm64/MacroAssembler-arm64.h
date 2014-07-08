@@ -1789,9 +1789,9 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     void inc64(AbsoluteAddress dest) {
         JS_ASSERT(0 && "inc64");
     }
-    void breakpoint() {
-        Brk();
-    }
+
+    void breakpoint();
+
     // FIXME: Should be in Assembler?
     // FIXME: Should be const?
     uint32_t currentOffset() {

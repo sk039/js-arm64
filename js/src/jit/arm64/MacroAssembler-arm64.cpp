@@ -217,5 +217,14 @@ MacroAssemblerCompat::callWithABI(void *fun, MoveOp::Type result)
     callWithABIPost(stackAdjust, result);
 }
 
+// FIXME: Probably just call Brk() in the header.
+void
+MacroAssemblerCompat::breakpoint()
+{
+    static int code = 0xA77;
+    Brk(code++);
+}
+
+
 } // namespace jit
 } // namespace js
