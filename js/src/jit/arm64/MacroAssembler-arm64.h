@@ -1629,8 +1629,10 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
     void handleFailureWithHandlerTail();
 
+    // FIXME: This is the same on all platforms. Can be common code?
     void makeFrameDescriptor(Register frameSizeReg, FrameType type) {
-        JS_ASSERT(0 && "makeFrameDescriptor");
+        lshiftPtr(Imm32(FRAMESIZE_SHIFT), frameSizeReg);
+        orPtr(Imm32(type), frameSizeReg);
     }
 
     // Save an exit frame (which must be aligned to the stack pointer) to
