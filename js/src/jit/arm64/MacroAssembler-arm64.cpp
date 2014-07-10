@@ -27,8 +27,6 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "jit/arm64/MacroAssembler-arm64.h"
-
 #include "jit/IonMacroAssembler.h"
 
 namespace js {
@@ -223,6 +221,18 @@ MacroAssemblerCompat::breakpoint()
 {
     static int code = 0xA77;
     Brk(code++);
+}
+
+void
+MacroAssembler::alignFrameForICArguments(MacroAssembler::AfterICSaveLive &aic)
+{
+    // Exists for MIPS compatibility.
+}
+
+void
+MacroAssembler::restoreFrameAlignmentForICArguments(MacroAssembler::AfterICSaveLive &aic)
+{
+    // Exists for MIPS compatibility.
 }
 
 

@@ -105,6 +105,13 @@ class Assembler : public AssemblerVIXL {
             dataRelocationTableBytes() +
             preBarrierTableBytes();
     }
+
+    // The buffer is about to be linked. Ensure any constant pools or
+    // excess bookkeeping has been flushed to the instruction stream.
+    void flush() {
+        // TODO: JS_ASSERT(!isFinished);
+        armbuffer_.flushPool();
+    }
     void flushBuffer() {
         JS_ASSERT(0 && "flushBuffer()");
     }
@@ -136,39 +143,39 @@ class Assembler : public AssemblerVIXL {
         JS_ASSERT(0 && "TraceDataRelocations()");
     }
 
-    static uint32_t patchWrite_NearCallSize() {
-        JS_ASSERT(0 && "patchWrite_NearCallSize()");
+    static uint32_t PatchWrite_NearCallSize() {
+        JS_ASSERT(0 && "PatchWrite_NearCallSize()");
         return 0;
     }
 
-    static uint32_t nopSize() {
-        JS_ASSERT(0 && "nopSize()");
+    static uint32_t NopSize() {
+        JS_ASSERT(0 && "NopSize()");
         return 4;
     }
-    static void patchWrite_NearCall(CodeLocationLabel start, CodeLocationLabel toCall) {
-        JS_ASSERT(0 && "patchWrite_NearCall()");
+    static void PatchWrite_NearCall(CodeLocationLabel start, CodeLocationLabel toCall) {
+        JS_ASSERT(0 && "PatchWrite_NearCall()");
     }
-    static void patchDataWithValueCheck(CodeLocationLabel label,
+    static void PatchDataWithValueCheck(CodeLocationLabel label,
                                         PatchedImmPtr newValue,
                                         PatchedImmPtr expected);
 
-    static void patchDataWithValueCheck(CodeLocationLabel label,
+    static void PatchDataWithValueCheck(CodeLocationLabel label,
                                         ImmPtr newValue,
                                         ImmPtr expected);
 
-    static void patchWrite_Imm32(CodeLocationLabel label, Imm32 imm) {
-        JS_ASSERT(0 && "patchWrite_Imm32()");
+    static void PatchWrite_Imm32(CodeLocationLabel label, Imm32 imm) {
+        JS_ASSERT(0 && "PatchWrite_Imm32()");
     }
-    static uint32_t alignDoubleArg(uint32_t offset) {
-        JS_ASSERT(0 && "alignDoubleArg()");
+    static uint32_t AlignDoubleArg(uint32_t offset) {
+        JS_ASSERT(0 && "AlignDoubleArg()");
         return (offset+1)&~1;
     }
-    static uint8_t *nextInstruction(uint8_t *instruction, uint32_t *count = nullptr) {
-        JS_ASSERT(0 && "nextInstruction()");
+    static uint8_t *NextInstruction(uint8_t *instruction, uint32_t *count = nullptr) {
+        JS_ASSERT(0 && "NextInstruction()");
         return nullptr;
     }
-    static uintptr_t getPointer(uint8_t *) {
-        JS_ASSERT(0 && "getPointer()");
+    static uintptr_t GetPointer(uint8_t *) {
+        JS_ASSERT(0 && "GetPointer()");
         return 0;
     }
 
@@ -188,12 +195,12 @@ class Assembler : public AssemblerVIXL {
         JS_ASSERT(0 && "updateBoundsCheck()");
     }
 
-    static int32_t extractCodeLabelOffset(uint8_t *code) {
-        JS_ASSERT(0 && "extractCodeLabelOffset");
+    static int32_t ExtractCodeLabelOffset(uint8_t *code) {
+        JS_ASSERT(0 && "ExtractCodeLabelOffset");
         return 0;
     }
-    static void patchInstructionImmediate(uint8_t *code, PatchedImmPtr imm) {
-        JS_ASSERT(0 && "patchInstructionImmediate");
+    static void PatchInstructionImmediate(uint8_t *code, PatchedImmPtr imm) {
+        JS_ASSERT(0 && "PatchInstructionImmediate");
     }
 
     js::Vector<CodeLabel, 0, SystemAllocPolicy> codeLabels_;

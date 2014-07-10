@@ -33,6 +33,7 @@ from .data import (
     InstallationTarget,
     IPDLFile,
     JARManifest,
+    JavaScriptModules,
     LibraryDefinition,
     LocalInclude,
     PerSourceFlag,
@@ -349,6 +350,10 @@ class TreeMetadataEmitter(LoggingMixin):
         for program in sandbox['HOST_SIMPLE_PROGRAMS']:
             yield HostSimpleProgram(sandbox, program, sandbox['CONFIG']['HOST_BIN_SUFFIX'])
 
+        test_js_modules = sandbox.get('TESTING_JS_MODULES')
+        if test_js_modules:
+            yield JavaScriptModules(sandbox, test_js_modules, 'testing')
+
         simple_lists = [
             ('GENERATED_EVENTS_WEBIDL_FILES', GeneratedEventWebIDLFile),
             ('GENERATED_WEBIDL_FILES', GeneratedWebIDLFile),
@@ -383,6 +388,13 @@ class TreeMetadataEmitter(LoggingMixin):
                 raise SandboxValidationError('FINAL_LIBRARY implies FORCE_STATIC_LIB')
             self._final_libs.append((sandbox['OBJDIR'], libname, final_lib))
             passthru.variables['FORCE_STATIC_LIB'] = True
+
+        soname = sandbox.get('SONAME')
+        if soname:
+            if not sandbox.get('FORCE_SHARED_LIB'):
+                raise SandboxValidationError('SONAME applicable only for shared libraries')
+            else:
+                passthru.variables['SONAME'] = soname
 
         # While there are multiple test manifests, the behavior is very similar
         # across them. We enforce this by having common handling of all

@@ -44,9 +44,8 @@ PatchJump(CodeLocationJump &jump_, CodeLocationLabel label) {
     JS_ASSERT(0 && "PatchJump()");
 }
 
-// FIXME: Static, so should be capitalized.
 void
-Assembler::patchDataWithValueCheck(CodeLocationLabel label, PatchedImmPtr newValue,
+Assembler::PatchDataWithValueCheck(CodeLocationLabel label, PatchedImmPtr newValue,
                                    PatchedImmPtr expected)
 {
     Instruction *i = (Instruction *)label.raw();
@@ -55,11 +54,10 @@ Assembler::patchDataWithValueCheck(CodeLocationLabel label, PatchedImmPtr newVal
     AssemblerVIXL::Emit(i, BRK | AssemblerVIXL::ImmException(0x7777));
 }
 
-// FIXME: Static, so should be capitalized.
 void
-Assembler::patchDataWithValueCheck(CodeLocationLabel label, ImmPtr newValue, ImmPtr expected)
+Assembler::PatchDataWithValueCheck(CodeLocationLabel label, ImmPtr newValue, ImmPtr expected)
 {
-    patchDataWithValueCheck(label, PatchedImmPtr(newValue.value), PatchedImmPtr(expected.value));
+    PatchDataWithValueCheck(label, PatchedImmPtr(newValue.value), PatchedImmPtr(expected.value));
 }
 
 } // namespace jit
