@@ -1757,8 +1757,10 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         JS_ASSERT(0 && "abiret");
     }
 
-    void mulBy3(const Register &src, const Register &dest) {
-        JS_ASSERT(0 && "mulBy3");
+    void mulBy3(Register src, Register dest) {
+        ARMRegister xdest(dest, 64);
+        ARMRegister xsrc(src, 64);
+        Add(xdest, xsrc, Operand(xsrc, LSL, 1));
     }
 
     template <typename T>
