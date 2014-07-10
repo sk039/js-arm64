@@ -423,6 +423,7 @@ class ICEntry
     _(GetProp_CallDOMProxyWithGenerationNative)\
     _(GetProp_DOMProxyShadowed) \
     _(GetProp_ArgumentsLength)  \
+    _(GetProp_ArgumentsCallee)  \
                                 \
     _(SetProp_Fallback)         \
     _(SetProp_Native)           \
@@ -3410,11 +3411,11 @@ class ICGetElem_TypedArray : public ICStub
   protected: // Protected to silence Clang warning.
     HeapPtrShape shape_;
 
-    ICGetElem_TypedArray(JitCode *stubCode, HandleShape shape, uint32_t type);
+    ICGetElem_TypedArray(JitCode *stubCode, HandleShape shape, Scalar::Type type);
 
   public:
     static inline ICGetElem_TypedArray *New(ICStubSpace *space, JitCode *code,
-                                            HandleShape shape, uint32_t type)
+                                            HandleShape shape, Scalar::Type type)
     {
         if (!code)
             return nullptr;
@@ -3431,7 +3432,7 @@ class ICGetElem_TypedArray : public ICStub
 
     class Compiler : public ICStubCompiler {
       RootedShape shape_;
-      uint32_t type_;
+      Scalar::Type type_;
 
       protected:
         bool generateStubCode(MacroAssembler &masm);
@@ -3441,7 +3442,7 @@ class ICGetElem_TypedArray : public ICStub
         }
 
       public:
-        Compiler(JSContext *cx, Shape *shape, uint32_t type)
+        Compiler(JSContext *cx, Shape *shape, Scalar::Type type)
           : ICStubCompiler(cx, ICStub::GetElem_TypedArray),
             shape_(cx, shape),
             type_(type)
@@ -3725,12 +3726,12 @@ class ICSetElem_TypedArray : public ICStub
   protected: // Protected to silence Clang warning.
     HeapPtrShape shape_;
 
-    ICSetElem_TypedArray(JitCode *stubCode, HandleShape shape, uint32_t type,
+    ICSetElem_TypedArray(JitCode *stubCode, HandleShape shape, Scalar::Type type,
                          bool expectOutOfBounds);
 
   public:
     static inline ICSetElem_TypedArray *New(ICStubSpace *space, JitCode *code,
-                                            HandleShape shape, uint32_t type,
+                                            HandleShape shape, Scalar::Type type,
                                             bool expectOutOfBounds)
     {
         if (!code)
@@ -3738,8 +3739,8 @@ class ICSetElem_TypedArray : public ICStub
         return space->allocate<ICSetElem_TypedArray>(code, shape, type, expectOutOfBounds);
     }
 
-    uint32_t type() const {
-        return extra_ & 0xff;
+    Scalar::Type type() const {
+        return (Scalar::Type) (extra_ & 0xff);
     }
 
     bool expectOutOfBounds() const {
@@ -3756,7 +3757,7 @@ class ICSetElem_TypedArray : public ICStub
 
     class Compiler : public ICStubCompiler {
         RootedShape shape_;
-        uint32_t type_;
+        Scalar::Type type_;
         bool expectOutOfBounds_;
 
       protected:
@@ -3768,7 +3769,7 @@ class ICSetElem_TypedArray : public ICStub
         }
 
       public:
-        Compiler(JSContext *cx, Shape *shape, uint32_t type, bool expectOutOfBounds)
+        Compiler(JSContext *cx, Shape *shape, Scalar::Type type, bool expectOutOfBounds)
           : ICStubCompiler(cx, ICStub::SetElem_TypedArray),
             shape_(cx, shape),
             type_(type),
@@ -5077,6 +5078,39 @@ class ICGetProp_ArgumentsLength : public ICStub
 
         ICStub *getStub(ICStubSpace *space) {
             return ICGetProp_ArgumentsLength::New(space, getStubCode());
+        }
+    };
+};
+
+class ICGetProp_ArgumentsCallee : public ICMonitoredStub
+{
+    friend class ICStubSpace;
+
+  protected:
+    ICGetProp_ArgumentsCallee(JitCode *stubCode, ICStub *firstMonitorStub);
+
+  public:
+    static inline ICGetProp_ArgumentsCallee *New(ICStubSpace *space, JitCode *code,
+                                                 ICStub *firstMonitorStub)
+    {
+        if (!code)
+            return nullptr;
+        return space->allocate<ICGetProp_ArgumentsCallee>(code, firstMonitorStub);
+    }
+
+    class Compiler : public ICStubCompiler {
+      protected:
+        ICStub *firstMonitorStub_;
+        bool generateStubCode(MacroAssembler &masm);
+
+      public:
+        Compiler(JSContext *cx, ICStub *firstMonitorStub)
+          : ICStubCompiler(cx, ICStub::GetProp_ArgumentsCallee),
+            firstMonitorStub_(firstMonitorStub)
+        {}
+
+        ICStub *getStub(ICStubSpace *space) {
+            return ICGetProp_ArgumentsCallee::New(space, getStubCode(), firstMonitorStub_);
         }
     };
 };
