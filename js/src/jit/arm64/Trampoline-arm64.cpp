@@ -33,17 +33,17 @@ JitRuntime::generateEnterJIT(JSContext *cx, EnterJitType type)
 {
     MacroAssembler masm(cx);
 
-    // For purposes of this function, use |sp| as the stack pointer.
-    masm.SetStackPointer(sp);
-
     const Register reg_code = IntArgReg0;
     const Register reg_argc = IntArgReg1;
     const Register reg_argv = IntArgReg2;
-    const Register reg_scopeChain = IntArgReg3;
+    const Register reg_scope = IntArgReg3;
     const Register reg_vp = IntArgReg4;
     JS_ASSERT(OsrFrameReg == IntArgReg5);
 
     // TODO: Save old stack frame pointer, set new stack frame pointer.
+
+    // During the pushes below, use the normal stack pointer.
+    masm.SetStackPointer(sp);
 
     // Save callee-save integer registers.
     masm.MacroAssemblerVIXL::Push(x19, x20, x21, x22);
@@ -52,11 +52,16 @@ JitRuntime::generateEnterJIT(JSContext *cx, EnterJitType type)
 
     // Save callee-save floating-point registers.
     // AArch64 ABI specifies that only the lower 64 bits must be saved.
-    masm.MacroAssemblerVIXL::Push( d8,  d9, d10, d11);
+    masm.MacroAssemblerVIXL::Push(d8,  d9,  d10, d11);
     masm.MacroAssemblerVIXL::Push(d12, d13, d14, d15);
 
-    // TODO: Push the EnterJIT SPS mark.
-    //masm.spsMarkJit(&cx->runtime()->spsProfiler, ???, ???);
+    // Common code below attempts to push single registers at a time,
+    // which breaks the stack pointer's 16-byte alignment requirement.
+    masm.movePtr(StackPointer, PseudoStackPointer);
+    masm.SetStackPointer(ARMRegister(PseudoStackPointer, 64));
+
+    // Push the EnterJIT SPS mark.
+    masm.spsMarkJit(&cx->runtime()->spsProfiler, PseudoStackPointer, r20);
 
     // TODO: Remember stack depth without padding and arguments.
     // TODO: Note that we could just push more false registers above...
@@ -81,7 +86,7 @@ JitRuntime::generateEnterJIT(JSContext *cx, EnterJitType type)
     }
 
     // Push numActualArgs and the calleeToken.
-    masm.MacroAssemblerVIXL::Push(ARMRegister(reg_argc, 64), ARMRegister(reg_scopeChain, 64));
+    masm.MacroAssemblerVIXL::Push(ARMRegister(reg_argc, 64), ARMRegister(reg_scope, 64));
 
     // Push the frameDescriptor.
     // TODO: x19 must contain the number of bytes pushed on the frame.
