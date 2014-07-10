@@ -506,7 +506,8 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         JS_ASSERT(0 && "loadPrivate");
     }
     void load32(AbsoluteAddress address, Register dest) {
-        JS_ASSERT(0 && "load32");
+        movePtr(ImmWord((uintptr_t)address.addr), ScratchReg);
+        ldr(ARMRegister(dest, 32), MemOperand(ARMRegister(ScratchReg, 64)));
     }
 
     void store8(Register src, const Address &address) {
@@ -902,29 +903,36 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     void branch16(Condition cond, Register lhs, Register rhs, Label *label) {
         JS_ASSERT(0 && "branch16");
     }
+
     void branch32(Condition cond, const Operand &lhs, Register rhs, Label *label) {
         JS_ASSERT(0 && "branch32");
     }
     void branch32(Condition cond, const Operand &lhs, Imm32 rhs, Label *label) {
         JS_ASSERT(0 && "branch32");
     }
-    void branch32(Condition cond, const Address &lhs, Register rhs, Label *label) {
-        JS_ASSERT(0 && "branch32");
-    }
-    void branch32(Condition cond, const Address &lhs, Imm32 imm, Label *label) {
-        JS_ASSERT(0 && "branch32");
+    void branch32(Condition cond, Register lhs, Register rhs, Label *label) {
+        cmp32(lhs, rhs);
+        b(label, cond);
     }
     void branch32(Condition cond, Register lhs, Imm32 imm, Label *label) {
-        JS_ASSERT(0 && "branch32");
+        cmp32(lhs, imm);
+        b(label, cond);
     }
-    void branch32(Condition cond, Register lhs, Register rhs, Label *label) {
-        JS_ASSERT(0 && "branch32");
+    void branch32(Condition cond, const Address &lhs, Register rhs, Label *label) {
+        load32(lhs, ScratchReg);
+        branch32(cond, ScratchReg, rhs, label);
     }
-    void branch32(Condition cond, AbsoluteAddress lhs, Imm32 rhs, Label *label) {
-        JS_ASSERT(0 && "branch32");
+    void branch32(Condition cond, const Address &lhs, Imm32 imm, Label *label) {
+        load32(lhs, ScratchReg);
+        branch32(cond, ScratchReg, imm, label);
     }
     void branch32(Condition cond, AbsoluteAddress lhs, Register rhs, Label *label) {
-        JS_ASSERT(0 && "branch32");
+        movePtr(ImmPtr(lhs.addr), ScratchReg2);
+        branch32(cond, Address(ScratchReg2, 0), rhs, label);
+    }
+    void branch32(Condition cond, AbsoluteAddress lhs, Imm32 rhs, Label *label) {
+        movePtr(ImmPtr(lhs.addr), ScratchReg2);
+        branch32(cond, Address(ScratchReg2, 0), rhs, label);
     }
 
     void branchSub32(Condition cond, const ARMOperand &lhs, Register rhs, Label *label) {
