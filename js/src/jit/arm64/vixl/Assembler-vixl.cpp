@@ -550,7 +550,7 @@ AssemblerVIXL::b(Label* label, Condition cond)
     }
 
     // Just put in any offset, and we'll patch it up later.
-    b(0x0);
+    b(0x0, cond);
 
     // TODO: Some debug checks?
 }
