@@ -1074,10 +1074,11 @@ class MacroAssembler : public MacroAssemblerSpecific
             mulBy3(temp, temp);
         }
 
+        // FIXME: This is pretty gross.
         push(temp);
         loadPtr(AbsoluteAddress(p->addressOfStack()), temp);
-        addPtr(Address(StackPointer, 0), temp);
-        addPtr(Imm32(sizeof(size_t)), StackPointer);
+        addPtr(Address(PseudoStackPointer, 0), temp); // FIXME: Obviously won't compile elsewhere.
+        addPtr(Imm32(sizeof(size_t)), PseudoStackPointer); // FIXME: Same deal.
     }
 
   public:

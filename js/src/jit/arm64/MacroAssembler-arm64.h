@@ -559,10 +559,16 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         Mov(ScratchReg2_64, uint64_t(address.addr));
         Str(ARMRegister(src, 64), MemOperand(ScratchReg2_64));
     }
+
     void store32(Register src, AbsoluteAddress address) {
         Mov(ScratchReg2_64, uint64_t(address.addr));
         Str(ARMRegister(src, 32), MemOperand(ScratchReg2_64));
     }
+    void store32(Imm32 imm, const Address &address) {
+        Mov(ScratchReg2_32, uint64_t(imm.value));
+        Str(ScratchReg2_32, MemOperand(ARMRegister(address.base, 64), address.offset));
+    }
+
     void rshiftPtr(Imm32 imm, Register dest) {
         Lsr(ARMRegister(dest, 64), ARMRegister(dest, 64), imm.value);
     }
