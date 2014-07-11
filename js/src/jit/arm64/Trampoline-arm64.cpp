@@ -57,7 +57,8 @@ JitRuntime::generateEnterJIT(JSContext *cx, EnterJitType type)
 
     // Common code below attempts to push single registers at a time,
     // which breaks the stack pointer's 16-byte alignment requirement.
-    masm.movePtr(StackPointer, PseudoStackPointer);
+    // Note that movePtr() is invalid because StackPointer is treated as xzr.
+    masm.Add(ARMRegister(PseudoStackPointer, 64), sp, Operand((int64_t)0));
     masm.SetStackPointer(ARMRegister(PseudoStackPointer, 64));
 
     // Push the EnterJIT SPS mark.
