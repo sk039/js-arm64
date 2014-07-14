@@ -542,17 +542,16 @@ AssemblerVIXL::b(Label* label, Condition cond)
         return;
     }
 
-    // FIXME: It looks like used() and bound() are very similar...
     if (label->used()) {
-        // TODO: Check that the offset is in valid range.
-        b(UpdateAndGetInstructionOffsetTo(label));
+        b(label->offset(), cond);
         return;
     }
 
     // Just put in any offset, and we'll patch it up later.
-    b(0x0, cond);
+    b(LabelBase::INVALID_OFFSET, cond);
 
     // TODO: Some debug checks?
+    // TODO: label->use()? How on earth are the labels patched?
 }
 
 void

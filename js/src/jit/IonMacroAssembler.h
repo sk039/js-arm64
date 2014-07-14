@@ -1052,9 +1052,7 @@ class MacroAssembler : public MacroAssemblerSpecific
     // will not survive changes to to the profiler settings.  Baseline jitcode, however,
     // can span these changes, so any hardcoded field values will be incorrect afterwards.
     // All the sps-related methods used by baseline call |spsProfileEntryAddressSafe|.
-    void spsProfileEntryAddressSafe(SPSProfiler *p, int offset, Register temp,
-                                    Label *full)
-    {
+    void spsProfileEntryAddressSafe(SPSProfiler *p, int offset, Register temp, Label *full) {
         // Load size pointer
         loadPtr(AbsoluteAddress(p->addressOfSizePointer()), temp);
 

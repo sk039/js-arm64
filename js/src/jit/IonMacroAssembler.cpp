@@ -2026,7 +2026,7 @@ MacroAssembler::spsMarkJit(SPSProfiler *p, Register framePtr, Register temp)
     uint32_t *enabledAddr = p->addressOfEnabled();
     load32(AbsoluteAddress(enabledAddr), temp);
     push(temp); // +4: Did we push an sps frame.
-    branchTest32(Assembler::Equal, temp, temp, &spsNotEnabled);
+    branchTest32(Assembler::Zero, temp, temp, &spsNotEnabled); // FIXME: This branch for whatever reason is referring to itself, and we get stuck in an infinite loop. Not very fun.
 
     Label stackFull;
     // We always need the "safe" versions, because these are used in trampolines
