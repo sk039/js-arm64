@@ -7,8 +7,9 @@
 #include "jit/AsmJSSignalHandlers.h"
 
 #include "mozilla/DebugOnly.h"
-
+#ifndef JS_CODEGEN_ARM64
 #include "assembler/assembler/MacroAssembler.h"
+#endif
 #include "jit/AsmJSModule.h"
 #include "vm/Runtime.h"
 
