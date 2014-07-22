@@ -425,8 +425,9 @@ AssemblerVIXL::UpdateAndGetByteOffsetTo(Label* label)
 {
     JS_ASSERT(label->used());
     int ret = label->offset();
-    label->use(armbuffer_.uncheckedSize());
+    //label->use(armbuffer_.sizeExcludingCurrentPool());
     // FIXME: Yeah this isn't right.
+    JS_ASSERT(0 && "UpdateAndGetByteOffsetTo()");
     return ret;
 
 #if 0
@@ -549,7 +550,8 @@ AssemblerVIXL::b(Label* label, Condition cond)
     }
 
     // Just put in any offset, and we'll patch it up later.
-    label->use(armbuffer_.uncheckedSize());
+    JS_ASSERT(0 && "b() [invalid label->use()]");
+    //label->use(armbuffer_.sizeExcludingCurrentPool());
     b(LabelBase::INVALID_OFFSET, cond);
 
     // TODO: Some debug checks?
