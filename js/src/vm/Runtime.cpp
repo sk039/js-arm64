@@ -180,6 +180,9 @@ JSRuntime::JSRuntime(JSRuntime *parentRuntime)
     negativeInfinityValue(DoubleValue(NegativeInfinity<double>())),
     positiveInfinityValue(DoubleValue(PositiveInfinity<double>())),
     emptyString(nullptr),
+#ifdef NIGHTLY_BUILD
+    assertOnScriptEntryHook_(nullptr),
+#endif
     debugMode(false),
     spsProfiler(thisFromCtor()),
     profilingScripts(false),
@@ -187,6 +190,7 @@ JSRuntime::JSRuntime(JSRuntime *parentRuntime)
     haveCreatedContext(false),
     data(nullptr),
     signalHandlersInstalled_(false),
+    canUseSignalHandlers_(false),
     defaultFreeOp_(thisFromCtor(), false),
     debuggerMutations(0),
     securityCallbacks(const_cast<JSSecurityCallbacks *>(&NullSecurityCallbacks)),
@@ -255,6 +259,14 @@ JitSupportsFloatingPoint()
 #else
     return false;
 #endif
+}
+
+static bool
+SignalBasedTriggersDisabled()
+{
+  // Don't bother trying to cache the getenv lookup; this should be called
+  // infrequently.
+  return !!getenv("JS_DISABLE_SLOW_SCRIPT_SIGNALS") || !!getenv("JS_NO_SIGNALS");
 }
 
 bool
@@ -338,6 +350,7 @@ JSRuntime::init(uint32_t maxbytes, uint32_t maxNurseryBytes)
 
 #ifdef JS_ION
     signalHandlersInstalled_ = EnsureAsmJSSignalHandlersInstalled(this);
+    canUseSignalHandlers_ = signalHandlersInstalled_ && !SignalBasedTriggersDisabled();
 #endif
 
     if (!spsProfiler.init())
@@ -488,7 +501,7 @@ JSRuntime::resetJitStackLimit()
 #if defined(JS_ARM_SIMULATOR) || defined(JS_ARM64_SIMULATOR) || defined(JS_MIPS_SIMULATOR)
     mainThread.setJitStackLimit(js::jit::Simulator::StackLimit());
 #endif
- }
+}
 
 void
 JSRuntime::addSizeOfIncludingThis(mozilla::MallocSizeOf mallocSizeOf, JS::RuntimeSizes *rtSizes)
@@ -546,14 +559,6 @@ JSRuntime::addSizeOfIncludingThis(mozilla::MallocSizeOf mallocSizeOf, JS::Runtim
 #endif
 }
 
-static bool
-SignalBasedTriggersDisabled()
-{
-  // Don't bother trying to cache the getenv lookup; this should be called
-  // infrequently.
-  return !!getenv("JS_DISABLE_SLOW_SCRIPT_SIGNALS");
-}
-
 void
 JSRuntime::requestInterrupt(InterruptMode mode)
 {
@@ -575,10 +580,10 @@ JSRuntime::requestInterrupt(InterruptMode mode)
 #endif
 
     /*
-     * asm.js and, optionally, normal Ion code use memory protection and signal
+     * asm.js and normal Ion code optionally use memory protection and signal
      * handlers to halt running code.
      */
-    if (!SignalBasedTriggersDisabled()) {
+    if (canUseSignalHandlers()) {
         RequestInterruptForAsmJSCode(this, mode);
         jit::RequestInterruptForIonCode(this, mode);
     }

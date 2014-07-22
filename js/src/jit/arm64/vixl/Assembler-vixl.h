@@ -42,7 +42,7 @@ namespace jit {
 
 // Exciting buffer logic, before it gets replaced with the new hotness.
 class AssemblerVIXL;
-typedef js::jit::AssemblerBufferWithConstantPool<1024, 4, Instruction, AssemblerVIXL, 1> ARMBuffer;
+typedef js::jit::AssemblerBufferWithConstantPools<1024, 4, Instruction, AssemblerVIXL> ARMBuffer;
 
 // Registers.
 
@@ -633,7 +633,10 @@ class AssemblerVIXL : public AssemblerShared
 {
   public:
     AssemblerVIXL()
-      : armbuffer_(4, 4, 0, &pools_[0], 8, 0xEAFFFFFF, 0), // FIXME: What on earth is this
+        // TODO: GetPoolMaxOffset() instead of 1024
+        // TODO: GetNopFill() instead of 0x0
+        // TODO: Bother to check the rest of the values
+      : armbuffer_(1, 1, 8, 1024, 8, 0xE320F000, 0xEAFFFFFF, 0x0), // FIXME: What on earth is this
         pc_(nullptr) // FIXME: Yeah this thing needs some lovin'.
     {
 #ifdef DEBUG
@@ -657,21 +660,6 @@ class AssemblerVIXL : public AssemblerShared
     // IonMacroAssembler before allocating any space.
     void initWithAllocator() {
         armbuffer_.initWithAllocator();
-
-        // Set up the backwards double region.
-        new (&pools_[2]) Pool(1024, 8, 4, 8, 8, armbuffer_.LifoAlloc_, true);
-        // Set up the backwards 32-bit region.
-        new (&pools_[3]) Pool(4096, 4, 4, 8, 4, armbuffer_.LifoAlloc_, true);
-
-        // Set up the forwards double region.
-        new (&pools_[0]) Pool(1024, 8, 4, 8, 8, armbuffer_.LifoAlloc_, false, false, &pools_[2]);
-        // Set up the forwards 32-bit region.
-        new (&pools_[1]) Pool(4096, 4, 4, 8, 4, armbuffer_.LifoAlloc_, false, true, &pools_[3]);
-
-        for (int i = 0; i < 4; i++) {
-            if (pools_[i].poolData == nullptr)
-                armbuffer_.fail_oom();
-        }
     }
 
     // Start generating code from the beginning of the buffer, discarding any code
@@ -1736,7 +1724,7 @@ class AssemblerVIXL : public AssemblerShared
     void RecordLiteral(int64_t imm, unsigned size);
 
     // Emit the instruction at pc_.
-    void Emit(Instr instruction) {
+    void Emit(Instr instruction, bool isBranch = false) {
         VIXL_STATIC_ASSERT(sizeof(*pc_) == 1);
         VIXL_STATIC_ASSERT(sizeof(instruction) == kInstructionSize);
         // TODO: VIXL_ASSERT((pc_ + sizeof(instruction)) <= (buffer_ + buffer_size_));
@@ -1745,9 +1733,13 @@ class AssemblerVIXL : public AssemblerShared
         finalized_ = false;
 #endif
 
-        armbuffer_.putInt(*(uint32_t*)(&instruction));
+        armbuffer_.putInt(*(uint32_t*)(&instruction), isBranch);
         pc_ += sizeof(instruction);
         CheckBufferSpace();
+    }
+
+    void EmitBranch(Instr instruction) {
+        Emit(instruction, true /* isBranch */);
     }
 
   // FIXME: This interface should not be public.
@@ -1757,6 +1749,12 @@ class AssemblerVIXL : public AssemblerShared
         VIXL_STATIC_ASSERT(sizeof(instruction) == kInstructionSize);
         uint32_t *addr = (uint32_t *)at;
         *addr = *(uint32_t *)(&instruction);
+    }
+
+    static void EmitBranch(Instruction *at, Instr instruction) {
+        // FIXME: Anything special to do here? Probably not, since this is actually
+        // just overwriting an instruction. Maybe rename from Emit() to Overwrite()?
+        Emit(at, instruction);
     }
 
   private:
@@ -1788,12 +1786,8 @@ class AssemblerVIXL : public AssemblerShared
 
   public:
     // Interface used by IonAssemblerBufferWithConstantPools.
-    static void InsertTokenIntoTag(uint32_t instSize, uint8_t *load_, int32_t token) {
-        MOZ_ASSUME_UNREACHABLE("InsertTokenIntoTag");
-    }
-    static bool PatchConstantPoolLoad(void *loadAddr, void *constPoolAddr) {
-        MOZ_ASSUME_UNREACHABLE("PatchConstantPoolLoad");
-    }
+    static void InsertIndexIntoTag(uint8_t *load, uint32_t index);
+    static bool PatchConstantPoolLoad(void *loadAddr, void *constPoolAddr);
     static uint32_t PlaceConstantPoolBarrier(int offset) {
         MOZ_ASSUME_UNREACHABLE("PlaceConstantPoolBarrier");
     }

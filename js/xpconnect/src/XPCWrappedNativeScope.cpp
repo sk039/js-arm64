@@ -13,6 +13,7 @@
 #include "nsPrincipal.h"
 #include "mozilla/MemoryReporting.h"
 #include "mozilla/Preferences.h"
+#include "nsIAddonInterposition.h"
 
 #include "mozilla/dom/BindingUtils.h"
 
@@ -24,6 +25,27 @@ using namespace JS;
 
 XPCWrappedNativeScope* XPCWrappedNativeScope::gScopes = nullptr;
 XPCWrappedNativeScope* XPCWrappedNativeScope::gDyingScopes = nullptr;
+XPCWrappedNativeScope::InterpositionMap* XPCWrappedNativeScope::gInterpositionMap = nullptr;
+
+NS_IMPL_ISUPPORTS(XPCWrappedNativeScope::ClearInterpositionsObserver, nsIObserver)
+
+NS_IMETHODIMP
+XPCWrappedNativeScope::ClearInterpositionsObserver::Observe(nsISupports *subject,
+                                                            const char *topic,
+                                                            const char16_t *data)
+{
+    MOZ_ASSERT(strcmp(topic, NS_XPCOM_SHUTDOWN_OBSERVER_ID) == 0);
+
+    // The interposition map holds strong references to interpositions, which
+    // may themselves be involved in cycles. We need to drop these strong
+    // references before the cycle collector shuts down. Otherwise we'll
+    // leak. This observer always runs before CC shutdown.
+    if (gInterpositionMap)
+        delete gInterpositionMap;
+
+    nsContentUtils::UnregisterShutdownObserver(this);
+    return NS_OK;
+}
 
 static bool
 RemoteXULForbidsXBLScope(nsIPrincipal *aPrincipal, HandleObject aGlobal)
@@ -107,6 +129,14 @@ XPCWrappedNativeScope::XPCWrappedNativeScope(JSContext *cx,
     if (mUseContentXBLScope) {
       mUseContentXBLScope = principal && !nsContentUtils::IsSystemPrincipal(principal);
     }
+
+    JSAddonId *addonId = JS::AddonIdOfObject(aGlobal);
+    if (gInterpositionMap) {
+        if (InterpositionMap::Ptr p = gInterpositionMap->lookup(addonId)) {
+            MOZ_RELEASE_ASSERT(nsContentUtils::IsSystemPrincipal(principal));
+            mInterposition = p->value();
+        }
+    }
 }
 
 // static
@@ -153,11 +183,6 @@ XPCWrappedNativeScope::GetComponentsJSObject(JS::MutableHandleObject obj)
 void
 XPCWrappedNativeScope::ForcePrivilegedComponents()
 {
-    // This may only be called on unprivileged scopes during automation where
-    // we allow insecure things.
-    MOZ_RELEASE_ASSERT(Preferences::GetBool("security.turn_off_all_security_so_"
-                                            "that_viruses_can_take_over_this_"
-                                            "computer"));
     nsCOMPtr<nsIXPCComponents> c = do_QueryInterface(mComponents);
     if (!c)
         mComponents = new nsXPCComponents(this);
@@ -690,6 +715,31 @@ XPCWrappedNativeScope::SetExpandoChain(JSContext *cx, HandleObject target,
     if (!mXrayExpandos.initialized() && !mXrayExpandos.init(cx))
         return false;
     return mXrayExpandos.put(cx, target, chain);
+}
+
+/* static */ bool
+XPCWrappedNativeScope::SetAddonInterposition(JSAddonId *addonId,
+                                             nsIAddonInterposition *interp)
+{
+    if (!gInterpositionMap) {
+        gInterpositionMap = new InterpositionMap();
+        gInterpositionMap->init();
+
+        // Make sure to clear the map at shutdown.
+        nsContentUtils::RegisterShutdownObserver(new ClearInterpositionsObserver());
+    }
+    if (interp) {
+        return gInterpositionMap->put(addonId, interp);
+    } else {
+        gInterpositionMap->remove(addonId);
+        return true;
+    }
+}
+
+nsCOMPtr<nsIAddonInterposition>
+XPCWrappedNativeScope::GetInterposition()
+{
+    return mInterposition;
 }
 
 /***************************************************************************/

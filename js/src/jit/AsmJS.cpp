@@ -1042,7 +1042,8 @@ class MOZ_STACK_CLASS ModuleCompiler
     ExitMap                        exits_;
     MathNameMap                    standardLibraryMathNames_;
     NonAssertingLabel              stackOverflowLabel_;
-    NonAssertingLabel              interruptLabel_;
+    NonAssertingLabel              asyncInterruptLabel_;
+    NonAssertingLabel              syncInterruptLabel_;
 
     char *                         errorString_;
     uint32_t                       errorOffset_;
@@ -1145,8 +1146,8 @@ class MOZ_STACK_CLASS ModuleCompiler
         // strict context, see also comment above addUseStrict in
         // js::FunctionToString.
         bool strict = parser_.pc->sc->strict && !parser_.pc->sc->hasExplicitUseStrict();
-
-        module_ = cx_->new_<AsmJSModule>(parser_.ss, srcStart, srcBodyStart, strict);
+        module_ = cx_->new_<AsmJSModule>(parser_.ss, srcStart, srcBodyStart, strict,
+                                         cx_->canUseSignalHandlers());
         if (!module_)
             return false;
 
@@ -1224,10 +1225,13 @@ class MOZ_STACK_CLASS ModuleCompiler
     TokenStream &tokenStream() const { return parser_.tokenStream; }
     MacroAssembler &masm() { return masm_; }
     Label &stackOverflowLabel() { return stackOverflowLabel_; }
-    Label &interruptLabel() { return interruptLabel_; }
+    Label &asyncInterruptLabel() { return asyncInterruptLabel_; }
+    Label &syncInterruptLabel() { return syncInterruptLabel_; }
     bool hasError() const { return errorString_ != nullptr; }
     const AsmJSModule &module() const { return *module_.get(); }
     uint32_t srcStart() const { return module_->srcStart(); }
+    bool usesSignalHandlersForInterrupt() const { return module_->usesSignalHandlersForInterrupt(); }
+    bool usesSignalHandlersForOOB() const { return module_->usesSignalHandlersForOOB(); }
 
     ParseNode *moduleFunctionNode() const { return moduleFunctionNode_; }
     PropertyName *moduleFunctionName() const { return moduleFunctionName_; }
@@ -1527,7 +1531,7 @@ class MOZ_STACK_CLASS ModuleCompiler
         if (masm_.oom())
             return false;
 
-        if (!module_->finish(cx_, tokenStream(), masm_, interruptLabel_))
+        if (!module_->finish(cx_, tokenStream(), masm_, asyncInterruptLabel_))
             return false;
 
         // Finally, convert all the function-pointer table elements into
@@ -1954,6 +1958,7 @@ class FunctionCompiler
             if (!mirGen_->ensureBallast())
                 return false;
         }
+        maybeAddInterruptCheck(fn_);
         return true;
     }
 
@@ -2126,7 +2131,7 @@ class FunctionCompiler
             return nullptr;
         MAsmJSLoadHeap *load = MAsmJSLoadHeap::New(alloc(), vt, ptr);
         curBlock_->add(load);
-        if (chk == NO_BOUNDS_CHECK)
+        if (chk == NO_BOUNDS_CHECK || m().usesSignalHandlersForOOB())
             load->setSkipBoundsCheck(true);
         return load;
     }
@@ -2137,7 +2142,7 @@ class FunctionCompiler
             return;
         MAsmJSStoreHeap *store = MAsmJSStoreHeap::New(alloc(), vt, ptr, v);
         curBlock_->add(store);
-        if (chk == NO_BOUNDS_CHECK)
+        if (chk == NO_BOUNDS_CHECK || m().usesSignalHandlersForOOB())
             store->setSkipBoundsCheck(true);
     }
 
@@ -2162,6 +2167,20 @@ class FunctionCompiler
         JS_ASSERT(!global.isConst());
         unsigned globalDataOffset = module().globalVarIndexToGlobalDataOffset(global.varOrConstIndex());
         curBlock_->add(MAsmJSStoreGlobalVar::New(alloc(), globalDataOffset, v));
+    }
+
+    void maybeAddInterruptCheck(ParseNode *pn)
+    {
+        if (inDeadCode())
+            return;
+
+        if (m().usesSignalHandlersForInterrupt())
+            return;
+
+        unsigned lineno = 0, column = 0;
+        m().tokenStream().srcCoords.lineNumAndColumnIndex(pn->pn_pos.begin, &lineno, &column);
+        CallSiteDesc callDesc(lineno, column);
+        curBlock_->add(MAsmJSInterruptCheck::New(alloc(), &m().syncInterruptLabel(), callDesc));
     }
 
     /***************************************************************** Calls */
@@ -2477,6 +2496,7 @@ class FunctionCompiler
         (*loopEntry)->setLoopDepth(loopStack_.length());
         curBlock_->end(MGoto::New(alloc(), *loopEntry));
         curBlock_ = *loopEntry;
+        maybeAddInterruptCheck(pn);
         return true;
     }
 
@@ -5907,7 +5927,7 @@ StackDecrementForCall(MacroAssembler &masm, const VectorT &argTypes, unsigned ex
 static const RegisterSet NonVolatileRegs =
     RegisterSet(GeneralRegisterSet(Registers::NonVolatileMask &
                                    ~(uint32_t(1) << Registers::lr)),
-                FloatRegisterSet(FloatRegisters::NonVolatileMask | (1 << FloatRegisters::d15)));
+                FloatRegisterSet(FloatRegisters::NonVolatileMask | (1ULL << FloatRegisters::d15)));
 #else
 static const RegisterSet NonVolatileRegs =
     RegisterSet(GeneralRegisterSet(Registers::NonVolatileMask),
@@ -5922,7 +5942,7 @@ static const unsigned FramePushedAfterSave = NonVolatileRegs.gprs().size() * siz
                                              sizeof(double);
 #else
 static const unsigned FramePushedAfterSave = NonVolatileRegs.gprs().size() * sizeof(intptr_t) +
-                                             NonVolatileRegs.fpus().size() * sizeof(double);
+                                             NonVolatileRegs.fpus().getPushSizeInBytes();
 #endif
 
 static bool
@@ -6046,7 +6066,11 @@ GenerateEntry(ModuleCompiler &m, const AsmJSModule::ExportedFunction &exportedFu
     return true;
 }
 
-static inline bool
+// This function and InvokeFromAsmJS* functions all return int32_t rather than
+// bool to prevent the compiler from optimizing bits higher than what's
+// actually needed for a bool (as the result is tested in asm.js generated code
+// which the compiler isn't aware of).
+static inline int32_t
 TryEnablingIon(JSContext *cx, AsmJSModule &module, HandleFunction fun, uint32_t exitIndex,
                int32_t argc, Value *argv)
 {
@@ -6086,64 +6110,53 @@ TryEnablingIon(JSContext *cx, AsmJSModule &module, HandleFunction fun, uint32_t 
 
 namespace js {
 
+// See comment above TryEnablingIon.
 int32_t
-InvokeFromAsmJS_Ignore(JSContext *cx, int32_t exitIndex, int32_t argc, Value *argv)
+InvokeFromAsmJS(JSContext *cx, int32_t exitIndex, int32_t argc, Value *argv,
+                MutableHandleValue rval)
 {
     AsmJSModule &module = cx->mainThread().asmJSActivationStackFromOwnerThread()->module();
 
     RootedFunction fun(cx, module.exitIndexToGlobalDatum(exitIndex).fun);
     RootedValue fval(cx, ObjectValue(*fun));
+    if (!Invoke(cx, UndefinedValue(), fval, argc, argv, rval))
+        return false;
+
+    return TryEnablingIon(cx, module, fun, exitIndex, argc, argv);
+}
+
+int32_t
+InvokeFromAsmJS_Ignore(JSContext *cx, int32_t exitIndex, int32_t argc, Value *argv)
+{
     RootedValue rval(cx);
-    if (!Invoke(cx, UndefinedValue(), fval, argc, argv, &rval))
-        return false;
-
-    if (!TryEnablingIon(cx, module, fun, exitIndex, argc, argv))
-        return false;
-
-    return true;
+    return InvokeFromAsmJS(cx, exitIndex, argc, argv, &rval);
 }
 
 int32_t
 InvokeFromAsmJS_ToInt32(JSContext *cx, int32_t exitIndex, int32_t argc, Value *argv)
 {
-    AsmJSModule &module = cx->mainThread().asmJSActivationStackFromOwnerThread()->module();
-
-    RootedFunction fun(cx, module.exitIndexToGlobalDatum(exitIndex).fun);
-    RootedValue fval(cx, ObjectValue(*fun));
     RootedValue rval(cx);
-    if (!Invoke(cx, UndefinedValue(), fval, argc, argv, &rval))
-        return false;
-
-    if (!TryEnablingIon(cx, module, fun, exitIndex, argc, argv))
+    if (!InvokeFromAsmJS(cx, exitIndex, argc, argv, &rval))
         return false;
 
     int32_t i32;
     if (!ToInt32(cx, rval, &i32))
         return false;
     argv[0] = Int32Value(i32);
-
     return true;
 }
 
 int32_t
 InvokeFromAsmJS_ToNumber(JSContext *cx, int32_t exitIndex, int32_t argc, Value *argv)
 {
-    AsmJSModule &module = cx->mainThread().asmJSActivationStackFromOwnerThread()->module();
-
-    RootedFunction fun(cx, module.exitIndexToGlobalDatum(exitIndex).fun);
-    RootedValue fval(cx, ObjectValue(*fun));
     RootedValue rval(cx);
-    if (!Invoke(cx, UndefinedValue(), fval, argc, argv, &rval))
-        return false;
-
-    if (!TryEnablingIon(cx, module, fun, exitIndex, argc, argv))
+    if (!InvokeFromAsmJS(cx, exitIndex, argc, argv, &rval))
         return false;
 
     double dbl;
     if (!ToNumber(cx, rval, &dbl))
         return false;
     argv[0] = DoubleValue(dbl);
-
     return true;
 }
 
@@ -6660,9 +6673,9 @@ GenerateStackOverflowExit(ModuleCompiler &m, Label *throwLabel)
 static const RegisterSet AllRegsExceptSP =
     RegisterSet(GeneralRegisterSet(Registers::AllMask &
                                    ~(uint32_t(1) << Registers::StackPointer)),
-                FloatRegisterSet(FloatRegisters::AllMask));
+                FloatRegisterSet(FloatRegisters::AllDoubleMask));
 
-// The operation-callback exit is called from arbitrarily-interrupted asm.js
+// The async interrupt-callback exit is called from arbitrarily-interrupted asm.js
 // code. That means we must first save *all* registers and restore *all*
 // registers (except the stack pointer) when we resume. The address to resume to
 // (assuming that js::HandleExecutionInterrupt doesn't indicate that the
@@ -6671,11 +6684,11 @@ static const RegisterSet AllRegsExceptSP =
 // after restoring all registers. To hack around this, push the resumePC on the
 // stack so that it can be popped directly into PC.
 static bool
-GenerateInterruptExit(ModuleCompiler &m, Label *throwLabel)
+GenerateAsyncInterruptExit(ModuleCompiler &m, Label *throwLabel)
 {
     MacroAssembler &masm = m.masm();
     masm.align(CodeAlignment);
-    masm.bind(&m.interruptLabel());
+    masm.bind(&m.asyncInterruptLabel());
 
 #if defined(JS_CODEGEN_X86) || defined(JS_CODEGEN_X64)
     // Be very careful here not to perturb the machine state before saving it
@@ -6783,12 +6796,12 @@ GenerateInterruptExit(ModuleCompiler &m, Label *throwLabel)
     // argument 0: cx
     masm.loadPtr(Address(IntArgReg0, AsmJSActivation::offsetOfContext()), IntArgReg0);
 
-    masm.PushRegsInMask(RegisterSet(GeneralRegisterSet(0), FloatRegisterSet(FloatRegisters::AllMask)));   // save all FP registers
+    masm.PushRegsInMask(RegisterSet(GeneralRegisterSet(0), FloatRegisterSet(FloatRegisters::AllDoubleMask)));   // save all FP registers
     masm.call(AsmJSImm_HandleExecutionInterrupt);
     masm.branchIfFalseBool(ReturnReg, throwLabel);
 
     // Restore the machine state to before the interrupt. this will set the pc!
-    masm.PopRegsInMask(RegisterSet(GeneralRegisterSet(0), FloatRegisterSet(FloatRegisters::AllMask)));   // restore all FP registers
+    masm.PopRegsInMask(RegisterSet(GeneralRegisterSet(0), FloatRegisterSet(FloatRegisters::AllDoubleMask)));   // restore all FP registers
     masm.movePtr(r6,sp);
     masm.as_vmsr(r5);
     masm.as_msr(r4);
@@ -6816,6 +6829,68 @@ GenerateInterruptExit(ModuleCompiler &m, Label *throwLabel)
 # error "Unknown architecture!"
 #endif
 
+    return !masm.oom();
+}
+
+static const RegisterSet VolatileRegs =
+    RegisterSet(GeneralRegisterSet(Registers::ArgRegMask),
+                FloatRegisterSet(FloatRegisters::VolatileMask));
+
+static bool
+GenerateSyncInterruptExit(ModuleCompiler &m, Label *throwLabel)
+{
+    MacroAssembler &masm = m.masm();
+
+    masm.setFramePushed(0);
+    masm.align(CodeAlignment);
+    masm.bind(&m.syncInterruptLabel());
+
+    MIRTypeVector argTypes(m.cx());
+    argTypes.infallibleAppend(MIRType_Pointer); // cx
+
+    // See AsmJSFrameSize comment in Assembler-shared.h.
+#if defined(JS_CODEGEN_ARM)
+    masm.push(lr);
+#elif defined(JS_CODEGEN_MIPS)
+    masm.push(ra);
+#endif
+
+    // Record sp in the AsmJSActivation for stack unwinding.
+    Register activation = ABIArgGenerator::NonArgReturnVolatileReg0;
+    LoadAsmJSActivationIntoRegister(masm, activation);
+    masm.storePtr(StackPointer, Address(activation, AsmJSActivation::offsetOfExitFP()));
+
+    masm.PushRegsInMask(VolatileRegs);
+
+    unsigned stackDec = StackDecrementForCall(masm, argTypes);
+    masm.reserveStack(stackDec);
+
+    ABIArgMIRTypeIter i(argTypes);
+
+    // argument 0: cx
+    if (i->kind() == ABIArg::GPR) {
+        LoadJSContextFromActivation(masm, activation, i->gpr());
+    } else {
+        LoadJSContextFromActivation(masm, activation, activation);
+        masm.storePtr(activation, Address(StackPointer, i->offsetFromArgBase()));
+    }
+    i++;
+
+    JS_ASSERT(i.done());
+
+    AssertStackAlignment(masm);
+    masm.call(AsmJSImmPtr(AsmJSImm_HandleExecutionInterrupt));
+    masm.branchIfFalseBool(ReturnReg, throwLabel);
+
+    masm.freeStack(stackDec);
+    masm.PopRegsInMask(VolatileRegs);
+
+    // Clear exitFP before the frame is destroyed.
+    LoadAsmJSActivationIntoRegister(masm, activation);
+    masm.storePtr(ImmWord(0), Address(activation, AsmJSActivation::offsetOfExitFP()));
+
+    JS_ASSERT(masm.framePushed() == 0);
+    masm.ret();
     return !masm.oom();
 }
 
@@ -6867,12 +6942,12 @@ GenerateStubs(ModuleCompiler &m)
             return false;
     }
 
-    if (m.stackOverflowLabel().used()) {
-        if (!GenerateStackOverflowExit(m, &throwLabel))
-            return false;
-    }
+    if (m.stackOverflowLabel().used() && !GenerateStackOverflowExit(m, &throwLabel))
+        return false;
 
-    if (!GenerateInterruptExit(m, &throwLabel))
+    if (!GenerateAsyncInterruptExit(m, &throwLabel))
+        return false;
+    if (m.syncInterruptLabel().used() && !GenerateSyncInterruptExit(m, &throwLabel))
         return false;
 
     if (!GenerateThrowExit(m, &throwLabel))
@@ -6979,9 +7054,6 @@ EstablishPreconditions(ExclusiveContext *cx, AsmJSParser &parser)
     if (!cx->jitSupportsFloatingPoint())
         return Warn(parser, JSMSG_USE_ASM_TYPE_FAIL, "Disabled by lack of floating point support");
 
-    if (!cx->signalHandlersInstalled())
-        return Warn(parser, JSMSG_USE_ASM_TYPE_FAIL, "Platform missing signal handler support");
-
     if (cx->gcSystemPageSize() != AsmJSPageSize)
         return Warn(parser, JSMSG_USE_ASM_TYPE_FAIL, "Disabled by non 4KiB system page size");
 
@@ -7051,7 +7123,6 @@ js::IsAsmJSCompilationAvailable(JSContext *cx, unsigned argc, Value *vp)
 
     // See EstablishPreconditions.
     bool available = cx->jitSupportsFloatingPoint() &&
-                     cx->signalHandlersInstalled() &&
                      cx->gcSystemPageSize() == AsmJSPageSize &&
                      !cx->compartment()->debugMode() &&
                      cx->runtime()->options().asmJS();

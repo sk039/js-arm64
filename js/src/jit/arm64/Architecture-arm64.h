@@ -99,6 +99,12 @@ class Registers {
         static_assert(sizeof(SetType) == 4, "SetType must be 32 bits");
         return mozilla::CountPopulation32(x);
     }
+    static uint32_t FirstBit(SetType x) {
+        return mozilla::CountTrailingZeroes32(x);
+    }
+    static uint32_t LastBit(SetType x) {
+        return 31 - mozilla::CountLeadingZeroes32(x);
+    }
 
     static const char *GetName(Code code) {
         static const char *const Names[] =
@@ -190,6 +196,9 @@ class Registers {
 // Smallest integer type that can hold a register bitmask.
 typedef uint32_t PackedRegisterMask;
 
+template <typename T>
+class TypedRegisterSet;
+
 class FloatRegisters
 {
   public:
@@ -251,6 +260,7 @@ class FloatRegisters
     static const Code Invalid = invalid_fpreg;
 
     static const uint32_t Total = 32;
+    static const uint32_t TotalPhys = 32;
     static const uint32_t AllMask = 0xFFFFFFFF;
 
     // FIXME: Validate
@@ -274,6 +284,7 @@ class FloatRegisters
 
     // FIXME: Validate
     static const uint32_t VolatileMask = AllMask & ~NonVolatileMask;
+    static const uint32_t AllDoubleMask = AllMask;
 
     // FIXME: Validate
     static const uint32_t WrapperMask = VolatileMask;
@@ -354,12 +365,17 @@ struct FloatRegister {
         JS_ASSERT(aliasIdx == 0);
         *ret = *this;
     }
-    /* TODO: What?
     static TypedRegisterSet<FloatRegister> ReduceSetForPush(const TypedRegisterSet<FloatRegister> &s);
     static uint32_t GetSizeInBytes(const TypedRegisterSet<FloatRegister> &s);
     static uint32_t GetPushSizeInBytes(const TypedRegisterSet<FloatRegister> &s);
     uint32_t getRegisterDumpOffsetInBytes();
-    */
+
+    static uint32_t FirstBit(SetType x) {
+        return mozilla::CountTrailingZeroes32(x); // TODO: 64?
+    }
+    static uint32_t LastBit(SetType x) {
+        return 32 - mozilla::CountLeadingZeroes32(x); // TODO: 64?
+    }
 };
 
 // Arm/D32 has double registers that cannot be treated as float32.

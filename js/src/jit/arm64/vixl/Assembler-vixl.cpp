@@ -446,65 +446,64 @@ AssemblerVIXL::UpdateAndGetByteOffsetTo(Label* label)
 #endif
 }
 
+// Assembly buffer.
+void
+AssemblerVIXL::InsertIndexIntoTag(uint8_t *load, uint32_t index)
+{
+    JS_ASSERT(0 && "InsertIndexIntoTag()");
+}
+
+bool
+AssemblerVIXL::PatchConstantPoolLoad(void *loadAddr, void *constPoolAddr)
+{
+    JS_ASSERT(0 && "PatchConstantPoolLoad()");
+    return false;
+}
+
 // Code generation.
 void
 AssemblerVIXL::br(const ARMRegister& xn)
 {
     VIXL_ASSERT(xn.Is64Bits());
-
-    armbuffer_.markNextAsBranch();
-    Emit(BR | Rn(xn));
-    armbuffer_.markGuard();
+    EmitBranch(BR | Rn(xn));
 }
 
 void
 AssemblerVIXL::blr(const ARMRegister& xn)
 {
     VIXL_ASSERT(xn.Is64Bits());
-
-    armbuffer_.markNextAsBranch();
-    Emit(BLR | Rn(xn));
-    armbuffer_.markGuard();
+    EmitBranch(BLR | Rn(xn));
 }
 
 void
 AssemblerVIXL::ret(const ARMRegister& xn)
 {
     VIXL_ASSERT(xn.Is64Bits());
-
-    armbuffer_.markNextAsBranch();
-    Emit(RET | Rn(xn));
-    armbuffer_.markGuard();
+    EmitBranch(RET | Rn(xn));
 }
 
 void
 AssemblerVIXL::b(int imm26)
 {
-    armbuffer_.markNextAsBranch();
-    Emit(B | ImmUncondBranch(imm26));
-    armbuffer_.markGuard();
+    EmitBranch(B | ImmUncondBranch(imm26));
 }
 
 void
 AssemblerVIXL::b(Instruction *at, int imm26)
 {
-    Emit(at, B | ImmUncondBranch(imm26));
+    EmitBranch(at, B | ImmUncondBranch(imm26));
 }
 
 void
 AssemblerVIXL::b(int imm19, Condition cond)
 {
-    armbuffer_.markNextAsBranch();
-    Emit(B_cond | ImmCondBranch(imm19) | cond);
-
-    if (cond == Always)
-        armbuffer_.markGuard();
+    EmitBranch(B_cond | ImmCondBranch(imm19) | cond);
 }
 
 void
 AssemblerVIXL::b(Instruction *at, int imm19, Condition cond)
 {
-    Emit(at, B_cond | ImmCondBranch(imm19) | cond);
+    EmitBranch(at, B_cond | ImmCondBranch(imm19) | cond);
 }
 
 void
@@ -557,15 +556,13 @@ AssemblerVIXL::b(Label* label, Condition cond)
 void
 AssemblerVIXL::bl(int imm26)
 {
-    armbuffer_.markNextAsBranch();
-    Emit(BL | ImmUncondBranch(imm26));
-    armbuffer_.markGuard();
+    EmitBranch(BL | ImmUncondBranch(imm26));
 }
 
 void
 AssemblerVIXL::bl(Instruction *at, int imm26)
 {
-    Emit(at, BL | ImmUncondBranch(imm26));
+    EmitBranch(at, BL | ImmUncondBranch(imm26));
 }
 
 void
@@ -577,8 +574,7 @@ AssemblerVIXL::bl(Label* label)
 void
 AssemblerVIXL::cbz(const ARMRegister& rt, int imm19)
 {
-    armbuffer_.markNextAsBranch();
-    Emit(SF(rt) | CBZ | ImmCmpBranch(imm19) | Rt(rt));
+    EmitBranch(SF(rt) | CBZ | ImmCmpBranch(imm19) | Rt(rt));
 }
 
 void
@@ -590,8 +586,7 @@ AssemblerVIXL::cbz(const ARMRegister& rt, Label* label)
 void
 AssemblerVIXL::cbnz(const ARMRegister& rt, int imm19)
 {
-    armbuffer_.markNextAsBranch();
-    Emit(SF(rt) | CBNZ | ImmCmpBranch(imm19) | Rt(rt));
+    EmitBranch(SF(rt) | CBNZ | ImmCmpBranch(imm19) | Rt(rt));
 }
 
 void
@@ -604,8 +599,7 @@ void
 AssemblerVIXL::tbz(const ARMRegister& rt, unsigned bit_pos, int imm14)
 {
     VIXL_ASSERT(rt.Is64Bits() || (rt.Is32Bits() && (bit_pos < kWRegSize)));
-    armbuffer_.markNextAsBranch();
-    Emit(TBZ | ImmTestBranchBit(bit_pos) | ImmTestBranch(imm14) | Rt(rt));
+    EmitBranch(TBZ | ImmTestBranchBit(bit_pos) | ImmTestBranch(imm14) | Rt(rt));
 }
 
 void
@@ -618,8 +612,7 @@ void
 AssemblerVIXL::tbnz(const ARMRegister& rt, unsigned bit_pos, int imm14)
 {
     VIXL_ASSERT(rt.Is64Bits() || (rt.Is32Bits() && (bit_pos < kWRegSize)));
-    armbuffer_.markNextAsBranch();
-    Emit(TBNZ | ImmTestBranchBit(bit_pos) | ImmTestBranch(imm14) | Rt(rt));
+    EmitBranch(TBNZ | ImmTestBranchBit(bit_pos) | ImmTestBranch(imm14) | Rt(rt));
 }
 
 void
@@ -2183,10 +2176,8 @@ struct PoolHeader
 
     struct Header
     {
-        // size should take into account the pool header.
-        // size is in units of Instruction (4bytes), not byte
-        // FIXME: Don't we need special bits on MSVC to make this packed?
-        // FIXME: I guess we never cross-compile for ARM on Windows.
+        // The size should take into account the pool header.
+        // The size is in units of Instruction (4bytes), not byte.
         union {
             struct {
                 uint32_t size : 15;
@@ -2210,6 +2201,7 @@ struct PoolHeader
         }
 
         uint32_t raw() const {
+            JS_STATIC_ASSERT(sizeof(Header) == sizeof(uint32_t));
             return data;
         }
     };
@@ -2227,6 +2219,7 @@ struct PoolHeader
         return tmp.isNatural;
     }
 
+    // FIXME: Remove?
     /*
     static bool isTHIS(const Instruction &i) {
         return (*i.raw() & 0xffff0000) == 0xffff0000;
@@ -2246,14 +2239,10 @@ AssemblerVIXL::WritePoolHeader(uint8_t *start, Pool *p, bool isNatural)
     JS_STATIC_ASSERT(sizeof(PoolHeader) == 4);
 
     // Get the total size of the pool.
-    uint8_t *pool = start + sizeof(PoolHeader);
-    pool = p[0].addPoolSize(pool);
-    pool = p[1].addPoolSize(pool);
-    pool = p[1].other->addPoolSize(pool);
-    pool = p[0].other->addPoolSize(pool);
+    uint8_t *pool = start + sizeof(PoolHeader) + p->getPoolSize();
 
     uintptr_t size = pool - start;
-    JS_ASSERT((size & 0x3) == 0); // addPoolSize() performs alignment.
+    JS_ASSERT((size & 3) == 0);
     size = size >> 2;
     JS_ASSERT(size < (1 << 15));
 

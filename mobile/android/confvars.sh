@@ -5,7 +5,7 @@
 MOZ_APP_BASENAME=Fennec
 MOZ_APP_VENDOR=Mozilla
 
-MOZ_APP_VERSION=33.0a1
+MOZ_APP_VERSION=34.0a1
 MOZ_APP_UA_NAME=Firefox
 
 MOZ_BRANDING_DIRECTORY=mobile/android/branding/unofficial
@@ -77,3 +77,6 @@ MOZ_WEBGL_CONFORMANT=1
 
 # Don't enable the Search Activity.
 # MOZ_ANDROID_SEARCH_ACTIVITY=1
+
+# Don't enable the Mozilla Location Service stumbler.
+# MOZ_ANDROID_MLS_STUMBLER=1

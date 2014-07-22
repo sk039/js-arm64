@@ -106,15 +106,26 @@ class Assembler : public AssemblerVIXL {
             preBarrierTableBytes();
     }
 
+    // Move our entire pool into the instruction stream. This is to force an
+    // opportunistic dump of the pool, preferrably when it is more convenient
+    // to do a dump.
+    void flushBuffer() {
+        JS_ASSERT(0 && "flushBuffer()");
+    }
+    void enterNoPool(size_t maxInst) {
+        JS_ASSERT(0 && "enterNoPool()");
+    }
+    void leaveNoPool() {
+        JS_ASSERT(0 && "leaveNoPool()");
+    }
+
     // The buffer is about to be linked. Ensure any constant pools or
     // excess bookkeeping has been flushed to the instruction stream.
     void flush() {
         // TODO: JS_ASSERT(!isFinished);
         armbuffer_.flushPool();
     }
-    void flushBuffer() {
-        JS_ASSERT(0 && "flushBuffer()");
-    }
+
     int actualOffset(int curOffset) {
         return curOffset;
     }

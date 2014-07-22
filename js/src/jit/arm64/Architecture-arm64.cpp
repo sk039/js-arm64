@@ -8,6 +8,8 @@
 
 #include <cstring>
 
+#include "jit/RegisterSets.h"
+
 namespace js {
 namespace jit {
 
@@ -43,6 +45,31 @@ FloatRegisters::FromName(const char *name)
     }
 
     return invalid_fpreg;
+}
+
+FloatRegisterSet
+FloatRegister::ReduceSetForPush(const FloatRegisterSet &s)
+{
+    return s;
+}
+
+uint32_t
+FloatRegister::GetSizeInBytes(const FloatRegisterSet &s)
+{
+    return s.size() * sizeof(double);
+}
+
+uint32_t
+FloatRegister::GetPushSizeInBytes(const FloatRegisterSet &s)
+{
+    return s.size() * sizeof(double);
+}
+
+uint32_t
+FloatRegister::getRegisterDumpOffsetInBytes()
+{
+    // Although registers are 128-bits wide, only the first 64 need saving per ABI.
+    return code() * sizeof(double);
 }
 
 } // namespace jit
