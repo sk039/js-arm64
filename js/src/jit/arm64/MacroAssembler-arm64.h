@@ -1811,6 +1811,10 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
 
     void breakpoint();
 
+    void loadAsmJSActivation(Register dest) {
+        loadPtr(Address(GlobalReg, AsmJSActivationGlobalDataOffset), dest);
+    }
+
     // FIXME: Should be in Assembler?
     // FIXME: Should be const?
     uint32_t currentOffset() {

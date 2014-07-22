@@ -1446,6 +1446,16 @@ class MacroAssembler : public MacroAssemblerSpecific
         JS_ASSERT(framePushed() == aic.initialStack);
         PopRegsInMask(liveRegs);
     }
+
+    void assertStackAlignment() {
+#ifdef DEBUG
+        Label ok;
+        JS_ASSERT(IsPowerOfTwo(StackAlignment));
+        branchTestPtr(Assembler::Zero, StackPointer, Imm32(StackAlignment - 1), &ok);
+        breakpoint();
+        bind(&ok);
+#endif
+    }
 };
 
 static inline MacroAssembler::DoubleCondition
@@ -1516,6 +1526,13 @@ JSOpToCondition(JSOp op, bool isSigned)
             MOZ_ASSUME_UNREACHABLE("Unrecognized comparison operation");
         }
     }
+}
+
+static inline size_t
+StackDecrementForCall(size_t bytesAlreadyPushed, size_t bytesToPush)
+{
+    return bytesToPush +
+           ComputeByteAlignment(bytesAlreadyPushed + bytesToPush, StackAlignment);
 }
 
 } // namespace jit
