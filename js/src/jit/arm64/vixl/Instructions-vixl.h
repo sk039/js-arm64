@@ -290,7 +290,7 @@ class Instruction {
     return Reg31IsZeroRegister;
   }
 
-  inline ImmBranchType BranchType() const {
+  ImmBranchType BranchType() const {
     if (IsCondBranchImm()) {
       return CondBranchType;
     } else if (IsUncondBranchImm()) {

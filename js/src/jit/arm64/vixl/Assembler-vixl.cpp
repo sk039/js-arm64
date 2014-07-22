@@ -423,10 +423,11 @@ AssemblerVIXL::bind(Label* label)
 int
 AssemblerVIXL::UpdateAndGetByteOffsetTo(Label* label)
 {
-    JS_ASSERT(label->bound());
-
+    JS_ASSERT(label->used());
+    int ret = label->offset();
+    label->use(armbuffer_.uncheckedSize());
     // FIXME: Yeah this isn't right.
-    return label->offset();
+    return ret;
 
 #if 0
     int offset;
@@ -526,6 +527,7 @@ AssemblerVIXL::b(Label* label)
     }
 
     // Just put in any offset, and we'll patch it up later.
+    UpdateAndGetInstructionOffsetTo(label);
     b(0x0);
 
     // TODO: Some debug checks?
@@ -543,11 +545,12 @@ AssemblerVIXL::b(Label* label, Condition cond)
     }
 
     if (label->used()) {
-        b(label->offset(), cond);
+        b(UpdateAndGetInstructionOffsetTo(label), cond);
         return;
     }
 
     // Just put in any offset, and we'll patch it up later.
+    label->use(armbuffer_.uncheckedSize());
     b(LabelBase::INVALID_OFFSET, cond);
 
     // TODO: Some debug checks?
@@ -2303,7 +2306,11 @@ AssemblerVIXL::RetargetNearBranch(Instruction *i, int offset, bool final)
         b(i, offset); // FIXME: Is this right? What about BL()?
         break;
 
-      case CondBranchType:
+      case CondBranchType: {
+          Condition cond = static_cast<Condition>(i->ConditionBranch());
+          b(i, offset, cond);
+          break;
+      }
       case CompareBranchType:
       case TestBranchType:
       case UnknownBranchType:

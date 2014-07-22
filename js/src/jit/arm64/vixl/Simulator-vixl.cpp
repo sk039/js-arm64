@@ -27,7 +27,9 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#include "jit/arm64/vixl/Debugger-vixl.h"
 #include "jit/arm64/vixl/Simulator-vixl.h"
+
 
 #include "vm/Runtime.h"
 
@@ -139,8 +141,12 @@ Simulator *Simulator::Current() {
   PerThreadData *pt = TlsPerThreadData.get();
   Simulator *sim = pt->simulator();
   if (!sim) {
-    sim = js_new<Simulator>(pt->simulatorRuntime());
-    pt->setSimulator(sim);
+    Decoder *d = js_new<Decoder>();
+    DebuggerARM64 * dsim = js_new<DebuggerARM64>(d, stdout);
+    dsim->set_log_parameters(LOG_DISASM);
+    if (getenv("INSN_DUMP"))
+      pt->setSimulator(dsim);
+    sim = dsim;
   }
 
   return sim;
