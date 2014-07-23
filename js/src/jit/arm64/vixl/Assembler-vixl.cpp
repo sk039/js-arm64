@@ -484,22 +484,22 @@ AssemblerVIXL::ret(const ARMRegister& xn)
     EmitBranch(RET | Rn(xn));
 }
 
-void
+BufferOffset
 AssemblerVIXL::b(int imm26)
 {
-    EmitBranch(B | ImmUncondBranch(imm26));
+    return EmitBranch(B | ImmUncondBranch(imm26));
 }
 
 void
 AssemblerVIXL::b(Instruction *at, int imm26)
 {
-    EmitBranch(at, B | ImmUncondBranch(imm26));
+    return EmitBranch(at, B | ImmUncondBranch(imm26));
 }
 
-void
+BufferOffset
 AssemblerVIXL::b(int imm19, Condition cond)
 {
-    EmitBranch(B_cond | ImmCondBranch(imm19) | cond);
+    return EmitBranch(B_cond | ImmCondBranch(imm19) | cond);
 }
 
 void
@@ -526,9 +526,8 @@ AssemblerVIXL::b(Label* label)
         return;
     }
 
-    // Just put in any offset, and we'll patch it up later.
-    UpdateAndGetInstructionOffsetTo(label);
-    b(0x0);
+    BufferOffset offset = b(LabelBase::INVALID_OFFSET);
+    label->use(offset.getOffset());
 
     // TODO: Some debug checks?
 }
@@ -549,13 +548,10 @@ AssemblerVIXL::b(Label* label, Condition cond)
         return;
     }
 
-    // Just put in any offset, and we'll patch it up later.
-    JS_ASSERT(0 && "b() [invalid label->use()]");
-    //label->use(armbuffer_.sizeExcludingCurrentPool());
-    b(LabelBase::INVALID_OFFSET, cond);
+    BufferOffset offset = b(LabelBase::INVALID_OFFSET, cond);
+    label->use(offset.getOffset());
 
     // TODO: Some debug checks?
-    // TODO: label->use()? How on earth are the labels patched?
 }
 
 void

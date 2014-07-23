@@ -765,11 +765,11 @@ class AssemblerVIXL : public AssemblerShared
     void b(Label* label, Condition cond);
 
     // Unconditional branch to PC offset.
-    void b(int imm26);
+    BufferOffset b(int imm26);
     static void b(Instruction *at, int imm26);
 
     // Conditional branch to PC offset.
-    void b(int imm19, Condition cond);
+    BufferOffset b(int imm19, Condition cond);
     static void b(Instruction *at, int imm19, Condition cond);
 
     // Branch with link to label.
@@ -1723,8 +1723,8 @@ class AssemblerVIXL : public AssemblerShared
 
     void RecordLiteral(int64_t imm, unsigned size);
 
-    // Emit the instruction at pc_.
-    void Emit(Instr instruction, bool isBranch = false) {
+    // Emit the instruction, returning its offset.
+    BufferOffset Emit(Instr instruction, bool isBranch = false) {
         VIXL_STATIC_ASSERT(sizeof(*pc_) == 1);
         VIXL_STATIC_ASSERT(sizeof(instruction) == kInstructionSize);
         // TODO: VIXL_ASSERT((pc_ + sizeof(instruction)) <= (buffer_ + buffer_size_));
@@ -1733,13 +1733,12 @@ class AssemblerVIXL : public AssemblerShared
         finalized_ = false;
 #endif
 
-        armbuffer_.putInt(*(uint32_t*)(&instruction), isBranch);
         pc_ += sizeof(instruction);
-        CheckBufferSpace();
+        return armbuffer_.putInt(*(uint32_t*)(&instruction), isBranch);
     }
 
-    void EmitBranch(Instr instruction) {
-        Emit(instruction, true /* isBranch */);
+    BufferOffset EmitBranch(Instr instruction) {
+        return Emit(instruction, /* isBranch = */ true);
     }
 
   // FIXME: This interface should not be public.
