@@ -126,6 +126,10 @@ class Assembler : public AssemblerVIXL {
         armbuffer_.flushPool();
     }
 
+    Instruction *getInstructionAt(BufferOffset offset) {
+        return armbuffer_.getInst(offset);
+    }
+
     int actualOffset(int curOffset) {
         return curOffset;
     }

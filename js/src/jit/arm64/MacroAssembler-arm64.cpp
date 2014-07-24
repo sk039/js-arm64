@@ -43,8 +43,32 @@ MacroAssemblerCompat::bind(Label *label, BufferOffset boff)
         return;
     }
 
-    // Patch all existing branches that use this label.
-    JS_ASSERT(0 && "bind (Actual Case)");
+    // Get the most recent instruction that used the label, as stored in the label.
+    Instruction *ins = getInstructionAt(BufferOffset(label));
+
+    while (ins != nullptr) {
+        switch (ins->BranchType()) {
+          case CondBranchType:
+            JS_ASSERT(0 && "bind CondBranchType");
+            break;
+
+          case UncondBranchType:
+            JS_ASSERT(0 && "bind UncondBranchType");
+            break;
+
+          case CompareBranchType:
+            JS_ASSERT(0 && "bind CompareBranchType");
+            break;
+
+          case TestBranchType:
+            JS_ASSERT(0 && "bind TestBranchType");
+            break;
+
+          case UnknownBranchType:
+            MOZ_ASSUME_UNREACHABLE("Unknown branch type");
+            return;
+        }
+    };
 }
 
 void
