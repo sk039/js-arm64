@@ -1555,26 +1555,9 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         MOZ_ASSUME_UNREACHABLE("toggledJump");
     }
 
-    void bind(Label *label) {
-        // Bind to the next instruction.
-        bind(label, nextOffset());
-    }
-    void bind(Label *label, BufferOffset boff) {
-        if (!label->used()) {
-            label->bind(boff.getOffset());
-            return;
-        }
-
-        JS_ASSERT(0 && "bind (Actual case)");
-    }
-    void bind(RepatchLabel* label) {
-        if (!label->used()) {
-            label->bind(nextOffset().getOffset());
-            return;
-        }
-
-        JS_ASSERT(0 && "bind (RepatchLabel)");
-    }
+    void bind(Label *label) { bind(label, nextOffset()); }
+    void bind(Label *label, BufferOffset boff);
+    void bind(RepatchLabel* label);
 
     void writeDataRelocation(const Value &val) {
         JS_ASSERT(0 && "writeDataRelocation");

@@ -33,6 +33,33 @@ namespace js {
 namespace jit {
 
 void
+MacroAssemblerCompat::bind(Label *label, BufferOffset boff)
+{
+    JS_ASSERT(boff.assigned());
+
+    // Nothing has seen the label yet: just mark the location.
+    if (!label->used()) {
+        label->bind(boff.getOffset());
+        return;
+    }
+
+    // Patch all existing branches that use this label.
+    JS_ASSERT(0 && "bind (Actual Case)");
+}
+
+void
+MacroAssemblerCompat::bind(RepatchLabel *label)
+{
+    // Nothing has seen the label yet: just mark the location.
+    if (!label->used()) {
+        label->bind(nextOffset().getOffset());
+        return;
+    }
+
+    JS_ASSERT(0 && "bind (RepatchLabel)");
+}
+
+void
 MacroAssembler::PushRegsInMask(RegisterSet set)
 {
     // FIXME: Are we storing the full 128 bits or what?
