@@ -255,7 +255,7 @@ GC(JSContext *cx, unsigned argc, jsval *vp)
     }
 
 #ifndef JS_MORE_DETERMINISTIC
-    size_t preBytes = cx->runtime()->gc.bytesAllocated();
+    size_t preBytes = cx->runtime()->gc.usage.gcBytes();
 #endif
 
     if (compartment)
@@ -267,7 +267,7 @@ GC(JSContext *cx, unsigned argc, jsval *vp)
     char buf[256] = { '\0' };
 #ifndef JS_MORE_DETERMINISTIC
     JS_snprintf(buf, sizeof(buf), "before %lu, after %lu\n",
-                (unsigned long)preBytes, (unsigned long)cx->runtime()->gc.bytesAllocated());
+                (unsigned long)preBytes, (unsigned long)cx->runtime()->gc.usage.gcBytes());
 #endif
     JSString *str = JS_NewStringCopyZ(cx, buf);
     if (!str)
