@@ -45,30 +45,23 @@ MacroAssemblerCompat::bind(Label *label, BufferOffset boff)
 
     // Get the most recent instruction that used the label, as stored in the label.
     Instruction *ins = getInstructionAt(BufferOffset(label));
+    Instruction *target = getInstructionAt(boff);
 
+    JS_ASSERT(0 && "bind (Actual Case)");
+#if 0
     while (ins != nullptr) {
-        switch (ins->BranchType()) {
-          case CondBranchType:
-            JS_ASSERT(0 && "bind CondBranchType");
-            break;
+        // Each un-finalized branch instruction contains an implicit link
+        // to the previous branch instruction targeting the same label.
+        int32_t nextRelOffset = ins->ImmPCRel();
 
-          case UncondBranchType:
-            JS_ASSERT(0 && "bind UncondBranchType");
-            break;
+        BufferOffset nextOffset();
+        printf("nextOffset: %d\n", nextOffset.getOffset()); // TODO: Remove me.
+        Instruction *next = nextOffset.getOffset() ? getInstructionAt(nextOffset) : nullptr;
 
-          case CompareBranchType:
-            JS_ASSERT(0 && "bind CompareBranchType");
-            break;
-
-          case TestBranchType:
-            JS_ASSERT(0 && "bind TestBranchType");
-            break;
-
-          case UnknownBranchType:
-            MOZ_ASSUME_UNREACHABLE("Unknown branch type");
-            return;
-        }
+        ins->SetImmPCOffsetTarget(target);
+        ins = next;
     };
+#endif
 }
 
 void
