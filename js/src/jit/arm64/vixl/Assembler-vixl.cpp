@@ -514,22 +514,26 @@ AssemblerVIXL::b(Label* label)
     if (armbuffer_.oom())
         return;
 
+    // The label is bound: all uses are already linked.
     if (label->bound()) {
+        JS_ASSERT(0 && "b (uncond) (bound case)");
+        // FIXME: This should be a relative offset...
         b(UpdateAndGetInstructionOffsetTo(label));
         return;
     }
 
-    // FIXME: It looks like used() and bound() are very similar...
-    if (label->used()) {
-        // TODO: Check that the offset is in valid range.
-        b(UpdateAndGetInstructionOffsetTo(label));
+    // The label is unbound and unused: store the offset of this B instruction
+    // in the label itself for patching during bind().
+    if (!label->used()) {
+        BufferOffset offset = b(LabelBase::INVALID_OFFSET);
+        label->use(offset.getOffset());
         return;
     }
 
-    BufferOffset offset = b(LabelBase::INVALID_OFFSET);
-    label->use(offset.getOffset());
-
-    // TODO: Some debug checks?
+    // The label is unbound but used. Create an implicit linked list between
+    // the branches, and update the linked list head in the label struct.
+    BufferOffset listHead = b(label->offset());
+    label->use(listHead.getOffset());
 }
 
 void
@@ -538,20 +542,26 @@ AssemblerVIXL::b(Label* label, Condition cond)
     if (armbuffer_.oom())
         return;
 
+    // The label is bound: all uses are already linked.
     if (label->bound()) {
+        JS_ASSERT(0 && "b (cond) (bound case)");
+        // FIXME: This should be a relative offset...
         b(UpdateAndGetInstructionOffsetTo(label), cond);
         return;
     }
 
-    if (label->used()) {
-        b(UpdateAndGetInstructionOffsetTo(label), cond);
+    // The label is unbound and unused: store the offset of this B instruction
+    // in the label itself for patching during bind().
+    if (!label->used()) {
+        BufferOffset offset = b(LabelBase::INVALID_OFFSET, cond);
+        label->use(offset.getOffset());
         return;
     }
 
-    BufferOffset offset = b(LabelBase::INVALID_OFFSET, cond);
-    label->use(offset.getOffset());
-
-    // TODO: Some debug checks?
+    // The label is unbound but used. Create an implicit linked list between
+    // the branches, and update the linked list head in the label struct.
+    BufferOffset listHead = b(label->offset(), cond);
+    label->use(listHead.getOffset());
 }
 
 void
@@ -569,6 +579,7 @@ AssemblerVIXL::bl(Instruction *at, int imm26)
 void
 AssemblerVIXL::bl(Label* label)
 {
+    JS_ASSERT(0 && "bl()");
     bl(UpdateAndGetInstructionOffsetTo(label));
 }
 
@@ -581,6 +592,7 @@ AssemblerVIXL::cbz(const ARMRegister& rt, int imm19)
 void
 AssemblerVIXL::cbz(const ARMRegister& rt, Label* label)
 {
+    JS_ASSERT(0 && "cbz()");
     cbz(rt, UpdateAndGetInstructionOffsetTo(label));
 }
 
@@ -593,6 +605,7 @@ AssemblerVIXL::cbnz(const ARMRegister& rt, int imm19)
 void
 AssemblerVIXL::cbnz(const ARMRegister& rt, Label* label)
 {
+    JS_ASSERT(0 && "cbnz()");
     cbnz(rt, UpdateAndGetInstructionOffsetTo(label));
 }
 
@@ -606,6 +619,7 @@ AssemblerVIXL::tbz(const ARMRegister& rt, unsigned bit_pos, int imm14)
 void
 AssemblerVIXL::tbz(const ARMRegister& rt, unsigned bit_pos, Label* label)
 {
+    JS_ASSERT(0 && "tbz()");
     tbz(rt, bit_pos, UpdateAndGetInstructionOffsetTo(label));
 }
 
@@ -619,6 +633,7 @@ AssemblerVIXL::tbnz(const ARMRegister& rt, unsigned bit_pos, int imm14)
 void
 AssemblerVIXL::tbnz(const ARMRegister& rt, unsigned bit_pos, Label* label)
 {
+    JS_ASSERT(0 && "tbnz()");
     tbnz(rt, bit_pos, UpdateAndGetInstructionOffsetTo(label));
 }
 
@@ -632,6 +647,7 @@ AssemblerVIXL::adr(const ARMRegister& rd, int imm21)
 void
 AssemblerVIXL::adr(const ARMRegister& rd, Label* label)
 {
+    JS_ASSERT(0 && "adr()");
     adr(rd, UpdateAndGetByteOffsetTo(label));
 }
 

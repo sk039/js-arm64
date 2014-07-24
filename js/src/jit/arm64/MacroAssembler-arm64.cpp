@@ -52,7 +52,7 @@ MacroAssemblerCompat::bind(Label *label, BufferOffset boff)
     while (ins != nullptr) {
         // Each un-finalized branch instruction contains an implicit link
         // to the previous branch instruction targeting the same label.
-        int32_t nextRelOffset = ins->ImmPCRel();
+        int32_t nextRelOffset = ins->ImmPCOffsetTarget();
 
         BufferOffset nextOffset();
         printf("nextOffset: %d\n", nextOffset.getOffset()); // TODO: Remove me.
