@@ -792,7 +792,7 @@ struct AssemblerBufferWithConstantPools : public AssemblerBuffer<SliceSize, Inst
             return;
         int destOffset = branch.getOffset() + offset;
         if (offset > 0) {
-            while (curpool < numDumps_ && poolInfo_[curpool].offset <= destOffset) {
+            while (curpool < (int)numDumps_ && poolInfo_[curpool].offset <= (size_t)destOffset) {
                 offset += poolInfo_[curpool].size;
                 curpool++;
             }
@@ -800,7 +800,7 @@ struct AssemblerBufferWithConstantPools : public AssemblerBuffer<SliceSize, Inst
             // Ignore the pool that comes next, since this is a backwards
             // branch.
             curpool--;
-            while (curpool >= 0 && poolInfo_[curpool].offset > destOffset) {
+            while (curpool >= 0 && poolInfo_[curpool].offset > (size_t)destOffset) {
                 offset -= poolInfo_[curpool].size;
                 curpool--;
             }
