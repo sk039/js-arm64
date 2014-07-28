@@ -467,21 +467,27 @@ void
 AssemblerVIXL::br(const ARMRegister& xn)
 {
     VIXL_ASSERT(xn.Is64Bits());
-    EmitBranch(BR | Rn(xn));
+    // This dosen't count as a branch, since
+    // there isn't an immediate offset to be fixed up.
+    Emit(BR | Rn(xn));
 }
 
 void
 AssemblerVIXL::blr(const ARMRegister& xn)
 {
     VIXL_ASSERT(xn.Is64Bits());
-    EmitBranch(BLR | Rn(xn));
+    // This doesn't count as a branch, since there isn't
+    // an immediate offset to be fixed up.
+    Emit(BLR | Rn(xn));
 }
 
 void
 AssemblerVIXL::ret(const ARMRegister& xn)
 {
     VIXL_ASSERT(xn.Is64Bits());
-    EmitBranch(RET | Rn(xn));
+    // This doesn't count as a branch, since there isn't
+    // an immediate offset to be fixed up.
+    Emit(RET | Rn(xn));
 }
 
 BufferOffset
@@ -516,9 +522,7 @@ AssemblerVIXL::b(Label* label)
 
     // The label is bound: all uses are already linked.
     if (label->bound()) {
-        JS_ASSERT(0 && "b (uncond) (bound case)");
-        // FIXME: This should be a relative offset...
-        b(UpdateAndGetInstructionOffsetTo(label));
+        b(label->offset());
         return;
     }
 
@@ -2279,8 +2283,7 @@ AssemblerVIXL::GetBranchOffset(const Instruction *i)
 {
     // FIXME: This appears to use "0" to communicate "is not actually a branch".
     //JS_ASSERT(i->BranchType() != UnknownBranchType);
-    if (i->BranchType() == UnknownBranchType)
-        return 0;
+    JS_ASSERT_IF(!i->IsBranchLinkImm(), i->BranchType() != UnknownBranchType);
     return (ptrdiff_t)i->ImmPCOffsetTarget() - (ptrdiff_t)i;
 }
 
@@ -2291,11 +2294,16 @@ AssemblerVIXL::RetargetNearBranch(Instruction *i, int offset, Condition cond, bo
       case CondBranchType:
         b(i, offset, cond); // FIXME: Is this right? What about BL()?
         break;
-
+      case UnknownBranchType:
+        JS_ASSERT(i->IsBranchLinkImm());
+        bl(i, offset); // FIXME: Is this right? What about BL()?
+        break;
       case UncondBranchType:
+        b(i, offset); // FIXME: Is this right? What about BL()?
+        break;
       case CompareBranchType:
       case TestBranchType:
-      case UnknownBranchType:
+
       default:
         MOZ_ASSUME_UNREACHABLE("Unsupported branch type");
     }
@@ -2314,9 +2322,12 @@ AssemblerVIXL::RetargetNearBranch(Instruction *i, int offset, bool final)
           b(i, offset, cond);
           break;
       }
+      case UnknownBranchType:
+        JS_ASSERT(i->IsBranchLinkImm());
+        bl(i, offset); // FIXME: Is this right? What about BL()?
+        break;
       case CompareBranchType:
       case TestBranchType:
-      case UnknownBranchType:
       default:
         MOZ_ASSUME_UNREACHABLE("Unsupported branch type");
     }

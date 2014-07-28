@@ -374,7 +374,7 @@ struct FloatRegister {
         return mozilla::CountTrailingZeroes32(x); // TODO: 64?
     }
     static uint32_t LastBit(SetType x) {
-        return 32 - mozilla::CountLeadingZeroes32(x); // TODO: 64?
+        return 31 - mozilla::CountLeadingZeroes32(x); // TODO: 64?
     }
 };
 

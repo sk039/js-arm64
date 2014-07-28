@@ -213,6 +213,9 @@ class Instruction {
   inline bool IsUncondBranchImm() const {
     return Mask(UnconditionalBranchFMask) == UnconditionalBranchFixed;
   }
+  inline bool IsBranchLinkImm() const {
+    return Mask(UnconditionalBranchFMask) == (UnconditionalBranchFixed | BL);
+  }
 
   inline bool IsCompareBranch() const {
     return Mask(CompareBranchFMask) == CompareBranchFixed;

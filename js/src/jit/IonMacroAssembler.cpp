@@ -2036,6 +2036,7 @@ MacroAssembler::spsMarkJit(SPSProfiler *p, Register framePtr, Register temp)
     Label stackFull;
     // We always need the "safe" versions, because these are used in trampolines
     // and won't be regenerated when SPS state changes.
+    nop();
     spsProfileEntryAddressSafe(p, 0, temp, &stackFull);
 
     // Push a C++ frame with non-copy label

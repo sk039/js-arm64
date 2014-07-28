@@ -1738,7 +1738,8 @@ class AssemblerVIXL : public AssemblerShared
     }
 
     BufferOffset EmitBranch(Instr instruction) {
-        return Emit(instruction, /* isBranch = */ true);
+        BufferOffset ret = Emit(instruction, /* isBranch = */ true);
+        return ret;
     }
 
   // FIXME: This interface should not be public.
