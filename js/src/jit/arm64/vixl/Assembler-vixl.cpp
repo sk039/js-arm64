@@ -576,30 +576,8 @@ AssemblerVIXL::b(Label* label)
     BufferOffset branch = b(0);
     Instruction *ins = getInstructionAt(branch);
 
-    // The label is bound: all uses are already linked.
-    if (label->bound()) {
-        b(label->offset());
-        return;
-    }
-
-    // The label is unbound and unused: store the offset of this B instruction
-    // in the label itself for patching during bind().
-    if (!label->used()) {
-        BufferOffset offset = b(LabelBase::INVALID_OFFSET);
-        label->use(offset.getOffset());
-        return;
-    }
-
-    // The label is unbound but used. Create an implicit linked list between
-    // the branches, and update the linked list head in the label struct.
-    BufferOffset listHead = b(label->offset());
-    label->use(listHead.getOffset());
-#if 0
-    // TODO: it looks like this cropped up as a merge failure.
     // Encode the relative offset.
     b(ins, LinkAndGetInstructionOffsetTo(branch, label));
-#endif
-
 }
 
 void
