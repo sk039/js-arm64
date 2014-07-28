@@ -33,46 +33,35 @@ namespace js {
 namespace jit {
 
 void
-MacroAssemblerCompat::bind(Label *label, BufferOffset boff)
+MacroAssemblerCompat::bind(Label *label, BufferOffset targetOffset)
 {
-    JS_ASSERT(boff.assigned());
-    int branchesDest = boff.getOffset();
     // Nothing has seen the label yet: just mark the location.
     if (!label->used()) {
-        label->bind(branchesDest);
+        label->bind(targetOffset.getOffset());
         return;
     }
 
-    // Get the most recent instruction that used the label, as stored in the label.
-    Instruction *ins = getInstructionAt(BufferOffset(label));
-    uint32_t nextOffset = label->offset();
-    fprintf(stderr, "initial offset is: %d\n", nextOffset);
-    for (uint32_t branchOffset = nextOffset; branchOffset != 0xffffffff; branchOffset = nextOffset) {
-        // Each un-finalized branch instruction contains an implicit link
-        // to the previous branch instruction targeting the same label.
-        Instruction *inst = armbuffer_.getInst(BufferOffset(nextOffset));
-        uint32_t curBranchOffset = 0;
-        uint32_t imm_mask;
-        if (inst->BranchType() == CondBranchType) {
-            nextOffset = inst->ImmCondBranch();
-            curBranchOffset = AssemblerVIXL::ImmCondBranch(branchOffset - branchesDest);
-            imm_mask = ImmCondBranch_mask;
-            fprintf(stderr, "(C): %x\n", inst->Mask(0xffffffff));
-        } else if (inst->BranchType() == UncondBranchType) {
-            fprintf(stderr, "(U)\n");
-            nextOffset = inst->ImmUncondBranch();
-            curBranchOffset = AssemblerVIXL::ImmUncondBranch(branchOffset - branchesDest);
-            imm_mask = ImmUncondBranch_mask;
-        } else {
-            MOZ_CRASH("Unknown branch style");
-        }
-        fprintf(stderr, "next offset is: %d\n", nextOffset);
-        // don't bother generating the correct offset now, since that will change at link time
-        // just encode the offset directly.
-        inst->SetInstructionBits(inst->Mask(~imm_mask) | curBranchOffset);
-    };
-    label->bind(branchesDest);
+    Instruction *target = getInstructionAt(targetOffset);
 
+    // Get the most recent instruction that used the label, as stored in the label.
+    // This instruction is the head of an implicit linked list of label uses.
+    uint32_t branchOffset = label->offset();
+
+    while (branchOffset != LabelBase::INVALID_OFFSET) {
+        Instruction *link = getInstructionAt(BufferOffset(branchOffset));
+
+        // Before overwriting the offset in this instruction, get the offset of
+        // the next link in the implicit branch list.
+        // FIXME: This function should actually be named "ImmPCRawOffset".
+        uint32_t nextLinkOffset = uint32_t(link->ImmPCInstructionOffset());
+
+        // Write a new relative offset into the instruction.
+        link->SetImmPCOffsetTarget(target);
+        branchOffset = nextLinkOffset;
+    }
+
+    // Bind the label, so that future uses may encode the offset immediately.
+    label->bind(targetOffset.getOffset());
 }
 
 void
