@@ -2308,7 +2308,7 @@ ptrdiff_t
 AssemblerVIXL::GetBranchOffset(const Instruction *ins)
 {
     JS_ASSERT_IF(!ins->IsBranchLinkImm(), ins->BranchType() != UnknownBranchType);
-    return ins->ImmPCInstructionOffset();
+    return ins->ImmPCRawOffset();
 }
 
 void

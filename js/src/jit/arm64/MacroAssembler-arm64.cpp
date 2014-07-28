@@ -52,8 +52,7 @@ MacroAssemblerCompat::bind(Label *label, BufferOffset targetOffset)
 
         // Before overwriting the offset in this instruction, get the offset of
         // the next link in the implicit branch list.
-        // FIXME: This function should actually be named "ImmPCRawOffset".
-        uint32_t nextLinkOffset = uint32_t(link->ImmPCInstructionOffset());
+        uint32_t nextLinkOffset = uint32_t(link->ImmPCRawOffset());
 
         // Write a new relative offset into the instruction.
         link->SetImmPCOffsetTarget(target);

@@ -152,7 +152,7 @@ LSDataSize CalcLSPairDataSize(LoadStorePairOp op) {
 }
 
 
-ptrdiff_t Instruction::ImmPCInstructionOffset() const {
+ptrdiff_t Instruction::ImmPCRawOffset() const {
   // TODO: No ADR or ADRP support here. Do we even need any?
   VIXL_ASSERT(!IsPCRelAddressing());
 

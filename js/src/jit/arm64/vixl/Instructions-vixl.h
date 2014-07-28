@@ -311,9 +311,9 @@ class Instruction {
     }
   }
 
-  // Find the offset of this instruction in terms of kInstructionSize.
-  // 'this' may be a branch or a PC-relative addressing instruction.
-  ptrdiff_t ImmPCInstructionOffset() const;
+  // Read the raw offset of this instruction without interpreting it as a multiple
+  // of some instruction size.
+  ptrdiff_t ImmPCRawOffset() const;
 
   // Find the target of this instruction. 'this' may be a branch or a
   // PC-relative addressing instruction.
