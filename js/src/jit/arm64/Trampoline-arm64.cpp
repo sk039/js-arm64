@@ -68,6 +68,7 @@ JitRuntime::generateEnterJIT(JSContext *cx, EnterJitType type)
             Label bound;
             masm.bind(&bound);
             masm.Brk(0x7777);
+            masm.Brk(0x7722);
             masm.jump(&bound);
             masm.Brk(0x6666);
         }

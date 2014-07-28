@@ -152,21 +152,36 @@ LSDataSize CalcLSPairDataSize(LoadStorePairOp op) {
 }
 
 
-ptrdiff_t Instruction::ImmPCOffset() const {
-  if (IsPCRelAddressing()) {
-    // PC-relative addressing. Only ADR is supported.
-    return ptrdiff_t(ImmPCRel());
-  }
+ptrdiff_t Instruction::ImmPCInstructionOffset() const {
+  // TODO: No ADR or ADRP support here. Do we even need any?
+  VIXL_ASSERT(!IsPCRelAddressing());
 
   // All PC-relative branches.
   VIXL_ASSERT(BranchType() != UnknownBranchType);
   // Relative branch offsets are instruction-size-aligned.
-  return ptrdiff_t(ImmBranch() << kInstructionSizeLog2);
+  return ptrdiff_t(ImmBranch());
 }
 
 
-Instruction* Instruction::ImmPCOffsetTarget() const {
-  return (Instruction *)(this + ImmPCOffset());
+Instruction* Instruction::ImmPCOffsetTarget() {
+  Instruction * base = this;
+  ptrdiff_t offset;
+  if (IsPCRelAddressing()) {
+    // ADR and ADRP.
+    offset = ImmPCRel();
+    if (Mask(PCRelAddressingMask) == ADRP) {
+      base = AlignDown(base, kPageSize);
+      offset *= kPageSize;
+    } else {
+      VIXL_ASSERT(Mask(PCRelAddressingMask) == ADR);
+    }
+  } else {
+    // All PC-relative branches.
+    VIXL_ASSERT(BranchType() != UnknownBranchType);
+    // Relative branch offsets are instruction-size-aligned.
+    offset = ImmBranch() << kInstructionSizeLog2;
+  }
+  return base + offset;
 }
 
 

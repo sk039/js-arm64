@@ -311,13 +311,13 @@ class Instruction {
     }
   }
 
-  // Find the offset of this instruction.  'this' may be a branch or a
-  // PC-relative addressing instruction.
-  ptrdiff_t ImmPCOffset() const;
+  // Find the offset of this instruction in terms of kInstructionSize.
+  // 'this' may be a branch or a PC-relative addressing instruction.
+  ptrdiff_t ImmPCInstructionOffset() const;
 
   // Find the target of this instruction. 'this' may be a branch or a
   // PC-relative addressing instruction.
-  Instruction* ImmPCOffsetTarget() const;
+  Instruction* ImmPCOffsetTarget();
 
   // Patch a PC-relative offset to refer to 'target'. 'this' may be a branch or
   // a PC-relative addressing instruction.
