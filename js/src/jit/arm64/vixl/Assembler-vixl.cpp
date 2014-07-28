@@ -522,8 +522,7 @@ void
 AssemblerVIXL::br(const ARMRegister& xn)
 {
     VIXL_ASSERT(xn.Is64Bits());
-    // This dosen't count as a branch, since
-    // there isn't an immediate offset to be fixed up.
+    // No need for EmitBranch(): no immediate offset needs fixing.
     Emit(BR | Rn(xn));
 }
 
@@ -531,8 +530,7 @@ void
 AssemblerVIXL::blr(const ARMRegister& xn)
 {
     VIXL_ASSERT(xn.Is64Bits());
-    // This doesn't count as a branch, since there isn't
-    // an immediate offset to be fixed up.
+    // No need for EmitBranch(): no immediate offset needs fixing.
     Emit(BLR | Rn(xn));
 }
 
@@ -540,8 +538,7 @@ void
 AssemblerVIXL::ret(const ARMRegister& xn)
 {
     VIXL_ASSERT(xn.Is64Bits());
-    // This doesn't count as a branch, since there isn't
-    // an immediate offset to be fixed up.
+    // No need for EmitBranch(): no immediate offset needs fixing.
     Emit(RET | Rn(xn));
 }
 
