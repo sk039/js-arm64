@@ -46,6 +46,10 @@ const unsigned kLiteralEntrySize = 4;
 const unsigned kLiteralEntrySizeLog2 = 2;
 const unsigned kMaxLoadLiteralRange = 1 * MBytes;
 
+// This is the nominal page size (as used by the adrp instruction); the actual
+// size of the memory pages allocated by the kernel is likely to differ.
+const unsigned kPageSize = 4 * KBytes;
+
 const unsigned kWRegSize = 32;
 const unsigned kWRegSizeLog2 = 5;
 const unsigned kWRegSizeInBytes = kWRegSize / 8;

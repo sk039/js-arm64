@@ -462,6 +462,61 @@ AssemblerVIXL::PatchConstantPoolLoad(void *loadAddr, void *constPoolAddr)
     return false;
 }
 
+// A common implementation for the LinkAndGet<Type>OffsetTo helpers.
+//
+// If the label is bound, returns the offset as a multiple of element_size.
+// Otherwise, links the instruction to the label and returns the offset to encode
+// as a multiple of kInstructionSize.
+//
+// The offset is calculated by aligning the PC and label addresses down to a
+// multiple of element_size, then calculating the (scaled) offset between them.
+// This matches the semantics of adrp, for example.
+template <int element_size>
+ptrdiff_t
+AssemblerVIXL::LinkAndGetOffsetTo(BufferOffset branch, Label *label)
+{
+    if (armbuffer_.oom())
+        return LabelBase::INVALID_OFFSET;
+
+    // The label is bound: all uses are already linked.
+    if (label->bound()) {
+        uintptr_t branch_offset = branch.getOffset() / element_size;
+        uintptr_t label_offset = label->offset() / element_size;
+        return label_offset - branch_offset;
+    }
+
+    // The label is unbound and unused: store the offset in the label itself
+    // for patching by bind().
+    if (!label->used()) {
+        label->use(branch.getOffset());
+        return LabelBase::INVALID_OFFSET;
+    }
+
+    // The label is unbound but used. Create an implicit linked list between
+    // the branches, and update the linked list head in the label struct.
+    ptrdiff_t prevHeadOffset = static_cast<ptrdiff_t>(label->offset());
+    label->use(branch.getOffset());
+    return prevHeadOffset;
+}
+
+ptrdiff_t
+AssemblerVIXL::LinkAndGetByteOffsetTo(BufferOffset branch, Label *label)
+{
+    return LinkAndGetOffsetTo<1>(branch, label);
+}
+
+ptrdiff_t
+AssemblerVIXL::LinkAndGetInstructionOffsetTo(BufferOffset branch, Label *label)
+{
+    return LinkAndGetOffsetTo<kInstructionSize>(branch, label);
+}
+
+ptrdiff_t
+AssemblerVIXL::LinkAndGetPageOffsetTo(BufferOffset branch, Label *label)
+{
+    return LinkAndGetOffsetTo<kPageSize>(branch, label);
+}
+
 // Code generation.
 void
 AssemblerVIXL::br(const ARMRegister& xn)
@@ -517,8 +572,9 @@ AssemblerVIXL::b(Instruction *at, int imm19, Condition cond)
 void
 AssemblerVIXL::b(Label* label)
 {
-    if (armbuffer_.oom())
-        return;
+    // Flush the instruction buffer before calculating relative offset.
+    BufferOffset branch = b(0);
+    Instruction *ins = getInstructionAt(branch);
 
     // The label is bound: all uses are already linked.
     if (label->bound()) {
@@ -538,34 +594,23 @@ AssemblerVIXL::b(Label* label)
     // the branches, and update the linked list head in the label struct.
     BufferOffset listHead = b(label->offset());
     label->use(listHead.getOffset());
+#if 0
+    // TODO: it looks like this cropped up as a merge failure.
+    // Encode the relative offset.
+    b(ins, LinkAndGetInstructionOffsetTo(branch, label));
+#endif
+
 }
 
 void
 AssemblerVIXL::b(Label* label, Condition cond)
 {
-    if (armbuffer_.oom())
-        return;
+    // Flush the instruction buffer before calculating relative offset.
+    BufferOffset branch = b(0);
+    Instruction *ins = getInstructionAt(branch);
 
-    // The label is bound: all uses are already linked.
-    if (label->bound()) {
-        JS_ASSERT(0 && "b (cond) (bound case)");
-        // FIXME: This should be a relative offset...
-        b(UpdateAndGetInstructionOffsetTo(label), cond);
-        return;
-    }
-
-    // The label is unbound and unused: store the offset of this B instruction
-    // in the label itself for patching during bind().
-    if (!label->used()) {
-        BufferOffset offset = b(LabelBase::INVALID_OFFSET, cond);
-        label->use(offset.getOffset());
-        return;
-    }
-
-    // The label is unbound but used. Create an implicit linked list between
-    // the branches, and update the linked list head in the label struct.
-    BufferOffset listHead = b(label->offset(), cond);
-    label->use(listHead.getOffset());
+    // Encode the relative offset.
+    b(ins, LinkAndGetInstructionOffsetTo(branch, label), cond);
 }
 
 void
@@ -583,8 +628,12 @@ AssemblerVIXL::bl(Instruction *at, int imm26)
 void
 AssemblerVIXL::bl(Label* label)
 {
-    JS_ASSERT(0 && "bl()");
-    bl(UpdateAndGetInstructionOffsetTo(label));
+    // Flush the instruction buffer before calculating relative offset.
+    BufferOffset branch = b(0);
+    Instruction *ins = getInstructionAt(branch);
+
+    // Encode the relative offset.
+    bl(ins, LinkAndGetInstructionOffsetTo(branch, label));
 }
 
 void
@@ -597,7 +646,7 @@ void
 AssemblerVIXL::cbz(const ARMRegister& rt, Label* label)
 {
     JS_ASSERT(0 && "cbz()");
-    cbz(rt, UpdateAndGetInstructionOffsetTo(label));
+    //cbz(rt, LinkAndGetInstructionOffsetTo(label));
 }
 
 void
@@ -610,7 +659,7 @@ void
 AssemblerVIXL::cbnz(const ARMRegister& rt, Label* label)
 {
     JS_ASSERT(0 && "cbnz()");
-    cbnz(rt, UpdateAndGetInstructionOffsetTo(label));
+    //cbnz(rt, LinkAndGetInstructionOffsetTo(label));
 }
 
 void
@@ -624,7 +673,7 @@ void
 AssemblerVIXL::tbz(const ARMRegister& rt, unsigned bit_pos, Label* label)
 {
     JS_ASSERT(0 && "tbz()");
-    tbz(rt, bit_pos, UpdateAndGetInstructionOffsetTo(label));
+    //tbz(rt, bit_pos, LinkAndGetInstructionOffsetTo(label));
 }
 
 void
@@ -638,7 +687,7 @@ void
 AssemblerVIXL::tbnz(const ARMRegister& rt, unsigned bit_pos, Label* label)
 {
     JS_ASSERT(0 && "tbnz()");
-    tbnz(rt, bit_pos, UpdateAndGetInstructionOffsetTo(label));
+    //tbnz(rt, bit_pos, LinkAndGetInstructionOffsetTo(label));
 }
 
 void
@@ -652,7 +701,7 @@ void
 AssemblerVIXL::adr(const ARMRegister& rd, Label* label)
 {
     JS_ASSERT(0 && "adr()");
-    adr(rd, UpdateAndGetByteOffsetTo(label));
+    //adr(rd, LinkAndGetByteOffsetTo(label));
 }
 
 void

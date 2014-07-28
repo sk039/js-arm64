@@ -270,6 +270,7 @@ typedef union jsval_layout
     double asDouble;
     void *asPtr;
 } JSVAL_ALIGNMENT jsval_layout;
+#error bad
 # elif defined(JS_PUNBOX64)
 typedef union jsval_layout
 {
@@ -296,6 +297,7 @@ typedef union jsval_layout
 # endif  /* JS_PUNBOX64 */
 #else   /* defined(IS_LITTLE_ENDIAN) */
 # if defined(JS_NUNBOX32)
+#error bad32
 typedef union jsval_layout
 {
     uint64_t asBits;
@@ -319,6 +321,7 @@ typedef union jsval_layout
     void *asPtr;
 } JSVAL_ALIGNMENT jsval_layout;
 # elif defined(JS_PUNBOX64)
+#error bad64
 typedef union jsval_layout
 {
     uint64_t asBits;
@@ -341,6 +344,7 @@ typedef union jsval_layout
 } JSVAL_ALIGNMENT jsval_layout;
 # endif /* JS_PUNBOX64 */
 #endif  /* defined(IS_LITTLE_ENDIAN) */
+
 
 JS_STATIC_ASSERT(sizeof(jsval_layout) == 8);
 

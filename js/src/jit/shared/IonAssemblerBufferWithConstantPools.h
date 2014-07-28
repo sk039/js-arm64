@@ -272,6 +272,7 @@ struct BufferSliceTail : public BufferSlice<SliceSize> {
         MOZ_ASSERT(this->nodeSize_ % InstSize == 0);
         MOZ_ASSERT(this->nodeSize_ < SliceSize);
         size_t idx = this->nodeSize_ / InstSize;
+        fprintf(stderr, "MARKING %d AS A BRANCH\n", idx);
         isBranch_[idx >> 3] |= 1 << (idx & 0x7);
     }
     bool isBranch(unsigned idx) const {

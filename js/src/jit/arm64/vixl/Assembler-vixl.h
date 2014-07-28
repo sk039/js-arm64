@@ -681,6 +681,19 @@ class AssemblerVIXL : public AssemblerShared
     // Bind a label to the current PC.
     void bind(Label* label);
 
+    // Return the Instruction at a given byte offset.
+    Instruction *getInstructionAt(BufferOffset offset) {
+        return armbuffer_.getInst(offset);
+    }
+
+    // Return the byte offset of a bound label.
+    template <typename T>
+    inline T GetLabelByteOffset(const Label *label) {
+        VIXL_ASSERT(label->bound());
+        VIXL_STATIC_ASSERT(sizeof(T) >= sizeof(uint32_t));
+        return reinterpret_cast<T>(label->offset());
+    }
+
     int UpdateAndGetByteOffsetTo(Label* label);
     inline int UpdateAndGetInstructionOffsetTo(Label* label) {
         //VIXL_ASSERT(Label::kEndOfChain == 0);
@@ -1722,6 +1735,17 @@ class AssemblerVIXL : public AssemblerShared
                                  FPDataProcessing3SourceOp op);
 
     void RecordLiteral(int64_t imm, unsigned size);
+
+    // Link the current (not-yet-emitted) instruction to the specified label, then
+    // return an offset to be encoded in the instruction. If the label is not yet
+    // bound, an offset of LabelBase::INVALID_OFFSET is returned.
+    ptrdiff_t LinkAndGetByteOffsetTo(BufferOffset branch, Label *label);
+    ptrdiff_t LinkAndGetInstructionOffsetTo(BufferOffset branch, Label *label);
+    ptrdiff_t LinkAndGetPageOffsetTo(BufferOffset branch, Label *label);
+
+    // A common implementation for the LinkAndGet<Type>OffsetTo helpers.
+    template <int element_size>
+    ptrdiff_t LinkAndGetOffsetTo(BufferOffset branch, Label *label);
 
     // Emit the instruction, returning its offset.
     BufferOffset Emit(Instr instruction, bool isBranch = false) {
