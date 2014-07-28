@@ -575,6 +575,7 @@ AssemblerVIXL::b(Label* label)
     // Flush the instruction buffer before calculating relative offset.
     BufferOffset branch = b(0);
     Instruction *ins = getInstructionAt(branch);
+    JS_ASSERT(ins->IsUncondBranchImm());
 
     // Encode the relative offset.
     b(ins, LinkAndGetInstructionOffsetTo(branch, label));
@@ -584,8 +585,9 @@ void
 AssemblerVIXL::b(Label* label, Condition cond)
 {
     // Flush the instruction buffer before calculating relative offset.
-    BufferOffset branch = b(0);
+    BufferOffset branch = b(0, Always);
     Instruction *ins = getInstructionAt(branch);
+    JS_ASSERT(ins->IsCondBranchImm());
 
     // Encode the relative offset.
     b(ins, LinkAndGetInstructionOffsetTo(branch, label), cond);
