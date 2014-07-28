@@ -480,8 +480,8 @@ AssemblerVIXL::LinkAndGetOffsetTo(BufferOffset branch, Label *label)
 
     // The label is bound: all uses are already linked.
     if (label->bound()) {
-        uintptr_t branch_offset = branch.getOffset() / element_size;
-        uintptr_t label_offset = label->offset() / element_size;
+        ptrdiff_t branch_offset = ptrdiff_t(branch.getOffset() / element_size);
+        ptrdiff_t label_offset = ptrdiff_t(label->offset() / element_size);
         return label_offset - branch_offset;
     }
 
@@ -2305,12 +2305,10 @@ AssemblerVIXL::WritePoolFooter(uint8_t *start, Pool *p, bool isNatural)
 }
 
 ptrdiff_t
-AssemblerVIXL::GetBranchOffset(const Instruction *i)
+AssemblerVIXL::GetBranchOffset(const Instruction *ins)
 {
-    // FIXME: This appears to use "0" to communicate "is not actually a branch".
-    //JS_ASSERT(i->BranchType() != UnknownBranchType);
-    JS_ASSERT_IF(!i->IsBranchLinkImm(), i->BranchType() != UnknownBranchType);
-    return (ptrdiff_t)i->ImmPCOffsetTarget() - (ptrdiff_t)i;
+    JS_ASSERT_IF(!ins->IsBranchLinkImm(), ins->BranchType() != UnknownBranchType);
+    return ins->ImmPCOffset();
 }
 
 void

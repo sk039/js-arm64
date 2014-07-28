@@ -65,10 +65,11 @@ JitRuntime::generateEnterJIT(JSContext *cx, EnterJitType type)
     if (getenv("ASM_TEST")) {
         masm.movePtr(ZeroRegister, r23);
         {
-            Label unbound;
-            //masm.Brk(0x7777);
-            masm.branchTestPtr(Assembler::Zero, r23, r23, &unbound);
-            masm.bind(&unbound);
+            Label bound;
+            masm.bind(&bound);
+            masm.Brk(0x7777);
+            masm.jump(&bound);
+            masm.Brk(0x6666);
         }
         masm.Brk(0x8888);
     }

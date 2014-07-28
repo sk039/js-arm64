@@ -311,6 +311,10 @@ class Instruction {
     }
   }
 
+  // Find the offset of this instruction.  'this' may be a branch or a
+  // PC-relative addressing instruction.
+  ptrdiff_t ImmPCOffset() const;
+
   // Find the target of this instruction. 'this' may be a branch or a
   // PC-relative addressing instruction.
   Instruction* ImmPCOffsetTarget() const;

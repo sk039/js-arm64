@@ -152,18 +152,21 @@ LSDataSize CalcLSPairDataSize(LoadStorePairOp op) {
 }
 
 
-Instruction* Instruction::ImmPCOffsetTarget() const {
-  ptrdiff_t offset;
+ptrdiff_t Instruction::ImmPCOffset() const {
   if (IsPCRelAddressing()) {
     // PC-relative addressing. Only ADR is supported.
-    offset = ImmPCRel();
-  } else {
-    // All PC-relative branches.
-    VIXL_ASSERT(BranchType() != UnknownBranchType);
-    // Relative branch offsets are instruction-size-aligned.
-    offset = ImmBranch() << kInstructionSizeLog2;
+    return ptrdiff_t(ImmPCRel());
   }
-  return (Instruction *)(this + offset);
+
+  // All PC-relative branches.
+  VIXL_ASSERT(BranchType() != UnknownBranchType);
+  // Relative branch offsets are instruction-size-aligned.
+  return ptrdiff_t(ImmBranch() << kInstructionSizeLog2);
+}
+
+
+Instruction* Instruction::ImmPCOffsetTarget() const {
+  return (Instruction *)(this + ImmPCOffset());
 }
 
 

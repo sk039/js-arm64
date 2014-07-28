@@ -1771,8 +1771,7 @@ class AssemblerVIXL : public AssemblerShared
     // Emit the instruction at |at|.
     static void Emit(Instruction *at, Instr instruction) {
         VIXL_STATIC_ASSERT(sizeof(instruction) == kInstructionSize);
-        uint32_t *addr = (uint32_t *)at;
-        *addr = *(uint32_t *)(&instruction);
+        memcpy(at, &instruction, sizeof(instruction));
     }
 
     static void EmitBranch(Instruction *at, Instr instruction) {
