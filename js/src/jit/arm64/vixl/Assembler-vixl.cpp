@@ -399,55 +399,6 @@ AssemblerVIXL::FinalizeCode()
 #endif
 }
 
-void
-AssemblerVIXL::bind(Label* label)
-{
-#if 0
-    label->is_bound_ = true;
-    label->target_ = pc_;
-    while (label->IsLinked()) {
-      // Get the address of the following instruction in the chain.
-      Instruction* next_link = label->link_->ImmPCOffsetTarget();
-      // Update the instruction target.
-      label->link_->SetImmPCOffsetTarget(label->target_);
-      // Update the label's link.
-      // If the offset of the branch we just updated was 0 (kEndOfChain) we are
-      // done.
-      label->link_ = (label->link_ != next_link) ? next_link : NULL;
-    }
-#else
-    JS_ASSERT(0 && "bind");
-#endif
-}
-
-int
-AssemblerVIXL::UpdateAndGetByteOffsetTo(Label* label)
-{
-    JS_ASSERT(label->used());
-    int ret = label->offset();
-    //label->use(armbuffer_.sizeExcludingCurrentPool());
-    // FIXME: Yeah this isn't right.
-    JS_ASSERT(0 && "UpdateAndGetByteOffsetTo()");
-    return ret;
-
-#if 0
-    int offset;
-    VIXL_STATIC_ASSERT(sizeof(*pc_) == 1);
-    if (label->IsBound()) {
-      offset = label->target() - pc_;
-    } else if (label->IsLinked()) {
-      offset = label->link() - pc_;
-    } else {
-      offset = Label::kEndOfChain;
-    }
-    label->set_link(pc_);
-    return offset;
-#else
-    JS_ASSERT(0 && "UpdateAndGetByteOffsetTo");
-    return 0;
-#endif
-}
-
 // Assembly buffer.
 void
 AssemblerVIXL::InsertIndexIntoTag(uint8_t *load, uint32_t index)

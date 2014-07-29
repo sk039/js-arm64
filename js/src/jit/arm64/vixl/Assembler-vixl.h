@@ -677,10 +677,6 @@ class AssemblerVIXL : public AssemblerShared
         JS_ASSERT(0 && "Assembler::trace()");
     }
 
-    // Label.
-    // Bind a label to the current PC.
-    void bind(Label* label);
-
     // Return the Instruction at a given byte offset.
     Instruction *getInstructionAt(BufferOffset offset) {
         return armbuffer_.getInst(offset);
@@ -692,12 +688,6 @@ class AssemblerVIXL : public AssemblerShared
         VIXL_ASSERT(label->bound());
         VIXL_STATIC_ASSERT(sizeof(T) >= sizeof(uint32_t));
         return reinterpret_cast<T>(label->offset());
-    }
-
-    int UpdateAndGetByteOffsetTo(Label* label);
-    inline int UpdateAndGetInstructionOffsetTo(Label* label) {
-        //VIXL_ASSERT(Label::kEndOfChain == 0);
-        return UpdateAndGetByteOffsetTo(label) >> kInstructionSizeLog2;
     }
 
     // Condition codes.

@@ -41,6 +41,10 @@ class Assembler : public AssemblerVIXL {
       : AssemblerVIXL()
     { }
 
+    void bind(Label *label) { bind(label, nextOffset()); }
+    void bind(Label *label, BufferOffset boff);
+    void bind(RepatchLabel* label);
+
     void finish() {
         AssemblerVIXL::FinalizeCode();
     }

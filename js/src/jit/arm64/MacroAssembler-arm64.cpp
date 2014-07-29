@@ -33,49 +33,6 @@ namespace js {
 namespace jit {
 
 void
-MacroAssemblerCompat::bind(Label *label, BufferOffset targetOffset)
-{
-    // Nothing has seen the label yet: just mark the location.
-    if (!label->used()) {
-        label->bind(targetOffset.getOffset());
-        return;
-    }
-
-    Instruction *target = getInstructionAt(targetOffset);
-
-    // Get the most recent instruction that used the label, as stored in the label.
-    // This instruction is the head of an implicit linked list of label uses.
-    uint32_t branchOffset = label->offset();
-
-    while (branchOffset != LabelBase::INVALID_OFFSET) {
-        Instruction *link = getInstructionAt(BufferOffset(branchOffset));
-
-        // Before overwriting the offset in this instruction, get the offset of
-        // the next link in the implicit branch list.
-        uint32_t nextLinkOffset = uint32_t(link->ImmPCRawOffset());
-
-        // Write a new relative offset into the instruction.
-        link->SetImmPCOffsetTarget(target);
-        branchOffset = nextLinkOffset;
-    }
-
-    // Bind the label, so that future uses may encode the offset immediately.
-    label->bind(targetOffset.getOffset());
-}
-
-void
-MacroAssemblerCompat::bind(RepatchLabel *label)
-{
-    // Nothing has seen the label yet: just mark the location.
-    if (!label->used()) {
-        label->bind(nextOffset().getOffset());
-        return;
-    }
-
-    JS_ASSERT(0 && "bind (RepatchLabel)");
-}
-
-void
 MacroAssembler::PushRegsInMask(RegisterSet set)
 {
     // FIXME: Are we storing the full 128 bits or what?
