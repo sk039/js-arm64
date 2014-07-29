@@ -1561,6 +1561,9 @@ AsmJSModule::setProfilingEnabled(bool enabled, JSContext *cx)
 #elif defined(JS_CODEGEN_ARM64)
         JS_ASSERT(0 && "setProfilingEnabled() 1");
         void *callee = nullptr;
+#elif defined(JS_CODEGEN_NONE)
+        MOZ_CRASH();
+        void *callee = nullptr;
 #else
 # error "Missing architecture"
 #endif
@@ -1581,6 +1584,8 @@ AsmJSModule::setProfilingEnabled(bool enabled, JSContext *cx)
         new (caller) InstBLImm(BOffImm(newCallee - caller), Assembler::Always);
 #elif defined(JS_CODEGEN_ARM64)
         JS_ASSERT(0 && "setProfilingEnabled() 2");
+#elif defined(JS_CODEGEN_NONE)
+        MOZ_CRASH();
 #else
 # error "Missing architecture"
 #endif
@@ -1640,6 +1645,8 @@ AsmJSModule::setProfilingEnabled(bool enabled, JSContext *cx)
         }
 #elif defined(JS_CODEGEN_ARM64)
         JS_ASSERT(0 && "setProfilingEnabled() 3");
+#elif defined(JS_CODEGEN_NONE)
+        MOZ_CRASH();
 #else
 # error "Missing architecture"
 #endif

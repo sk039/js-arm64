@@ -19,6 +19,8 @@
 # include "jit/arm64/BaselineRegisters-arm64.h"
 #elif defined(JS_CODEGEN_MIPS)
 # include "jit/mips/BaselineRegisters-mips.h"
+#elif defined(JS_CODEGEN_NONE)
+# include "jit/none/BaselineRegisters-none.h"
 #else
 # error "Unknown architecture!"
 #endif

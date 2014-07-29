@@ -6251,14 +6251,8 @@ GenerateFFIIonExit(ModuleCompiler &m, const ModuleCompiler::ExitDescriptor &exit
     m.masm().append(AsmJSGlobalAccess(masm.leaRipRelative(callee), globalDataOffset));
 #elif defined(JS_CODEGEN_X86)
     m.masm().append(AsmJSGlobalAccess(masm.movlWithPatch(Imm32(0), callee), globalDataOffset));
-#elif defined(JS_CODEGEN_ARM)
-    masm.lea(Operand(GlobalReg, globalDataOffset), callee);
-#elif defined(JS_CODEGEN_ARM64)
-    JS_ASSERT(0 && "GET GENERATEFFIIONEXIT WORKING OK TY");
-#elif defined(JS_CODEGEN_MIPS)
-    masm.lea(Operand(GlobalReg, globalDataOffset), callee);
 #else
-    JS_ASSERT(0 && "TODO: add LEA");
+    masm.computeEffectiveAddress(Address(GlobalReg, globalDataOffset), callee);
 #endif
 
     // 2.2. Get callee
@@ -6691,6 +6685,8 @@ GenerateAsyncInterruptExit(ModuleCompiler &m, Label *throwLabel)
     masm.ret();
 #elif defined(JS_CODEGEN_ARM64)
     JS_ASSERT(0 && "TODO");
+#elif defined(JS_CODEGEN_NONE)
+    MOZ_CRASH();
 #else
 # error "Unknown architecture!"
 #endif
@@ -6872,6 +6868,10 @@ Warn(AsmJSParser &parser, int errorNumber, const char *str)
 static bool
 EstablishPreconditions(ExclusiveContext *cx, AsmJSParser &parser)
 {
+#ifdef JS_CODEGEN_NONE
+    return Warn(parser, JSMSG_USE_ASM_TYPE_FAIL, "Disabled by lack of a JIT compiler");
+#endif
+
     if (!cx->jitSupportsFloatingPoint())
         return Warn(parser, JSMSG_USE_ASM_TYPE_FAIL, "Disabled by lack of floating point support");
 
@@ -6941,10 +6941,14 @@ js::IsAsmJSCompilationAvailable(JSContext *cx, unsigned argc, Value *vp)
     CallArgs args = CallArgsFromVp(argc, vp);
 
     // See EstablishPreconditions.
+#ifdef JS_CODEGEN_NONE
+    bool available = false;
+#else
     bool available = cx->jitSupportsFloatingPoint() &&
                      cx->gcSystemPageSize() == AsmJSPageSize &&
                      !cx->compartment()->debugMode() &&
                      cx->runtime()->options().asmJS();
+#endif
 
     args.rval().set(BooleanValue(available));
     return true;

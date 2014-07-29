@@ -21,6 +21,8 @@
 # include "jit/arm64/Lowering-arm64.h"
 #elif defined(JS_CODEGEN_MIPS)
 # include "jit/mips/Lowering-mips.h"
+#elif defined(JS_CODEGEN_NONE)
+# include "jit/none/Lowering-none.h"
 #else
 # error "Unknown architecture!"
 #endif

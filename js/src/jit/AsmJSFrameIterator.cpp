@@ -113,6 +113,12 @@ static const unsigned StoredFP = 20;
 static const unsigned PushedRetAddr = 999; // FIXME: read from assertion
 static const unsigned PushedFP = 999; // FIXME: read from assertion
 static const unsigned StoredFP = 999; // FIXME: read from assertion
+#elif defined(JS_CODEGEN_NONE)
+static const unsigned PushedRetAddr = 0;
+static const unsigned PushedFP = 1;
+static const unsigned StoredFP = 1;
+#else
+# error "Unknown architecture!"
 #endif
 
 static void
