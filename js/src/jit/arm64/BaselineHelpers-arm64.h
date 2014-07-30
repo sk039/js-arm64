@@ -7,8 +7,6 @@
 #ifndef jit_arm64_BaselineHelpers_arm64_h
 #define jit_arm64_BaselineHelpers_arm64_h
 
-#ifdef JS_ION
-
 #include "jit/BaselineFrame.h"
 #include "jit/BaselineIC.h"
 #include "jit/BaselineRegisters.h"
@@ -126,7 +124,5 @@ EmitStubGuardFailure(MacroAssembler &masm)
 
 } // namespace jit
 } // namespace js
-
-#endif // JS_ION
 
 #endif // jit_arm64_BaselineHelpers_arm64_h

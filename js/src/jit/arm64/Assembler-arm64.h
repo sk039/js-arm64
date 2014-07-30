@@ -241,8 +241,12 @@ class ABIArgGenerator
     uint32_t stackBytesConsumedSoFar() const { return stackOffset_; }
 
   public:
-    static const Register NonArgReturnVolatileReg0;
-    static const Register NonArgReturnVolatileReg1;
+    static const Register NonArgReturnReg0;
+    static const Register NonArgReturnReg1;
+    static const Register NonVolatileReg;
+    static const Register NonArg_VolatileReg;
+    static const Register NonReturn_VolatileReg0;
+    static const Register NonReturn_VolatileReg1;
 
   protected:
     unsigned intRegIndex_;
@@ -286,6 +290,22 @@ GetTempRegForIntArg(uint32_t usedIntArgs, uint32_t usedFloatArgs, Register *out)
     JS_ASSERT(0 && "TODO");
     return false;
 }
+
+// FIXME: Should be shared with ARM's Assembler.
+class AutoForbidPools {
+    Assembler *asm_;
+
+  public:
+    AutoForbidPools(Assembler *asm_, size_t maxInst)
+      : asm_(asm_)
+    {
+        asm_->enterNoPool(maxInst);
+    }
+
+    ~AutoForbidPools() {
+        asm_->leaveNoPool();
+    }
+};
 
 static const uint32_t AlignmentAtPrologue = 0;
 static const uint32_t AlignmentMidPrologue = 8;

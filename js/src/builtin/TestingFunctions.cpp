@@ -1115,7 +1115,7 @@ static bool
 EnableOsiPointRegisterChecks(JSContext *, unsigned argc, jsval *vp)
 {
     CallArgs args = CallArgsFromVp(argc, vp);
-#if defined(JS_ION) && defined(CHECK_OSIPOINT_REGISTERS)
+#ifdef CHECK_OSIPOINT_REGISTERS
     jit::js_JitOptions.checkOsiPointRegisters = true;
 #endif
     args.rval().setUndefined();
@@ -1333,9 +1333,7 @@ static bool
 SetIonCheckGraphCoherency(JSContext *cx, unsigned argc, jsval *vp)
 {
     CallArgs args = CallArgsFromVp(argc, vp);
-#ifdef JS_ION
     jit::js_JitOptions.checkGraphConsistency = ToBoolean(args.get(0));
-#endif
     args.rval().setUndefined();
     return true;
 }

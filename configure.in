@@ -3844,6 +3844,7 @@ MOZ_PAY=
 MOZ_AUDIO_CHANNEL_MANAGER=
 NSS_NO_LIBPKIX=
 MOZ_CONTENT_SANDBOX=
+MOZ_GMP_SANDBOX=
 JSGC_USE_EXACT_ROOTING=1
 JSGC_GENERATIONAL=
 
@@ -6406,6 +6407,28 @@ fi
 AC_SUBST(MOZ_CONTENT_SANDBOX)
 
 dnl ========================================================
+dnl = Gecko Media Plugin sandboxing
+dnl ========================================================
+case $OS_TARGET in
+WINNT)
+    MOZ_GMP_SANDBOX=1
+    ;;
+Linux)
+    case $CPU_ARCH in
+    x86_64|x86)
+        MOZ_GMP_SANDBOX=1
+        ;;
+    esac
+    ;;
+esac
+
+if test -n "$MOZ_GMP_SANDBOX"; then
+    AC_DEFINE(MOZ_GMP_SANDBOX)
+fi
+
+AC_SUBST(MOZ_GMP_SANDBOX)
+
+dnl ========================================================
 dnl =
 dnl = Module specific options
 dnl =
@@ -8010,10 +8033,13 @@ if test "$MOZ_TREE_CAIRO"; then
         XLIB_SURFACE_FEATURE="#define CAIRO_HAS_XLIB_SURFACE 1"
         XLIB_XRENDER_SURFACE_FEATURE="#define CAIRO_HAS_XLIB_XRENDER_SURFACE 1"
         PS_SURFACE_FEATURE="#define CAIRO_HAS_PS_SURFACE 1"
+    fi
+    if test "$_HAVE_FREETYPE2"; then
         FT_FONT_FEATURE="#define CAIRO_HAS_FT_FONT 1"
         MOZ_ENABLE_CAIRO_FT=1
         CAIRO_FT_CFLAGS="$FT2_CFLAGS"
     fi
+
     case "$MOZ_WIDGET_TOOLKIT" in
       qt)
         QT_SURFACE_FEATURE="#define CAIRO_HAS_QT_SURFACE 1"

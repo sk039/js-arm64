@@ -30,6 +30,8 @@
 #ifndef VIXL_A64_SIMULATOR_A64_H_
 #define VIXL_A64_SIMULATOR_A64_H_
 
+#ifdef JS_ARM64_SIMULATOR
+
 #include "jit/arm64/vixl/VIXL-Globals-vixl.h"
 #include "jit/arm64/vixl/VIXL-Utils-vixl.h"
 #include "jit/arm64/vixl/Instructions-vixl.h"
@@ -914,5 +916,7 @@ void DestroySimulatorRuntime(SimulatorRuntime *srt);
 
 }  // namespace jit
 }  // namespace js
+
+#endif // JS_ARM64_SIMULATOR
 
 #endif  // VIXL_A64_SIMULATOR_A64_H_
