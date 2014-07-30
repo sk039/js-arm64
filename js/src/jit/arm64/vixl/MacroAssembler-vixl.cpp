@@ -117,16 +117,22 @@ MacroAssemblerVIXL::LogicalMacro(const ARMRegister& rd, const ARMRegister& rn,
     if (operand.IsImmediate()) {
         int64_t immediate = operand.immediate();
         unsigned reg_size = rd.size();
-        VIXL_ASSERT(rd.Is64Bits() || is_uint32(immediate));
 
         // If the operation is NOT, invert the operation and immediate.
         if ((op & NOT) == NOT) {
             op = static_cast<LogicalOp>(op & ~NOT);
             immediate = ~immediate;
-            if (rd.Is32Bits()) {
-                immediate &= kWRegMask;
-            }
         }
+
+        // Ignore the top 32 bits of an immediate if we're moving to a W register.
+        if (rd.Is32Bits()) {
+            // Check that the top 32 bits are consistent.
+            VIXL_ASSERT(((immediate >> kWRegSize) == 0) ||
+                        ((immediate >> kWRegSize) == -1));
+            immediate &= kWRegMask;
+        }
+
+        VIXL_ASSERT(rd.Is64Bits() || is_uint32(immediate));
 
         // Special cases for all set or all clear immediates.
         if (immediate == 0) {
@@ -172,14 +178,15 @@ MacroAssemblerVIXL::LogicalMacro(const ARMRegister& rd, const ARMRegister& rn,
         } else {
             // Immediate can't be encoded: synthesize using move immediate.
             ARMRegister temp = temps.AcquireSameSizeAs(rn);
-            Mov(temp, immediate);
+            Operand imm_operand = MoveImmediateForShiftedOp(temp, immediate);
+
             if (rd.Is(sp)) {
                 // If rd is the stack pointer we cannot use it as the destination
                 // register so we use the temp register as an intermediate again.
-                Logical(temp, rn, Operand(temp), op);
+                Logical(temp, rn, imm_operand, op);
                 Mov(sp, temp);
             } else {
-                Logical(rd, rn, Operand(temp), op);
+                Logical(rd, rn, imm_operand, op);
             }
         }
 
@@ -275,21 +282,11 @@ MacroAssemblerVIXL::Mov(const ARMRegister& rd, uint64_t imm)
     // applying move-keep operations to move-zero and move-inverted initial
     // values.
 
-    unsigned reg_size = rd.size();
-    unsigned n, imm_s, imm_r;
-    if (IsImmMovz(imm, reg_size) && !rd.IsSP()) {
-        // Immediate can be represented in a move zero instruction. Movz can't
-        // write to the stack pointer.
-        movz(rd, imm);
-    } else if (IsImmMovn(imm, reg_size) && !rd.IsSP()) {
-        // Immediate can be represented in a move negative instruction. Movn can't
-        // write to the stack pointer.
-        movn(rd, rd.Is64Bits() ? ~imm : (~imm & kWRegMask));
-    } else if (IsImmLogical(imm, reg_size, &n, &imm_s, &imm_r)) {
-        // Immediate can be represented in a logical orr instruction.
-        VIXL_ASSERT(!rd.IsZero());
-        LogicalImmediate(rd, AppropriateZeroRegFor(rd), n, imm_s, imm_r, ORR);
-    } else {
+    // Try to move the immediate in one instruction, and if that fails, switch to
+    // using multiple instructions.
+    if (!TryOneInstrMoveImmediate(rd, imm)) {
+        unsigned reg_size = rd.size();
+
         // Generic immediate case. Imm will be represented by
         //   [imm3, imm2, imm1, imm0], where each imm is 16 bits.
         // A move-zero or move-inverted is generated for the first non-zero or
@@ -351,8 +348,8 @@ MacroAssemblerVIXL::CountClearHalfWords(uint64_t imm, unsigned reg_size)
     return count;
 }
 
-// The movn instruction can generate immediates containing an arbitrary 16-bit
-// value, with remaining bits set, eg. 0x00001234, 0x0000123400000000.
+// The movz instruction can generate immediates containing an arbitrary 16-bit
+// value, with remaining bits clear, eg. 0x00001234, 0x0000123400000000.
 bool
 MacroAssemblerVIXL::IsImmMovz(uint64_t imm, unsigned reg_size)
 {
@@ -448,7 +445,7 @@ MacroAssemblerVIXL::Csel(const ARMRegister& rd, const ARMRegister& rn,
 void
 MacroAssemblerVIXL::Add(const ARMRegister& rd, const ARMRegister& rn, const Operand& operand)
 {
-    if (operand.IsImmediate() && (operand.immediate() < 0))
+    if (operand.IsImmediate() && (operand.immediate() < 0) && IsImmAddSub(-operand.immediate()))
         AddSubMacro(rd, rn, -operand.immediate(), LeaveFlags, SUB);
     else
         AddSubMacro(rd, rn, operand, LeaveFlags, ADD);
@@ -457,7 +454,7 @@ MacroAssemblerVIXL::Add(const ARMRegister& rd, const ARMRegister& rn, const Oper
 void
 MacroAssemblerVIXL::Adds(const ARMRegister& rd, const ARMRegister& rn, const Operand& operand)
 {
-    if (operand.IsImmediate() && (operand.immediate() < 0))
+    if (operand.IsImmediate() && (operand.immediate() < 0) && IsImmAddSub(-operand.immediate()))
         AddSubMacro(rd, rn, -operand.immediate(), SetFlags, SUB);
     else
         AddSubMacro(rd, rn, operand, SetFlags, ADD);
@@ -466,7 +463,7 @@ MacroAssemblerVIXL::Adds(const ARMRegister& rd, const ARMRegister& rn, const Ope
 void
 MacroAssemblerVIXL::Sub(const ARMRegister& rd, const ARMRegister& rn, const Operand& operand)
 {
-    if (operand.IsImmediate() && (operand.immediate() < 0))
+    if (operand.IsImmediate() && (operand.immediate() < 0) && IsImmAddSub(-operand.immediate()))
         AddSubMacro(rd, rn, -operand.immediate(), LeaveFlags, ADD);
     else
         AddSubMacro(rd, rn, operand, LeaveFlags, SUB);
@@ -475,7 +472,7 @@ MacroAssemblerVIXL::Sub(const ARMRegister& rd, const ARMRegister& rn, const Oper
 void
 MacroAssemblerVIXL::Subs(const ARMRegister& rd, const ARMRegister& rn, const Operand& operand)
 {
-    if (operand.IsImmediate() && (operand.immediate() < 0))
+    if (operand.IsImmediate() && (operand.immediate() < 0) && IsImmAddSub(-operand.immediate()))
         AddSubMacro(rd, rn, -operand.immediate(), SetFlags, ADD);
     else
         AddSubMacro(rd, rn, operand, SetFlags, SUB);
@@ -555,6 +552,69 @@ MacroAssemblerVIXL::Negs(const ARMRegister& rd, const Operand& operand)
     Subs(rd, AppropriateZeroRegFor(rd), operand);
 }
 
+bool
+MacroAssemblerVIXL::TryOneInstrMoveImmediate(const ARMRegister &dst, int64_t imm)
+{
+    unsigned n, imm_s, imm_r;
+    int reg_size = dst.size();
+
+    if (IsImmMovz(imm, reg_size) && !dst.IsSP()) {
+        // Immediate can be represented in a move zero instruction. Movz can't write
+        // to the stack pointer.
+        movz(dst, imm);
+        return true;
+    }
+
+    if (IsImmMovn(imm, reg_size) && !dst.IsSP()) {
+        // Immediate can be represented in a move negative instruction. Movn can't
+        // write to the stack pointer.
+        movn(dst, dst.Is64Bits() ? ~imm : (~imm & kWRegMask));
+        return true;
+    }
+
+    if (IsImmLogical(imm, reg_size, &n, &imm_s, &imm_r)) {
+        // Immediate can be represented in a logical orr instruction.
+        VIXL_ASSERT(!dst.IsZero());
+        LogicalImmediate(dst, AppropriateZeroRegFor(dst), n, imm_s, imm_r, ORR);
+        return true;
+    }
+
+    return false;
+}
+
+Operand
+MacroAssemblerVIXL::MoveImmediateForShiftedOp(const ARMRegister &dst, int64_t imm)
+{
+    int reg_size = dst.size();
+
+    // Encode the immediate in a single move instruction, if possible.
+    if (TryOneInstrMoveImmediate(dst, imm)) {
+        // The move was successful; nothing to do here.
+    } else {
+        // Pre-shift the immediate to the least-significant bits of the register.
+        int shift_low = CountTrailingZeros(imm, reg_size);
+        int64_t imm_low = imm >> shift_low;
+
+        // Pre-shift the immediate to the most-significant bits of the register,
+        // inserting set bits in the least-significant bits.
+        int shift_high = CountLeadingZeros(imm, reg_size);
+        int64_t imm_high = (imm << shift_high) | ((1 << shift_high) - 1);
+
+        if (TryOneInstrMoveImmediate(dst, imm_low)) {
+            // The new immediate has been moved into the destination's low bits:
+            // return a new leftward-shifting operand.
+            return Operand(dst, LSL, shift_low);
+        } else if (TryOneInstrMoveImmediate(dst, imm_high)) {
+            // The new immediate has been moved into the destination's high bits:
+            // return a new rightward-shifting operand.
+            return Operand(dst, LSR, shift_high);
+        } else {
+            Mov(dst, imm);
+        }
+    }
+    return Operand(dst);
+}
+
 void
 MacroAssemblerVIXL::AddSubMacro(const ARMRegister& rd, const ARMRegister& rn,
                                 const Operand& operand, FlagsUpdate S, AddSubOp op)
@@ -571,8 +631,13 @@ MacroAssemblerVIXL::AddSubMacro(const ARMRegister& rd, const ARMRegister& rn,
     {
         UseScratchRegisterScope temps(this);
         ARMRegister temp = temps.AcquireSameSizeAs(rn);
-        Mov(temp, operand);
-        AddSub(rd, rn, temp, S, op);
+        if (operand.IsImmediate()) {
+            Operand imm_operand = MoveImmediateForShiftedOp(temp, operand.immediate());
+            AddSub(rd, rn, imm_operand, S, op);
+        } else {
+            Mov(temp, operand);
+            AddSub(rd, rn, temp, S, op);
+        }
     } else {
         AddSub(rd, rn, operand, S, op);
     }
@@ -1312,14 +1377,14 @@ ARMRegister
 UseScratchRegisterScope::AcquireSameSizeAs(const ARMRegister& reg)
 {
     int code = AcquireNextAvailable(available_).code();
-    return ARMRegister(code, reg.SizeInBits());
+    return ARMRegister(code, reg.size());
 }
 
 ARMFPRegister
 UseScratchRegisterScope::AcquireSameSizeAs(const ARMFPRegister& reg)
 {
     int code = AcquireNextAvailable(availablefp_).code();
-    return ARMFPRegister(code, reg.SizeInBits());
+    return ARMFPRegister(code, reg.size());
 }
 
 void

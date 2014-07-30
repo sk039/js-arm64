@@ -33,16 +33,12 @@
 #include "js-config.h"
 
 // Define platform specific functionalities.
+#include <signal.h>
 
 namespace js {
 namespace jit {
 
-#ifdef JS_ARM64_SIMULATOR
-// Currently we assume running the simulator implies running on x86 hardware.
-inline void HostBreakpoint(int imm16 = 0) { asm("int3"); }
-#else
-inline void HostBreakpoint(int imm16 = 0) { asm("brk"); }
-#endif
+inline void HostBreakpoint(int64_t code = 0) { raise(SIGINT); }
 
 } // namespace jit
 } // namespace js

@@ -146,6 +146,18 @@ class MacroAssemblerVIXL : public Assembler
     bool IsImmMovn(uint64_t imm, unsigned reg_size);
     unsigned CountClearHalfWords(uint64_t imm, unsigned reg_size);
 
+    // Try to move an immediate into the destination register in a single
+    // instruction. Returns true for success, and updates the contents of dst.
+    // Returns false, otherwise.
+    bool TryOneInstrMoveImmediate(const ARMRegister& dst, int64_t imm);
+
+    // Move an immediate into register dst, and return an Operand object for
+    // use with a subsequent instruction that accepts a shift. The value moved
+    // into dst is not necessarily equal to imm; it may have had a shifting
+    // operation applied to it that will be subsequently undone by the shift
+    // applied in the Operand.
+    Operand MoveImmediateForShiftedOp(const ARMRegister& dst, int64_t imm);
+
     // Conditional macros.
     void Ccmp(const ARMRegister& rn, const Operand& operand, StatusFlags nzcv, Condition cond);
     void Ccmn(const ARMRegister& rn, const Operand& operand, StatusFlags nzcv, Condition cond);
@@ -288,6 +300,10 @@ class MacroAssemblerVIXL : public Assembler
         VIXL_ASSERT(!rd.IsZero());
         adr(rd, label);
     }
+    void Adrp(const ARMRegister& rd, Label* label) {
+        VIXL_ASSERT(!rd.IsZero());
+        adrp(rd, label);
+    }
     void Asr(const ARMRegister& rd, const ARMRegister& rn, unsigned shift) {
         VIXL_ASSERT(!rd.IsZero());
         VIXL_ASSERT(!rn.IsZero());
@@ -367,6 +383,9 @@ class MacroAssemblerVIXL : public Assembler
         VIXL_ASSERT(!rd.IsZero());
         VIXL_ASSERT(!rn.IsZero());
         cinv(rd, rn, cond);
+    }
+    void Clrex() {
+        clrex();
     }
     void Cls(const ARMRegister& rd, const ARMRegister& rn) {
         VIXL_ASSERT(!rd.IsZero());
@@ -569,6 +588,28 @@ class MacroAssemblerVIXL : public Assembler
     void Isb() {
         isb();
     }
+    void Ldar(const ARMRegister& rt, const MemOperand& src) {
+        ldar(rt, src);
+    }
+    void Ldarb(const ARMRegister& rt, const MemOperand& src) {
+        ldarb(rt, src);
+    }
+    void Ldarh(const ARMRegister& rt, const MemOperand& src) {
+        ldarh(rt, src);
+    }
+    void Ldaxp(const ARMRegister& rt, const ARMRegister& rt2, const MemOperand& src) {
+        VIXL_ASSERT(!rt.Aliases(rt2));
+        ldaxp(rt, rt2, src);
+    }
+    void Ldaxr(const ARMRegister& rt, const MemOperand& src) {
+        ldaxr(rt, src);
+    }
+    void Ldaxrb(const ARMRegister& rt, const MemOperand& src) {
+        ldaxrb(rt, src);
+    }
+    void Ldaxrh(const ARMRegister& rt, const MemOperand& src) {
+        ldaxrh(rt, src);
+    }
     void Ldnp(const CPURegister& rt, const CPURegister& rt2, const MemOperand& src) {
         ldnp(rt, rt2, src);
     }
@@ -599,6 +640,19 @@ class MacroAssemblerVIXL : public Assembler
     void Ldr(const ARMRegister& rt, uint64_t imm) {
         VIXL_ASSERT(!rt.IsZero());
         ldr(rt, imm);
+    }
+    void Ldxp(const ARMRegister& rt, const ARMRegister& rt2, const MemOperand& src) {
+        VIXL_ASSERT(!rt.Aliases(rt2));
+        ldxp(rt, rt2, src);
+    }
+    void Ldxr(const ARMRegister& rt, const MemOperand& src) {
+        ldxr(rt, src);
+    }
+    void Ldxrb(const ARMRegister& rt, const MemOperand& src) {
+        ldxrb(rt, src);
+    }
+    void Ldxrh(const ARMRegister& rt, const MemOperand& src) {
+        ldxrh(rt, src);
     }
     void Lsl(const ARMRegister& rd, const ARMRegister& rn, unsigned shift) {
         VIXL_ASSERT(!rd.IsZero());
@@ -751,11 +805,66 @@ class MacroAssemblerVIXL : public Assembler
         VIXL_ASSERT(!xm.IsZero());
         smulh(xd, xn, xm);
     }
+    void Stlr(const ARMRegister& rt, const MemOperand& dst) {
+        stlr(rt, dst);
+    }
+    void Stlrb(const ARMRegister& rt, const MemOperand& dst) {
+        stlrb(rt, dst);
+    }
+    void Stlrh(const ARMRegister& rt, const MemOperand& dst) {
+        stlrh(rt, dst);
+    }
+    void Stlxp(const ARMRegister& rs, const ARMRegister& rt,
+               const ARMRegister& rt2, const MemOperand& dst)
+    {
+        VIXL_ASSERT(!rs.Aliases(dst.base()));
+        VIXL_ASSERT(!rs.Aliases(rt));
+        VIXL_ASSERT(!rs.Aliases(rt2));
+        stlxp(rs, rt, rt2, dst);
+    }
+    void Stlxr(const ARMRegister& rs, const ARMRegister& rt, const MemOperand& dst) {
+        VIXL_ASSERT(!rs.Aliases(dst.base()));
+        VIXL_ASSERT(!rs.Aliases(rt));
+        stlxr(rs, rt, dst);
+    }
+    void Stlxrb(const ARMRegister& rs, const ARMRegister& rt, const MemOperand& dst) {
+        VIXL_ASSERT(!rs.Aliases(dst.base()));
+        VIXL_ASSERT(!rs.Aliases(rt));
+        stlxrb(rs, rt, dst);
+    }
+    void Stlxrh(const ARMRegister& rs, const ARMRegister& rt, const MemOperand& dst) {
+        VIXL_ASSERT(!rs.Aliases(dst.base()));
+        VIXL_ASSERT(!rs.Aliases(rt));
+        stlxrh(rs, rt, dst);
+    }
     void Stnp(const CPURegister& rt, const CPURegister& rt2, const MemOperand& dst) {
         stnp(rt, rt2, dst);
     }
     void Stp(const CPURegister& rt, const CPURegister& rt2, const MemOperand& dst) {
         stp(rt, rt2, dst);
+    }
+    void Stxp(const ARMRegister& rs, const ARMRegister& rt,
+              const ARMRegister& rt2, const MemOperand& dst)
+    {
+        VIXL_ASSERT(!rs.Aliases(dst.base()));
+        VIXL_ASSERT(!rs.Aliases(rt));
+        VIXL_ASSERT(!rs.Aliases(rt2));
+        stxp(rs, rt, rt2, dst);
+    }
+    void Stxr(const ARMRegister& rs, const ARMRegister& rt, const MemOperand& dst) {
+        VIXL_ASSERT(!rs.Aliases(dst.base()));
+        VIXL_ASSERT(!rs.Aliases(rt));
+        stxr(rs, rt, dst);
+    }
+    void Stxrb(const ARMRegister& rs, const ARMRegister& rt, const MemOperand& dst) {
+        VIXL_ASSERT(!rs.Aliases(dst.base()));
+        VIXL_ASSERT(!rs.Aliases(rt));
+        stxrb(rs, rt, dst);
+    }
+    void Stxrh(const ARMRegister& rs, const ARMRegister& rt, const MemOperand& dst) {
+        VIXL_ASSERT(!rs.Aliases(dst.base()));
+        VIXL_ASSERT(!rs.Aliases(rt));
+        stxrh(rs, rt, dst);
     }
     void Sxtb(const ARMRegister& rd, const ARMRegister& rn) {
         VIXL_ASSERT(!rd.IsZero());
@@ -976,19 +1085,26 @@ class MacroAssemblerVIXL : public Assembler
 // emitted is what you specified when creating the scope.
 class InstructionAccurateScope {
   public:
-    explicit InstructionAccurateScope(MacroAssemblerVIXL* masm)
-      : masm_(masm), size_(0)
-    { }
-
-    InstructionAccurateScope(MacroAssemblerVIXL* masm, int count)
+#ifdef DEBUG
+    explicit InstructionAccurateScope(MacroAssemblerVIXL* masm, int count = 0)
       : masm_(masm), size_(count * kInstructionSize)
     {
-#ifdef DEBUG
-      masm_->bind(&start_);
-#endif
+        //masm_->BlockLiteralPool();
+        if (size_ != 0) {
+            masm_->bind(&start_);
+        }
     }
+#else
+    explicit InstructionAccurateScope(MacroAssemblerVIXL* masm, int count = 0)
+      : masm_(masm)
+    {
+        USEARG(count);
+        //masm_->BlockLiteralPool();
+    }
+#endif
 
     ~InstructionAccurateScope() {
+        //masm_->ReleaseLiteralPool();
 #if 0 // FIXME: Are we going to use this?
 #ifdef DEBUG
       if (start_.bound()) {
@@ -1000,8 +1116,8 @@ class InstructionAccurateScope {
 
   private:
     MacroAssemblerVIXL* masm_;
-    uint64_t size_;
 #ifdef DEBUG
+    uint64_t size_;
     Label start_;
 #endif
 };

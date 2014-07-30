@@ -628,6 +628,42 @@ class Label {
 };
 #endif
 
+// Control whether or not position-independent code should be emitted.
+enum PositionIndependentCodeOption {
+    // All code generated will be position-independent; all branches and
+    // references to labels generated with the Label class will use PC-relative
+    // addressing.
+    PositionIndependentCode,
+  
+    // Allow VIXL to generate code that refers to absolute addresses. With this
+    // option, it will not be possible to copy the code buffer and run it from a
+    // different address; code must be generated in its final location.
+    PositionDependentCode,
+  
+    // Allow VIXL to assume that the bottom 12 bits of the address will be
+    // constant, but that the top 48 bits may change. This allows `adrp` to
+    // function in systems which copy code between pages, but otherwise maintain
+    // 4KB page alignment.
+    PageOffsetDependentCode
+};
+
+// Control how scaled- and unscaled-offset loads and stores are generated.
+enum LoadStoreScalingOption {
+    // Prefer scaled-immediate-offset instructions, but emit unscaled-offset,
+    // register-offset, pre-index or post-index instructions if necessary.
+    PreferScaledOffset,
+  
+    // Prefer unscaled-immediate-offset instructions, but emit scaled-offset,
+    // register-offset, pre-index or post-index instructions if necessary.
+    PreferUnscaledOffset,
+  
+    // Require scaled-immediate-offset instructions.
+    RequireScaledOffset,
+
+    // Require unscaled-immediate-offset instructions.
+    RequireUnscaledOffset
+};
+
 // Assembler.
 class AssemblerVIXL : public AssemblerShared
 {
@@ -817,6 +853,12 @@ class AssemblerVIXL : public AssemblerShared
 
     // Calculate the address of a PC offset.
     void adr(const ARMRegister& rd, int imm21);
+
+    // Calculate the page address of a label.
+    void adrp(const ARMRegister& rd, Label* label);
+
+    // Calculate the page address of a PC offset.
+    void adrp(const ARMRegister& rd, int imm21);
 
     // Data Processing instructions.
     // Add.
@@ -1109,31 +1151,76 @@ class AssemblerVIXL : public AssemblerShared
 
     // Memory instructions.
     // Load integer or FP register.
-    void ldr(const CPURegister& rt, const MemOperand& src);
+    void ldr(const CPURegister& rt, const MemOperand& src,
+             LoadStoreScalingOption option = PreferScaledOffset);
 
     // Store integer or FP register.
-    void str(const CPURegister& rt, const MemOperand& dst);
+    void str(const CPURegister& rt, const MemOperand& dst,
+             LoadStoreScalingOption option = PreferScaledOffset);
 
     // Load word with sign extension.
-    void ldrsw(const ARMRegister& rt, const MemOperand& src);
+    void ldrsw(const ARMRegister& rt, const MemOperand& src,
+               LoadStoreScalingOption option = PreferScaledOffset);
 
     // Load byte.
-    void ldrb(const ARMRegister& rt, const MemOperand& src);
+    void ldrb(const ARMRegister& rt, const MemOperand& src,
+              LoadStoreScalingOption option = PreferScaledOffset);
 
     // Store byte.
-    void strb(const ARMRegister& rt, const MemOperand& dst);
+    void strb(const ARMRegister& rt, const MemOperand& dst,
+              LoadStoreScalingOption option = PreferScaledOffset);
 
     // Load byte with sign extension.
-    void ldrsb(const ARMRegister& rt, const MemOperand& src);
+    void ldrsb(const ARMRegister& rt, const MemOperand& src,
+               LoadStoreScalingOption option = PreferScaledOffset);
 
     // Load half-word.
-    void ldrh(const ARMRegister& rt, const MemOperand& src);
+    void ldrh(const ARMRegister& rt, const MemOperand& src,
+              LoadStoreScalingOption option = PreferScaledOffset);
 
     // Store half-word.
-    void strh(const ARMRegister& rt, const MemOperand& dst);
+    void strh(const ARMRegister& rt, const MemOperand& dst,
+              LoadStoreScalingOption option = PreferScaledOffset);
 
     // Load half-word with sign extension.
-    void ldrsh(const ARMRegister& rt, const MemOperand& src);
+    void ldrsh(const ARMRegister& rt, const MemOperand& src,
+               LoadStoreScalingOption option = PreferScaledOffset);
+
+    // Load integer or FP register (with unscaled offset).
+    void ldur(const CPURegister& rt, const MemOperand& src,
+              LoadStoreScalingOption option = PreferUnscaledOffset);
+  
+    // Store integer or FP register (with unscaled offset).
+    void stur(const CPURegister& rt, const MemOperand& src,
+              LoadStoreScalingOption option = PreferUnscaledOffset);
+  
+    // Load word with sign extension.
+    void ldursw(const ARMRegister& rt, const MemOperand& src,
+                LoadStoreScalingOption option = PreferUnscaledOffset);
+  
+    // Load byte (with unscaled offset).
+    void ldurb(const ARMRegister& rt, const MemOperand& src,
+               LoadStoreScalingOption option = PreferUnscaledOffset);
+  
+    // Store byte (with unscaled offset).
+    void sturb(const ARMRegister& rt, const MemOperand& dst,
+               LoadStoreScalingOption option = PreferUnscaledOffset);
+  
+    // Load byte with sign extension (and unscaled offset).
+    void ldursb(const ARMRegister& rt, const MemOperand& src,
+                LoadStoreScalingOption option = PreferUnscaledOffset);
+  
+    // Load half-word (with unscaled offset).
+    void ldurh(const ARMRegister& rt, const MemOperand& src,
+               LoadStoreScalingOption option = PreferUnscaledOffset);
+  
+    // Store half-word (with unscaled offset).
+    void sturh(const ARMRegister& rt, const MemOperand& dst,
+               LoadStoreScalingOption option = PreferUnscaledOffset);
+  
+    // Load half-word with sign extension (and unscaled offset).
+    void ldursh(const ARMRegister& rt, const MemOperand& src,
+                LoadStoreScalingOption option = PreferUnscaledOffset);
 
     // Load integer or FP register pair.
     void ldp(const CPURegister& rt, const CPURegister& rt2, const MemOperand& src);
@@ -1158,6 +1245,74 @@ class AssemblerVIXL : public AssemblerShared
 
     // Load single precision floating point literal to FP register.
     void ldr(const ARMFPRegister& ft, float imm);
+
+    // Store exclusive byte.
+    void stxrb(const ARMRegister& rs, const ARMRegister& rt, const MemOperand& dst);
+  
+    // Store exclusive half-word.
+    void stxrh(const ARMRegister& rs, const ARMRegister& rt, const MemOperand& dst);
+  
+    // Store exclusive register.
+    void stxr(const ARMRegister& rs, const ARMRegister& rt, const MemOperand& dst);
+  
+    // Load exclusive byte.
+    void ldxrb(const ARMRegister& rt, const MemOperand& src);
+  
+    // Load exclusive half-word.
+    void ldxrh(const ARMRegister& rt, const MemOperand& src);
+  
+    // Load exclusive register.
+    void ldxr(const ARMRegister& rt, const MemOperand& src);
+  
+    // Store exclusive register pair.
+    void stxp(const ARMRegister& rs, const ARMRegister& rt,
+              const ARMRegister& rt2, const MemOperand& dst);
+  
+    // Load exclusive register pair.
+    void ldxp(const ARMRegister& rt, const ARMRegister& rt2, const MemOperand& src);
+  
+    // Store-release exclusive byte.
+    void stlxrb(const ARMRegister& rs, const ARMRegister& rt, const MemOperand& dst);
+  
+    // Store-release exclusive half-word.
+    void stlxrh(const ARMRegister& rs, const ARMRegister& rt, const MemOperand& dst);
+  
+    // Store-release exclusive register.
+    void stlxr(const ARMRegister& rs, const ARMRegister& rt, const MemOperand& dst);
+  
+    // Load-acquire exclusive byte.
+    void ldaxrb(const ARMRegister& rt, const MemOperand& src);
+  
+    // Load-acquire exclusive half-word.
+    void ldaxrh(const ARMRegister& rt, const MemOperand& src);
+  
+    // Load-acquire exclusive register.
+    void ldaxr(const ARMRegister& rt, const MemOperand& src);
+  
+    // Store-release exclusive register pair.
+    void stlxp(const ARMRegister& rs, const ARMRegister& rt,
+               const ARMRegister& rt2, const MemOperand& dst);
+  
+    // Load-acquire exclusive register pair.
+    void ldaxp(const ARMRegister& rt, const ARMRegister& rt2, const MemOperand& src);
+  
+    // Store-release byte.
+    void stlrb(const ARMRegister& rt, const MemOperand& dst);
+  
+    // Store-release half-word.
+    void stlrh(const ARMRegister& rt, const MemOperand& dst);
+  
+    // Store-release register.
+    void stlr(const ARMRegister& rt, const MemOperand& dst);
+  
+    // Load-acquire byte.
+    void ldarb(const ARMRegister& rt, const MemOperand& src);
+  
+    // Load-acquire half-word.
+    void ldarh(const ARMRegister& rt, const MemOperand& src);
+  
+    // Load-acquire register.
+    void ldar(const ARMRegister& rt, const MemOperand& src);
 
     // Move instructions. The default shift of -1 indicates that the move
     // instruction will calculate an appropriate 16-bit immediate and left shift
@@ -1206,6 +1361,9 @@ class AssemblerVIXL : public AssemblerShared
 
     // System hint.
     void hint(SystemHint code);
+
+    // Clear exclusive monitor.
+    void clrex(int imm4 = 0xf);
 
     // Data memory barrier.
     void dmb(BarrierDomain domain, BarrierType type);
@@ -1407,6 +1565,11 @@ class AssemblerVIXL : public AssemblerShared
         return rt2.code() << Rt2_offset;
     }
 
+    static Instr Rs(CPURegister rs) {
+        VIXL_ASSERT(rs.code() != kSPRegInternalCode);
+        return rs.code() << Rs_offset;
+    }
+
     // These encoding functions allow the stack pointer to be encoded, and
     // disallow the zero register.
     static Instr RdSP(ARMRegister rd) {
@@ -1596,6 +1759,11 @@ class AssemblerVIXL : public AssemblerShared
         return imm7 << ImmHint_offset;
     }
 
+    static Instr CRm(int imm4) {
+        VIXL_ASSERT(is_uint4(imm4));
+        return imm4 << CRm_offset;
+    }
+
     static Instr ImmBarrierDomain(int imm2) {
         VIXL_ASSERT(is_uint2(imm2));
         return imm2 << ImmBarrierDomain_offset;
@@ -1636,13 +1804,22 @@ class AssemblerVIXL : public AssemblerShared
         return scale << FPScale_offset;
     }
 
-    uint64_t size() const {
+    size_t size() const {
         return SizeOfCodeGenerated();
     }
 
     // Size of the code generated in bytes, including pools.
-    uint64_t SizeOfCodeGenerated() const {
+    size_t SizeOfCodeGenerated() const {
         return armbuffer_.size();
+    }
+
+    inline PositionIndependentCodeOption pic() {
+        return pic_;
+    }
+  
+    inline bool AllowPageOffsetDependentCode() {
+        return (pic() == PageOffsetDependentCode) ||
+               (pic() == PositionDependentCode);
     }
 
   protected:
@@ -1650,7 +1827,8 @@ class AssemblerVIXL : public AssemblerShared
         return reg.Is64Bits() ? xzr : wzr;
     }
 
-    void LoadStore(const CPURegister& rt, const MemOperand& addr, LoadStoreOp op);
+    void LoadStore(const CPURegister& rt, const MemOperand& addr, LoadStoreOp op,
+                   LoadStoreScalingOption option = PreferScaledOffset);
 
     static bool IsImmLSUnscaled(ptrdiff_t offset);
     static bool IsImmLSScaled(ptrdiff_t offset, LSDataSize size);
@@ -1659,8 +1837,8 @@ class AssemblerVIXL : public AssemblerShared
                  const Operand& operand, LogicalOp op);
     void LogicalImmediate(const ARMRegister& rd, const ARMRegister& rn, unsigned n,
                           unsigned imm_s, unsigned imm_r, LogicalOp op);
-    static bool IsImmLogical(uint64_t value, unsigned width, unsigned* n,
-                             unsigned* imm_s, unsigned* imm_r);
+    static bool IsImmLogical(uint64_t value, unsigned width, unsigned* n = nullptr,
+                             unsigned* imm_s = nullptr, unsigned* imm_r = nullptr);
 
     void ConditionalCompare(const ARMRegister& rn, const Operand& operand, StatusFlags nzcv,
                             Condition cond, ConditionalCompareOp op);
@@ -1827,6 +2005,8 @@ class AssemblerVIXL : public AssemblerShared
 
     // Literal pools.
     mozilla::Array<Pool, 4> pools_;
+
+    PositionIndependentCodeOption pic_;
 
   protected:
     // Pointer of current instruction (into the ARMBuffer).

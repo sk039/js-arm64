@@ -594,7 +594,7 @@ void DebuggerARM64::PrintMemory(const uint8_t* address,
       printf("\n%p: ", current);
     }
 
-    uint64_t data = MemoryRead(current, size);
+    uint64_t data = MemoryRead<uint64_t>(current);
     format->PrintData(&data);
     printf(" ");
   }
@@ -605,7 +605,7 @@ void DebuggerARM64::PrintMemory(const uint8_t* address,
 void DebuggerARM64::PrintRegister(const ARMRegister& target_reg,
                              const char* name,
                              const FormatToken* format) {
-  const uint64_t reg_size = target_reg.SizeInBits();
+  const uint64_t reg_size = target_reg.size();
   const uint64_t format_size = format->SizeOf() * 8;
   const uint64_t count = reg_size / format_size;
   const uint64_t mask = 0xffffffffffffffff >> (64 - format_size);
@@ -627,7 +627,7 @@ void DebuggerARM64::PrintRegister(const ARMRegister& target_reg,
 
 void DebuggerARM64::PrintFloatRegister(const ARMFPRegister& target_fpreg,
                                const FormatToken* format) {
-  const uint64_t fpreg_size = target_fpreg.SizeInBits();
+  const uint64_t fpreg_size = target_fpreg.size();
   const uint64_t format_size = format->SizeOf() * 8;
   const uint64_t count = fpreg_size / format_size;
   const uint64_t mask = 0xffffffffffffffff >> (64 - format_size);
