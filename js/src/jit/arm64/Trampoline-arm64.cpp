@@ -61,19 +61,6 @@ JitRuntime::generateEnterJIT(JSContext *cx, EnterJitType type)
     masm.Add(ARMRegister(PseudoStackPointer, 64), sp, Operand((int64_t)0));
     masm.SetStackPointer(ARMRegister(PseudoStackPointer, 64));
 
-    // TODO: Remove this. This is testing code.
-    if (getenv("ASM_TEST")) {
-        masm.movePtr(ZeroRegister, r23);
-        {
-            Label unbound;
-            masm.Brk(0x7777);
-            masm.jump(&unbound);
-            masm.Brk(0x7722);
-            masm.bind(&unbound);
-        }
-        masm.Brk(0x8888);
-    }
-
     // Push the EnterJIT SPS mark.
     masm.spsMarkJit(&cx->runtime()->spsProfiler, PseudoStackPointer, r20);
 
