@@ -219,6 +219,7 @@ class Assembler : public AssemblerVIXL {
     }
 
     js::Vector<CodeLabel, 0, SystemAllocPolicy> codeLabels_;
+    js::Vector<BufferOffset, 0, SystemAllocPolicy> tmpDataRelocations_;
 
     CompactBufferWriter jumpRelocations_;
     CompactBufferWriter dataRelocations_;

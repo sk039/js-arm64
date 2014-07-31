@@ -1582,7 +1582,8 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         JS_ASSERT(0 && "writeDataRelocation");
     }
     void writeDataRelocation(ImmGCPtr ptr) {
-        JS_ASSERT(0 && "writeDataRelocation");
+        if (ptr.value)
+            tmpDataRelocations_.append(nextOffset());
     }
     void writePrebarrierOffset(CodeOffsetLabel label) {
         JS_ASSERT(0 && "writePrebarrierOffset");
