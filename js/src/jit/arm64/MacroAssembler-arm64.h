@@ -174,6 +174,18 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         JS_ASSERT(0 && "push");
     }
 
+    void push(Imm32 imm) {
+        move32(imm, ScratchReg);
+        MacroAssemblerVIXL::Push(ScratchReg32);
+    }
+    void push(ImmPtr imm) {
+        movePtr(imm, ScratchReg);
+        MacroAssemblerVIXL::Push(ScratchReg64);
+    }
+    void push(ImmGCPtr imm) {
+        movePtr(imm, ScratchReg);
+        MacroAssemblerVIXL::Push(ScratchReg64);
+    }
     void push(Register reg) {
         MacroAssemblerVIXL::Push(ARMRegister(reg, 64));
     }
