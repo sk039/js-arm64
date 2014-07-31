@@ -485,13 +485,19 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         JS_ASSERT(0 && "movePtr");
     }
     void movePtr(ImmGCPtr imm, Register dest) {
-        JS_ASSERT(0 && "movePtr");
+        writeDataRelocation(imm);
+        movePatchablePtr(uintptr_t(imm.value), dest);
     }
     void move32(Imm32 imm, Register dest) {
         Mov(ARMRegister(dest, 32), (int64_t)imm.value);
     }
     void move32(Register src, Register dest) {
         Mov(ARMRegister(dest, 32), ARMRegister(src, 32));
+    }
+
+    void movePatchablePtr(uintptr_t ptr, Register dest) {
+        // FIXME: For the moment, this just moves the pointer normally.
+        movePtr(ImmPtr((void *)ptr), dest);
     }
 
     void not32(Register reg) {
