@@ -9,7 +9,7 @@
 
 #include "jit/IonMacroAssembler.h"
 #include "jit/MoveResolver.h"
-
+#include "jit/arm64/Assembler-arm64.h"
 namespace js {
 namespace jit {
 
@@ -47,16 +47,18 @@ class MoveEmitterARM64
         JS_ASSERT(0 && "tempFloatReg()");
         return InvalidFloatReg;
     }
-    Operand cycleSlot() const {
+    MemOperand cycleSlot() const {
         MOZ_ASSUME_UNREACHABLE("cycleSlot()");
     }
     Operand spillSlot() const {
         MOZ_ASSUME_UNREACHABLE("spillSlot()");
     }
-    Operand toOperand(const MoveOperand &operand, bool isFloat) const {
+    MemOperand toMemOperand(const MoveOperand &operand) const {
         MOZ_ASSUME_UNREACHABLE("toOperand()");
     }
-
+    CPURegister toRegister(const MoveOperand &operand) const {
+        MOZ_ASSUME_UNREACHABLE("toOperand()");
+    }
     void emitMove(const MoveOperand &from, const MoveOperand &to) {
         JS_ASSERT(0 && "emitMove()");
     }
@@ -67,13 +69,112 @@ class MoveEmitterARM64
         JS_ASSERT(0 && "emitDoubleMove()");
     }
     void breakCycle(const MoveOperand &from, const MoveOperand &to, MoveOp::Type type) {
-        JS_ASSERT(0 && "breakCycle()");
+        switch (type) {
+          case MoveOp::FLOAT32:
+            if (to.isMemory()) {
+                ARMFPRegister temp(ScratchFloat32Reg, 32);
+                masm.Ldr(temp, toMemOperand(to));
+                masm.Str(temp, cycleSlot());
+            } else {
+                masm.Str(toRegister(to), cycleSlot());
+            }
+            break;
+          case MoveOp::DOUBLE:
+            if (to.isMemory()) {
+                ARMFPRegister temp(ScratchFloat32Reg, 32);
+                masm.Ldr(temp, toMemOperand(to));
+                masm.Str(temp, cycleSlot());
+            } else {
+                masm.Str(toRegister(to), cycleSlot());
+            }
+            break;
+          case MoveOp::INT32:
+            if (to.isMemory()) {
+                masm.Ldr(ScratchReg32, toMemOperand(to));
+                masm.Str(ScratchReg32, cycleSlot());
+            } else {
+                masm.Str(ARMRegister(to.reg(), 32), cycleSlot());
+            }
+            break;
+          case MoveOp::GENERAL:
+            if (to.isMemory()) {
+                masm.Ldr(ScratchReg32, toMemOperand(to));
+                masm.Push(ScratchReg64);
+            } else {
+                masm.Push(ARMRegister(to.reg(), 64));
+            }
+            break;
+          default:
+            MOZ_ASSUME_UNREACHABLE("Unexpected move type");
+        }
     }
     void completeCycle(const MoveOperand &from, const MoveOperand &to, MoveOp::Type type) {
-        JS_ASSERT(0 && "completeCycle()");
+        switch (type) {
+          case MoveOp::FLOAT32:
+            if (to.isMemory()) {
+                ARMFPRegister temp(ScratchFloat32Reg, 32);
+                masm.Ldr(temp, cycleSlot());
+                masm.Str(temp, toMemOperand(to));
+            } else {
+                masm.Ldr(ARMFPRegister(to.floatReg(), 32), cycleSlot());
+            }
+            break;
+          case MoveOp::DOUBLE:
+            if (to.isMemory()) {
+                ARMFPRegister temp(ScratchDoubleReg, 64);
+                masm.Ldr(temp, cycleSlot());
+                masm.Str(temp, toMemOperand(to));
+            } else {
+                masm.Ldr(ARMFPRegister(to.floatReg(), 64), cycleSlot());
+            }
+            break;
+          case MoveOp::INT32:
+            if (to.isMemory()) {
+                masm.Ldr(ARMRegister(ScratchReg, 32), cycleSlot());
+                masm.Str(ARMRegister(ScratchReg, 32), toMemOperand(to));
+            } else {
+                masm.Ldr(ARMRegister(to.reg(), 32), cycleSlot());
+            }
+            break;
+          case MoveOp::GENERAL:
+            if (to.isMemory()) {
+                masm.Ldr(ARMRegister(ScratchReg, 64), cycleSlot());
+                masm.Str(ARMRegister(ScratchReg, 64), toMemOperand(to));
+            } else {
+                masm.Ldr(ARMRegister(to.reg(), 64), cycleSlot());
+            }
+            break;
+          
+        }
     }
     void emit(const MoveOp &move) {
-        JS_ASSERT(0 && "emit()");
+        const MoveOperand &from = move.from();
+        const MoveOperand &to = move.to();
+        if (move.isCycleEnd()) {
+            MOZ_ASSERT(!move.isCycleBegin());
+            MOZ_ASSERT(inCycle_);
+            completeCycle(from, to, move.type());
+            inCycle_ = false;
+        }
+        if (move.isCycleEnd()) {
+            MOZ_ASSERT(!inCycle_);
+            breakCycle(from, to, move.endCycleType());
+            inCycle_ = true;
+        }
+        switch (move.type()) {
+          case MoveOp::FLOAT32:
+            emitFloat32Move(from, to);
+            break;
+          case MoveOp::DOUBLE:
+            emitDoubleMove(from, to);
+            break;
+          case MoveOp::INT32:
+          case MoveOp::GENERAL:
+            emitMove(from, to);
+            break;
+          default:
+            MOZ_ASSUME_UNREACHABLE("Unexpected move type");
+        }
     }
 
   public:
@@ -92,10 +193,15 @@ class MoveEmitterARM64
         assertDone();
     }
     void emit(const MoveResolver &moves) {
-            JS_ASSERT(0 && "emit()");
+        if (moves.numCycles()) {
+            masm.reserveStack(sizeof(double));
+            pushedAtCycle_ = masm.framePushed();
+        }
+        for (size_t i = 0; i < moves.numMoves(); i++)
+            emit(moves.getMove(i));
     }
     void finish() {
-            JS_ASSERT(0 && "finish()");
+        masm.freeStack(masm.framePushed() - pushedAtStart_);
     }
 };
 

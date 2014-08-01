@@ -28,7 +28,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "jit/IonMacroAssembler.h"
-
+#include "jit/arm64/MoveEmitter-arm64.h"
 namespace js {
 namespace jit {
 
@@ -98,13 +98,81 @@ MacroAssembler::PushRegsInMask(RegisterSet set)
 void
 MacroAssembler::PopRegsInMaskIgnore(RegisterSet set, RegisterSet ignore)
 {
-    Brk(0x2224);
+    // The offset that we'll be loading from
+    uint32_t offset = 0;
+    // The offset that offset will be updated to after the current load.
+    uint32_t nextOffset = 0;
+    for (FloatRegisterIterator iter(set.fpus()); iter.more(); offset = nextOffset) {
+        CPURegister src0 = NoCPUReg;
+        CPURegister src1 = NoCPUReg;
+        while (iter.more() && ignore.has(*iter)) {
+            ++iter;
+            offset += sizeof(double);
+        }
+
+        nextOffset = offset;
+
+        if (!iter.more())
+            break;
+
+        src0 = ARMFPRegister(*iter, 64);
+        nextOffset += sizeof(double);
+
+        if (!iter.more() || ignore.has(*iter)) {
+            // There is no 'next' that can be loaded, and there is already one
+            // element in the queue, just deal with that element.
+            Ldr(src0, MemOperand(GetStackPointer(), offset));
+            continue;
+        }
+        // There is both more, and it isn't being ignored.
+        src1 = ARMFPRegister(*iter, 64);
+        nextOffset += sizeof(double);
+        ldp(src0, src1, MemOperand(GetStackPointer(), offset));
+    }
+
+    MOZ_ASSERT(nextOffset < set.fpus().getSizeInBytes());
+    nextOffset = set.fpus().getSizeInBytes();
+
+    for (GeneralRegisterIterator iter(set.gprs()); iter.more(); offset = nextOffset) {
+        CPURegister src0 = NoCPUReg;
+        CPURegister src1 = NoCPUReg;
+        while (iter.more() && ignore.has(*iter)) {
+            ++iter;
+            offset += sizeof(double);
+        }
+
+        nextOffset = offset;
+
+        if (!iter.more())
+            break;
+
+        src0 = ARMRegister(*iter, 64);
+        nextOffset += sizeof(double);
+
+        if (!iter.more() || ignore.has(*iter)) {
+            // There is no 'next' that can be loaded, and there is already one
+            // element in the queue, just deal with that element.
+            Ldr(src0, MemOperand(GetStackPointer(), offset));
+            continue;
+        }
+        // There is both more, and it isn't being ignored.
+        src1 = ARMRegister(*iter, 64);
+        nextOffset += sizeof(double);
+        ldp(src0, src1, MemOperand(GetStackPointer(), offset));
+    }
+    freeStack(set.gprs().size() * sizeof(int*) + set.fpus().getSizeInBytes());
 }
 
 void
 MacroAssembler::clampDoubleToUint8(FloatRegister input, Register output)
 {
-    Brk(0x2225);
+    ARMRegister dest(output, 32);
+    fcvtas(dest, ARMFPRegister(input, 64));
+    Mov(ScratchReg64, Operand(255));
+    Cmp(dest, ScratchReg64);
+    csel(dest, dest, ScratchReg64, LessThan);
+    Cmp(dest, Operand(0));
+    csel(dest, wzr, dest, LessThan);
 }
 
 void
@@ -191,15 +259,25 @@ MacroAssemblerCompat::passABIArg(FloatRegister reg, MoveOp::Type type)
 void
 MacroAssemblerCompat::callWithABIPre(uint32_t *stackAdjust)
 {
-    // TODO: Implement.
-    Brk(0x1111);
+    *stackAdjust = stackForCall_;
+    // ARM64 /really/ wants the stack to always be aligned.  Since we're already tracking it
+    // getting it aligned for an abi call is pretty easy.
+    *stackAdjust += ComputeByteAlignment(*stackAdjust, StackAlignment);
+    reserveStack(*stackAdjust);
+    {
+        moveResolver_.resolve();
+        MoveEmitter emitter(*this);
+        emitter.emit(moveResolver_);
+        emitter.finish();
+    }
 }
 
 void
 MacroAssemblerCompat::callWithABIPost(uint32_t stackAdjust, MoveOp::Type result)
 {
-    // TODO: Implement.
-    Brk(0x1222);
+    freeStack(stackAdjust);
+    // if the ABI's return regs are where ION is expecting them, then
+    // no other work needs to be done.
 }
 
 void
