@@ -144,7 +144,6 @@ class MoveEmitterARM64
                 masm.Ldr(ARMRegister(to.reg(), 64), cycleSlot());
             }
             break;
-          
         }
     }
     void emit(const MoveOp &move) {
