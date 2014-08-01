@@ -162,6 +162,15 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         adjustFrame(sizeof(T));
     }
 
+    void Push(const Register &reg) {
+        MacroAssemblerVIXL::Push(ARMRegister(reg, 64));
+        adjustFrame(sizeof(void *));
+    }
+    void Push(const ValueOperand &val) {
+        MacroAssemblerVIXL::Push(ARMRegister(val.valueReg(), 64));
+        adjustFrame(sizeof(void *));
+    }
+
     template <typename T>
     void Pop(const T t) {
         pop(t);
@@ -282,12 +291,6 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         JS_ASSERT(0 && "tagValue");
     }
     void pushValue(ValueOperand val) {
-        MacroAssemblerVIXL::Push(ARMRegister(val.valueReg(), 64));
-    }
-    void Push(const Register &reg) {
-        MacroAssemblerVIXL::Push(ARMRegister(reg, 64));
-    }
-    void Push(const ValueOperand &val) {
         MacroAssemblerVIXL::Push(ARMRegister(val.valueReg(), 64));
     }
     void popValue(ValueOperand val) {
