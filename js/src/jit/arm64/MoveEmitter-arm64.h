@@ -99,9 +99,9 @@ class MoveEmitterARM64
           case MoveOp::GENERAL:
             if (to.isMemory()) {
                 masm.Ldr(ScratchReg32, toMemOperand(to));
-                masm.Push(ScratchReg64);
+                masm.push(ScratchReg);
             } else {
-                masm.Push(ARMRegister(to.reg(), 64));
+                masm.push(to.reg());
             }
             break;
           default:

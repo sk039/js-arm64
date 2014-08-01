@@ -156,15 +156,29 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         LoadStoreMacro(rt, MemOperand(ScratchReg2_64, addr.offset), op);
     }
 
-    template <typename T>
-    void Push(const T t) {
-        push(t);
-        adjustFrame(sizeof(T));
-    }
-
-    void Push(const Register &reg) {
+    void Push(Register reg) {
         MacroAssemblerVIXL::Push(ARMRegister(reg, 64));
-        adjustFrame(sizeof(void *));
+        adjustFrame(sizeof(intptr_t));
+    }
+    void Push(const Imm32 imm) {
+        push(imm);
+        adjustFrame(sizeof(intptr_t));
+    }
+    void Push(const ImmWord imm) {
+        push(imm);
+        adjustFrame(sizeof(intptr_t));
+    }
+    void Push(const ImmPtr imm) {
+        push(imm);
+        adjustFrame(sizeof(intptr_t));
+    }
+    void Push(const ImmGCPtr ptr) {
+        push(ptr);
+        adjustFrame(sizeof(intptr_t));
+    }
+    void Push(FloatRegister f) {
+        push(f);
+        adjustFrame(sizeof(double));
     }
     void Push(const ValueOperand &val) {
         MacroAssemblerVIXL::Push(ARMRegister(val.valueReg(), 64));
