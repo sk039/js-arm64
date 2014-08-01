@@ -709,7 +709,7 @@ AsyncPanZoomController::AsyncPanZoomController(uint64_t aLayersId,
                                                GeckoContentController* aGeckoContentController,
                                                GestureBehavior aGestures)
   :  mLayersId(aLayersId),
-     mPaintThrottler(GetFrameTime()),
+     mPaintThrottler(GetFrameTime(), TimeDuration::FromMilliseconds(500)),
      mGeckoContentController(aGeckoContentController),
      mRefPtrMonitor("RefPtrMonitor"),
      mSharingFrameMetricsAcrossProcesses(false),
@@ -2627,6 +2627,12 @@ AsyncPanZoomController::ProcessPendingInputBlocks() {
     if (curBlock->IsDefaultPrevented()) {
       SetState(NOTHING);
       curBlock->DropEvents();
+      // Also clear the state in the gesture event listener
+      nsRefPtr<GestureEventListener> listener = GetGestureEventListener();
+      if (listener) {
+        MultiTouchInput cancel(MultiTouchInput::MULTITOUCH_CANCEL, 0, TimeStamp::Now(), 0);
+        listener->HandleInputEvent(cancel);
+      }
     } else {
       while (curBlock->HasEvents()) {
         HandleInputEvent(curBlock->RemoveFirstEvent());
