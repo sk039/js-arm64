@@ -105,6 +105,7 @@ MacroAssembler::PopRegsInMaskIgnore(RegisterSet set, RegisterSet ignore)
     for (FloatRegisterIterator iter(set.fpus()); iter.more(); offset = nextOffset) {
         CPURegister src0 = NoCPUReg;
         CPURegister src1 = NoCPUReg;
+
         while (iter.more() && ignore.has(*iter)) {
             ++iter;
             offset += sizeof(double);
@@ -117,6 +118,7 @@ MacroAssembler::PopRegsInMaskIgnore(RegisterSet set, RegisterSet ignore)
 
         src0 = ARMFPRegister(*iter, 64);
         nextOffset += sizeof(double);
+        ++iter;
 
         if (!iter.more() || ignore.has(*iter)) {
             // There is no 'next' that can be loaded, and there is already one
@@ -126,9 +128,10 @@ MacroAssembler::PopRegsInMaskIgnore(RegisterSet set, RegisterSet ignore)
         }
 
         // There is both more, and it isn't being ignored.
-        ++iter;
         src1 = ARMFPRegister(*iter, 64);
         nextOffset += sizeof(double);
+        ++iter;
+
         JS_ASSERT(!src0.Is(src1));
         ldp(src0, src1, MemOperand(GetStackPointer(), offset));
     }
