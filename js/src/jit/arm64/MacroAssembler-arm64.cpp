@@ -124,9 +124,12 @@ MacroAssembler::PopRegsInMaskIgnore(RegisterSet set, RegisterSet ignore)
             Ldr(src0, MemOperand(GetStackPointer(), offset));
             continue;
         }
+
         // There is both more, and it isn't being ignored.
+        ++iter;
         src1 = ARMFPRegister(*iter, 64);
         nextOffset += sizeof(double);
+        JS_ASSERT(!src0.Is(src1));
         ldp(src0, src1, MemOperand(GetStackPointer(), offset));
     }
 
