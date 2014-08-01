@@ -110,6 +110,12 @@ class Assembler : public AssemblerVIXL {
             preBarrierTableBytes();
     }
 
+    void trace(JSTracer *trc);
+
+    void writeRelocation(BufferOffset src) {
+        tmpJumpRelocations_.append(src);
+    }
+
     // Move our entire pool into the instruction stream. This is to force an
     // opportunistic dump of the pool, preferrably when it is more convenient
     // to do a dump.
@@ -158,6 +164,14 @@ class Assembler : public AssemblerVIXL {
         JS_ASSERT(0 && "TraceDataRelocations()");
     }
 
+  protected:
+    void addPendingJump(BufferOffset src, ImmPtr target, Relocation::Kind kind) {
+        enoughMemory_ &= jumps_.append(RelativePatch(target.value, kind));
+        if (kind == Relocation::JITCODE)
+            writeRelocation(src);
+    }
+
+  public:
     static uint32_t PatchWrite_NearCallSize() {
         JS_ASSERT(0 && "PatchWrite_NearCallSize()");
         return 0;
@@ -218,8 +232,24 @@ class Assembler : public AssemblerVIXL {
         JS_ASSERT(0 && "PatchInstructionImmediate");
     }
 
+  protected:
+    // Structure for fixing up pc-relative loads/jumps when the machine
+    // code gets moved (executable copy, gc, etc.).
+    struct RelativePatch
+    {
+        void *target;
+        Relocation::Kind kind;
+
+        RelativePatch(void *target, Relocation::Kind kind)
+          : target(target), kind(kind)
+        { }
+    };
+
     js::Vector<CodeLabel, 0, SystemAllocPolicy> codeLabels_;
+    js::Vector<RelativePatch, 8, SystemAllocPolicy> jumps_;
+    js::Vector<BufferOffset, 0, SystemAllocPolicy> tmpJumpRelocations_;
     js::Vector<BufferOffset, 0, SystemAllocPolicy> tmpDataRelocations_;
+    js::Vector<BufferOffset, 0, SystemAllocPolicy> tmpPreBarriers_;
 
     CompactBufferWriter jumpRelocations_;
     CompactBufferWriter dataRelocations_;

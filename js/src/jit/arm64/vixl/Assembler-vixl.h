@@ -709,10 +709,6 @@ class AssemblerVIXL : public AssemblerShared
     // called before executing or copying code from the buffer.
     void FinalizeCode();
 
-    void trace(JSTracer *trc) {
-        JS_ASSERT(0 && "Assembler::trace()");
-    }
-
     // Return the Instruction at a given byte offset.
     Instruction *getInstructionAt(BufferOffset offset) {
         return armbuffer_.getInst(offset);

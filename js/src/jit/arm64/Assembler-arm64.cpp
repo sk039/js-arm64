@@ -85,6 +85,26 @@ Assembler::bind(RepatchLabel *label)
     JS_ASSERT(0 && "bind (RepatchLabel)");
 }
 
+// FIXME: Share with ARM?
+void
+Assembler::trace(JSTracer *trc)
+{
+    for (size_t i = 0; i < jumps_.length(); i++) {
+        RelativePatch &rp = jumps_[i];
+        if (rp.kind == Relocation::JITCODE) {
+            JitCode *code = JitCode::FromExecutable((uint8_t *)rp.target);
+            MarkJitCodeUnbarriered(trc, &code, "masmrel32");
+            JS_ASSERT(code == JitCode::FromExecutable((uint8_t *)rp.target));
+        }
+    }
+
+    //FIXME
+#if 0
+    if (tmpDataRelocations_.length())
+        ::TraceDataRelocations(trc, &armbuffer_, &tmpDataRelocations_);
+#endif
+}
+
 // FIXME: Shouldn't this be a static method of Assembler?
 void
 PatchJump(CodeLocationJump &jump_, CodeLocationLabel label) {

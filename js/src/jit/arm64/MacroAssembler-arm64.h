@@ -489,7 +489,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
     void movePtr(ImmGCPtr imm, Register dest) {
         writeDataRelocation(imm);
-        movePatchablePtr(uintptr_t(imm.value), dest);
+        movePatchablePtr(ImmPtr(imm.value), dest);
     }
     void move32(Imm32 imm, Register dest) {
         Mov(ARMRegister(dest, 32), (int64_t)imm.value);
@@ -498,9 +498,9 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         Mov(ARMRegister(dest, 32), ARMRegister(src, 32));
     }
 
-    void movePatchablePtr(uintptr_t ptr, Register dest) {
+    void movePatchablePtr(ImmPtr ptr, Register dest) {
         // FIXME: For the moment, this just moves the pointer normally.
-        movePtr(ImmPtr((void *)ptr), dest);
+        movePtr(ptr, dest);
     }
 
     void not32(Register reg) {
@@ -1738,7 +1738,9 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         Blr(ARMRegister(target, 64));
     }
     void call(JitCode *target) {
-        JS_ASSERT(0 && "call");
+        addPendingJump(nextOffset(), ImmPtr(target->raw()), Relocation::JITCODE);
+        movePatchablePtr(ImmPtr(target->raw()), ScratchReg);
+        call(ScratchReg); // FIXME: Push something?
     }
     void call(Label *target) {
         JS_ASSERT(0 && "call");
