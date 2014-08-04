@@ -78,11 +78,29 @@ JitRuntime::generateEnterJIT(JSContext *cx, EnterJitType type)
     //  64    - frameDescriptor
     //  64    - returnAddress
 
-    // TODO: Loop over argv vector, pushing arguments onto stack in reverse order.
     {
+        // WARNING: destructively modifies reg_argv
+        ARMRegister tmp_argc = x19;
+        masm.Mov(tmp_argc, Operand(ARMRegister(reg_argc, 64)));
+        ARMRegister tmp_sp = x28;
+        // Subtract 8*argc from sp.
+        masm.Mov(tmp_sp, sp);
+        masm.Sub(tmp_sp, tmp_sp, Operand(tmp_argc, SXTX, 3));
+        // Re-align sp
+        masm.And(tmp_sp, tmp_sp, Operand(-15));
+        masm.Mov(sp, tmp_sp);
         Label noArguments;
         masm.branchTestPtr(Assembler::Zero, reg_argc, reg_argc, &noArguments);
-        masm.breakpoint(); // TODO: Implement argument pushing.
+        Label loopHead;
+        masm.bind(&loopHead);
+        masm.Ldp(x23, x24, MemOperand(ARMRegister(reg_argv, 64), Operand(8), PostIndex));
+        masm.Stp(x23, x24, MemOperand(tmp_sp, Operand(8), PostIndex));
+        // Subtract two, since we processed two arguments.  Set the condition codes for
+        // cmp tmp_argc, 2 (using the old value)
+        masm.Subs(tmp_argc, tmp_argc, Operand(2));
+        // Branch if the old value was (> 2)
+        Condition c = GreaterThan_;
+        masm.B(&loopHead, c);
         masm.bind(&noArguments);
     }
 
