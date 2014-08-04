@@ -12,7 +12,7 @@
 #include "jscompartment.h"
 #include "jsutil.h"
 
-#include "assembler/jit/ExecutableAllocator.h"
+#include "jit/ExecutableAllocator.h"
 #include "gc/Marking.h"
 #include "jit/arm64/MacroAssembler-arm64.h"
 #include "jit/JitCompartment.h"

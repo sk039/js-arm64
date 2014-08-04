@@ -28,13 +28,12 @@
 #include "jsscript.h"
 #include "jswatchpoint.h"
 #include "jswrapper.h"
+#include "asmjs/AsmJSSignalHandlers.h"
 #ifndef JS_CODEGEN_ARM64
-#include "assembler/assembler/MacroAssembler.h"
+# include "assembler/assembler/MacroAssembler.h"
 #endif
 #include "jit/arm/Simulator-arm.h"
 #include "jit/arm64/vixl/Simulator-vixl.h"
-#include "jit/AsmJSSignalHandlers.h"
-#include "jit/JitCommon.h"
 #include "jit/JitCompartment.h"
 #include "jit/PcScriptCache.h"
 #include "js/MemoryMetrics.h"
