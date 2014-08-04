@@ -722,28 +722,27 @@ class AssemblerVIXL : public AssemblerShared
         return reinterpret_cast<T>(label->offset());
     }
 
-    // Condition codes.
-    enum Condition {
-        Equal               =  0, eq =  0,
-        Zero                =  0,
-        NotEqual            =  1, ne =  1,
-        NonZero             =  1,
-        AboveOrEqual        =  2, hs =  2,
-        Below               =  3, lo =  3,
-        Signed              =  4, mi =  4,
-        NotSigned           =  5, pl =  5,
-        Overflow            =  6, vs =  6,
-        NoOverflow          =  7, vc =  7, // AArch64-specific.
-        Above               =  8, hi =  8,
-        BelowOrEqual        =  9, ls =  9,
-        GreaterThanOrEqual  = 10, ge = 10,
-        LessThan            = 11, lt = 11,
-        GreaterThan         = 12, gt = 12,
-        LessThanOrEqual     = 13, le = 13,
-        Always              = 14, al = 14,
-        Never               = 15, nv = 15  // Behaves as always/al.
-    };
-
+    typedef js::jit::Condition Condition;
+#define COPYENUM(v) static const Condition v = js::jit::v
+#define COPYENUM_(v) static const Condition v = js::jit::v##_
+    COPYENUM(Equal);
+    COPYENUM(Zero);
+    COPYENUM(NotEqual);
+    COPYENUM(NonZero);
+    COPYENUM(AboveOrEqual);
+    COPYENUM(Below);
+    COPYENUM(Signed);
+    COPYENUM(NotSigned);
+    COPYENUM(Overflow);
+    COPYENUM(NoOverflow);
+    COPYENUM(Above);
+    COPYENUM(BelowOrEqual);
+    COPYENUM_(GreaterThanOrEqual);
+    COPYENUM_(LessThan);
+    COPYENUM_(GreaterThan);
+    COPYENUM_(LessThanOrEqual);
+    COPYENUM(Always);
+    COPYENUM(Never);
     // Bit set when a DoubleCondition does not map to a single ARM condition.
     // The MacroAssembler must special-case these conditions, or else
     // ConditionFromDoubleCondition will complain.
