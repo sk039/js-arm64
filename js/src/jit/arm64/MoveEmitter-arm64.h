@@ -40,33 +40,45 @@ class MoveEmitterARM64
     }
 
     Register tempReg() {
-        JS_ASSERT(0 && "tempReg()");
-        return InvalidReg;
+        return ScratchReg;
     }
     FloatRegister tempFloatReg() {
-        JS_ASSERT(0 && "tempFloatReg()");
-        return InvalidFloatReg;
+        return ScratchDoubleReg;
     }
-    MemOperand cycleSlot() const {
-        MOZ_ASSUME_UNREACHABLE("cycleSlot()");
-    }
-    Operand spillSlot() const {
-        MOZ_ASSUME_UNREACHABLE("spillSlot()");
+    MemOperand cycleSlot() {
+        if (pushedAtCycle_ == -1) {
+            // Reserve stack for cycle resolution
+            // keep 16 byte alignment.
+            masm.reserveStack(sizeof(double) * 2);
+            pushedAtCycle_ = masm.framePushed();
+        }
+
+        return MemOperand(masm.GetStackPointer(), masm.framePushed() - pushedAtCycle_);
     }
     MemOperand toMemOperand(const MoveOperand &operand) const {
-        MOZ_ASSUME_UNREACHABLE("toOperand()");
+        MOZ_ASSERT(operand.isMemory());
+        ARMRegister base(operand.base(), 64);
+        return MemOperand(base, operand.disp());
     }
-    CPURegister toRegister(const MoveOperand &operand) const {
-        MOZ_ASSUME_UNREACHABLE("toOperand()");
+    ARMRegister toRegister(const MoveOperand &operand) const {
+        // Always a 64 bit register
+        MOZ_ASSERT(operand.isGeneralReg());
+        return ARMRegister(operand.reg(), 64);
+
     }
+    ARMFPRegister toFPReg(const MoveOperand &operand) const {
+        MOZ_ASSERT(operand.isFloatReg());
+        return ARMFPRegister(operand.floatReg().code(), operand.floatReg().size() * 8);
+    }
+
     void emitMove(const MoveOperand &from, const MoveOperand &to) {
-        JS_ASSERT(0 && "emitMove()");
+        masm.mov(toRegister(from), toRegister(to));
     }
     void emitFloat32Move(const MoveOperand &from, const MoveOperand &to) {
-        JS_ASSERT(0 && "emitFloat32Move()");
+        masm.fmov(toFPReg(to), toFPReg(from));
     }
     void emitDoubleMove(const MoveOperand &from, const MoveOperand &to) {
-        JS_ASSERT(0 && "emitDoubleMove()");
+        masm.fmov(toFPReg(to), toFPReg(from));
     }
     void breakCycle(const MoveOperand &from, const MoveOperand &to, MoveOp::Type type) {
         switch (type) {
@@ -155,7 +167,7 @@ class MoveEmitterARM64
             completeCycle(from, to, move.type());
             inCycle_ = false;
         }
-        if (move.isCycleEnd()) {
+        if (move.isCycleBegin()) {
             MOZ_ASSERT(!inCycle_);
             breakCycle(from, to, move.endCycleType());
             inCycle_ = true;

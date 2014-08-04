@@ -136,7 +136,8 @@ MacroAssembler::PopRegsInMaskIgnore(RegisterSet set, RegisterSet ignore)
         ldp(src0, src1, MemOperand(GetStackPointer(), offset));
     }
 
-    MOZ_ASSERT(nextOffset < set.fpus().getSizeInBytes());
+    FloatRegisterSet frs = set.fpus();
+    MOZ_ASSERT(nextOffset <= frs.getSizeInBytes());
     nextOffset = set.fpus().getSizeInBytes();
 
     for (GeneralRegisterIterator iter(set.gprs()); iter.more(); offset = nextOffset) {
@@ -154,7 +155,7 @@ MacroAssembler::PopRegsInMaskIgnore(RegisterSet set, RegisterSet ignore)
 
         src0 = ARMRegister(*iter, 64);
         nextOffset += sizeof(double);
-
+        ++iter;
         if (!iter.more() || ignore.has(*iter)) {
             // There is no 'next' that can be loaded, and there is already one
             // element in the queue, just deal with that element.
@@ -163,6 +164,7 @@ MacroAssembler::PopRegsInMaskIgnore(RegisterSet set, RegisterSet ignore)
         }
         // There is both more, and it isn't being ignored.
         src1 = ARMRegister(*iter, 64);
+        ++iter;
         nextOffset += sizeof(double);
         ldp(src0, src1, MemOperand(GetStackPointer(), offset));
     }
