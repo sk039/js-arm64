@@ -1554,12 +1554,10 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
 
 
-    Condition testInt32Truthy(bool truthy, const ValueOperand &operand) {
-        JS_ASSERT(0 && "testInt32Truthy");
-        return Condition::Zero;
-    }
     void branchTestInt32Truthy(bool truthy, const ValueOperand &operand, Label *label) {
-        JS_ASSERT(0 && "branchTestInt32Truthy");
+        ARMRegister payload(operand.valueReg(), 32);
+        Tst(payload, payload);
+        B(label, truthy ? NonZero : Zero);
     }
 
     void branchTestDoubleTruthy(bool truthy, FloatRegister reg, Label *label) {
@@ -1567,7 +1565,9 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
 
     void branchTestBooleanTruthy(bool truthy, const ValueOperand &operand, Label *label) {
-        JS_ASSERT(0 && "branchTestBooleanTruthy");
+        ARMRegister payload(operand.valueReg(), 32);
+        Tst(payload, payload);
+        B(label, truthy ? NonZero : Zero);
     }
     Condition testStringTruthy(bool truthy, const ValueOperand &value) {
         JS_ASSERT(0 && "testStringTruthy");
