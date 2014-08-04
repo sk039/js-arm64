@@ -102,7 +102,7 @@ enum DebugParameters {
   DBG_ACTIVE = 1 << 0,  // The debugger is active.
   DBG_BREAK  = 1 << 1   // The debugger is at a breakpoint.
 };
-
+#ifdef JS_ARM64_SIMULATOR
 // Forward declarations.
 class DebugCommand;
 class Token;
@@ -191,7 +191,7 @@ class DebuggerARM64 : public Simulator {
   // Length of the biggest command line accepted by the debugger shell.
   static const int kMaxDebugShellLine = 256;
 };
-
+#endif  // JS_ARM64_SIMULATOR
 } // namespace jit
 } // namespace js
 

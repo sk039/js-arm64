@@ -28,8 +28,9 @@
 #include "jsscript.h"
 #include "jswatchpoint.h"
 #include "jswrapper.h"
-
+#ifndef JS_CODEGEN_ARM64
 #include "assembler/assembler/MacroAssembler.h"
+#endif
 #include "jit/arm/Simulator-arm.h"
 #include "jit/arm64/vixl/Simulator-vixl.h"
 #include "jit/AsmJSSignalHandlers.h"
@@ -233,6 +234,7 @@ JSRuntime::JSRuntime(JSRuntime *parentRuntime)
 static bool
 JitSupportsFloatingPoint()
 {
+#ifndef JS_CODEGEN_ARM64
     if (!JSC::MacroAssembler::supportsFloatingPoint())
         return false;
 
@@ -240,8 +242,9 @@ JitSupportsFloatingPoint()
     if (!js::jit::HasVFP())
         return false;
 #endif
-
+#endif
     return true;
+
 }
 
 static bool

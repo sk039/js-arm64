@@ -1014,6 +1014,7 @@ class MacroAssemblerVIXL : public Assembler
                           const CPURegister& arg2 = NoCPUReg,
                           const CPURegister& arg3 = NoCPUReg);
 
+
     // Trace control when running the debug simulator.
     //
     // For example:

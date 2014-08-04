@@ -30,7 +30,7 @@
 #ifndef VIXL_A64_SIMULATOR_A64_H_
 #define VIXL_A64_SIMULATOR_A64_H_
 
-#ifdef JS_ARM64_SIMULATOR
+
 
 #include "jit/arm64/vixl/VIXL-Globals-vixl.h"
 #include "jit/arm64/vixl/VIXL-Utils-vixl.h"
@@ -85,7 +85,7 @@ enum PrintfArgPattern {
 };
 static const unsigned kPrintfArgPatternBits = 2;
 
-
+#ifdef JS_ARM64_SIMULATOR
 // The proper way to initialize a simulated system register (such as NZCV) is as
 // follows:
 //  SimSystemRegister nzcv = SimSystemRegister::DefaultValueFor(NZCV);
@@ -242,7 +242,6 @@ class SimExclusiveGlobalMonitor {
 };
 
 class SimulatorRuntime;
-
 class Simulator : public DecoderVisitor {
  public:
   explicit Simulator(SimulatorRuntime *srt);
@@ -914,9 +913,11 @@ void DestroySimulatorRuntime(SimulatorRuntime *srt);
         }                                                                       \
     JS_END_MACRO
 
+#endif // JS_ARM64_SIMULATOR
+
 }  // namespace jit
 }  // namespace js
 
-#endif // JS_ARM64_SIMULATOR
+
 
 #endif  // VIXL_A64_SIMULATOR_A64_H_
