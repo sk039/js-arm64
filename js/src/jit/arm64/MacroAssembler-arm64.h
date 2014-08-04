@@ -268,7 +268,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         JS_ASSERT(0 && "storeValue");
     }
     void storeValue(ValueOperand val, const Address &dest) {
-        JS_ASSERT(0 && "storeValue");
+        storePtr(val.valueReg(), dest);
     }
     template <typename T>
     void storeValue(JSValueType type, Register reg, const T &dest) {
@@ -279,7 +279,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         JS_ASSERT(0 && "storeValue");
     }
     void storeValue(ValueOperand val, BaseIndex dest) {
-        JS_ASSERT(0 && "storeValue");
+        storePtr(val.valueReg(), dest);
     }
 
     template <typename T>
