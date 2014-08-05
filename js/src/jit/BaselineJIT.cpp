@@ -294,6 +294,10 @@ CanEnterBaselineJIT(JSContext *cx, HandleScript script, bool osr)
 MethodStatus
 jit::CanEnterBaselineAtBranch(JSContext *cx, InterpreterFrame *fp, bool newType)
 {
+    // FIXME: Enable OSR.
+    return Method_Skipped;
+
+#if 0
    // If constructing, allocate a new |this| object.
    if (fp->isConstructing() && fp->functionThis().isPrimitive()) {
        RootedObject callee(cx, &fp->callee());
@@ -308,6 +312,7 @@ jit::CanEnterBaselineAtBranch(JSContext *cx, InterpreterFrame *fp, bool newType)
 
    RootedScript script(cx, fp->script());
    return CanEnterBaselineJIT(cx, script, /* osr = */true);
+#endif
 }
 
 MethodStatus
