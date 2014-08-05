@@ -69,8 +69,6 @@ JitRuntime::generateEnterJIT(JSContext *cx, EnterJitType type)
 
     // TODO: Remember the number of bytes occupied by argument vector.
 
-    // TODO: Guarantee 16-byte alignment.
-
     // IonJSFrameLayout is as follows (higher is higher in memory):
     //  N*64  - [ JS argument vector ]
     //  64    - numActualArgs
@@ -111,11 +109,10 @@ JitRuntime::generateEnterJIT(JSContext *cx, EnterJitType type)
             masm.Str(x24, MemOperand(tmp_sp, Operand(8), PostIndex));
 
             // Set the condition codes for |cmp tmp_argc, 2| (using the old value).
-            masm.Subs(tmp_argc, tmp_argc, Operand(2));
+            masm.Subs(tmp_argc, tmp_argc, Operand(1));
 
-            // Branch if the old value was (> 2)
-            Condition c = GreaterThan_;
-            masm.B(&loopHead, c);
+            // Branch if arguments remain.
+            masm.B(&loopHead, GreaterThanOrEqual_);
         }
 
         masm.bind(&noArguments);
