@@ -64,10 +64,8 @@ JitRuntime::generateEnterJIT(JSContext *cx, EnterJitType type)
     // Push the EnterJIT SPS mark.
     masm.spsMarkJit(&cx->runtime()->spsProfiler, PseudoStackPointer, r20);
 
-    // TODO: Remember stack depth without padding and arguments.
-    // TODO: Note that we could just push more false registers above...
-
-    // TODO: Remember the number of bytes occupied by argument vector.
+    // Remember stack depth without padding and arguments.
+    masm.Mov(x19, ARMRegister(PseudoStackPointer, 64));
 
     // IonJSFrameLayout is as follows (higher is higher in memory):
     //  N*64  - [ JS argument vector ]
@@ -122,8 +120,10 @@ JitRuntime::generateEnterJIT(JSContext *cx, EnterJitType type)
     // Push numActualArgs and the calleeToken.
     masm.MacroAssemblerVIXL::Push(ARMRegister(reg_argc, 64), ARMRegister(reg_scope, 64));
 
+    // Calculate the number of bytes pushed so far.
+    masm.Sub(x19, x19, ARMRegister(PseudoStackPointer, 64));
+
     // Push the frameDescriptor.
-    // TODO: x19 must contain the number of bytes pushed on the frame.
     masm.makeFrameDescriptor(r19, JitFrame_Entry);
     masm.Push(r19);
 
