@@ -109,15 +109,18 @@ class PrintDisassembler: public Disassembler {
  private:
   FILE *stream_;
 };
-  static void Disassemble(Instruction *ptr, uint32_t count) {
+
+// FIXME: Remove this.
+static void Disassemble(Instruction *ptr, uint32_t count) {
   Decoder decoder;
   Disassembler disasm;
   decoder.AppendVisitor(&disasm);
   for (uint32_t i = 0; i < count; i++) {
-  decoder.Decode(&ptr[i*4]);
-  printf("[%p]    %s\n", &ptr[i], disasm.GetOutput());
+    decoder.Decode(&ptr[i*4]);
+    printf("[%p]    %s\n", &ptr[i], disasm.GetOutput());
+  }
 }
-}
+
 } // namespace jit
 } // namespace js
 
