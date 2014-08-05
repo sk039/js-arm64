@@ -33,7 +33,20 @@ EmitRepushTailCallReg(MacroAssembler &masm)
 inline void
 EmitCallIC(CodeOffsetLabel *patchOffset, MacroAssembler &masm)
 {
-    masm.Brk(11);
+    // Move ICEntry offset into BaselineStubReg
+    CodeOffsetLabel offset = masm.movWithPatch(ImmWord(-1), BaselineStubReg);
+    *patchOffset = offset;
+
+    // Load stub pointer into BaselineStubReg
+    masm.loadPtr(Address(BaselineStubReg, ICEntry::offsetOfFirstStub()), BaselineStubReg);
+
+    // Load stubcode pointer from BaselineStubEntry.
+    // R2 won't be active when we call ICs, so we can use r0.
+    JS_ASSERT(R2 == ValueOperand(r0));
+    masm.loadPtr(Address(BaselineStubReg, ICStub::offsetOfStubCode()), r0);
+
+    // Call the stubcode via a direct branch-and-link.
+    masm.Blr(x0);
 }
 
 inline void

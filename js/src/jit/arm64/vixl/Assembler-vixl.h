@@ -672,7 +672,7 @@ class AssemblerVIXL : public AssemblerShared
         // TODO: GetPoolMaxOffset() instead of 1024
         // TODO: GetNopFill() instead of 0x0
         // TODO: Bother to check the rest of the values
-      : armbuffer_(1, 1, 8, 1024, 8, 0xE320F000, 0xEAFFFFFF, 0x0), // FIXME: What on earth is this
+        : armbuffer_(1, 1, 8, 1024, 0, BRK | ImmException(0xdead), HINT | ImmHint(0) | Rt(xzr), 0x0), // FIXME: What on earth is this
         pc_(nullptr) // FIXME: Yeah this thing needs some lovin'.
     {
 #ifdef DEBUG
@@ -1978,7 +1978,7 @@ class AssemblerVIXL : public AssemblerShared
         MOZ_ASSUME_UNREACHABLE("PlaceConstantPoolBarrier");
     }
     static void WritePoolGuard(BufferOffset branch, Instruction *inst, BufferOffset dest) {
-        MOZ_ASSUME_UNREACHABLE("WritePoolGuard");
+        b(inst, dest.getOffset() - branch.getOffset());
     }
     static void WritePoolHeader(uint8_t *start, Pool *p, bool isNatural);
     static void WritePoolFooter(uint8_t *start, Pool *p, bool isNatural);

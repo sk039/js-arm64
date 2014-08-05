@@ -339,10 +339,12 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
 
     CodeOffsetLabel movWithPatch(ImmWord imm, Register dest) {
-        JS_ASSERT(0 && "moveWithPatch");
+        BufferOffset off = immPool64(ARMRegister(dest, 64), imm.value);
+        return CodeOffsetLabel(off.getOffset());
     }
     CodeOffsetLabel movWithPatch(ImmPtr imm, Register dest) {
-        JS_ASSERT(0 && "moveWithPatch");
+        BufferOffset off = immPool64(ARMRegister(dest, 64), uint64_t(imm.value));
+        return CodeOffsetLabel(off.getOffset());
     }
 
     void boxValue(JSValueType type, Register src, Register dest) {
@@ -1840,7 +1842,8 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     // FIXME: Should be in Assembler?
     // FIXME: Should be const?
     uint32_t currentOffset() {
-        return nextOffset().getOffset();
+        uint32_t offset = nextOffset().getOffset();
+        return offset;
     }
 
   protected:

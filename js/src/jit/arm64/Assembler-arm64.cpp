@@ -42,6 +42,16 @@ const Register ABIArgGenerator::NonReturn_VolatileReg1 = r3;
 namespace js {
 namespace jit {
 
+BufferOffset
+Assembler::immPool(ARMRegister dest, uint8_t *value, LoadLiteralOp op) {
+    uint32_t raw = op | Rt(dest);
+    return armbuffer_.allocEntry(1, 2, (uint8_t*)&raw, value);
+}
+BufferOffset
+Assembler::immPool64(ARMRegister dest, uint64_t value) {
+    return immPool(dest, (uint8_t*)&value, LDR_x_lit);
+}
+
 void
 Assembler::bind(Label *label, BufferOffset targetOffset)
 {
@@ -116,9 +126,9 @@ Assembler::PatchDataWithValueCheck(CodeLocationLabel label, PatchedImmPtr newVal
                                    PatchedImmPtr expected)
 {
     Instruction *i = (Instruction *)label.raw();
-
-    // FIXME: Just emits a breakpoint for now until we can test it.
-    AssemblerVIXL::Emit(i, BRK | AssemblerVIXL::ImmException(0x7777));
+    void** pValue = reinterpret_cast<void**>(i->LiteralAddress());
+    MOZ_ASSERT(*pValue == expected.value);
+    *pValue = expected.value;
 }
 
 void

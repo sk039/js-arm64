@@ -40,13 +40,34 @@ class Assembler : public AssemblerVIXL {
     Assembler()
       : AssemblerVIXL()
     { }
-
+    BufferOffset immPool(ARMRegister dest, uint8_t *value, LoadLiteralOp op);
+    BufferOffset immPool64(ARMRegister dest, uint64_t value);
     void bind(Label *label) { bind(label, nextOffset()); }
     void bind(Label *label, BufferOffset boff);
     void bind(RepatchLabel* label);
 
     void finish() {
+        armbuffer_.flushPool();
         AssemblerVIXL::FinalizeCode();
+
+    for (unsigned int i = 0; i < tmpDataRelocations_.length(); i++) {
+        int offset = tmpDataRelocations_[i].getOffset();
+        int real_offset = offset + armbuffer_.poolSizeBefore(offset);
+        dataRelocations_.writeUnsigned(real_offset);
+    }
+
+    for (unsigned int i = 0; i < tmpJumpRelocations_.length(); i++) {
+        int offset = tmpJumpRelocations_[i].getOffset();
+        int real_offset = offset + armbuffer_.poolSizeBefore(offset);
+        jumpRelocations_.writeUnsigned(real_offset);
+    }
+
+    for (unsigned int i = 0; i < tmpPreBarriers_.length(); i++) {
+        int offset = tmpPreBarriers_[i].getOffset();
+        int real_offset = offset + armbuffer_.poolSizeBefore(offset);
+        preBarriers_.writeUnsigned(real_offset);
+    }
+
     }
 
     bool oom() const {

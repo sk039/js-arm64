@@ -403,13 +403,16 @@ AssemblerVIXL::FinalizeCode()
 void
 AssemblerVIXL::InsertIndexIntoTag(uint8_t *load, uint32_t index)
 {
-    JS_ASSERT(0 && "InsertIndexIntoTag()");
+    *((uint32_t*)load) |= ImmLLiteral(index);
 }
 
 bool
 AssemblerVIXL::PatchConstantPoolLoad(void *loadAddr, void *constPoolAddr)
 {
-    JS_ASSERT(0 && "PatchConstantPoolLoad()");
+    Instruction *load = reinterpret_cast<Instruction*>(loadAddr);
+    uint32_t *constPool = reinterpret_cast<uint32_t*>(constPoolAddr);
+    uint32_t idx = load->ImmLLiteral();
+    load->SetImmLLiteral(reinterpret_cast<Instruction*>(&constPool[idx]));
     return false;
 }
 
