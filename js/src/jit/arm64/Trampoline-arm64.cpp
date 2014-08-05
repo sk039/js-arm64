@@ -87,12 +87,13 @@ JitRuntime::generateEnterJIT(JSContext *cx, EnterJitType type)
         masm.Mov(tmp_argc, ARMRegister(reg_argc, 64));
 
         // sp -= 8 * argc
-        masm.Mov(tmp_sp, sp);
+        masm.Mov(tmp_sp, ARMRegister(PseudoStackPointer, 64));
         masm.Sub(tmp_sp, tmp_sp, Operand(tmp_argc, SXTX, 3));
 
         // Give sp 16-byte alignment.
         masm.And(tmp_sp, tmp_sp, Operand(-15));
         masm.Mov(sp, tmp_sp);
+        masm.Sub(ARMRegister(PseudoStackPointer, 64), sp, Operand(0));
 
         masm.branchTestPtr(Assembler::Zero, reg_argc, reg_argc, &noArguments);
 
