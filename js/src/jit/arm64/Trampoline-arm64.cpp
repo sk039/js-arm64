@@ -78,29 +78,46 @@ JitRuntime::generateEnterJIT(JSContext *cx, EnterJitType type)
     //  64    - frameDescriptor
     //  64    - returnAddress
 
+    // Push the argument vector onto the stack.
+    // WARNING: destructively modifies reg_argv
     {
-        // WARNING: destructively modifies reg_argv
         ARMRegister tmp_argc = x19;
-        masm.Mov(tmp_argc, Operand(ARMRegister(reg_argc, 64)));
         ARMRegister tmp_sp = x28;
-        // Subtract 8*argc from sp.
+        Label noArguments;
+        Label loopHead;
+
+        masm.Mov(tmp_argc, ARMRegister(reg_argc, 64));
+
+        // sp -= 8 * argc
         masm.Mov(tmp_sp, sp);
         masm.Sub(tmp_sp, tmp_sp, Operand(tmp_argc, SXTX, 3));
-        // Re-align sp
+
+        // Give sp 16-byte alignment.
         masm.And(tmp_sp, tmp_sp, Operand(-15));
         masm.Mov(sp, tmp_sp);
-        Label noArguments;
+
         masm.branchTestPtr(Assembler::Zero, reg_argc, reg_argc, &noArguments);
-        Label loopHead;
-        masm.bind(&loopHead);
-        masm.Ldp(x23, x24, MemOperand(ARMRegister(reg_argv, 64), Operand(8), PostIndex));
-        masm.Stp(x23, x24, MemOperand(tmp_sp, Operand(8), PostIndex));
-        // Subtract two, since we processed two arguments.  Set the condition codes for
-        // cmp tmp_argc, 2 (using the old value)
-        masm.Subs(tmp_argc, tmp_argc, Operand(2));
-        // Branch if the old value was (> 2)
-        Condition c = GreaterThan_;
-        masm.B(&loopHead, c);
+
+        // Begin argument-pushing loop.
+        // FIXME: Can we use Ldp and Stp to push multiple arguments?
+        // FIXME: Do this after the simple thing is well-tested.
+        {
+            masm.bind(&loopHead);
+
+            // Load an argument from argv, then increment argv by 8.
+            masm.Ldr(x24, MemOperand(ARMRegister(reg_argv, 64), Operand(8), PostIndex));
+
+            // Store the argument to tmp_sp, then increment tmp_sp by 8.
+            masm.Str(x24, MemOperand(tmp_sp, Operand(8), PostIndex));
+
+            // Set the condition codes for |cmp tmp_argc, 2| (using the old value).
+            masm.Subs(tmp_argc, tmp_argc, Operand(2));
+
+            // Branch if the old value was (> 2)
+            Condition c = GreaterThan_;
+            masm.B(&loopHead, c);
+        }
+
         masm.bind(&noArguments);
     }
 
