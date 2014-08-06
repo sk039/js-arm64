@@ -1622,9 +1622,11 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         JS_ASSERT(0 && "loadInstructionPointerAfterCall");
     }
 
-    // Emit a JMP that can be toggled to a CMP. See ToggleToJmp(), ToggleToCmp().
+    // Emit a B that can be toggled to a CMP. See ToggleToJmp(), ToggleToCmp().
     CodeOffsetLabel toggledJump(Label *label) {
-        MOZ_ASSUME_UNREACHABLE("toggledJump");
+        BufferOffset offset = b(label, Always);
+        CodeOffsetLabel ret(offset.getOffset());
+        return ret;
     }
 
     void writeDataRelocation(const Value &val) {

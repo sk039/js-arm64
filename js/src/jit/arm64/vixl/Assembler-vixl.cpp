@@ -520,7 +520,7 @@ AssemblerVIXL::b(Instruction *at, int imm19, Condition cond)
     EmitBranch(at, B_cond | ImmCondBranch(imm19) | cond);
 }
 
-void
+BufferOffset
 AssemblerVIXL::b(Label* label)
 {
     // Flush the instruction buffer before calculating relative offset.
@@ -530,9 +530,10 @@ AssemblerVIXL::b(Label* label)
 
     // Encode the relative offset.
     b(ins, LinkAndGetInstructionOffsetTo(branch, label));
+    return branch;
 }
 
-void
+BufferOffset
 AssemblerVIXL::b(Label* label, Condition cond)
 {
     // Flush the instruction buffer before calculating relative offset.
@@ -542,6 +543,7 @@ AssemblerVIXL::b(Label* label, Condition cond)
 
     // Encode the relative offset.
     b(ins, LinkAndGetInstructionOffsetTo(branch, label), cond);
+    return branch;
 }
 
 void

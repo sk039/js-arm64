@@ -793,10 +793,10 @@ class AssemblerVIXL : public AssemblerShared
     void ret(const ARMRegister& xn = lr);
 
     // Unconditional branch to label.
-    void b(Label* label);
+    BufferOffset b(Label* label);
 
     // Conditional branch to label.
-    void b(Label* label, Condition cond);
+    BufferOffset b(Label* label, Condition cond);
 
     // Unconditional branch to PC offset.
     BufferOffset b(int imm26);
