@@ -252,10 +252,6 @@ BaselineCompiler::compile()
 bool
 BaselineCompiler::emitPrologue()
 {
-    // FIXME: Actually handle the prologue.
-    masm.breakpoint();
-    return true;
-
     masm.push(BaselineFrameReg);
     masm.movePtr(BaselineStackReg, BaselineFrameReg);
 

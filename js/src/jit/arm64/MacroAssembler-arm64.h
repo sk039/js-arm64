@@ -1044,10 +1044,40 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     CodeOffsetJump branchPtrWithPatch(Condition cond, Address addr, T ptr, RepatchLabel *label) {
         JS_ASSERT(0 && "branchPtrWithPatch");
     }
-    template <typename T, typename S>
-    void branchPtr(Condition cond, T lhs, S ptr, Label *label) {
+
+    void branchPtr(Condition cond, AsmJSAbsoluteAddress lhs, Register rhs, Label *label) {
         JS_ASSERT(0 && "branchPtr");
     }
+    void branchPtr(Condition cond, Address lhs, ImmWord ptr, Label *label) {
+        JS_ASSERT(0 && "branchPtr");
+    }
+    void branchPtr(Condition cond, Address lhs, ImmPtr ptr, Label *label) {
+        JS_ASSERT(0 && "branchPtr");
+    }
+    void branchPtr(Condition cond, Address lhs, Register ptr, Label *label) {
+        JS_ASSERT(0 && "branchPtr");
+    }
+    void branchPtr(Condition cond, Register lhs, ImmWord ptr, Label *label) {
+        JS_ASSERT(0 && "branchPtr");
+    }
+    void branchPtr(Condition cond, Register lhs, ImmPtr rhs, Label *label) {
+        JS_ASSERT(0 && "branchPtr");
+    }
+    void branchPtr(Condition cond, Register lhs, ImmGCPtr ptr, Label *label) {
+        JS_ASSERT(0 && "branchPtr");
+    }
+    void branchPtr(Condition cond, Address lhs, ImmGCPtr ptr, Label *label) {
+        JS_ASSERT(0 && "branchPtr");
+    }
+    void branchPtr(Condition cond, Register lhs, Register rhs, Label *label) {
+        Cmp(ARMRegister(lhs, 64), ARMRegister(rhs, 64));
+        B(label, cond);
+    }
+    void branchPtr(Condition cond, AbsoluteAddress lhs, Register rhs, Label *label) {
+        loadPtr(lhs, ScratchReg2);
+        branchPtr(cond, ScratchReg2, rhs, label);
+    }
+
     void branchTestPtr(Condition cond, Register lhs, Register rhs, Label *label) {
         Tst(ARMRegister(lhs, 64), Operand(ARMRegister(rhs, 64)));
         B(label, cond);
@@ -1780,7 +1810,14 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
 
     void checkStackAlignment() {
-        JS_ASSERT(0 && "checkStackAlignment");
+#ifdef DEBUG
+        // TODO: Check sp also.
+        Label pspAligned;
+        Tst(ARMRegister(PseudoStackPointer, 64), Operand(StackAlignment - 1));
+        B(Zero, &pspAligned);
+        Brk();
+        bind(&pspAligned);
+#endif
     }
 
     void abiret() {
