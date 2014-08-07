@@ -135,7 +135,8 @@ JitRuntime::generateEnterJIT(JSContext *cx, EnterJitType type)
     }
 
     // Call function.
-    masm.call(reg_code);
+    // Since AArch64 doesn't have the pc register available, the callee must push lr.
+    masm.Blr(ARMRegister(reg_code, 64));
 
     // TODO: Unwind the EnterJIT SPS mark.
     //masm.spsUnmarkJit(&cx->runtime()->spsProfiler, ???);

@@ -577,6 +577,7 @@ BaselineCompiler::initScopeChain()
         // chain slot is properly initialized if the call triggers GC.
         Register callee = R0.scratchReg();
         Register scope = R1.scratchReg();
+
         masm.loadPtr(frame.addressOfCallee(), callee);
         masm.loadPtr(Address(callee, JSFunction::offsetOfEnvironment()), scope);
         masm.storePtr(scope, frame.addressOfScopeChain());
