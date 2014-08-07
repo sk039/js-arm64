@@ -472,7 +472,7 @@ class Type
           case Void:
             return MIRType_None;
         }
-        MOZ_ASSUME_UNREACHABLE("Invalid Type");
+        MOZ_MAKE_COMPILER_ASSUME_IS_UNREACHABLE("Invalid Type");
     }
 
     const char *toChars() const {
@@ -489,7 +489,7 @@ class Type
           case Intish:      return "intish";
           case Void:        return "void";
         }
-        MOZ_ASSUME_UNREACHABLE("Invalid Type");
+        MOZ_CRASH("Invalid Type");
     }
 };
 
@@ -533,7 +533,7 @@ class RetType
           case Float: // will be converted to a Double
           case Double: return AsmJSModule::Return_Double;
         }
-        MOZ_ASSUME_UNREACHABLE("Unexpected return type");
+        MOZ_MAKE_COMPILER_ASSUME_IS_UNREACHABLE("Unexpected return type");
     }
     MIRType toMIRType() const {
         switch (which_) {
@@ -542,7 +542,7 @@ class RetType
           case Double: return MIRType_Double;
           case Float: return MIRType_Float32;
         }
-        MOZ_ASSUME_UNREACHABLE("Unexpected return type");
+        MOZ_MAKE_COMPILER_ASSUME_IS_UNREACHABLE("Unexpected return type");
     }
     bool operator==(RetType rhs) const { return which_ == rhs.which_; }
     bool operator!=(RetType rhs) const { return which_ != rhs.which_; }
@@ -566,7 +566,7 @@ namespace {
 //   }
 //
 // the AsmJSCoercion of (1) is Signed (since | performs ToInt32) but, when
-// translated to an VarType, the result is a plain Int since, as shown, it
+// translated to a VarType, the result is a plain Int since, as shown, it
 // is legal to assign both Signed and Unsigned (or some other Int) values to
 // it. For (2), the AsmJSCoercion is also Signed but, when translated to an
 // RetType, the result is Signed since callers (asm.js and non-asm.js) can
@@ -607,7 +607,7 @@ class VarType
           case Double:  return MIRType_Double;
           case Float:   return MIRType_Float32;
         }
-        MOZ_ASSUME_UNREACHABLE("VarType can only be Int, Double or Float");
+        MOZ_MAKE_COMPILER_ASSUME_IS_UNREACHABLE("VarType can only be Int, Double or Float");
     }
     AsmJSCoercion toCoercion() const {
         switch(which_) {
@@ -615,7 +615,7 @@ class VarType
           case Double:  return AsmJS_ToNumber;
           case Float:   return AsmJS_FRound;
         }
-        MOZ_ASSUME_UNREACHABLE("VarType can only be Int, Double or Float");
+        MOZ_MAKE_COMPILER_ASSUME_IS_UNREACHABLE("VarType can only be Int, Double or Float");
     }
     static VarType FromCheckedType(Type type) {
         JS_ASSERT(type.isInt() || type.isMaybeDouble() || type.isFloatish());
@@ -632,7 +632,7 @@ class VarType
 
 } /* anonymous namespace */
 
-// Implements <: (subtype) operator when the rhs is an VarType
+// Implements <: (subtype) operator when the rhs is a VarType
 static inline bool
 operator<=(Type lhs, VarType rhs)
 {
@@ -641,7 +641,7 @@ operator<=(Type lhs, VarType rhs)
       case VarType::Double: return lhs.isDouble();
       case VarType::Float:  return lhs.isFloat();
     }
-    MOZ_ASSUME_UNREACHABLE("Unexpected rhs type");
+    MOZ_MAKE_COMPILER_ASSUME_IS_UNREACHABLE("Unexpected rhs type");
 }
 
 /*****************************************************************************/
@@ -753,7 +753,7 @@ TypedArrayLoadType(Scalar::Type viewType)
         return Type::MaybeDouble;
       default:;
     }
-    MOZ_ASSUME_UNREACHABLE("Unexpected array type");
+    MOZ_CRASH("Unexpected array type");
 }
 
 enum NeedsBoundsCheck {
@@ -1670,7 +1670,7 @@ class NumLit
             return VarType::Float;
           case NumLit::OutOfRangeInt:;
         }
-        MOZ_ASSUME_UNREACHABLE("Unexpected NumLit type");
+        MOZ_MAKE_COMPILER_ASSUME_IS_UNREACHABLE("Unexpected NumLit type");
     }
 };
 
@@ -1809,7 +1809,7 @@ IsLiteralInt(ModuleCompiler &m, ParseNode *pn, uint32_t *u32)
         return false;
     }
 
-    MOZ_ASSUME_UNREACHABLE("Bad literal type");
+    MOZ_MAKE_COMPILER_ASSUME_IS_UNREACHABLE("Bad literal type");
 }
 
 /*****************************************************************************/
@@ -3099,7 +3099,7 @@ CheckGlobalDotImport(ModuleCompiler &m, PropertyName *varName, ParseNode *initNo
           default:
             break;
         }
-        MOZ_ASSUME_UNREACHABLE("unexpected or uninitialized math builtin type");
+        MOZ_CRASH("unexpected or uninitialized math builtin type");
     }
 
     if (IsUseOfName(base, m.module().globalArgumentName())) {
@@ -3567,7 +3567,7 @@ CheckStoreArray(FunctionCompiler &f, ParseNode *lhs, ParseNode *rhs, MDefinition
             return f.failf(lhs, "%s is not a subtype of float? or double?", rhsType.toChars());
         break;
       default:
-        MOZ_ASSUME_UNREACHABLE("Unexpected view type");
+        MOZ_CRASH("Unexpected view type");
     }
 
     f.storeHeap(viewType, pointerDef, rhsDef, needsBoundsCheck);
@@ -4037,7 +4037,7 @@ CheckMathFRound(FunctionCompiler &f, ParseNode *callNode, RetType retType, MDefi
         return true;
     }
 
-    MOZ_ASSUME_UNREACHABLE("return value of fround is ignored");
+    MOZ_MAKE_COMPILER_ASSUME_IS_UNREACHABLE("return value of fround is ignored");
 }
 
 static bool
@@ -4081,7 +4081,7 @@ CheckMathBuiltinCall(FunctionCompiler &f, ParseNode *callNode, AsmJSMathBuiltinF
       case AsmJSMathBuiltin_log:    arity = 1; doubleCallee = AsmJSImm_LogD;   floatCallee = AsmJSImm_Limit; break;
       case AsmJSMathBuiltin_pow:    arity = 2; doubleCallee = AsmJSImm_PowD;   floatCallee = AsmJSImm_Limit; break;
       case AsmJSMathBuiltin_atan2:  arity = 2; doubleCallee = AsmJSImm_ATan2D; floatCallee = AsmJSImm_Limit; break;
-      default: MOZ_ASSUME_UNREACHABLE("unexpected mathBuiltin function");
+      default: MOZ_CRASH("unexpected mathBuiltin function");
     }
 
     if (retType == RetType::Float && floatCallee == AsmJSImm_Limit)
@@ -4369,7 +4369,7 @@ IsValidIntMultiplyConstant(ModuleCompiler &m, ParseNode *expr)
         return false;
     }
 
-    MOZ_ASSUME_UNREACHABLE("Bad literal");
+    MOZ_MAKE_COMPILER_ASSUME_IS_UNREACHABLE("Bad literal");
 }
 
 static bool
@@ -4585,7 +4585,7 @@ CheckBitwise(FunctionCompiler &f, ParseNode *bitwise, MDefinition **def, Type *t
       case PNK_LSH:    identityElement = 0;  onlyOnRight = true;  *type = Type::Signed;   break;
       case PNK_RSH:    identityElement = 0;  onlyOnRight = true;  *type = Type::Signed;   break;
       case PNK_URSH:   identityElement = 0;  onlyOnRight = true;  *type = Type::Unsigned; break;
-      default: MOZ_ASSUME_UNREACHABLE("not a bitwise op");
+      default: MOZ_CRASH("not a bitwise op");
     }
 
     uint32_t i;
@@ -4632,7 +4632,7 @@ CheckBitwise(FunctionCompiler &f, ParseNode *bitwise, MDefinition **def, Type *t
       case PNK_LSH:    *def = f.bitwise<MLsh>(lhsDef, rhsDef); break;
       case PNK_RSH:    *def = f.bitwise<MRsh>(lhsDef, rhsDef); break;
       case PNK_URSH:   *def = f.bitwise<MUrsh>(lhsDef, rhsDef); break;
-      default: MOZ_ASSUME_UNREACHABLE("not a bitwise op");
+      default: MOZ_CRASH("not a bitwise op");
     }
 
     return true;
@@ -6199,8 +6199,7 @@ GenerateFFIInterpExit(ModuleCompiler &m, const ModuleCompiler::ExitDescriptor &e
         masm.loadDouble(argv, ReturnDoubleReg);
         break;
       case RetType::Float:
-        MOZ_ASSUME_UNREACHABLE("Float32 shouldn't be returned from a FFI");
-        break;
+        MOZ_CRASH("Float32 shouldn't be returned from a FFI");
     }
 
     Label profilingReturn;
@@ -6411,8 +6410,7 @@ GenerateFFIIonExit(ModuleCompiler &m, const ModuleCompiler::ExitDescriptor &exit
         masm.convertValueToDouble(JSReturnOperand, ReturnDoubleReg, &oolConvert);
         break;
       case RetType::Float:
-        MOZ_ASSUME_UNREACHABLE("Float shouldn't be returned from a FFI");
-        break;
+        MOZ_CRASH("Float shouldn't be returned from a FFI");
     }
 
     Label done;
@@ -6454,7 +6452,7 @@ GenerateFFIIonExit(ModuleCompiler &m, const ModuleCompiler::ExitDescriptor &exit
             masm.loadDouble(Address(StackPointer, offsetToCoerceArgv), ReturnDoubleReg);
             break;
           default:
-            MOZ_ASSUME_UNREACHABLE("Unsupported convert type");
+            MOZ_CRASH("Unsupported convert type");
         }
 
         masm.jump(&done);
@@ -6533,7 +6531,7 @@ GenerateBuiltinThunk(ModuleCompiler &m, AsmJSExit::BuiltinKind builtin)
         argTypes.infallibleAppend(MIRType_Float32);
         break;
       case AsmJSExit::Builtin_Limit:
-        MOZ_ASSUME_UNREACHABLE("Bad builtin");
+        MOZ_CRASH("Bad builtin");
     }
 
     uint32_t framePushed = StackDecrementForCall(masm, argTypes);
