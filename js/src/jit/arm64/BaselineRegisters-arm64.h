@@ -16,7 +16,7 @@ static MOZ_CONSTEXPR_VAR Register BaselineFrameReg {Registers::x11};
 
 // The BaselineStackReg cannot be sp, because that register is treated
 // as xzr/wzr during load/store operations.
-static MOZ_CONSTEXPR_VAR Register BaselineStackReg {Registers::x12};
+static MOZ_CONSTEXPR_VAR Register BaselineStackReg {Registers::x28};
 
 // ValueOperands R0, R1, and R2.
 // R0 == JSReturnReg, and R2 uses registers not preserved across calls.
