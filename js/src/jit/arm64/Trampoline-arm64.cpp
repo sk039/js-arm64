@@ -58,14 +58,19 @@ JitRuntime::generateEnterJIT(JSContext *cx, EnterJitType type)
     // Common code below attempts to push single registers at a time,
     // which breaks the stack pointer's 16-byte alignment requirement.
     // Note that movePtr() is invalid because StackPointer is treated as xzr.
-    masm.Add(ARMRegister(PseudoStackPointer, 64), sp, Operand((int64_t)0));
-    masm.SetStackPointer(ARMRegister(PseudoStackPointer, 64));
+    //
+    // FIXME: After testing, this entire function should be rewritten to not
+    // use the PseudoStackPointer: since the amount of data pushed is precalculated,
+    // we can just allocate the whole frame header at once and index off sp.
+    // This will save a significant number of instructions where Push() updates sp.
+    masm.Add(PseudoStackPointer64, sp, Operand((int64_t)0));
+    masm.SetStackPointer(PseudoStackPointer64);
 
     // Push the EnterJIT SPS mark.
     masm.spsMarkJit(&cx->runtime()->spsProfiler, PseudoStackPointer, r20);
 
     // Remember stack depth without padding and arguments.
-    masm.Mov(x19, ARMRegister(PseudoStackPointer, 64));
+    masm.Mov(x19, PseudoStackPointer64);
 
     // IonJSFrameLayout is as follows (higher is higher in memory):
     //  N*8  - [ JS argument vector ] (base 16-byte aligned)
@@ -85,13 +90,14 @@ JitRuntime::generateEnterJIT(JSContext *cx, EnterJitType type)
         masm.Mov(tmp_argc, ARMRegister(reg_argc, 64));
 
         // sp -= 8 * argc
-        masm.Mov(tmp_sp, ARMRegister(PseudoStackPointer, 64));
-        masm.Sub(tmp_sp, tmp_sp, Operand(tmp_argc, SXTX, 3));
+        masm.Sub(PseudoStackPointer64, PseudoStackPointer64, Operand(tmp_argc, SXTX, 3));
 
         // Give sp 16-byte alignment.
-        masm.And(tmp_sp, tmp_sp, Operand(-15));
-        masm.Mov(sp, tmp_sp);
-        masm.Sub(ARMRegister(PseudoStackPointer, 64), sp, Operand(0));
+        masm.And(PseudoStackPointer64, PseudoStackPointer64, Operand(-15));
+
+        // tmp_sp = sp = PseudoStackPointer.
+        masm.Sub(sp, PseudoStackPointer64, Operand(0));
+        masm.Mov(tmp_sp, PseudoStackPointer64);
         masm.checkStackAlignment();
 
         masm.branchTestPtr(Assembler::Zero, reg_argc, reg_argc, &noArguments);
@@ -124,7 +130,7 @@ JitRuntime::generateEnterJIT(JSContext *cx, EnterJitType type)
     masm.checkStackAlignment();
 
     // Calculate the number of bytes pushed so far.
-    masm.Sub(x19, x19, ARMRegister(PseudoStackPointer, 64));
+    masm.Sub(x19, x19, PseudoStackPointer64);
 
     // Push the frameDescriptor.
     masm.makeFrameDescriptor(r19, JitFrame_Entry);

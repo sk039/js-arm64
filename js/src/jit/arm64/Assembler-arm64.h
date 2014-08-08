@@ -398,9 +398,12 @@ static MOZ_CONSTEXPR_VAR Register JSReturnReg = { Registers::x2 };
 static MOZ_CONSTEXPR_VAR Register FramePointer = { Registers::fp };
 static MOZ_CONSTEXPR_VAR Register StackPointer = { Registers::sp };
 static MOZ_CONSTEXPR_VAR Register ZeroRegister = { Registers::sp };
-static MOZ_CONSTEXPR_VAR Register PseudoStackPointer = { Registers::x28 };
 static MOZ_CONSTEXPR_VAR FloatRegister ReturnFloatReg = { FloatRegisters::d0 };
 static MOZ_CONSTEXPR_VAR FloatRegister ScratchFloatReg = { FloatRegisters::d31 };
+
+static MOZ_CONSTEXPR_VAR Register PseudoStackPointer = { Registers::x28 };
+static MOZ_CONSTEXPR_VAR ARMRegister PseudoStackPointer64 = { Registers::x28, 64 };
+static MOZ_CONSTEXPR_VAR ARMRegister PseudoStackPointer32 = { Registers::x28, 32 };
 
 static MOZ_CONSTEXPR_VAR Register IntArgReg0 = { Registers::x0 };
 static MOZ_CONSTEXPR_VAR Register IntArgReg1 = { Registers::x1 };

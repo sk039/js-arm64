@@ -1815,7 +1815,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
 #ifdef DEBUG
         // TODO: Check sp also.
         Label pspAligned;
-        Tst(ARMRegister(PseudoStackPointer, 64), Operand(StackAlignment - 1));
+        Tst(PseudoStackPointer64, Operand(StackAlignment - 1));
         B(Zero, &pspAligned);
         breakpoint();
         bind(&pspAligned);
