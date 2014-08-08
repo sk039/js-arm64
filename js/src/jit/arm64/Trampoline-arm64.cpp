@@ -68,11 +68,11 @@ JitRuntime::generateEnterJIT(JSContext *cx, EnterJitType type)
     masm.Mov(x19, ARMRegister(PseudoStackPointer, 64));
 
     // IonJSFrameLayout is as follows (higher is higher in memory):
-    //  N*64  - [ JS argument vector ]
-    //  64    - numActualArgs
-    //  64    - calleeToken
-    //  64    - frameDescriptor
-    //  64    - returnAddress
+    //  N*8  - [ JS argument vector ] (base 16-byte aligned)
+    //  8    - numActualArgs
+    //  8    - calleeToken (16-byte aligned)
+    //  8    - frameDescriptor
+    //  8    - returnAddress (16-byte aligned, pushed by callee)
 
     // Push the argument vector onto the stack.
     // WARNING: destructively modifies reg_argv
@@ -119,6 +119,7 @@ JitRuntime::generateEnterJIT(JSContext *cx, EnterJitType type)
 
     // Push numActualArgs and the calleeToken.
     masm.MacroAssemblerVIXL::Push(ARMRegister(reg_argc, 64), ARMRegister(reg_scope, 64));
+    masm.checkStackAlignment();
 
     // Calculate the number of bytes pushed so far.
     masm.Sub(x19, x19, ARMRegister(PseudoStackPointer, 64));

@@ -1817,7 +1817,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         Label pspAligned;
         Tst(ARMRegister(PseudoStackPointer, 64), Operand(StackAlignment - 1));
         B(Zero, &pspAligned);
-        Brk();
+        breakpoint();
         bind(&pspAligned);
 #endif
     }
