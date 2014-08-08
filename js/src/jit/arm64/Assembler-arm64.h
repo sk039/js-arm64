@@ -446,6 +446,10 @@ static MOZ_CONSTEXPR_VAR Register r29 = { Registers::x29 };
 static MOZ_CONSTEXPR_VAR Register r30 = { Registers::x30 };
 static MOZ_CONSTEXPR_VAR ValueOperand JSReturnOperand = ValueOperand(JSReturnReg);
 
+// SIMD.
+static MOZ_CONSTEXPR_VAR bool SupportsSimd = false;
+static MOZ_CONSTEXPR_VAR uint32_t SimdStackAlignment = 16;
+
 // Registers used in the GenerateFFIIonExit Enable Activation block.
 static MOZ_CONSTEXPR_VAR Register AsmJSIonExitRegCallee = r8;
 static MOZ_CONSTEXPR_VAR Register AsmJSIonExitRegE0 = r0;

@@ -32,8 +32,9 @@
 namespace js {
 namespace jit {
 
+// TODO: What on earth is simdSet?
 void
-MacroAssembler::PushRegsInMask(RegisterSet set)
+MacroAssembler::PushRegsInMask(RegisterSet set, FloatRegisterSet simdSet)
 {
     // FIXME: Are we storing the full 128 bits or what?
     int32_t diffF = set.fpus().size() * sizeof(double);
@@ -95,8 +96,9 @@ MacroAssembler::PushRegsInMask(RegisterSet set)
     }
 }
 
+// TODO: What on earth is simdSet?
 void
-MacroAssembler::PopRegsInMaskIgnore(RegisterSet set, RegisterSet ignore)
+MacroAssembler::PopRegsInMaskIgnore(RegisterSet set, RegisterSet ignore, FloatRegisterSet simdSet)
 {
     // The offset that we'll be loading from
     uint32_t offset = 0;
