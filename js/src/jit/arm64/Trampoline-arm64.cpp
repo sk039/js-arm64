@@ -150,6 +150,9 @@ JitRuntime::generateEnterJIT(JSContext *cx, EnterJitType type)
     // TODO: Unwind the EnterJIT SPS mark.
     //masm.spsUnmarkJit(&cx->runtime()->spsProfiler, ???);
 
+    // FIXME: Actually implement returning.
+    masm.breakpoint();
+
     // Restore callee-save floating-point registers.
     masm.MacroAssemblerVIXL::Pop(d15, d14, d13, d12);
     masm.MacroAssemblerVIXL::Pop(d11, d10,  d9,  d8);
