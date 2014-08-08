@@ -252,6 +252,11 @@ BaselineCompiler::compile()
 bool
 BaselineCompiler::emitPrologue()
 {
+#ifdef JS_CODEGEN_ARM64
+    // Push link register from generateEnterJIT()'s BLR.
+    masm.push(r30);
+#endif
+
     masm.push(BaselineFrameReg);
     masm.movePtr(BaselineStackReg, BaselineFrameReg);
 
@@ -401,6 +406,11 @@ BaselineCompiler::emitEpilogue()
 
     masm.movePtr(BaselineFrameReg, BaselineStackReg);
     masm.pop(BaselineFrameReg);
+
+#ifdef JS_CODEGEN_ARM64
+    // Pop into lr: RET uses lr if no register is specified.
+    masm.pop(r30);
+#endif
 
     masm.ret();
     return true;
