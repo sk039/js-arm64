@@ -255,6 +255,7 @@ BaselineCompiler::emitPrologue()
 #ifdef JS_CODEGEN_ARM64
     // Push link register from generateEnterJIT()'s BLR.
     masm.push(r30);
+    masm.checkStackAlignment();
 #endif
 
     masm.push(BaselineFrameReg);
