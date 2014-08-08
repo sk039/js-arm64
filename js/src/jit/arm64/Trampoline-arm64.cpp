@@ -77,8 +77,8 @@ JitRuntime::generateEnterJIT(JSContext *cx, EnterJitType type)
     // Push the argument vector onto the stack.
     // WARNING: destructively modifies reg_argv
     {
-        ARMRegister tmp_argc = x19;
-        ARMRegister tmp_sp = x28;
+        ARMRegister tmp_argc = x16;
+        ARMRegister tmp_sp = x17;
         Label noArguments;
         Label loopHead;
 
@@ -92,6 +92,7 @@ JitRuntime::generateEnterJIT(JSContext *cx, EnterJitType type)
         masm.And(tmp_sp, tmp_sp, Operand(-15));
         masm.Mov(sp, tmp_sp);
         masm.Sub(ARMRegister(PseudoStackPointer, 64), sp, Operand(0));
+        masm.checkStackAlignment();
 
         masm.branchTestPtr(Assembler::Zero, reg_argc, reg_argc, &noArguments);
 
@@ -116,6 +117,7 @@ JitRuntime::generateEnterJIT(JSContext *cx, EnterJitType type)
 
         masm.bind(&noArguments);
     }
+    masm.checkStackAlignment();
 
     // Push numActualArgs and the calleeToken.
     masm.MacroAssemblerVIXL::Push(ARMRegister(reg_argc, 64), ARMRegister(reg_scope, 64));
