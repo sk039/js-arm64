@@ -163,7 +163,7 @@ JitRuntime::generateEnterJIT(JSContext *cx, EnterJitType type)
     masm.MacroAssemblerVIXL::Pop(x20, x19);
 
     Linker linker(masm);
-    JitCode *code = linker.newCode<NoGC>(cx, JSC::OTHER_CODE);
+    JitCode *code = linker.newCode<NoGC>(cx, OTHER_CODE);
 
 #ifdef JS_ION_PERF
     writePerfSpewerJitCodeProfile(code, "EnterJIT");
@@ -179,7 +179,7 @@ JitRuntime::generateInvalidator(JSContext *cx)
     MacroAssembler masm;
     masm.breakpoint();
     Linker linker(masm);
-    return linker.newCode<NoGC>(cx, JSC::OTHER_CODE);
+    return linker.newCode<NoGC>(cx, OTHER_CODE);
 }
 
 JitCode *
@@ -189,7 +189,7 @@ JitRuntime::generateArgumentsRectifier(JSContext *cx, ExecutionMode mode, void *
     MacroAssembler masm;
     masm.breakpoint();
     Linker linker(masm);
-    return linker.newCode<NoGC>(cx, JSC::OTHER_CODE);
+    return linker.newCode<NoGC>(cx, OTHER_CODE);
 }
 
 static void
@@ -205,7 +205,7 @@ JitRuntime::generateBailoutTable(JSContext *cx, uint32_t frameClass)
     MacroAssembler masm;
     masm.breakpoint();
     Linker linker(masm);
-    return linker.newCode<NoGC>(cx, JSC::OTHER_CODE);
+    return linker.newCode<NoGC>(cx, OTHER_CODE);
 }
 
 JitCode *
@@ -215,7 +215,7 @@ JitRuntime::generateBailoutHandler(JSContext *cx, ExecutionMode mode)
     MacroAssembler masm(cx);
     masm.breakpoint();
     Linker linker(masm);
-    return linker.newCode<NoGC>(cx, JSC::OTHER_CODE);
+    return linker.newCode<NoGC>(cx, OTHER_CODE);
 }
 
 JitCode *
@@ -231,7 +231,7 @@ JitRuntime::generateVMWrapper(JSContext *cx, const VMFunction &f)
     masm.breakpoint();
 
     Linker linker(masm);
-    JitCode *wrapper = linker.newCode<NoGC>(cx, JSC::OTHER_CODE);
+    JitCode *wrapper = linker.newCode<NoGC>(cx, OTHER_CODE);
     if (!wrapper)
         return nullptr;
 
@@ -253,7 +253,7 @@ JitRuntime::generatePreBarrier(JSContext *cx, MIRType type)
     MacroAssembler masm(cx);
     masm.breakpoint();
     Linker linker(masm);
-    return linker.newCode<NoGC>(cx, JSC::OTHER_CODE);
+    return linker.newCode<NoGC>(cx, OTHER_CODE);
 }
 
 typedef bool (*HandleDebugTrapFn)(JSContext *, BaselineFrame *, uint8_t *, bool *);
@@ -265,7 +265,7 @@ JitRuntime::generateDebugTrapHandler(JSContext *cx)
     MacroAssembler masm(cx);
     masm.breakpoint();
     Linker linker(masm);
-    return linker.newCode<NoGC>(cx, JSC::OTHER_CODE);
+    return linker.newCode<NoGC>(cx, OTHER_CODE);
 }
 
 JitCode *
@@ -274,7 +274,7 @@ JitRuntime::generateExceptionTailStub(JSContext *cx)
     MacroAssembler masm(cx);
     masm.breakpoint();
     Linker linker(masm);
-    return linker.newCode<NoGC>(cx, JSC::OTHER_CODE);
+    return linker.newCode<NoGC>(cx, OTHER_CODE);
 }
 
 JitCode *
@@ -283,5 +283,5 @@ JitRuntime::generateBailoutTailStub(JSContext *cx)
     MacroAssembler masm(cx);
     masm.breakpoint();
     Linker linker(masm);
-    return linker.newCode<NoGC>(cx, JSC::OTHER_CODE);
+    return linker.newCode<NoGC>(cx, OTHER_CODE);
 }
