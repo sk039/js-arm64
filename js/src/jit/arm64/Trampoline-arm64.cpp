@@ -33,14 +33,14 @@ JitRuntime::generateEnterJIT(JSContext *cx, EnterJitType type)
 {
     MacroAssembler masm(cx);
 
-    const Register reg_code = IntArgReg0; // EnterJitData::jitcode.
-    const Register reg_argc = IntArgReg1; // EnterJitData::maxArgc.
-    const Register reg_argv = IntArgReg2; // EnterJitData::maxArgv.
-    const Register reg_osrFrame = IntArgReg3; // EnterJitData::osrFrame.
-    const Register reg_callee = IntArgReg4; // EnterJitData::calleeToken.
-    const Register reg_scope = IntArgReg5; // EnterJitData::scopeChain.
+    const Register reg_code      = IntArgReg0; // EnterJitData::jitcode.
+    const Register reg_argc      = IntArgReg1; // EnterJitData::maxArgc.
+    const Register reg_argv      = IntArgReg2; // EnterJitData::maxArgv.
+    const Register reg_osrFrame  = IntArgReg3; // EnterJitData::osrFrame.
+    const Register reg_callee    = IntArgReg4; // EnterJitData::calleeToken.
+    const Register reg_scope     = IntArgReg5; // EnterJitData::scopeChain.
     const Register reg_osrNStack = IntArgReg6; // EnterJitData::osrNumStackValues.
-    const Register reg_vp = IntArgReg7; // Address of EnterJitData::result.
+    const Register reg_vp        = IntArgReg7; // Address of EnterJitData::result.
 
     // FIXME: Probably use x8 or something.
     JS_ASSERT(OsrFrameReg == IntArgReg5);
@@ -49,8 +49,6 @@ JitRuntime::generateEnterJIT(JSContext *cx, EnterJitType type)
 
     // During the pushes below, use the normal stack pointer.
     masm.SetStackPointer(sp);
-
-    masm.breakpoint();
 
     // Save callee-save integer registers.
     masm.MacroAssemblerVIXL::Push(x19, x20, x21, x22);
@@ -131,8 +129,6 @@ JitRuntime::generateEnterJIT(JSContext *cx, EnterJitType type)
         masm.bind(&noArguments);
     }
     masm.checkStackAlignment();
-
-    masm.breakpoint();
 
     // Push numActualArgs and the calleeToken.
     masm.MacroAssemblerVIXL::Push(ARMRegister(reg_argc, 64), ARMRegister(reg_callee, 64));
