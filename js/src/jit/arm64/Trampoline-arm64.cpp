@@ -36,8 +36,9 @@ JitRuntime::generateEnterJIT(JSContext *cx, EnterJitType type)
     const Register reg_code = IntArgReg0;
     const Register reg_argc = IntArgReg1;
     const Register reg_argv = IntArgReg2;
-    const Register reg_scope = IntArgReg3;
-    const Register reg_vp = IntArgReg4;
+    const Register reg_callee = IntArgReg3;
+    const Register reg_scope = IntArgReg4;
+    const Register reg_vp = IntArgReg5;
     JS_ASSERT(OsrFrameReg == IntArgReg5);
 
     // TODO: Save old stack frame pointer, set new stack frame pointer.
@@ -126,7 +127,7 @@ JitRuntime::generateEnterJIT(JSContext *cx, EnterJitType type)
     masm.checkStackAlignment();
 
     // Push numActualArgs and the calleeToken.
-    masm.MacroAssemblerVIXL::Push(ARMRegister(reg_argc, 64), ARMRegister(reg_scope, 64));
+    masm.MacroAssemblerVIXL::Push(ARMRegister(reg_argc, 64), ARMRegister(reg_callee, 64));
     masm.checkStackAlignment();
 
     // Calculate the number of bytes pushed so far.
@@ -168,6 +169,8 @@ JitRuntime::generateEnterJIT(JSContext *cx, EnterJitType type)
 #ifdef JS_ION_PERF
     writePerfSpewerJitCodeProfile(code, "EnterJIT");
 #endif
+
+    // FIXME: Remember that reg_vp is the same as OsrFrameReg.
 
     return code;
 }
