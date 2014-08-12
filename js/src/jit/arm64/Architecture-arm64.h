@@ -179,6 +179,9 @@ class Registers {
     // FIXME: Validate
     static const uint32_t TempMask = VolatileMask & ~NonAllocatableMask;
 
+    // FIXME: Validate
+    static const uint32_t WrapperMask = VolatileMask;
+
     // Registers returned from a JS -> JS call.
     // FIXME: Validate
     static const uint32_t JSCallMask =

@@ -936,6 +936,11 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         Ret(); // Stores address into lr.
     }
 
+    void retn(Imm32 n) {
+        // pc <- [sp]; sp += n
+        breakpoint(); // FIXME: Implement.
+    }
+
     void j(Condition code , Label *dest) {
         b(dest, code);
     }

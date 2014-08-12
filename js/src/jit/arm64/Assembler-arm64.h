@@ -447,6 +447,7 @@ static MOZ_CONSTEXPR_VAR Register r27 = { Registers::x27 };
 static MOZ_CONSTEXPR_VAR Register r28 = { Registers::x28 };
 static MOZ_CONSTEXPR_VAR Register r29 = { Registers::x29 };
 static MOZ_CONSTEXPR_VAR Register r30 = { Registers::x30 };
+static MOZ_CONSTEXPR_VAR Register r31 = { Registers::xzr };
 static MOZ_CONSTEXPR_VAR ValueOperand JSReturnOperand = ValueOperand(JSReturnReg);
 
 // SIMD.

@@ -233,7 +233,160 @@ JitRuntime::generateVMWrapper(JSContext *cx, const VMFunction &f)
         return p->value();
 
     MacroAssembler masm(cx);
-    masm.breakpoint();
+
+    // Avoid conflicts with argument registers while discarding the result after
+    // the function call.
+    GeneralRegisterSet regs = GeneralRegisterSet(Register::Codes::WrapperMask);
+
+    // Wrapper register set is a superset of the Volatile register set.
+    JS_STATIC_ASSERT((Register::Codes::VolatileMask & ~Register::Codes::WrapperMask) == 0);
+
+    // First argument is the JSContext.
+    Register reg_cx = IntArgReg0;
+    regs.take(reg_cx);
+
+    // Stack is:
+    //    ... frame ...
+    //  +12 [args]
+    //  +8  descriptor
+    //  +0  returnAddress
+    //
+    //  We're aligned to an exit frame, so link it up.
+    masm.enterExitFrameAndLoadContext(&f, reg_cx, regs.getAny(), f.executionMode);
+
+    // Save the current stack pointer as the base for copying arguments.
+    Register argsBase = InvalidReg;
+    if (f.explicitArgs) {
+        argsBase = r10;
+        regs.take(argsBase);
+        masm.Add(ARMRegister(argsBase, 64), sp, Operand(IonExitFrameLayout::SizeWithFooter()));
+    }
+
+    // Reserve space for any outparameter.
+    Register outReg = InvalidReg;
+    switch (f.outParam) {
+      case Type_Value:
+        outReg = regs.takeAny();
+        masm.reserveStack(sizeof(Value));
+        masm.Add(ARMRegister(outReg, 64), sp, Operand(0));
+        break;
+
+      case Type_Handle:
+        outReg = regs.takeAny();
+        masm.PushEmptyRooted(f.outParamRootType);
+        masm.Add(ARMRegister(outReg, 64), sp, Operand(0));
+        break;
+
+      case Type_Int32:
+      case Type_Bool:
+        outReg = regs.takeAny();
+        masm.reserveStack(sizeof(int32_t));
+        masm.Add(ARMRegister(outReg, 64), sp, Operand(0));
+        break;
+
+      case Type_Double:
+        outReg = regs.takeAny();
+        masm.reserveStack(sizeof(double));
+        masm.Add(ARMRegister(outReg, 64), sp, Operand(0));
+        break;
+
+      case Type_Pointer:
+        outReg = regs.takeAny();
+        masm.reserveStack(sizeof(uintptr_t));
+        masm.Add(ARMRegister(outReg, 64), sp, Operand(0));
+        break;
+
+      default:
+        JS_ASSERT(f.outParam == Type_Void);
+        break;
+    }
+
+    masm.setupUnalignedABICall(f.argc(), regs.getAny());
+    masm.passABIArg(reg_cx);
+
+    size_t argDisp = 0;
+
+    // Copy arguments.
+    for (uint32_t explicitArg = 0; explicitArg < f.explicitArgs; explicitArg++) {
+        MoveOperand from;
+        switch (f.argProperties(explicitArg)) {
+          case VMFunction::WordByValue:
+            masm.passABIArg(MoveOperand(argsBase, argDisp),
+                            (f.argPassedInFloatReg(explicitArg) ? MoveOp::DOUBLE : MoveOp::GENERAL));
+            argDisp += sizeof(void *);
+            break;
+
+          case VMFunction::WordByRef:
+            masm.passABIArg(MoveOperand(argsBase, argDisp, MoveOperand::EFFECTIVE_ADDRESS),
+                            MoveOp::GENERAL);
+            argDisp += sizeof(void *);
+            break;
+
+          case VMFunction::DoubleByValue:
+          case VMFunction::DoubleByRef:
+            MOZ_ASSUME_UNREACHABLE("NYI: AArch64 callVM should not be used with 128bit values.");
+        }
+    }
+
+    // Copy the implicit outparam, if any.
+    if (outReg != InvalidReg)
+        masm.passABIArg(outReg);
+
+    masm.callWithABI(f.wrapped);
+
+    // Test for failure.
+    switch (f.failType()) {
+      case Type_Object:
+        masm.branchTestPtr(Assembler::Zero, r0, r0, masm.failureLabel(f.executionMode));
+        break;
+      case Type_Bool:
+        masm.branchIfFalseBool(r0, masm.failureLabel(f.executionMode));
+        break;
+      default:
+        MOZ_ASSUME_UNREACHABLE("unknown failure kind");
+    }
+
+    // Load the outparam and free any allocated stack.
+    switch (f.outParam) {
+      case Type_Value:
+        masm.loadValue(Address(r31, 0), JSReturnOperand);
+        masm.freeStack(sizeof(Value));
+        break;
+
+      case Type_Handle:
+        masm.popRooted(f.outParamRootType, ReturnReg, JSReturnOperand);
+        break;
+
+      case Type_Int32:
+        masm.load32(Address(r31, 0), ReturnReg);
+        masm.freeStack(sizeof(int32_t));
+        break;
+
+      case Type_Bool:
+        masm.load8ZeroExtend(Address(r31, 0), ReturnReg);
+        masm.freeStack(sizeof(int32_t));
+        break;
+
+      case Type_Double:
+        JS_ASSERT(cx->runtime()->jitSupportsFloatingPoint);
+        masm.loadDouble(Address(r31, 0), ReturnDoubleReg);
+        masm.freeStack(sizeof(double));
+        break;
+
+      case Type_Pointer:
+        masm.loadPtr(Address(r31, 0), ReturnReg);
+        masm.freeStack(sizeof(uintptr_t));
+        break;
+
+      default:
+        JS_ASSERT(f.outParam == Type_Void);
+        break;
+    }
+
+    masm.leaveExitFrame();
+    masm.retn(Imm32(sizeof(IonExitFrameLayout) +
+              f.explicitStackSlots() * sizeof(void *) +
+              f.extraValuesToPop * sizeof(Value)));
 
     Linker linker(masm);
     JitCode *wrapper = linker.newCode<NoGC>(cx, OTHER_CODE);
