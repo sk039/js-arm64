@@ -156,7 +156,6 @@ public:
   nsresult ReadMetadata(MediaInfo* aInfo, MetadataTags** aTags) MOZ_OVERRIDE;
   nsresult Seek(int64_t aTime, int64_t aStartTime, int64_t aEndTime,
                 int64_t aCurrentTime) MOZ_OVERRIDE;
-  nsresult GetBuffered(dom::TimeRanges* aBuffered, int64_t aStartTime) MOZ_OVERRIDE;
   already_AddRefed<SubBufferDecoder> CreateSubDecoder(const nsACString& aType,
                                                       MediaSourceDecoder* aParentDecoder,
                                                       MediaTaskQueue* aTaskQueue);
@@ -181,6 +180,9 @@ public:
     ReentrantMonitorAutoEnter decoderMon(mDecoder->GetReentrantMonitor());
     return mDecoder->IsShutdown();
   }
+
+  // Return true if any of the active decoders contain data for the given time
+  bool DecodersContainTime(double aTime);
 
 private:
   // These are read and written on the decode task queue threads.
@@ -346,7 +348,7 @@ MediaSourceDecoder::GetSeekable(dom::TimeRanges* aSeekable)
     // Return empty range.
   } else if (duration > 0 && mozilla::IsInfinite(duration)) {
     nsRefPtr<dom::TimeRanges> bufferedRanges = new dom::TimeRanges();
-    GetBuffered(bufferedRanges);
+    mMediaSource->GetBuffered(bufferedRanges);
     aSeekable->Add(bufferedRanges->GetStartTime(), bufferedRanges->GetEndTime());
   } else {
     aSeekable->Add(0, duration);
@@ -534,6 +536,17 @@ private:
 };
 }
 
+bool
+MediaSourceReader::DecodersContainTime(double aTime)
+{
+  for (uint32_t i = 0; i < mDecoders.Length(); ++i) {
+    if (!mDecoders[i]->IsDiscarded() && mDecoders[i]->ContainsTime(aTime)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 nsresult
 MediaSourceReader::Seek(int64_t aTime, int64_t aStartTime, int64_t aEndTime,
                         int64_t aCurrentTime)
@@ -541,7 +554,7 @@ MediaSourceReader::Seek(int64_t aTime, int64_t aStartTime, int64_t aEndTime,
   MSE_DEBUG("MediaSourceReader(%p)::Seek(aTime=%lld, aStart=%lld, aEnd=%lld, aCurrent=%lld)",
             this, aTime, aStartTime, aEndTime, aCurrentTime);
   double target = static_cast<double>(aTime) / USECS_PER_S;
-  if (!mMediaSource->ActiveSourceBuffers()->AllContainsTime(target)) {
+  if (!DecodersContainTime(target)) {
     MSE_DEBUG("MediaSourceReader(%p)::Seek no active buffer contains target=%f", this, target);
     NS_DispatchToMainThread(new ChangeToHaveMetadata(mDecoder));
   }
@@ -550,7 +563,7 @@ MediaSourceReader::Seek(int64_t aTime, int64_t aStartTime, int64_t aEndTime,
   // This is a workaround for our lack of async functionality in the
   // MediaDecoderStateMachine. Bug 979104 implements what we need and
   // we'll remove this for an async approach based on that in bug XXXXXXX.
-  while (!mMediaSource->ActiveSourceBuffers()->AllContainsTime(target)
+  while (!DecodersContainTime(target)
          && !IsShutdown()) {
     MSE_DEBUG("MediaSourceReader(%p)::Seek waiting for target=%f", this, target);
     mMediaSource->WaitForData();
@@ -574,23 +587,6 @@ MediaSourceReader::Seek(int64_t aTime, int64_t aStartTime, int64_t aEndTime,
       return rv;
     }
   }
-  return NS_OK;
-}
-
-nsresult
-MediaSourceReader::GetBuffered(dom::TimeRanges* aBuffered, int64_t aStartTime)
-{
-  for (uint32_t i = 0; i < mDecoders.Length(); ++i) {
-    nsRefPtr<dom::TimeRanges> r = new dom::TimeRanges();
-    mDecoders[i]->GetBuffered(r);
-    MSE_DEBUGV("MediaSourceReader(%p)::GetBuffered i=%u start=%f end=%f%s",
-               this, i, r->GetStartTime(), r->GetEndTime(),
-               mDecoders[i]->IsDiscarded() ? " [discarded]" : "");
-    aBuffered->Add(r->GetStartTime(), r->GetEndTime());
-  }
-  aBuffered->Normalize();
-  MSE_DEBUGV("MediaSourceReader(%p)::GetBuffered start=%f end=%f ranges=%u",
-             this, aBuffered->GetStartTime(), aBuffered->GetEndTime(), aBuffered->Length());
   return NS_OK;
 }
 
