@@ -257,7 +257,7 @@ JitRuntime::generateVMWrapper(JSContext *cx, const VMFunction &f)
     // Save the current stack pointer as the base for copying arguments.
     Register argsBase = InvalidReg;
     if (f.explicitArgs) {
-        argsBase = r10;
+        argsBase = r5;
         regs.take(argsBase);
         masm.Add(ARMRegister(argsBase, 64), sp, Operand(IonExitFrameLayout::SizeWithFooter()));
     }
