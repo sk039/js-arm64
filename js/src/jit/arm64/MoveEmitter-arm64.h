@@ -158,7 +158,7 @@ class MoveEmitterARM64
             break;
         }
     }
-    void emit(const MoveOp &move) {
+    void emitMove(const MoveOp &move) {
         const MoveOperand &from = move.from();
         const MoveOperand &to = move.to();
         if (move.isCycleEnd()) {
@@ -209,7 +209,7 @@ class MoveEmitterARM64
             pushedAtCycle_ = masm.framePushed();
         }
         for (size_t i = 0; i < moves.numMoves(); i++)
-            emit(moves.getMove(i));
+            emitMove(moves.getMove(i));
     }
     void finish() {
         masm.freeStack(masm.framePushed() - pushedAtStart_);

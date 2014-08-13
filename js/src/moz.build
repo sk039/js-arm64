@@ -371,6 +371,7 @@ elif CONFIG['JS_CODEGEN_ARM64']:
         'jit/arm64/CodeGenerator-arm64.cpp',
         'jit/arm64/Lowering-arm64.cpp',
         'jit/arm64/MacroAssembler-arm64.cpp',
+        'jit/arm64/MoveEmitter-arm64.cpp',
         'jit/arm64/Trampoline-arm64.cpp',
         'jit/arm64/vixl/Assembler-vixl.cpp',
         'jit/arm64/vixl/Cpu-vixl.cpp',
