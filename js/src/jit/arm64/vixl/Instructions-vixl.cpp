@@ -216,7 +216,7 @@ void Instruction::SetPCRelImmTarget(Instruction* target) {
     uintptr_t target_page = reinterpret_cast<uintptr_t>(target) / kPageSize;
     imm21 = target_page - this_page;
   }
-  Instr imm = Assembler::ImmPCRelAddress(imm21);
+  Instr imm = AssemblerVIXL::ImmPCRelAddress(imm21);
 
   SetInstructionBits(Mask(~ImmPCRel_mask) | imm);
 }

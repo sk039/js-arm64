@@ -70,6 +70,7 @@ class CodeGenerator : public CodeGeneratorSpecific
     bool visitParameter(LParameter *lir);
     bool visitCallee(LCallee *lir);
     bool visitStart(LStart *lir);
+    bool visitPcOffset(LPcOffset *lir);
     bool visitReturn(LReturn *ret);
     bool visitDefVar(LDefVar *lir);
     bool visitDefFun(LDefFun *lir);
@@ -253,6 +254,7 @@ class CodeGenerator : public CodeGeneratorSpecific
     bool visitArrayPushV(LArrayPushV *lir);
     bool visitArrayPushT(LArrayPushT *lir);
     bool visitArrayConcat(LArrayConcat *lir);
+    bool visitArrayJoin(LArrayJoin *lir);
     bool visitLoadTypedArrayElement(LLoadTypedArrayElement *lir);
     bool visitLoadTypedArrayElementHole(LLoadTypedArrayElementHole *lir);
     bool visitStoreTypedArrayElement(LStoreTypedArrayElement *lir);

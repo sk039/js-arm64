@@ -179,6 +179,7 @@ JSRuntime::JSRuntime(JSRuntime *parentRuntime)
     debugMode(false),
     spsProfiler(thisFromCtor()),
     profilingScripts(false),
+    suppressProfilerSampling(false),
     hadOutOfMemory(false),
     haveCreatedContext(false),
     data(nullptr),
@@ -237,16 +238,15 @@ static bool
 JitSupportsFloatingPoint()
 {
 #ifndef JS_CODEGEN_ARM64
-    if (!JSC::MacroAssembler::supportsFloatingPoint())
-        return false;
-
-#if WTF_ARM_ARCH_VERSION == 6
+# if defined(JS_CODEGEN_ARM)
     if (!js::jit::HasVFP())
         return false;
-#endif
+# else
+    if (!JSC::MacroAssembler::supportsFloatingPoint())
+        return false;
+# endif
 #endif
     return true;
-
 }
 
 static bool
