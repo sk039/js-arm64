@@ -83,14 +83,45 @@ void
 MoveEmitterARM64::emitInt32Move(const MoveOperand &from, const MoveOperand &to)
 {
     // TODO: Fix.
-    masm.mov(toRegister(from), toRegister(to));
+    masm.mov(toARMReg64(from), toARMReg64(to));
 }
 
 void
 MoveEmitterARM64::emitGeneralMove(const MoveOperand &from, const MoveOperand &to)
 {
-    // TODO: Fix.
-    masm.mov(toRegister(from), toRegister(to));
+    // Register -> {Register OR Memory OR EffectiveAddress} move.
+    if (from.isGeneralReg()) {
+        JS_ASSERT(to.isGeneralReg() || to.isMemoryOrEffectiveAddress());
+
+        // TODO: HOO BOY ACTUALLY IMPLEMENT THIS
+        JS_ASSERT(0 && "from.isGeneralReg() case of emitGeneralMove()");
+        return;
+    }
+
+    // {Memory OR EffectiveAddress} -> Register move.
+    if (to.isGeneralReg()) {
+        JS_ASSERT(from.isMemoryOrEffectiveAddress());
+
+        // TODO: HOO BOY ACTUALLY IMPLEMENT THIS
+        JS_ASSERT(0 && "to.isGeneralReg() case of emitGeneralMove()");
+        return;
+    }
+
+    // Memory -> {Memory OR EffectiveAddress} move.
+    if (from.isMemory()) {
+        JS_ASSERT(to.isMemoryOrEffectiveAddress());
+
+        // TODO: HOO BOY ACTUALLY IMPLEMENT THIS
+        JS_ASSERT(0 && "from.isMemory() case of emitGeneralMove()");
+        return;
+    }
+
+    // EffectiveAddress -> {Memory OR EffectiveAddress} move.
+    JS_ASSERT(from.isEffectiveAddress());
+    JS_ASSERT(to.isMemoryOrEffectiveAddress());
+
+    // TODO: HOO BOY ACTUALLY IMPLEMENT THIS
+    JS_ASSERT(0 && "from.isEffectiveAddress() case of emitGeneralMove()");
 }
 
 MemOperand
@@ -115,7 +146,7 @@ MoveEmitterARM64::breakCycle(const MoveOperand &from, const MoveOperand &to, Mov
             masm.Ldr(temp, toMemOperand(to));
             masm.Str(temp, cycleSlot());
         } else {
-            masm.Str(toRegister(to), cycleSlot());
+            masm.Str(toARMReg64(to), cycleSlot());
         }
         break;
       case MoveOp::DOUBLE:
@@ -124,7 +155,7 @@ MoveEmitterARM64::breakCycle(const MoveOperand &from, const MoveOperand &to, Mov
             masm.Ldr(temp, toMemOperand(to));
             masm.Str(temp, cycleSlot());
         } else {
-            masm.Str(toRegister(to), cycleSlot());
+            masm.Str(toARMReg64(to), cycleSlot());
         }
         break;
       case MoveOp::INT32:

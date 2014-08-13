@@ -51,11 +51,13 @@ class MoveEmitterARM64
         ARMRegister base(operand.base(), 64);
         return MemOperand(base, operand.disp());
     }
-    ARMRegister toRegister(const MoveOperand &operand) const {
-        // Always a 64 bit register
+    ARMRegister toARMReg32(const MoveOperand &operand) const {
+        MOZ_ASSERT(operand.isGeneralReg());
+        return ARMRegister(operand.reg(), 32);
+    }
+    ARMRegister toARMReg64(const MoveOperand &operand) const {
         MOZ_ASSERT(operand.isGeneralReg());
         return ARMRegister(operand.reg(), 64);
-
     }
     ARMFPRegister toFPReg(const MoveOperand &operand) const {
         MOZ_ASSERT(operand.isFloatReg());
