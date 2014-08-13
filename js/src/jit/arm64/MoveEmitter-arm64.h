@@ -45,16 +45,7 @@ class MoveEmitterARM64
     FloatRegister tempFloatReg() {
         return ScratchDoubleReg;
     }
-    MemOperand cycleSlot() {
-        if (pushedAtCycle_ == -1) {
-            // Reserve stack for cycle resolution
-            // keep 16 byte alignment.
-            masm.reserveStack(sizeof(double) * 2);
-            pushedAtCycle_ = masm.framePushed();
-        }
-
-        return MemOperand(masm.GetStackPointer(), masm.framePushed() - pushedAtCycle_);
-    }
+    MemOperand cycleSlot();
     MemOperand toMemOperand(const MoveOperand &operand) const {
         MOZ_ASSERT(operand.isMemory());
         ARMRegister base(operand.base(), 64);
@@ -71,122 +62,14 @@ class MoveEmitterARM64
         return ARMFPRegister(operand.floatReg().code(), operand.floatReg().size() * 8);
     }
 
-    void emitMove(const MoveOperand &from, const MoveOperand &to) {
-        masm.mov(toRegister(from), toRegister(to));
-    }
-    void emitFloat32Move(const MoveOperand &from, const MoveOperand &to) {
-        masm.fmov(toFPReg(to), toFPReg(from));
-    }
-    void emitDoubleMove(const MoveOperand &from, const MoveOperand &to) {
-        masm.fmov(toFPReg(to), toFPReg(from));
-    }
-    void breakCycle(const MoveOperand &from, const MoveOperand &to, MoveOp::Type type) {
-        switch (type) {
-          case MoveOp::FLOAT32:
-            if (to.isMemory()) {
-                ARMFPRegister temp(ScratchFloat32Reg, 32);
-                masm.Ldr(temp, toMemOperand(to));
-                masm.Str(temp, cycleSlot());
-            } else {
-                masm.Str(toRegister(to), cycleSlot());
-            }
-            break;
-          case MoveOp::DOUBLE:
-            if (to.isMemory()) {
-                ARMFPRegister temp(ScratchFloat32Reg, 32);
-                masm.Ldr(temp, toMemOperand(to));
-                masm.Str(temp, cycleSlot());
-            } else {
-                masm.Str(toRegister(to), cycleSlot());
-            }
-            break;
-          case MoveOp::INT32:
-            if (to.isMemory()) {
-                masm.Ldr(ScratchReg32, toMemOperand(to));
-                masm.Str(ScratchReg32, cycleSlot());
-            } else {
-                masm.Str(ARMRegister(to.reg(), 32), cycleSlot());
-            }
-            break;
-          case MoveOp::GENERAL:
-            if (to.isMemory()) {
-                masm.Ldr(ScratchReg32, toMemOperand(to));
-                masm.push(ScratchReg);
-            } else {
-                masm.push(to.reg());
-            }
-            break;
-          default:
-            MOZ_ASSUME_UNREACHABLE("Unexpected move type");
-        }
-    }
-    void completeCycle(const MoveOperand &from, const MoveOperand &to, MoveOp::Type type) {
-        switch (type) {
-          case MoveOp::FLOAT32:
-            if (to.isMemory()) {
-                ARMFPRegister temp(ScratchFloat32Reg, 32);
-                masm.Ldr(temp, cycleSlot());
-                masm.Str(temp, toMemOperand(to));
-            } else {
-                masm.Ldr(ARMFPRegister(to.floatReg(), 32), cycleSlot());
-            }
-            break;
-          case MoveOp::DOUBLE:
-            if (to.isMemory()) {
-                ARMFPRegister temp(ScratchDoubleReg, 64);
-                masm.Ldr(temp, cycleSlot());
-                masm.Str(temp, toMemOperand(to));
-            } else {
-                masm.Ldr(ARMFPRegister(to.floatReg(), 64), cycleSlot());
-            }
-            break;
-          case MoveOp::INT32:
-            if (to.isMemory()) {
-                masm.Ldr(ARMRegister(ScratchReg, 32), cycleSlot());
-                masm.Str(ARMRegister(ScratchReg, 32), toMemOperand(to));
-            } else {
-                masm.Ldr(ARMRegister(to.reg(), 32), cycleSlot());
-            }
-            break;
-          case MoveOp::GENERAL:
-            if (to.isMemory()) {
-                masm.Ldr(ARMRegister(ScratchReg, 64), cycleSlot());
-                masm.Str(ARMRegister(ScratchReg, 64), toMemOperand(to));
-            } else {
-                masm.Ldr(ARMRegister(to.reg(), 64), cycleSlot());
-            }
-            break;
-        }
-    }
-    void emitMove(const MoveOp &move) {
-        const MoveOperand &from = move.from();
-        const MoveOperand &to = move.to();
-        if (move.isCycleEnd()) {
-            MOZ_ASSERT(!move.isCycleBegin());
-            MOZ_ASSERT(inCycle_);
-            completeCycle(from, to, move.type());
-            inCycle_ = false;
-        }
-        if (move.isCycleBegin()) {
-            MOZ_ASSERT(!inCycle_);
-            breakCycle(from, to, move.endCycleType());
-            inCycle_ = true;
-        }
-        switch (move.type()) {
-          case MoveOp::FLOAT32:
-            emitFloat32Move(from, to);
-            break;
-          case MoveOp::DOUBLE:
-            emitDoubleMove(from, to);
-            break;
-          case MoveOp::INT32:
-          case MoveOp::GENERAL:
-            emitMove(from, to);
-            break;
-          default:
-            MOZ_ASSUME_UNREACHABLE("Unexpected move type");
-        }
-    }
+    void emitFloat32Move(const MoveOperand &from, const MoveOperand &to);
+    void emitDoubleMove(const MoveOperand &from, const MoveOperand &to);
+    void emitInt32Move(const MoveOperand &from, const MoveOperand &to);
+    void emitGeneralMove(const MoveOperand &from, const MoveOperand &to);
+
+    void emitMove(const MoveOp &move);
+    void breakCycle(const MoveOperand &from, const MoveOperand &to, MoveOp::Type type);
+    void completeCycle(const MoveOperand &from, const MoveOperand &to, MoveOp::Type type);
 
   public:
     MoveEmitterARM64(MacroAssemblerCompat &masm)
@@ -203,17 +86,9 @@ class MoveEmitterARM64
     ~MoveEmitterARM64() {
         assertDone();
     }
-    void emit(const MoveResolver &moves) {
-        if (moves.numCycles()) {
-            masm.reserveStack(sizeof(double));
-            pushedAtCycle_ = masm.framePushed();
-        }
-        for (size_t i = 0; i < moves.numMoves(); i++)
-            emitMove(moves.getMove(i));
-    }
-    void finish() {
-        masm.freeStack(masm.framePushed() - pushedAtStart_);
-    }
+
+    void emit(const MoveResolver &moves);
+    void finish();
 };
 
 typedef MoveEmitterARM64 MoveEmitter;
