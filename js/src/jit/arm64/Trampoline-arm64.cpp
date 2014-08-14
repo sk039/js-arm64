@@ -349,7 +349,7 @@ JitRuntime::generateVMWrapper(JSContext *cx, const VMFunction &f)
     // Load the outparam and free any allocated stack.
     switch (f.outParam) {
       case Type_Value:
-        masm.loadValue(Address(r31, 0), JSReturnOperand);
+        masm.Ldr(ARMRegister(JSReturnReg, 64), MemOperand(sp));
         masm.freeStack(sizeof(Value));
         break;
 
@@ -358,23 +358,23 @@ JitRuntime::generateVMWrapper(JSContext *cx, const VMFunction &f)
         break;
 
       case Type_Int32:
-        masm.load32(Address(r31, 0), ReturnReg);
+        masm.Ldr(ARMRegister(ReturnReg, 32), MemOperand(sp));
         masm.freeStack(sizeof(int32_t));
         break;
 
       case Type_Bool:
-        masm.load8ZeroExtend(Address(r31, 0), ReturnReg);
+        masm.Ldrb(ARMRegister(ReturnReg, 32), MemOperand(sp));
         masm.freeStack(sizeof(int32_t));
         break;
 
       case Type_Double:
         JS_ASSERT(cx->runtime()->jitSupportsFloatingPoint);
-        masm.loadDouble(Address(r31, 0), ReturnDoubleReg);
+        masm.Ldr(ARMFPRegister(ReturnDoubleReg, 64), MemOperand(sp));
         masm.freeStack(sizeof(double));
         break;
 
       case Type_Pointer:
-        masm.loadPtr(Address(r31, 0), ReturnReg);
+        masm.Ldr(ARMRegister(ReturnReg, 64), MemOperand(sp));
         masm.freeStack(sizeof(uintptr_t));
         break;
 

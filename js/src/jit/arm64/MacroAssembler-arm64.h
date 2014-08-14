@@ -574,10 +574,6 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     void loadPrivate(const Address &src, Register dest) {
         JS_ASSERT(0 && "loadPrivate");
     }
-    void load32(AbsoluteAddress address, Register dest) {
-        movePtr(ImmWord((uintptr_t)address.addr), ScratchReg);
-        ldr(ARMRegister(dest, 32), MemOperand(ARMRegister(ScratchReg, 64)));
-    }
 
     void store8(Register src, const Address &address) {
         JS_ASSERT(0 && "store8");
@@ -887,6 +883,10 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     void load32(const BaseIndex &src, Register dest) {
         doBaseIndex(ARMRegister(dest, 32), src, LDR_w);
     }
+    void load32(AbsoluteAddress address, Register dest) {
+        movePtr(ImmWord((uintptr_t)address.addr), ScratchReg);
+        ldr(ARMRegister(dest, 32), MemOperand(ARMRegister(ScratchReg, 64)));
+    }
 
     void load8SignExtend(const Address &address, Register dest) {
         Ldrsb(ARMRegister(dest, 32), MemOperand(ARMRegister(address.base, 64), address.offset));
@@ -896,7 +896,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
 
     void load8ZeroExtend(const Address &address, Register dest) {
-        Ldrb(ARMRegister(dest, 64), MemOperand(ARMRegister(address.base, 64), address.offset));
+        Ldrb(ARMRegister(dest, 32), MemOperand(ARMRegister(address.base, 64), address.offset));
     }
     void load8ZeroExtend(const BaseIndex &src, Register dest) {
         doBaseIndex(ARMRegister(dest, 32), src, LDRB_w);
