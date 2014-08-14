@@ -1747,9 +1747,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         JS_ASSERT(0 && "labelForPatch");
     }
 
-    void handleFailureWithHandler(void *handler) {
-        JS_ASSERT(0 && "handleFailureWithHandler");
-    }
+    void handleFailureWithHandler(void *handler);
     void handleFailureWithHandlerTail();
 
     // FIXME: This is the same on all platforms. Can be common code?

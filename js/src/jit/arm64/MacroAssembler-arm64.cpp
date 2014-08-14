@@ -186,9 +186,17 @@ MacroAssembler::clampDoubleToUint8(FloatRegister input, Register output)
 }
 
 void
+MacroAssemblerCompat::handleFailureWithHandler(void *handler)
+{
+    // TODO: Implement me.
+    breakpoint();
+}
+
+void
 MacroAssemblerCompat::handleFailureWithHandlerTail()
 {
-    brk(0x13);
+    // TODO: Implement me.
+    breakpoint();
 }
 
 void
