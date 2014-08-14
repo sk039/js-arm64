@@ -89,12 +89,15 @@ MoveEmitterARM64::emitInt32Move(const MoveOperand &from, const MoveOperand &to)
 void
 MoveEmitterARM64::emitGeneralMove(const MoveOperand &from, const MoveOperand &to)
 {
-    // Register -> {Register OR Memory OR EffectiveAddress} move.
+
     if (from.isGeneralReg()) {
-        JS_ASSERT(to.isGeneralReg() || to.isMemoryOrEffectiveAddress());
+        JS_ASSERT(to.isGeneralReg() || to.isMemory());
 
         // TODO: HOO BOY ACTUALLY IMPLEMENT THIS
-        JS_ASSERT(0 && "from.isGeneralReg() case of emitGeneralMove()");
+        if (to.isGeneralReg())
+            masm.mov(toARMReg64(from), toARMReg64(to));
+        else
+            masm.Str(toARMReg64(from), toMemOperand(to));
         return;
     }
 
@@ -102,26 +105,26 @@ MoveEmitterARM64::emitGeneralMove(const MoveOperand &from, const MoveOperand &to
     if (to.isGeneralReg()) {
         JS_ASSERT(from.isMemoryOrEffectiveAddress());
 
-        // TODO: HOO BOY ACTUALLY IMPLEMENT THIS
-        JS_ASSERT(0 && "to.isGeneralReg() case of emitGeneralMove()");
+        if (from.isMemory())
+            masm.Ldr(toARMReg64(to), toMemOperand(from));
+        else
+            masm.Add(toARMReg64(to), ARMRegister(from.base(), 64), Operand(from.disp()));
         return;
     }
 
-    // Memory -> {Memory OR EffectiveAddress} move.
+    // Memory -> Memory move.
     if (from.isMemory()) {
-        JS_ASSERT(to.isMemoryOrEffectiveAddress());
-
-        // TODO: HOO BOY ACTUALLY IMPLEMENT THIS
-        JS_ASSERT(0 && "from.isMemory() case of emitGeneralMove()");
+        JS_ASSERT(to.isMemory());
+        masm.Ldr(ScratchReg2_64, toMemOperand(from));
+        masm.Str(ScratchReg2_64, toMemOperand(to));
         return;
     }
 
-    // EffectiveAddress -> {Memory OR EffectiveAddress} move.
+    // EffectiveAddress -> Memory move.
     JS_ASSERT(from.isEffectiveAddress());
-    JS_ASSERT(to.isMemoryOrEffectiveAddress());
-
-    // TODO: HOO BOY ACTUALLY IMPLEMENT THIS
-    JS_ASSERT(0 && "from.isEffectiveAddress() case of emitGeneralMove()");
+    JS_ASSERT(to.isMemory());
+    masm.Add(ScratchReg2_64, ARMRegister(from.base(), 64), Operand(from.disp()));
+    masm.Str(ScratchReg2_64, toMemOperand(to));
 }
 
 MemOperand
