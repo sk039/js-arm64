@@ -43,12 +43,17 @@ namespace js {
 namespace jit {
 
 BufferOffset
-Assembler::immPool(ARMRegister dest, uint8_t *value, LoadLiteralOp op) {
-    uint32_t raw = op | Rt(dest);
-    return armbuffer_.allocEntry(1, 2, (uint8_t*)&raw, value);
+Assembler::immPool(ARMRegister dest, uint8_t *value, LoadLiteralOp op)
+{
+    uint32_t inst = op | Rt(dest);
+    const size_t numInst = 1;
+    const unsigned numPoolEntries = 2;
+    return armbuffer_.allocEntry(numInst, numPoolEntries, (uint8_t*)&inst, value);
 }
+
 BufferOffset
-Assembler::immPool64(ARMRegister dest, uint64_t value) {
+Assembler::immPool64(ARMRegister dest, uint64_t value)
+{
     return immPool(dest, (uint8_t*)&value, LDR_x_lit);
 }
 

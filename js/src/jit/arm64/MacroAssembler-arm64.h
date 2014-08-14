@@ -1779,17 +1779,6 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         JS_ASSERT(0 && "patchAsmJSGlobalAccess");
     }
 
-    // FIXME: These guys probably shouldn't be in other arch's Assemblers...
-    // FIXME: Also, they should be capitalized, being static.
-    static void PatchDataWithValueCheck(CodeLocationLabel data, PatchedImmPtr newData,
-                                        PatchedImmPtr expectedData)
-    {
-        JS_ASSERT(0 && "PatchDataWithValueCheck");
-    }
-    static void PatchDataWithValueCheck(CodeLocationLabel data, ImmPtr newData, ImmPtr expectedData) {
-        JS_ASSERT(0 && "PatchDataWithValueCheck");
-    }
-
     void memIntToValue(Address Source, Address Dest) {
         JS_ASSERT(0 && "memIntToValue");
     }
