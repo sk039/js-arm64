@@ -191,15 +191,23 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         adjustFrame(-1 * (int32_t)(sizeof(T)));
     }
 
+#if 0
     // FIXME: Should be in assembler, or IonMacroAssembler shouldn't use.
     template <typename T>
     void push(const T t) {
         JS_ASSERT(0 && "push");
     }
-
+#endif
+    void push(FloatRegister f) {
+        MacroAssemblerVIXL::Push(ARMFPRegister(f, 64));
+    }
     void push(Imm32 imm) {
         move32(imm, ScratchReg);
         MacroAssemblerVIXL::Push(ScratchReg32);
+    }
+    void push(ImmWord imm) {
+        Mov(ScratchReg64, imm.value);
+        MacroAssemblerVIXL::Push(ScratchReg64);
     }
     void push(ImmPtr imm) {
         movePtr(imm, ScratchReg);
@@ -212,11 +220,25 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     void push(Register reg) {
         MacroAssemblerVIXL::Push(ARMRegister(reg, 64));
     }
-
+    void push(ARMRegister reg) {
+        MacroAssemblerVIXL::Push(reg);
+    }
+    void push(Address a) {
+        loadPtr(a, ScratchReg);
+        MacroAssemblerVIXL::Push(ScratchReg64);
+    }
     // FIXME: Should be in assembler, or IonMacroAssembler shouldn't use.
+#if 0
     template <typename T>
     void pop(const T t) {
         JS_ASSERT(0 && "pop");
+    }
+#endif
+    void pop(const ValueOperand &v) {
+        pop(v.valueReg());
+    }
+    void pop(const FloatRegister &f) {
+        MacroAssemblerVIXL::Pop(ARMRegister(f.code(), 64));
     }
 
     void pop(Register reg) {
@@ -264,16 +286,26 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         MacroAssemblerVIXL::Drop(Operand(ARMRegister(amount, 64)));
     }
 
+#if 0
     void storeValue(ValueOperand val, ARMOperand dest) {
+
         JS_ASSERT(0 && "storeValue");
     }
+#endif
     void storeValue(ValueOperand val, const Address &dest) {
         storePtr(val.valueReg(), dest);
     }
+
     template <typename T>
     void storeValue(JSValueType type, Register reg, const T &dest) {
         JS_ASSERT(0 && "storeValue");
+        if (type == JSVAL_TYPE_INT32 || type == JSVAL_TYPE_BOOLEAN) {
+            
+        } else {
+            boxValue(type, reg, ScratchReg);
+        }
     }
+
     template <typename T>
     void storeValue(const Value &val, const T &dest) {
         JS_ASSERT(0 && "storeValue");
@@ -605,6 +637,17 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         Mov(ScratchReg2_32, uint64_t(imm.value));
         Str(ScratchReg2_32, MemOperand(ARMRegister(address.base, 64), address.offset));
     }
+    void store32(Register r, const Address &address) {
+        Str(ARMRegister(r, 32), MemOperand(ARMRegister(address.base, 64), address.offset));
+    }
+    void store32(Imm32 imm, const BaseIndex &address) {
+        Mov(ScratchReg2_32, uint64_t(imm.value));
+        doBaseIndex(ScratchReg2_32, address, STR_w);
+    }
+    void store32(Register r, const BaseIndex &address) {
+        doBaseIndex(ARMRegister(r, 32), address, STR_w);
+    }
+
     void store32_NoSecondScratch(Imm32 imm, const Address &address) {
         Mov(ScratchReg32, uint64_t(imm.value));
         Str(ScratchReg32, MemOperand(ARMRegister(address.base, 64), address.offset));
@@ -872,12 +915,12 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     void load16ZeroExtend(const BaseIndex &src, Register dest) {
         doBaseIndex(ARMRegister(dest, 32), src, LDRH_w);
     }
-
+#if 0
     template <typename S, typename T>
     void store32(const S &src, const T &dest) {
         JS_ASSERT(0 && "store32");
     }
-
+#endif
     void add32(Register src, Register dest) {
         Add(ARMRegister(dest, 32), ARMRegister(src, 32), Operand(ARMRegister(src, 32)));
     }
@@ -1054,19 +1097,24 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         JS_ASSERT(0 && "branchPtr");
     }
     void branchPtr(Condition cond, Address lhs, ImmWord ptr, Label *label) {
-        JS_ASSERT(0 && "branchPtr");
+        loadPtr(lhs, ScratchReg2);
+        branchPtr(cond, ScratchReg2, ptr, label);
     }
     void branchPtr(Condition cond, Address lhs, ImmPtr ptr, Label *label) {
-        JS_ASSERT(0 && "branchPtr");
+        loadPtr(lhs, ScratchReg2);
+        branchPtr(cond, ScratchReg2, ptr, label);
     }
     void branchPtr(Condition cond, Address lhs, Register ptr, Label *label) {
-        JS_ASSERT(0 && "branchPtr");
+        loadPtr(lhs, ScratchReg2);
+        branchPtr(cond, ScratchReg2, ptr, label);
     }
     void branchPtr(Condition cond, Register lhs, ImmWord ptr, Label *label) {
-        JS_ASSERT(0 && "branchPtr");
+        Mov(ScratchReg64, uint64_t(ptr.value));
+        branch(cond, label);
     }
     void branchPtr(Condition cond, Register lhs, ImmPtr rhs, Label *label) {
-        JS_ASSERT(0 && "branchPtr");
+        Mov(ScratchReg64, uint64_t(rhs.value));
+        branch(cond, label);
     }
     void branchPtr(Condition cond, Register lhs, ImmGCPtr ptr, Label *label) {
         JS_ASSERT(0 && "branchPtr");
@@ -1088,10 +1136,12 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         B(label, cond);
     }
     void branchTestPtr(Condition cond, Register lhs, Imm32 imm, Label *label) {
-        JS_ASSERT(0 && "branchTestPtr");
+        Tst(ARMRegister(lhs, 64), Operand(imm.value));
+        B(label, cond);
     }
     void branchTestPtr(Condition cond, const Address &lhs, Imm32 imm, Label *label) {
-        JS_ASSERT(0 && "branchTestPtr");
+        loadPtr(lhs, ScratchReg2);
+        branchTestPtr(cond, ScratchReg2, imm, label);
     }
     void branchPrivatePtr(Condition cond, const Address &lhs, ImmPtr ptr, Label *label) {
         branchPtr(cond, lhs, ptr, label);
