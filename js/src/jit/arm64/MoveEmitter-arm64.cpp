@@ -68,22 +68,55 @@ MoveEmitterARM64::emitMove(const MoveOp &move)
 void
 MoveEmitterARM64::emitFloat32Move(const MoveOperand &from, const MoveOperand &to)
 {
-    // TODO: Fix.
-    masm.fmov(toFPReg(to), toFPReg(from));
+    if (from.isFloatReg()) {
+        if (to.isFloatReg())
+            masm.fmov(toFPReg(to), toFPReg(from));
+        else
+            masm.Str(toFPReg(from), toMemOperand(to));
+    } else {
+        if (from.isFloatReg()) {
+            masm.Ldr(toFPReg(to), toMemOperand(from));
+        } else {
+            masm.Ldr(ScratchFloat32Reg_, toMemOperand(from));
+            masm.Str(ScratchFloat32Reg_, toMemOperand(to));
+        }
+    }
 }
 
 void
 MoveEmitterARM64::emitDoubleMove(const MoveOperand &from, const MoveOperand &to)
 {
-    // TODO: Fix.
-    masm.fmov(toFPReg(to), toFPReg(from));
+    if (from.isFloatReg()) {
+        if (to.isFloatReg())
+            masm.fmov(toFPReg(to), toFPReg(from));
+        else
+            masm.Str(toFPReg(from), toMemOperand(to));
+    } else {
+        if (from.isFloatReg()) {
+            masm.Ldr(toFPReg(to), toMemOperand(from));
+        } else {
+            masm.ldr(ScratchDoubleReg_, toMemOperand(from));
+            masm.Str(ScratchDoubleReg_, toMemOperand(to));
+        }
+    }
 }
 
 void
 MoveEmitterARM64::emitInt32Move(const MoveOperand &from, const MoveOperand &to)
 {
-    // TODO: Fix.
-    masm.mov(toARMReg64(from), toARMReg64(to));
+    if (from.isGeneralReg()) {
+        if (to.isGeneralReg())
+            masm.mov(toARMReg32(to), toARMReg32(from));
+        else
+            masm.Str(toARMReg32(from), toMemOperand(to));
+    } else {
+        if (from.isGeneralReg()) {
+            masm.Ldr(toARMReg32(to), toMemOperand(from));
+        } else {
+            masm.ldr(ScratchReg2_32, toMemOperand(from));
+            masm.Str(ScratchReg2_32, toMemOperand(to));
+        }
+    }
 }
 
 void
