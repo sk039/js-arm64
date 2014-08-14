@@ -133,7 +133,7 @@ Assembler::PatchDataWithValueCheck(CodeLocationLabel label, PatchedImmPtr newVal
     Instruction *i = (Instruction *)label.raw();
     void** pValue = reinterpret_cast<void**>(i->LiteralAddress());
     MOZ_ASSERT(*pValue == expected.value);
-    *pValue = expected.value;
+    *pValue = newValue.value;
 }
 
 void
