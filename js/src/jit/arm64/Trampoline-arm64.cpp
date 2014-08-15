@@ -257,7 +257,9 @@ JitRuntime::generateVMWrapper(JSContext *cx, const VMFunction &f)
     // Save the current stack pointer as the base for copying arguments.
     Register argsBase = InvalidReg;
     if (f.explicitArgs) {
-        argsBase = r5;
+        // argsBase can't be an argument register. Bad things would happen if
+        // the MoveResolver didn't throw an assertion failure first.
+        argsBase = r8;
         regs.take(argsBase);
         masm.Add(ARMRegister(argsBase, 64), sp, Operand(IonExitFrameLayout::SizeWithFooter()));
     }
