@@ -113,6 +113,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     // TODO: Can this be moved out of the MacroAssembler and into some shared code?
     // TODO: All the code seems to be arch-independent, and it's weird to have this here.
     bool inCall_;
+    bool usedOutParam_;
     uint32_t args_;
     uint32_t passedIntArgs_;
     uint32_t passedFloatArgs_;
@@ -124,6 +125,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         enoughMemory_(true),
         framePushed_(0),
         inCall_(false),
+        usedOutParam_(false),
         args_(0),
         passedIntArgs_(0),
         passedFloatArgs_(0),
@@ -1728,6 +1730,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     void passABIArg(const MoveOperand &from, MoveOp::Type type);
     void passABIArg(Register reg);
     void passABIArg(FloatRegister reg, MoveOp::Type type);
+    void passABIOutParam(Register reg);
 
   private:
     void callWithABIPre(uint32_t *stackAdjust);

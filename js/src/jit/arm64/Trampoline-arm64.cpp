@@ -330,7 +330,10 @@ JitRuntime::generateVMWrapper(JSContext *cx, const VMFunction &f)
         }
     }
 
-    // Copy the implicit outparam, if any.
+    // Copy the semi-implicit outparam, if any.
+    // It is not a C++-abi outparam, which would get passed in the
+    // outparam register, but a real parameter to the function, which
+    // was stack-allocated above.
     if (outReg != InvalidReg)
         masm.passABIArg(outReg);
 

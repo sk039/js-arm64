@@ -206,6 +206,7 @@ MacroAssemblerCompat::setupABICall(uint32_t args)
     inCall_ = true;
 
     args_ = args;
+    usedOutParam_ = false;
     passedIntArgs_ = 0;
     passedFloatArgs_ = 0;
     stackForCall_ = ShadowStackSpace;
@@ -231,7 +232,6 @@ MacroAssemblerCompat::passABIArg(const MoveOperand &from, MoveOp::Type type)
         return;
 
     Register activeSP = Register::FromCode(GetStackPointer().code());
-
     if (type == MoveOp::GENERAL) {
         Register dest;
         if (GetIntArgReg(passedIntArgs_++, passedFloatArgs_, &dest)) {
@@ -249,7 +249,7 @@ MacroAssemblerCompat::passABIArg(const MoveOperand &from, MoveOp::Type type)
 
     FloatRegister fdest;
     if (GetFloatArgReg(passedIntArgs_, passedFloatArgs_++, &fdest)) {
-        if (!from.isFloatReg() || from.floatReg() != fdest) 
+        if (!from.isFloatReg() || from.floatReg() != fdest)
             enoughMemory_ = moveResolver_.addMove(from, MoveOperand(fdest), type);
         return;
     }
@@ -273,6 +273,18 @@ MacroAssemblerCompat::passABIArg(FloatRegister reg, MoveOp::Type type)
 {
     passABIArg(MoveOperand(reg), type);
 }
+void
+MacroAssemblerCompat::passABIOutParam(Register reg)
+{
+    if (!enoughMemory_)
+        return;
+    MOZ_ASSERT(!usedOutParam_);
+    usedOutParam_ = true;
+    if (reg == r8)
+        return;
+    enoughMemory_ = moveResolver_.addMove(MoveOperand(reg), MoveOperand(r8), MoveOp::GENERAL);
+
+}
 
 void
 MacroAssemblerCompat::callWithABIPre(uint32_t *stackAdjust)
@@ -293,6 +305,7 @@ MacroAssemblerCompat::callWithABIPre(uint32_t *stackAdjust)
 void
 MacroAssemblerCompat::callWithABIPost(uint32_t stackAdjust, MoveOp::Type result)
 {
+    inCall_ = false;
     freeStack(stackAdjust);
     // if the ABI's return regs are where ION is expecting them, then
     // no other work needs to be done.
