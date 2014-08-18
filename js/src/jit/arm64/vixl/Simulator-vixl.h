@@ -888,21 +888,17 @@ class AutoLockSimulatorRuntime
     AutoLockSimulatorRuntime(SimulatorRuntime *srt)
       : srt_(srt)
     {
-#ifdef JS_THREADSAFE
         PR_Lock(srt_->lock_);
         MOZ_ASSERT(!srt_->lockOwner_);
-# ifdef DEBUG
+#ifdef DEBUG
         srt_->lockOwner_ = PR_GetCurrentThread();
-# endif
 #endif
     }
 
     ~AutoLockSimulatorRuntime() {
-#ifdef JS_THREADSAFE
         MOZ_ASSERT(srt_->lockOwner_ == PR_GetCurrentThread());
         srt_->lockOwner_ = nullptr;
         PR_Unlock(srt_->lock_);
-#endif
     }
 };
 
