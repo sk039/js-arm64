@@ -19,7 +19,8 @@
 #include "asmjs/AsmJSSignalHandlers.h"
 
 #include "mozilla/DebugOnly.h"
-#include "assembler/assembler/MacroAssembler.h"
+
+#include "asmjs/AsmJSModule.h"
 #include "vm/Runtime.h"
 
 using namespace js;

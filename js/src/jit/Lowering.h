@@ -143,7 +143,6 @@ class LIRGenerator : public LIRGeneratorSpecific
     bool visitFromCharCode(MFromCharCode *ins);
     bool visitStringSplit(MStringSplit *ins);
     bool visitStart(MStart *start);
-    bool visitPcOffset(MPcOffset *pcOffset);
     bool visitOsrEntry(MOsrEntry *entry);
     bool visitNop(MNop *nop);
     bool visitLimitedTruncate(MLimitedTruncate *nop);

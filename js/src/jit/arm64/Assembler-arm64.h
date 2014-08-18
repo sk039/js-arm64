@@ -185,6 +185,8 @@ class Assembler : public AssemblerVIXL {
         JS_ASSERT(0 && "TraceDataRelocations()");
     }
 
+    static bool SupportsFloatingPoint() { return true; }
+
   protected:
     void addPendingJump(BufferOffset src, ImmPtr target, Relocation::Kind kind) {
         enoughMemory_ &= jumps_.append(RelativePatch(target.value, kind));

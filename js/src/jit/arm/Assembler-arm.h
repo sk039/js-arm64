@@ -1537,6 +1537,10 @@ class Assembler : public AssemblerShared
     static void TraceJumpRelocations(JSTracer *trc, JitCode *code, CompactBufferReader &reader);
     static void TraceDataRelocations(JSTracer *trc, JitCode *code, CompactBufferReader &reader);
 
+    static bool SupportsFloatingPoint() {
+        return HasVFP();
+    }
+
   protected:
     void addPendingJump(BufferOffset src, ImmPtr target, Relocation::Kind kind) {
         enoughMemory_ &= jumps_.append(RelativePatch(target.value, kind));
