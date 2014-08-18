@@ -85,7 +85,6 @@ Simulator::Simulator(Decoder* decoder, FILE* stream) {
   this->init(decoder, stream);
 }
 
-
 void
 Simulator::init(Decoder* decoder, FILE* stream) {
   // Ensure that shift operations act as the simulator expects.
@@ -244,6 +243,78 @@ int64_t Simulator::call(uint8_t* entry, int argument_count, ...) {
   // Get return value.
   int64_t result = xreg(0);
   return result;
+}
+
+
+// When the generated code calls a VM function (masm.callWithABI) we need to
+// call that function instead of trying to execute it with the simulator
+// (because it's x64 code instead of AArch64 code). We do that by redirecting the VM
+// call to a svc (Supervisor Call) instruction that is handled by the
+// simulator. We write the original destination of the jump just at a known
+// offset from the svc instruction so the simulator knows what to call.
+class Redirection
+{
+  friend class SimulatorRuntime;
+
+  Redirection(void *nativeFunction, ABIFunctionType type, SimulatorRuntime *srt)
+    : nativeFunction_(nativeFunction),
+      svcInstruction_(SVC | Assembler::ImmException(kCallRtRedirected)),
+      type_(type),
+      next_(nullptr)
+  {
+    next_ = srt->redirection();
+    // TODO: Flush ICache?
+    srt->setRedirection(this);
+  }
+
+ public:
+  void *addressOfSvcInstruction() { return &svcInstruction_; }
+  void *nativeFunction() const { return nativeFunction_; }
+  ABIFunctionType type() const { return type_; }
+
+  static Redirection *Get(void *nativeFunction, ABIFunctionType type) {
+    PerThreadData *pt = TlsPerThreadData.get();
+    SimulatorRuntime *srt = pt->simulatorRuntime();
+    AutoLockSimulatorRuntime alsr(srt);
+
+    // TODO: Store srt_ in the simulator for this assertion.
+    // JS_ASSERT_IF(pt->simulator(), pt->simulator()->srt_ == srt);
+
+    Redirection *current = srt->redirection();
+    for (; current != nullptr; current = current->next_) {
+      if (current->nativeFunction_ == nativeFunction) {
+        MOZ_ASSERT(current->type() == type);
+        return current;
+      }
+    }
+
+    Redirection *redir = (Redirection *)js_malloc(sizeof(Redirection));
+    if (!redir) {
+      MOZ_ReportAssertionFailure("[unhandlable oom] Simulator redirection", __FILE__, __LINE__);
+      MOZ_CRASH();
+    }
+    new(redir) Redirection(nativeFunction, type, srt);
+    return redir;
+  }
+
+  static Redirection *FromSvcInstruction(Instruction *svcInstruction) {
+    uint8_t *addrOfSvc = reinterpret_cast<uint8_t*>(svcInstruction);
+    uint8_t *addrOfRedirection = addrOfSvc - offsetof(Redirection, svcInstruction_);
+    return reinterpret_cast<Redirection*>(addrOfRedirection);
+  }
+
+ private:
+  void *nativeFunction_;
+  uint32_t svcInstruction_;
+  ABIFunctionType type_;
+  Redirection *next_;
+};
+
+
+/* static */
+void *Simulator::RedirectNativeFunction(void *nativeFunction, ABIFunctionType type) {
+  Redirection *redirection = Redirection::Get(nativeFunction, type);
+  return redirection->addressOfSvcInstruction();
 }
 
 

@@ -588,6 +588,14 @@ enum ExceptionOp {
   DCPS3          = ExceptionFixed | 0x00A00003
 };
 
+// Supervisor Call (svc) specific support.
+//
+// The SVC instruction encodes an optional 16-bit immediate value.
+// The simulator understands the codes below.
+enum SVCSimulatorCodes {
+  kCallRtRedirected = 0x10 // Transition to x86_64 C code.
+};
+
 enum MemBarrierOp {
   MemBarrierFixed = 0xD503309F,
   MemBarrierFMask = 0xFFFFF09F,

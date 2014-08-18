@@ -117,6 +117,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     uint32_t args_;
     uint32_t passedIntArgs_;
     uint32_t passedFloatArgs_;
+    uint32_t passedArgTypes_;
     uint32_t stackForCall_;
     bool dynamicAlignment_;
 
@@ -129,6 +130,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         args_(0),
         passedIntArgs_(0),
         passedFloatArgs_(0),
+        passedArgTypes_(0),
         stackForCall_(0),
         dynamicAlignment_(false)
     { }

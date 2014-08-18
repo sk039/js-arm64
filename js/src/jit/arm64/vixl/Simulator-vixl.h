@@ -267,10 +267,7 @@ class Simulator : public DecoderVisitor {
   // Sets up the simulator state and grabs the result on return.
   int64_t call(uint8_t* entry, int argument_count, ...);
 
-  static void *RedirectNativeFunction(void *nativeFunction, ABIFunctionType type) {
-    JS_ASSERT(0 && "Implement RedirectNativeFunction");
-    return nullptr;
-  }
+  static void *RedirectNativeFunction(void *nativeFunction, ABIFunctionType type);
 
   // FIXME: All the simulators should share this logic.
   uintptr_t stackLimit() const {
@@ -841,11 +838,15 @@ class Simulator : public DecoderVisitor {
   void PrintExclusiveAccessWarning();
 };
 
+class Redirection;
+
 // FIXME: This is MPLv2, and probably shouldn't be here...
 // FIXME: It should probably be in jit/shared.
 class SimulatorRuntime
 {
     friend class AutoLockSimulatorRuntime;
+
+    Redirection *redirection_;
 
   protected:
     // Synchronize access between main thread and compilation/PJS threads.
@@ -854,23 +855,26 @@ class SimulatorRuntime
 
   public:
     SimulatorRuntime()
-      : lock_(nullptr), lockOwner_(nullptr)
+      : redirection_(nullptr), lock_(nullptr), lockOwner_(nullptr)
     { }
-
     ~SimulatorRuntime() {
-#ifdef JS_THREADSAFE
         if (lock_)
             PR_DestroyLock(lock_);
-#endif
     }
 
     bool init() {
-#ifdef JS_THREADSAFE
         lock_ = PR_NewLock();
         if (!lock_)
             return false;
-#endif
         return true;
+    }
+    Redirection *redirection() const {
+        MOZ_ASSERT(lockOwner_ == PR_GetCurrentThread());
+        return redirection_;
+    }
+    void setRedirection(js::jit::Redirection *redirection) {
+        MOZ_ASSERT(lockOwner_ == PR_GetCurrentThread());
+        redirection_ = redirection;
     }
 };
 

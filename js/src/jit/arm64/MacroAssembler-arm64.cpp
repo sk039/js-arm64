@@ -209,6 +209,7 @@ MacroAssemblerCompat::setupABICall(uint32_t args)
     usedOutParam_ = false;
     passedIntArgs_ = 0;
     passedFloatArgs_ = 0;
+    passedArgTypes_ = 0;
     stackForCall_ = ShadowStackSpace;
 }
 
@@ -234,6 +235,7 @@ MacroAssemblerCompat::passABIArg(const MoveOperand &from, MoveOp::Type type)
     Register activeSP = Register::FromCode(GetStackPointer().code());
     if (type == MoveOp::GENERAL) {
         Register dest;
+        passedArgTypes_ = (passedArgTypes_ << ArgType_Shift) | ArgType_General;
         if (GetIntArgReg(passedIntArgs_++, passedFloatArgs_, &dest)) {
             if (!from.isGeneralReg() || from.reg() != dest)
                 enoughMemory_ = moveResolver_.addMove(from, MoveOperand(dest), type);
@@ -246,6 +248,10 @@ MacroAssemblerCompat::passABIArg(const MoveOperand &from, MoveOp::Type type)
     }
 
     JS_ASSERT(type == MoveOp::FLOAT32 || type == MoveOp::DOUBLE);
+    if (type == MoveOp::FLOAT32)
+        passedArgTypes_ = (passedArgTypes_ << ArgType_Shift) | ArgType_Float32;
+    else
+        passedArgTypes_ = (passedArgTypes_ << ArgType_Shift) | ArgType_Double;
 
     FloatRegister fdest;
     if (GetFloatArgReg(passedIntArgs_, passedFloatArgs_++, &fdest)) {
@@ -311,9 +317,56 @@ MacroAssemblerCompat::callWithABIPost(uint32_t stackAdjust, MoveOp::Type result)
     // no other work needs to be done.
 }
 
+#if defined(DEBUG) && defined(JS_ARM64_SIMULATOR)
+// TODO: This should be shared in IonTypes.h.
+static void
+AssertValidABIFunctionType(uint32_t passedArgTypes)
+{
+    switch (passedArgTypes) {
+      case Args_General0:
+      case Args_General1:
+      case Args_General2:
+      case Args_General3:
+      case Args_General4:
+      case Args_General5:
+      case Args_General6:
+      case Args_General7:
+      case Args_General8:
+      case Args_Double_None:
+      case Args_Int_Double:
+      case Args_Float32_Float32:
+      case Args_Double_Double:
+      case Args_Double_Int:
+      case Args_Double_DoubleInt:
+      case Args_Double_DoubleDouble:
+      case Args_Double_IntDouble:
+      case Args_Int_IntDouble:
+        break;
+      default:
+        MOZ_ASSUME_UNREACHABLE("Unexpected type");
+    }
+}
+#endif // DEBUG && JS_ARM64_SIMULATOR
+
 void
 MacroAssemblerCompat::callWithABI(void *fun, MoveOp::Type result)
 {
+#ifdef JS_ARM64_SIMULATOR
+    MOZ_ASSERT(passedIntArgs_ + passedFloatArgs_ <= 15);
+    passedArgTypes_ <<= ArgType_Shift;
+    switch (result) {
+      case MoveOp::GENERAL: passedArgTypes_ |= ArgType_General; break;
+      case MoveOp::DOUBLE:  passedArgTypes_ |= ArgType_Double;  break;
+      case MoveOp::FLOAT32: passedArgTypes_ |= ArgType_Float32; break;
+      default: MOZ_ASSUME_UNREACHABLE("Invalid return type");
+    }
+# ifdef DEBUG
+    AssertValidABIFunctionType(passedArgTypes_);
+# endif
+    ABIFunctionType type = ABIFunctionType(passedArgTypes_);
+    fun = Simulator::RedirectNativeFunction(fun, type);
+#endif // JS_ARM64_SIMULATOR
+
     // Load the target into an intra-call-use register.
     Register callTarget = Register::FromCode(Registers::ip0);
     movePtr(ImmWord((uintptr_t)fun), callTarget);
