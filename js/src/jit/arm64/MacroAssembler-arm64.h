@@ -1088,6 +1088,9 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     CodeOffsetJump jumpWithPatch(RepatchLabel *label, Condition cond = Always) {
         JS_ASSERT(0 && "jumpWithPatch");
     }
+    CodeOffsetJump backedgeJump(RepatchLabel *label) {
+        return jumpWithPatch(label);
+    }
     template <typename T>
     CodeOffsetJump branchPtrWithPatch(Condition cond, Register reg, T ptr, RepatchLabel *label) {
         JS_ASSERT(0 && "branchPtrWithPatch");

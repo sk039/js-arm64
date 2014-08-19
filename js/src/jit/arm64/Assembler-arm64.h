@@ -32,6 +32,8 @@
 
 #include "jit/arm64/vixl/Assembler-vixl.h"
 
+#include "jit/JitCompartment.h"
+
 namespace js {
 namespace jit {
 
@@ -311,6 +313,12 @@ class ABIArgGenerator
 
 // FIXME: ugh. why is this not a static member of Assembler?
 void PatchJump(CodeLocationJump &jump_, CodeLocationLabel label);
+
+static inline void
+PatchBackedge(CodeLocationJump &jump_, CodeLocationLabel label, JitRuntime::BackedgeTarget target)
+{
+    PatchJump(jump_, label);
+}
 
 static const uint32_t NumIntArgRegs = 8;
 static const uint32_t NumFloatArgRegs = 8;
