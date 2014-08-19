@@ -1861,14 +1861,25 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         JS_ASSERT(0 && "ToggledCallSize");
     }
 
+    void checkARMRegAlignment(const ARMRegister &reg) {
+#ifdef DEBUG
+        Label aligned;
+        Add(ScratchReg2_64, reg, Operand(0)); // Move even if reg == sp. Avoids xzr.
+        Tst(ScratchReg2_64, Operand(StackAlignment - 1));
+        B(Zero, &aligned);
+        breakpoint();
+        bind(&aligned);
+        Mov(ScratchReg2_64, xzr); // Clear the scratch register for sanity.
+#endif
+    }
+
     void checkStackAlignment() {
 #ifdef DEBUG
-        // TODO: Check sp also.
-        Label pspAligned;
-        Tst(PseudoStackPointer64, Operand(StackAlignment - 1));
-        B(Zero, &pspAligned);
-        breakpoint();
-        bind(&pspAligned);
+        checkARMRegAlignment(GetStackPointer());
+
+        // If another register is being used to track pushes, check sp explicitly.
+        if (!GetStackPointer().Is(sp))
+            checkARMRegAlignment(sp);
 #endif
     }
 

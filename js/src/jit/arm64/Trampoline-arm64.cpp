@@ -87,8 +87,8 @@ JitRuntime::generateEnterJIT(JSContext *cx, EnterJitType type)
     // Push the argument vector onto the stack.
     // WARNING: destructively modifies reg_argv
     {
-        ARMRegister tmp_argc = x16;
-        ARMRegister tmp_sp = x17;
+        ARMRegister tmp_argc = x16; // ip0 -- no functions below may use scratch registers.
+        ARMRegister tmp_sp = x17; // ip1
         Label noArguments;
         Label loopHead;
 
@@ -103,7 +103,6 @@ JitRuntime::generateEnterJIT(JSContext *cx, EnterJitType type)
         // tmp_sp = sp = PseudoStackPointer.
         masm.Sub(sp, PseudoStackPointer64, Operand(0));
         masm.Mov(tmp_sp, PseudoStackPointer64);
-        masm.checkStackAlignment();
 
         masm.branchTestPtr(Assembler::Zero, reg_argc, reg_argc, &noArguments);
 
