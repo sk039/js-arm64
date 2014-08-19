@@ -517,6 +517,13 @@ class Simulator : public DecoderVisitor {
   bool DN() { return fpcr_.DN() != 0; }
   SimSystemRegister& fpcr() { return fpcr_; }
 
+  // callWithABI() support helpers.
+  void setGPR32Result(int32_t result);
+  void setGPR64Result(int64_t result);
+  void setFP32Result(float result);
+  void setFP64Result(double result);
+  void VisitCallRedirection(Instruction *instr);
+
   // Debug helpers
   void PrintSystemRegisters(bool print_all = false);
   void PrintRegisters(bool print_all_regs = false);

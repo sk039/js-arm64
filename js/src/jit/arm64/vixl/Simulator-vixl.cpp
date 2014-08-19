@@ -2647,9 +2647,205 @@ void Simulator::VisitException(Instruction* instr) {
         HostBreakpoint();
       }
       break;
+    case SVC:
+      // The SVC instruction is hijacked by the JIT as a pseudo-instruction
+      // causing the Simulator to execute host-native code for callWithABI.
+      if (instr->ImmException() == kCallRtRedirected) {
+        VisitCallRedirection(instr);
+      } else {
+        // Other uses of the SVC instruction are not handled by the simulator.
+        VIXL_UNIMPLEMENTED();
+      }
+      break;
     default:
       VIXL_UNIMPLEMENTED();
   }
+}
+
+
+// TODO: Share this across platforms. Duplicated in ARM and MIPS code.
+typedef int64_t (*Prototype_General0)();
+typedef int64_t (*Prototype_General1)(int32_t arg0);
+typedef int64_t (*Prototype_General2)(int32_t arg0, int32_t arg1);
+typedef int64_t (*Prototype_General3)(int32_t arg0, int32_t arg1, int32_t arg2);
+typedef int64_t (*Prototype_General4)(int32_t arg0, int32_t arg1, int32_t arg2, int32_t arg3);
+typedef int64_t (*Prototype_General5)(int32_t arg0, int32_t arg1, int32_t arg2, int32_t arg3,
+                                      int32_t arg4);
+typedef int64_t (*Prototype_General6)(int32_t arg0, int32_t arg1, int32_t arg2, int32_t arg3,
+                                      int32_t arg4, int32_t arg5);
+typedef int64_t (*Prototype_General7)(int32_t arg0, int32_t arg1, int32_t arg2, int32_t arg3,
+                                      int32_t arg4, int32_t arg5, int32_t arg6);
+typedef int64_t (*Prototype_General8)(int32_t arg0, int32_t arg1, int32_t arg2, int32_t arg3,
+                                      int32_t arg4, int32_t arg5, int32_t arg6, int32_t arg7);
+
+typedef int32_t (*Prototype_Int_Double)(double arg0);
+typedef int32_t (*Prototype_Int_IntDouble)(int32_t arg0, double arg1);
+
+typedef float (*Prototype_Float32_Float32)(float arg0);
+
+typedef double (*Prototype_Double_None)();
+typedef double (*Prototype_Double_Double)(double arg0);
+typedef double (*Prototype_Double_Int)(int32_t arg0);
+typedef double (*Prototype_Double_DoubleInt)(double arg0, int32_t arg1);
+typedef double (*Prototype_Double_IntDouble)(int32_t arg0, double arg1);
+typedef double (*Prototype_Double_DoubleDouble)(double arg0, double arg1);
+
+
+void Simulator::setGPR32Result(int32_t result) {
+  set_wreg(0, result);
+}
+
+
+void Simulator::setGPR64Result(int64_t result) {
+  set_xreg(0, result);
+}
+
+
+void Simulator::setFP32Result(float result) {
+  set_sreg(0, result);
+}
+
+
+void Simulator::setFP64Result(double result) {
+  set_dreg(0, result);
+}
+
+
+// Simulator support for callWithABI().
+void Simulator::VisitCallRedirection(Instruction *instr) {
+  VIXL_ASSERT(instr->Mask(ExceptionMask) == SVC);
+  VIXL_ASSERT(instr->ImmException() == kCallRtRedirected);
+
+  Redirection *redir = Redirection::FromSvcInstruction(instr);
+  uintptr_t nativeFn = reinterpret_cast<uintptr_t>(redir->nativeFunction());
+
+  // Stack must be aligned prior to the call.
+  JS_ASSERT((xreg(31, Reg31IsStackPointer) & (StackAlignment - 1)) == 0);
+
+  int64_t savedLR = xreg(30);
+
+  // Store argument register values in local variables for ease of use below.
+  int64_t x0 = xreg(0);
+  int64_t x1 = xreg(1);
+  int64_t x2 = xreg(2);
+  int64_t x3 = xreg(3);
+  int64_t x4 = xreg(4);
+  int64_t x5 = xreg(5);
+  int64_t x6 = xreg(6);
+  int64_t x7 = xreg(7);
+  double d0 = dreg(0);
+  double d1 = dreg(1);
+  float s0 = sreg(0);
+
+  // Dispatch the call and set the return value.
+  switch (redir->type()) {
+    // Cases with int64_t return type.
+    case Args_General0: {
+      int64_t ret = reinterpret_cast<Prototype_General0>(nativeFn)();
+      setGPR64Result(ret);
+      break;
+    }
+    case Args_General1: {
+      int64_t ret = reinterpret_cast<Prototype_General1>(nativeFn)(x0);
+      setGPR64Result(ret);
+      break;
+    }
+    case Args_General2: {
+      int64_t ret = reinterpret_cast<Prototype_General2>(nativeFn)(x0, x1);
+      setGPR64Result(ret);
+      break;
+    }
+    case Args_General3: {
+      int64_t ret = reinterpret_cast<Prototype_General3>(nativeFn)(x0, x1, x2);
+      setGPR64Result(ret);
+      break;
+    }
+    case Args_General4: {
+      int64_t ret = reinterpret_cast<Prototype_General4>(nativeFn)(x0, x1, x2, x3);
+      setGPR64Result(ret);
+      break;
+    }
+    case Args_General5: {
+      int64_t ret = reinterpret_cast<Prototype_General5>(nativeFn)(x0, x1, x2, x3, x4);
+      setGPR64Result(ret);
+      break;
+    }
+    case Args_General6: {
+      int64_t ret = reinterpret_cast<Prototype_General6>(nativeFn)(x0, x1, x2, x3, x4, x5);
+      setGPR64Result(ret);
+      break;
+    }
+    case Args_General7: {
+      int64_t ret = reinterpret_cast<Prototype_General7>(nativeFn)(x0, x1, x2, x3, x4, x5, x6);
+      setGPR64Result(ret);
+      break;
+    }
+    case Args_General8: {
+      int64_t ret = reinterpret_cast<Prototype_General8>(nativeFn)(x0, x1, x2, x3, x4, x5, x6, x7);
+      setGPR64Result(ret);
+      break;
+    }
+
+    // Cases with int32_t return type.
+    case Args_Int_Double: {
+      int32_t ret = reinterpret_cast<Prototype_Int_Double>(nativeFn)(d0);
+      setGPR32Result(ret);
+      break;
+    }
+    case Args_Int_IntDouble: {
+      int32_t ret = reinterpret_cast<Prototype_Int_IntDouble>(nativeFn)(x0, d0);
+      setGPR32Result(ret);
+      break;
+    }
+
+    // Cases with float return type.
+    case Args_Float32_Float32: {
+      float ret = reinterpret_cast<Prototype_Float32_Float32>(nativeFn)(sreg(0));
+      setFP32Result(ret);
+      break;
+    }
+
+    // Cases with double return type.
+    case Args_Double_None: {
+      double ret = reinterpret_cast<Prototype_Double_None>(nativeFn)();
+      setFP64Result(ret);
+      break;
+    }
+    case Args_Double_Double: {
+      double ret = reinterpret_cast<Prototype_Double_Double>(nativeFn)(d0);
+      setFP64Result(ret);
+      break;
+    }
+    case Args_Double_Int: {
+      double ret = reinterpret_cast<Prototype_Double_Int>(nativeFn)(x0);
+      setFP64Result(ret);
+      break;
+    }
+    case Args_Double_DoubleInt: {
+      double ret = reinterpret_cast<Prototype_Double_DoubleInt>(nativeFn)(d0, x0);
+      setFP64Result(ret);
+      break;
+    }
+    case Args_Double_DoubleDouble: {
+      double ret = reinterpret_cast<Prototype_Double_DoubleDouble>(nativeFn)(d0, d1);
+      setFP64Result(ret);
+      break;
+    }
+    case Args_Double_IntDouble: {
+      double ret = reinterpret_cast<Prototype_Double_IntDouble>(nativeFn)(x0, d0);
+      setFP64Result(ret);
+      break;
+    }
+
+    default:
+      MOZ_ASSUME_UNREACHABLE("Unknown function type.");
+  }
+
+  // TODO: Nuke the volatile registers.
+
+  // Simulate a return.
+  set_lr(savedLR);
+  set_pc((Instruction *)savedLR);
 }
 
 
