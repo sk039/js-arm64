@@ -384,12 +384,17 @@ struct FloatRegister {
 
 // Arm/D32 has double registers that cannot be treated as float32.
 // Luckily, our ARMv8 doesn't have the same malfunction.
-static bool hasUnaliasedDouble() {
+inline bool
+hasUnaliasedDouble()
+{
     return false;
 }
+
 // ARM prior to ARMv8 also has doubles that alias multiple floats.
 // Again, ARMv8 is in the clear.
-static bool hasMultiAlias() {
+inline bool
+hasMultiAlias()
+{
     return false;
 }
 

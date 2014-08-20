@@ -272,7 +272,6 @@ struct BufferSliceTail : public BufferSlice<SliceSize> {
         MOZ_ASSERT(this->nodeSize_ % InstSize == 0);
         MOZ_ASSERT(this->nodeSize_ < SliceSize);
         size_t idx = this->nodeSize_ / InstSize;
-        fprintf(stderr, "MARKING %d AS A BRANCH\n", idx);
         isBranch_[idx >> 3] |= 1 << (idx & 0x7);
     }
     bool isBranch(unsigned idx) const {
@@ -792,7 +791,7 @@ struct AssemblerBufferWithConstantPools : public AssemblerBuffer<SliceSize, Inst
             return;
         unsigned destOffset = branch.getOffset() + offset;
         if (offset > 0) {
-            while (curpool < (int)numDumps_ && poolInfo_[curpool].offset <= (size_t)destOffset) {
+            while ((int)curpool < (int)numDumps_ && poolInfo_[curpool].offset <= (size_t)destOffset) {
                 offset += poolInfo_[curpool].size;
                 curpool++;
             }
