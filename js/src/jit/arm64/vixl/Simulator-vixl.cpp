@@ -2800,7 +2800,7 @@ void Simulator::VisitCallRedirection(Instruction *instr) {
 
     // Cases with float return type.
     case Args_Float32_Float32: {
-      float ret = reinterpret_cast<Prototype_Float32_Float32>(nativeFn)(sreg(0));
+      float ret = reinterpret_cast<Prototype_Float32_Float32>(nativeFn)(s0);
       setFP32Result(ret);
       break;
     }
