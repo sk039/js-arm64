@@ -1078,8 +1078,13 @@ class MacroAssembler : public MacroAssemblerSpecific
         // FIXME: This is pretty gross.
         push(temp);
         loadPtr(AbsoluteAddress(p->addressOfStack()), temp);
+#ifdef JS_CODEGEN_ARM64 // FIXME
         addPtr(Address(PseudoStackPointer, 0), temp); // FIXME: Obviously won't compile elsewhere.
         addPtr(Imm32(sizeof(size_t)), PseudoStackPointer); // FIXME: Same deal.
+#else
+        addPtr(Address(StackPointer, 0), temp); // FIXME: Obviously won't compile elsewhere.
+        addPtr(Imm32(sizeof(size_t)), StackPointer); // FIXME: Same deal.
+#endif
     }
 
   public:
