@@ -288,11 +288,14 @@ public:
   void StartAnimation(AsyncPanZoomAnimation* aAnimation);
 
   /**
-   * Cancels any currently running animation. Note that all this does is set the
-   * state of the AsyncPanZoomController back to NOTHING, but it is the
-   * animation's responsibility to check this before advancing.
+   * Cancels any currently running animation.
    */
   void CancelAnimation();
+
+  /**
+   * Clear any overscroll on this APZC.
+   */
+  void ClearOverscroll();
 
   /**
    * Returns allowed touch behavior for the given point on the scrollable layer.
@@ -467,11 +470,10 @@ protected:
   const ScreenPoint GetVelocityVector();
 
   /**
-   * Gets a reference to the first touch point from a MultiTouchInput.  This
-   * gets only the first one and assumes the rest are either missing or not
-   * relevant.
+   * Gets the first touch point from a MultiTouchInput.  This gets only
+   * the first one and assumes the rest are either missing or not relevant.
    */
-  ScreenIntPoint& GetFirstTouchScreenPoint(const MultiTouchInput& aEvent);
+  ScreenPoint GetFirstTouchScreenPoint(const MultiTouchInput& aEvent);
 
   /**
    * Sets the panning state basing on the pan direction angle and current touch-action value.
