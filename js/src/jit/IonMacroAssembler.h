@@ -1053,14 +1053,10 @@ class MacroAssembler : public MacroAssemblerSpecific
     // All the sps-related methods used by baseline call |spsProfileEntryAddressSafe|.
     void spsProfileEntryAddressSafe(SPSProfiler *p, int offset, Register temp, Label *full) {
         // Load size pointer
-        fprintf(stderr, "loading: %p\n", p->addressOfSizePointer());
         loadPtr(AbsoluteAddress(p->addressOfSizePointer()), temp);
 
-        nop();
         // Load size
-        fprintf(stderr, "%p->%p\n", p->addressOfSizePointer(), *(int**)p->addressOfSizePointer());
         load32(Address(temp, 0), temp);
-        nop();
         if (offset != 0)
             add32(Imm32(offset), temp);
 
