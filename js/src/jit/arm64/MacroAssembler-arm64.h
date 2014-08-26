@@ -302,17 +302,13 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
 
     template <typename T>
     void storeValue(JSValueType type, Register reg, const T &dest) {
-        JS_ASSERT(0 && "storeValue");
-        if (type == JSVAL_TYPE_INT32 || type == JSVAL_TYPE_BOOLEAN) {
-            
-        } else {
-            boxValue(type, reg, ScratchReg);
-        }
+        tagValue(type, reg, ValueOperand(ScratchReg2));
+        storeValue(ValueOperand(ScratchReg2), dest);
     }
-
     template <typename T>
     void storeValue(const Value &val, const T &dest) {
-        JS_ASSERT(0 && "storeValue");
+        moveValue(val, ValueOperand(ScratchReg2));
+        storeValue(ValueOperand(ScratchReg2), dest);
     }
     void storeValue(ValueOperand val, BaseIndex dest) {
         storePtr(val.valueReg(), dest);
@@ -324,10 +320,11 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     {
         JS_ASSERT(0 && "storeUnboxedValue");
     }
-
+#if 0
     void loadValue(ARMOperand src, ValueOperand val) {
         JS_ASSERT(0 && "loadValue");
     }
+#endif
     void loadValue(Address src, Register val) {
         Ldr(ARMRegister(val, 64), MemOperand(src));
     }
@@ -335,10 +332,26 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         Ldr(ARMRegister(val.valueReg(), 64), MemOperand(src));
     }
     void loadValue(const BaseIndex &src, ValueOperand val) {
-        JS_ASSERT(0 && "loadValue");
+        doBaseIndex(ARMRegister(val.valueReg(), 64), src, LDR_x);
     }
     void tagValue(JSValueType type, Register payload, ValueOperand dest) {
-        JS_ASSERT(0 && "tagValue");
+        ARMRegister d(dest.valueReg(), 64);
+        ARMRegister p(payload, 64);
+        if (type == JSVAL_TYPE_INT32 || type == JSVAL_TYPE_BOOLEAN) {
+            // 32-bit values can be tagged with two movk's.
+            // or, an ORR instruction, and a movk
+            orr(d, p, Operand(JSVAL_SHIFTED_TAG_MAX_DOUBLE));
+            movk(d, ImmShiftedTag(type).value & 0xffff00000000);
+        } else {
+            // load the tag
+            if (payload != dest.valueReg()) {
+                movePtr(ImmShiftedTag(type), dest.valueReg());
+                bfi(d, p, 0, JSVAL_TAG_SHIFT);
+            } else {
+                bfi(d, p, 0, JSVAL_TAG_SHIFT);
+                orPtr(ImmShiftedTag(type), dest.valueReg());
+            }
+        }
     }
     void pushValue(ValueOperand val) {
         MacroAssemblerVIXL::Push(ARMRegister(val.valueReg(), 64));
@@ -386,17 +399,21 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     void boxValue(JSValueType type, Register src, Register dest) {
         JS_ASSERT(0 && "boxValue");
     }
-
+    void splitTag(Register src, Register dest) {
+        sbfx(ARMRegister(dest, 64), ARMRegister(src, 64), 64 - JSVAL_TAG_SHIFT, JSVAL_TAG_SHIFT);
+    }
     Register extractTag(const Address &address, Register scratch) {
-        JS_ASSERT(0 && "extractTag()");
+        loadPtr(address, scratch);
+        splitTag(scratch, scratch);
         return scratch;
     }
     Register extractTag(const ValueOperand &value, Register scratch) {
-        JS_ASSERT(0 && "extractTag()");
+        splitTag(value.valueReg(), scratch);
         return scratch;
     }
     Register extractObject(const Address &address, Register scratch) {
-        JS_ASSERT(0 && "extractObject()");
+        loadPtr(address, scratch);
+        unboxObject(scratch, scratch);
         return scratch;
     }
     Register extractObject(const ValueOperand &value, Register scratch) {
@@ -672,6 +689,9 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     void xorPtr(Register src, Register dest) {
         Eor(ARMRegister(dest, 64), ARMRegister(dest, 64), Operand(ARMRegister(src, 32)));
     }
+    void orPtr(ImmWord imm, Register dest) {
+        Orr(ARMRegister(dest, 64), ARMRegister(dest, 64), Operand(imm.value));
+    }
     void orPtr(Imm32 imm, Register dest) {
         Orr(ARMRegister(dest, 64), ARMRegister(dest, 64), Operand(imm.value));
     }
@@ -854,10 +874,12 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         JS_ASSERT(0 && "moveFloatAsDouble");
     }
 
+#if 0
     void splitTag(Register src, Register dest) {
         // FIXME: Could this be done in a better way?
         Asr(ARMRegister(dest, 64), ARMRegister(src, 64), JSVAL_TAG_SHIFT);
     }
+#endif
     void splitTag(const ValueOperand &operand, Register dest) {
         splitTag(operand.valueReg(), dest);
     }
@@ -1395,54 +1417,63 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     void unboxMagic(const ValueOperand &src, Register dest) {
         move32(src.valueReg(), dest);
     }
-
-    void unboxPrivate(const ValueOperand &src, const Register dest) {
-        JS_ASSERT(0 && "unboxPrivate");
-    }
-
-    void notBoolean(const ValueOperand &val) {
-        JS_ASSERT(0 && "notBoolean");
-    }
-    void unboxObject(const ValueOperand &src, Register dest) {
-        JS_ASSERT(0 && "unboxObject");
-    }
-    void unboxObject(const Address &src, Register dest) {
-        JS_ASSERT(0 && "unboxObject");
-    }
-
     // Unbox any non-double value into dest. Prefer unboxInt32 or unboxBoolean
     // instead if the source type is known.
     void unboxNonDouble(const ValueOperand &src, Register dest) {
-        JS_ASSERT(0 && "unboxNonDouble");
+        unboxNonDouble(src.valueReg(), dest);
     }
-    void unboxNonDouble(const ARMOperand &src, Register dest) {
-        // Explicitly permits |dest| to be used in |src|.
-        JS_ASSERT(0 && "unboxNonDouble");
+    void unboxNonDouble(Address src, Register dest) {
+        loadPtr(src, dest);
+        unboxNonDouble(dest, dest);
     }
+
+    void unboxNonDouble(Register src, Register dest) {
+        And(ARMRegister(dest, 64), ARMRegister(src, 64), Operand((1ULL << JSVAL_TAG_SHIFT) - 1ULL));
+    }
+
+    void unboxPrivate(const ValueOperand &src, const Register dest) {
+        ubfx(ARMRegister(dest, 64), ARMRegister(src.valueReg(), 64), 1, JSVAL_TAG_SHIFT - 1);
+    }
+
+    void notBoolean(const ValueOperand &val) {
+        ARMRegister r(val.valueReg(), 64);
+        eor(r, r, Operand(1));
+    }
+    void unboxObject(const ValueOperand &src, Register dest) {
+        unboxNonDouble(src.valueReg(), dest);
+    }
+    void unboxObject(Register src, Register dest) {
+        unboxNonDouble(src, dest);
+    }
+    void unboxObject(const Address &src, Register dest) {
+        loadPtr(src, dest);
+        unboxNonDouble(dest, dest);
+    }
+
 
     void unboxValue(const ValueOperand &src, AnyRegister dest) {
         JS_ASSERT(0 && "unboxValue");
     }
     void unboxString(const ValueOperand &operand, Register dest) {
-        JS_ASSERT(0 && "unboxSTring");
+        unboxNonDouble(operand, dest);
     }
     void unboxString(const Address &src, Register dest) {
-        JS_ASSERT(0 && "unboxString");
+        unboxNonDouble(src, dest);
     }
 
     // These two functions use the low 32-bits of the full value register.
     void boolValueToDouble(const ValueOperand &operand, FloatRegister dest) {
-        JS_ASSERT(0 && "boolValueToDouble");
+        convertInt32ToDouble(operand.valueReg(), dest);
     }
     void int32ValueToDouble(const ValueOperand &operand, FloatRegister dest) {
-        JS_ASSERT(0 && "int32ValueToDouble");
+        convertInt32ToDouble(operand.valueReg(), dest);
     }
 
     void boolValueToFloat32(const ValueOperand &operand, FloatRegister dest) {
-        JS_ASSERT(0 && "boolValueToFloat32");
+        convertInt32ToFloat32(operand.valueReg(), dest);
     }
     void int32ValueToFloat32(const ValueOperand &operand, FloatRegister dest) {
-        JS_ASSERT(0 && "int32ValueToFloat32");
+        convertInt32ToFloat32(operand.valueReg(), dest);
     }
 
     void loadConstantDouble(double d, FloatRegister dest) {
@@ -1607,44 +1638,44 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
 
     // BaseIndex-based tests.
     Condition testUndefined(Condition cond, const BaseIndex &src) {
-        JS_ASSERT(0 && "testUndefined");
-        return Condition::Zero;
+        loadPtr(src, ScratchReg2);
+        return testUndefined(cond, ScratchReg2);
     }
     Condition testNull(Condition cond, const BaseIndex &src) {
-        JS_ASSERT(0 && "testNull");
-        return Condition::Zero;
+        loadPtr(src, ScratchReg2);
+        return testNull(cond, ScratchReg2);
     }
     Condition testBoolean(Condition cond, const BaseIndex &src) {
-        JS_ASSERT(0 && "testBoolean");
-        return Condition::Zero;
+        loadPtr(src, ScratchReg2);
+        return testBoolean(cond, ScratchReg2);
     }
     Condition testString(Condition cond, const BaseIndex &src) {
-        JS_ASSERT(0 && "testString");
-        return Condition::Zero;
+        loadPtr(src, ScratchReg2);
+        return testString(cond, ScratchReg2);
     }
     Condition testSymbol(Condition cond, const BaseIndex &src) {
-        JS_ASSERT(0 && "testSymbol");
-        return Condition::Zero;
+        loadPtr(src, ScratchReg2);
+        return testSymbol(cond, ScratchReg2);
     }
     Condition testInt32(Condition cond, const BaseIndex &src) {
-        JS_ASSERT(0 && "testInt32");
-        return Condition::Zero;
+        loadPtr(src, ScratchReg2);
+        return testInt32(cond, ScratchReg2);
     }
     Condition testObject(Condition cond, const BaseIndex &src) {
-        JS_ASSERT(0 && "testObject");
-        return Condition::Zero;
+        loadPtr(src, ScratchReg2);
+        return testObject(cond, ScratchReg2);
     }
     Condition testDouble(Condition cond, const BaseIndex &src) {
-        JS_ASSERT(0 && "testDouble");
-        return Condition::Zero;
+        loadPtr(src, ScratchReg2);
+        return testDouble(cond, ScratchReg2);
     }
     Condition testMagic(Condition cond, const BaseIndex &src) {
-        JS_ASSERT(0 && "testMagic");
-        return Condition::Zero;
+        loadPtr(src, ScratchReg2);
+        return testMagic(cond, ScratchReg2);
     }
     Condition testGCThing(Condition cond, const BaseIndex &src) {
-        JS_ASSERT(0 && "testGCThing");
-        return Condition::Zero;
+        loadPtr(src, ScratchReg2);
+        return testGCThing(cond, ScratchReg2);
     }
 
 
@@ -1655,7 +1686,20 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
 
     void branchTestDoubleTruthy(bool truthy, FloatRegister reg, Label *label) {
-        JS_ASSERT(0 && "branchTestDoubleTruthy");
+        Fcmp(ARMFPRegister(reg, 64), 0.0);
+        if (!truthy) {
+            // falsy values are zero, and NaN.
+            branch(Zero, label);
+            branch(Overflow, label);
+        } else {
+            // truthy values are non-zero and not nan.
+            // If it is overflow
+            Label onFalse;
+            branch(Zero, &onFalse);
+            branch(Overflow, &onFalse);
+            b(label);
+            bind(&onFalse);
+        }
     }
 
     void branchTestBooleanTruthy(bool truthy, const ValueOperand &operand, Label *label) {
@@ -1664,17 +1708,21 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         B(label, truthy ? NonZero : Zero);
     }
     Condition testStringTruthy(bool truthy, const ValueOperand &value) {
-        JS_ASSERT(0 && "testStringTruthy");
+        ARMRegister string(value.valueReg(), 64);
+        Ldr(ScratchReg64, MemOperand(string, JSString::offsetOfLength()));
+        Cmp(ScratchReg64, Operand(0));
         return Condition::Zero;
     }
     void branchTestStringTruthy(bool truthy, const ValueOperand &value, Label *label) {
-        JS_ASSERT(0 && "branchTestStringTruthy");
+        ARMRegister string(value.valueReg(), 64);
+        Ldr(ScratchReg64, MemOperand(string, JSString::offsetOfLength()));
+        Cbnz(ScratchReg64, label);
     }
-
+#if 0
     void loadInt32OrDouble(const ARMOperand &operand, FloatRegister dest) {
         JS_ASSERT(0 && "loadInt32OrDouble");
     }
-
+#endif
     template <typename T>
     void loadUnboxedValue(const T &src, MIRType type, AnyRegister dest) {
         JS_ASSERT(0 && "loadUnboxedValue");
@@ -1745,10 +1793,47 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     // Emits a call to a C/C++ function, resolving all argument moves.
     void callWithABI(void *fun, MoveOp::Type result = MoveOp::GENERAL);
     void callWithABI(AsmJSImmPtr imm, MoveOp::Type result = MoveOp::GENERAL) {
-        JS_ASSERT(0 && "callWithABI");
+#ifdef JS_ARM64_SIMULATOR
+        passedArgTypes_ <<= ArgType_Shift;
+        switch (result) {
+          case MoveOp::GENERAL: passedArgTypes_ |= ArgType_General; break;
+          case MoveOp::DOUBLE:  passedArgTypes_ |= ArgType_Double;  break;
+          case MoveOp::FLOAT32: passedArgTypes_ |= ArgType_Float32; break;
+          default: MOZ_ASSUME_UNREACHABLE("Invalid return type");
+        }
+        ABIFunctionType type = ABIFunctionType(passedArgTypes_);
+#if 0
+        // TODO: simulator support is different on amd64.
+        fun = Simulator::RedirectNativeFunction(fun, type);
+#endif
+
+#endif
+        uint32_t stackAdjust;
+        callWithABIPre(&stackAdjust);
+        call(imm);
+        callWithABIPost(stackAdjust, result);
     }
     void callWithABI(Address fun, MoveOp::Type result = MoveOp::GENERAL) {
-        JS_ASSERT(0 && "callWithABI");
+#ifdef JS_ARM64_SIMULATOR
+        passedArgTypes_ <<= ArgType_Shift;
+        switch (result) {
+          case MoveOp::GENERAL: passedArgTypes_ |= ArgType_General; break;
+          case MoveOp::DOUBLE:  passedArgTypes_ |= ArgType_Double;  break;
+          case MoveOp::FLOAT32: passedArgTypes_ |= ArgType_Float32; break;
+          default: MOZ_ASSUME_UNREACHABLE("Invalid return type");
+        }
+        ABIFunctionType type = ABIFunctionType(passedArgTypes_);
+#if 0
+        // TODO: simulator support is different on amd64.
+        fun = Simulator::RedirectNativeFunction(fun, type);
+#endif
+
+#endif
+        uint32_t stackAdjust;
+        callWithABIPre(&stackAdjust);
+        loadPtr(fun, ScratchReg);
+        call(ScratchReg);
+        callWithABIPost(stackAdjust, result);
     }
 
     CodeOffsetLabel labelForPatch() {
