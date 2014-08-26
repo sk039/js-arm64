@@ -274,11 +274,6 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     {
         JS_ASSERT(0 && "storeUnboxedValue");
     }
-#if 0
-    void loadValue(ARMOperand src, ValueOperand val) {
-        JS_ASSERT(0 && "loadValue");
-    }
-#endif
     void loadValue(Address src, Register val) {
         Ldr(ARMRegister(val, 64), MemOperand(src));
     }
