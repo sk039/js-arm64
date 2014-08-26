@@ -91,11 +91,6 @@ class BaselineFrame
     uint32_t unwoundScopeOverrideOffset_; // If HAS_UNWOUND_SCOPE_OVERRIDE_PC.
     uint32_t flags_;
 
-#ifdef JS_CODEGEN_ARM64
-    // AArch64 requires 16-byte alignment.
-    uint32_t padding__;
-#endif
-
   public:
     // Distance between the frame pointer and the frame header (return address).
     // This is the old frame pointer saved in the prologue.

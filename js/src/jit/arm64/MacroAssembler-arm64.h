@@ -250,6 +250,12 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         MacroAssemblerVIXL::Drop(Operand(ARMRegister(amount, 64)));
     }
 
+    // Update sp with the value of the current active stack pointer, if necessary.
+    void syncStackPtr() {
+        if (!GetStackPointer().Is(sp))
+            Add(GetStackPointer(), sp, Operand(0));
+    }
+
     void storeValue(ValueOperand val, const Address &dest) {
         storePtr(val.valueReg(), dest);
     }

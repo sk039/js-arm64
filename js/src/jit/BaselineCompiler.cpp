@@ -277,8 +277,10 @@ BaselineCompiler::emitPrologue()
     masm.push(BaselineFrameReg);
     masm.movePtr(BaselineStackReg, BaselineFrameReg);
 
+    // TODO: subStackPtr()?
     masm.subPtr(Imm32(BaselineFrame::Size()), BaselineStackReg);
-    masm.checkStackAlignment();
+    masm.syncStackPtr();
+    //masm.checkStackAlignment(); TODO: check here?
 
     // Initialize BaselineFrame. For eval scripts, the scope chain
     // is passed in R1, so we have to be careful not to clobber

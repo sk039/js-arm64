@@ -1113,8 +1113,7 @@ class ICStubCompiler
         JS_ASSERT(!regs.has(BaselineTailCallReg));
         regs.take(BaselineSecondScratchReg);
 #elif defined(JS_CODEGEN_ARM64)
-        JS_ASSERT(regs.has(BaselineStackReg));
-        regs.take(BaselineStackReg);
+        JS_ASSERT(!regs.has(BaselineStackReg));
         // TODO: BaselineTailCallReg?
         JS_ASSERT(regs.has(BaselineSecondScratchReg));
         regs.take(BaselineSecondScratchReg);
