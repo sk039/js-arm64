@@ -64,46 +64,6 @@ struct ImmTag : public Imm32
     { }
 };
 
-class ARMOperand
-{
-  public:
-    enum Kind {
-        REG,
-        FPREG,
-        MEM
-    };
-
-  private:
-    Kind kind_ : 2;
-    int32_t reg_ : 5;
-    int32_t offset_;
-
-  public:
-    explicit ARMOperand(Register reg)
-      : kind_(REG),
-        reg_(reg.code())
-    { }
-    explicit ARMOperand(FloatRegister fpreg)
-      : kind_(REG),
-        reg_(fpreg.code())
-    { }
-    explicit ARMOperand(Register base, Imm32 offset)
-      : kind_(MEM),
-        reg_(base.code()),
-        offset_(offset.value)
-    { }
-    explicit ARMOperand(Register base, int32_t offset)
-      : kind_(MEM),
-        reg_(base.code()),
-        offset_(offset)
-    { }
-    explicit ARMOperand(const Address &addr)
-      : kind_(MEM),
-        reg_(addr.base.code()),
-        offset_(addr.offset)
-    { }
-};
-
 class MacroAssemblerCompat : public MacroAssemblerVIXL
 {
   protected:
@@ -290,12 +250,6 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         MacroAssemblerVIXL::Drop(Operand(ARMRegister(amount, 64)));
     }
 
-#if 0
-    void storeValue(ValueOperand val, ARMOperand dest) {
-
-        JS_ASSERT(0 && "storeValue");
-    }
-#endif
     void storeValue(ValueOperand val, const Address &dest) {
         storePtr(val.valueReg(), dest);
     }
@@ -472,16 +426,10 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     void convertInt32ToDouble(const Address &src, FloatRegister dest) {
         JS_ASSERT(0 && "convertInt32ToDouble");
     }
-    void convertInt32ToDouble(const ARMOperand &src, FloatRegister dest) {
-        JS_ASSERT(0 && "convertInt32ToDouble");
-    }
     void convertInt32ToFloat32(Register src, FloatRegister dest) {
         JS_ASSERT(0 && "convertInt32ToFloat32");
     }
     void convertInt32ToFloat32(const Address &src, FloatRegister dest) {
-        JS_ASSERT(0 && "convertInt32ToFloat32");
-    }
-    void convertInt32ToFloat32(const ARMOperand &src, FloatRegister dest) {
         JS_ASSERT(0 && "convertInt32ToFloat32");
     }
 
@@ -544,9 +492,6 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     void movePtr(Register src, Register dest) {
         Mov(ARMRegister(dest, 64), ARMRegister(src, 64));
     }
-    void movePtr(Register src, const ARMOperand &dest) {
-        JS_ASSERT(0 && "movePtr");
-    }
     void movePtr(ImmWord imm, Register dest) {
         Mov(ARMRegister(dest, 64), (int64_t)imm.value);
     }
@@ -585,9 +530,6 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
     void loadPtr(const Address &address, Register dest) {
         ldr(ARMRegister(dest, 64), MemOperand(address));
-    }
-    void loadPtr(const ARMOperand &src, Register dest) {
-        JS_ASSERT(0 && "loadPtr");
     }
     void loadPtr(const BaseIndex &src, Register dest) {
         JS_ASSERT(0 && "loadPtr");
@@ -637,9 +579,6 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
     void storePtr(Register src, const BaseIndex &address) {
         doBaseIndex(ARMRegister(src, 64), address, STR_x);
-    }
-    void storePtr(Register src, const ARMOperand &dest) {
-        JS_ASSERT(0 && "storePtr");
     }
     void storePtr(Register src, AbsoluteAddress address) {
         Mov(ScratchReg2_64, uint64_t(address.addr));
@@ -883,9 +822,6 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     void splitTag(const ValueOperand &operand, Register dest) {
         splitTag(operand.valueReg(), dest);
     }
-    void splitTag(const ARMOperand &operand, Register dest) {
-        JS_ASSERT(0 && "splitTag");
-    }
     void splitTag(const Address &operand, Register dest) {
         loadPtr(operand, dest);
         splitTag(dest, dest);
@@ -1056,12 +992,6 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         branch32(cond, Address(ScratchReg2, 0), rhs, label);
     }
 
-    void branchSub32(Condition cond, const ARMOperand &lhs, Register rhs, Label *label) {
-        JS_ASSERT(0 && "branchSub32");
-    }
-    void branchSub32(Condition cond, const ARMOperand &lhs, Imm32 rhs, Label *label) {
-        JS_ASSERT(0 && "branchSub32");
-    }
     void branchSub32(Condition cond, const Address &lhs, Register rhs, Label *label) {
         JS_ASSERT(0 && "branchSub32");
     }
@@ -1225,22 +1155,6 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         B(label, c);
     }
 
-    void branchTestUndefined(Condition cond, const ARMOperand &operand, Label *label) {
-        JS_ASSERT(0 && "branchTestUndefined");
-    }
-    void branchTestInt32(Condition cond, const ARMOperand &operand, Label *label) {
-        JS_ASSERT(0 && "branchTestInt32");
-    }
-    void branchTestDouble(Condition cond, const ARMOperand &operand, Label *label) {
-        JS_ASSERT(0 && "branchTestDouble");
-    }
-    void branchTestBoolean(Condition cond, const ARMOperand &operand, Label *label) {
-        JS_ASSERT(0 && "branchTestBoolean");
-    }
-    void branchTestNull(Condition cond, const ARMOperand &operand, Label *label) {
-        JS_ASSERT(0 && "branchTestNull");
-    }
-
     void branchTestUndefined(Condition cond, const Address &address, Label *label) {
         JS_ASSERT(0 && "branchTestUndefined");
     }
@@ -1381,9 +1295,6 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     void unboxInt32(const ValueOperand &src, Register dest) {
         move32(src.valueReg(), dest);
     }
-    void unboxInt32(const ARMOperand &src, Register dest) {
-        JS_ASSERT(0 && "unboxInt32");
-    }
     void unboxInt32(const Address &src, Register dest) {
         load32(src, dest);
     }
@@ -1397,18 +1308,12 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     void unboxArgObjMagic(const ValueOperand &src, Register dest) {
         JS_ASSERT(0 && "unboxArgObjMagic");
     }
-    void unboxArgObjMagic(const ARMOperand &src, Register dest) {
-        JS_ASSERT(0 && "unboxArgObjMagic");
-    }
     void unboxArgObjMagic(const Address &src, Register dest) {
         JS_ASSERT(0 && "unboxArgObjMagic");
     }
 
     void unboxBoolean(const ValueOperand &src, Register dest) {
         move32(src.valueReg(), dest);
-    }
-    void unboxBoolean(const ARMOperand &src, Register dest) {
-        JS_ASSERT(0 && "unboxBoolean");
     }
     void unboxBoolean(const Address &src, Register dest) {
         load32(src, dest);
@@ -1718,11 +1623,6 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         Ldr(ScratchReg64, MemOperand(string, JSString::offsetOfLength()));
         Cbnz(ScratchReg64, label);
     }
-#if 0
-    void loadInt32OrDouble(const ARMOperand &operand, FloatRegister dest) {
-        JS_ASSERT(0 && "loadInt32OrDouble");
-    }
-#endif
     template <typename T>
     void loadUnboxedValue(const T &src, MIRType type, AnyRegister dest) {
         JS_ASSERT(0 && "loadUnboxedValue");
