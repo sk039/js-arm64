@@ -77,6 +77,7 @@ PerThreadData::PerThreadData(JSRuntime *runtime)
     traceLogger(nullptr),
 #endif
     activation_(nullptr),
+    profilingActivation_(nullptr),
     asmJSActivationStack_(nullptr),
     autoFlushICache_(nullptr),
 #if defined(JS_ARM_SIMULATOR) || defined(JS_ARM64_SIMULATOR) || defined(JS_MIPS_SIMULATOR)
