@@ -2665,18 +2665,18 @@ void Simulator::VisitException(Instruction* instr) {
 
 // TODO: Share this across platforms. Duplicated in ARM and MIPS code.
 typedef int64_t (*Prototype_General0)();
-typedef int64_t (*Prototype_General1)(int32_t arg0);
-typedef int64_t (*Prototype_General2)(int32_t arg0, int32_t arg1);
-typedef int64_t (*Prototype_General3)(int32_t arg0, int32_t arg1, int32_t arg2);
-typedef int64_t (*Prototype_General4)(int32_t arg0, int32_t arg1, int32_t arg2, int32_t arg3);
-typedef int64_t (*Prototype_General5)(int32_t arg0, int32_t arg1, int32_t arg2, int32_t arg3,
-                                      int32_t arg4);
-typedef int64_t (*Prototype_General6)(int32_t arg0, int32_t arg1, int32_t arg2, int32_t arg3,
-                                      int32_t arg4, int32_t arg5);
-typedef int64_t (*Prototype_General7)(int32_t arg0, int32_t arg1, int32_t arg2, int32_t arg3,
-                                      int32_t arg4, int32_t arg5, int32_t arg6);
-typedef int64_t (*Prototype_General8)(int32_t arg0, int32_t arg1, int32_t arg2, int32_t arg3,
-                                      int32_t arg4, int32_t arg5, int32_t arg6, int32_t arg7);
+typedef int64_t (*Prototype_General1)(int64_t arg0);
+typedef int64_t (*Prototype_General2)(int64_t arg0, int64_t arg1);
+typedef int64_t (*Prototype_General3)(int64_t arg0, int64_t arg1, int64_t arg2);
+typedef int64_t (*Prototype_General4)(int64_t arg0, int64_t arg1, int64_t arg2, int64_t arg3);
+typedef int64_t (*Prototype_General5)(int64_t arg0, int64_t arg1, int64_t arg2, int64_t arg3,
+                                      int64_t arg4);
+typedef int64_t (*Prototype_General6)(int64_t arg0, int64_t arg1, int64_t arg2, int64_t arg3,
+                                      int64_t arg4, int64_t arg5);
+typedef int64_t (*Prototype_General7)(int64_t arg0, int64_t arg1, int64_t arg2, int64_t arg3,
+                                      int64_t arg4, int64_t arg5, int64_t arg6);
+typedef int64_t (*Prototype_General8)(int64_t arg0, int64_t arg1, int64_t arg2, int64_t arg3,
+                                      int64_t arg4, int64_t arg5, int64_t arg6, int64_t arg7);
 
 typedef int32_t (*Prototype_Int_Double)(double arg0);
 typedef int32_t (*Prototype_Int_IntDouble)(int32_t arg0, double arg1);
@@ -2720,7 +2720,8 @@ void Simulator::VisitCallRedirection(Instruction *instr) {
   uintptr_t nativeFn = reinterpret_cast<uintptr_t>(redir->nativeFunction());
 
   // Stack must be aligned prior to the call.
-  JS_ASSERT((xreg(31, Reg31IsStackPointer) & (StackAlignment - 1)) == 0);
+  // FIXME: It's actually our job to perform the alignment...
+  //JS_ASSERT((xreg(31, Reg31IsStackPointer) & (StackAlignment - 1)) == 0);
 
   int64_t savedLR = xreg(30);
 
