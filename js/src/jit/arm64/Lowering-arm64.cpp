@@ -369,3 +369,15 @@ LIRGeneratorARM64::visitForkJoinGetSlice(MForkJoinGetSlice *ins)
 {
     MOZ_ASSUME_UNREACHABLE("NYI");
 }
+
+bool
+LIRGeneratorARM64::visitSimdTernaryBitwise(MSimdTernaryBitwise *ins)
+{
+    MOZ_CRASH("NYI");
+}
+
+bool
+LIRGeneratorARM64::visitSimdSplatX4(MSimdSplatX4 *ins)
+{
+    MOZ_CRASH("NYI");
+}

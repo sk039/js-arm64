@@ -188,6 +188,7 @@ class Assembler : public AssemblerVIXL {
     }
 
     static bool SupportsFloatingPoint() { return true; }
+    static bool SupportsSimd() { return SupportsSimd; }
 
   protected:
     void addPendingJump(BufferOffset src, ImmPtr target, Relocation::Kind kind) {
@@ -419,6 +420,9 @@ static MOZ_CONSTEXPR_VAR Register ZeroRegister = { Registers::sp };
 static MOZ_CONSTEXPR_VAR FloatRegister ReturnFloatReg = { FloatRegisters::d0 };
 static MOZ_CONSTEXPR_VAR FloatRegister ScratchFloatReg = { FloatRegisters::d31 };
 
+static MOZ_CONSTEXPR_VAR FloatRegister ReturnSimdReg = InvalidFloatReg;
+static MOZ_CONSTEXPR_VAR FloatRegister ScratchSimdReg = InvalidFloatReg;
+
 static MOZ_CONSTEXPR_VAR Register PseudoStackPointer = { Registers::x28 };
 static MOZ_CONSTEXPR_VAR ARMRegister PseudoStackPointer64 = { Registers::x28, 64 };
 static MOZ_CONSTEXPR_VAR ARMRegister PseudoStackPointer32 = { Registers::x28, 32 };
@@ -471,6 +475,7 @@ static MOZ_CONSTEXPR_VAR ValueOperand JSReturnOperand = ValueOperand(JSReturnReg
 // SIMD.
 static MOZ_CONSTEXPR_VAR bool SupportsSimd = false;
 static MOZ_CONSTEXPR_VAR uint32_t SimdStackAlignment = 16;
+static MOZ_CONSTEXPR_VAR uint32_t AsmJSStackAlignment = SimdStackAlignment;
 
 // Registers used in the GenerateFFIIonExit Enable Activation block.
 static MOZ_CONSTEXPR_VAR Register AsmJSIonExitRegCallee = r8;

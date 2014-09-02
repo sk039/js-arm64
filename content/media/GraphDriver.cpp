@@ -88,7 +88,9 @@ void GraphDriver::UpdateStateComputedTime(GraphTime aStateComputedTime)
   // The next state computed time can be the same as the previous, here: it
   // means the driver would be have been blocking indefinitly, but the graph has
   // been woken up right after having been to sleep.
-  MOZ_ASSERT(aStateComputedTime >= mStateComputedTime, "State time can't go backward.");
+  if (aStateComputedTime < mStateComputedTime) {
+    printf("State time can't go backward %ld < %ld.\n", static_cast<long>(aStateComputedTime), static_cast<long>(mStateComputedTime));
+  }
 
   mStateComputedTime = aStateComputedTime;
 }
@@ -704,7 +706,7 @@ AudioCallbackDriver::DataCallback(AudioDataValue* aBuffer, long aFrames)
     return aFrames;
   }
 
-  DebugOnly<AutoInCallback> aic(this);
+  DebugOnly<AutoInCallback> aic(AutoInCallback(this));
 
   if (mStateComputedTime == 0) {
     MonitorAutoLock mon(mGraphImpl->GetMonitor());

@@ -203,7 +203,7 @@ class FinishFetchOnMainThreadRunnable : public nsRunnable
 {
   nsMainThreadPtrHandle<ServiceWorkerUpdateInstance> mUpdateInstance;
 public:
-  FinishFetchOnMainThreadRunnable
+  explicit FinishFetchOnMainThreadRunnable
     (const nsMainThreadPtrHandle<ServiceWorkerUpdateInstance>& aUpdateInstance)
     : mUpdateInstance(aUpdateInstance)
   { }
@@ -1213,7 +1213,7 @@ class FinishActivationRunnable : public nsRunnable
   nsMainThreadPtrHandle<ServiceWorkerRegistrationInfo> mRegistration;
 
 public:
-  FinishActivationRunnable(const nsMainThreadPtrHandle<ServiceWorkerRegistrationInfo>& aRegistration)
+  explicit FinishActivationRunnable(const nsMainThreadPtrHandle<ServiceWorkerRegistrationInfo>& aRegistration)
     : mRegistration(aRegistration)
   {
     MOZ_ASSERT(!NS_IsMainThread());
@@ -1300,7 +1300,7 @@ class FinishActivateHandler : public PromiseNativeHandler
   nsMainThreadPtrHandle<ServiceWorkerRegistrationInfo> mRegistration;
 
 public:
-  FinishActivateHandler(const nsMainThreadPtrHandle<ServiceWorkerRegistrationInfo>& aRegistration)
+  explicit FinishActivateHandler(const nsMainThreadPtrHandle<ServiceWorkerRegistrationInfo>& aRegistration)
     : mRegistration(aRegistration)
   {
     MOZ_ASSERT(!NS_IsMainThread());
@@ -1851,6 +1851,7 @@ NS_IMETHODIMP
 ServiceWorkerManager::AddRegistrationEventListener(nsIURI* aDocumentURI, nsIDOMEventTarget* aListener)
 {
   MOZ_ASSERT(aDocumentURI);
+  AssertIsOnMainThread();
   nsRefPtr<ServiceWorkerDomainInfo> domainInfo = GetDomainInfo(aDocumentURI);
   if (!domainInfo) {
     nsCString domain;
@@ -1875,6 +1876,7 @@ ServiceWorkerManager::AddRegistrationEventListener(nsIURI* aDocumentURI, nsIDOME
 NS_IMETHODIMP
 ServiceWorkerManager::RemoveRegistrationEventListener(nsIURI* aDocumentURI, nsIDOMEventTarget* aListener)
 {
+  AssertIsOnMainThread();
   MOZ_ASSERT(aDocumentURI);
   nsRefPtr<ServiceWorkerDomainInfo> domainInfo = GetDomainInfo(aDocumentURI);
   if (!domainInfo) {

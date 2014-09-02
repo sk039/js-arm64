@@ -304,10 +304,11 @@ class FloatRegisters
     static const uint32_t AllocatableMask = AllMask & ~NonAllocatableMask;
 };
 
+static const uint32_t ABIStackAlignment = 16;
 static const uint32_t CodeAlignment = 8;
 static const bool StackKeptAligned = false; // FIXME: Verify.
 static const uint32_t StackAlignment = 16;
-static const uint32_t NativeFrameSize = sizeof(void*);
+static const uint32_t NativeFrameSize = 8;
 
 struct FloatRegister {
     typedef FloatRegisters Codes;
