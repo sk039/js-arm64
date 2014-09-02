@@ -377,6 +377,18 @@ MacroAssemblerCompat::callWithABI(void *fun, MoveOp::Type result)
     callWithABIPost(stackAdjust, result);
 }
 
+void
+MacroAssemblerCompat::callWithABI(AsmJSImmPtr imm, MoveOp::Type result)
+{
+    MOZ_CRASH("NYI"); // TODO
+}
+
+void
+MacroAssemblerCompat::callWithABI(Address fun, MoveOp::Type result)
+{
+    MOZ_CRASH("NYI"); // TODO
+}
+
 // FIXME: Probably just call Brk() in the header.
 void
 MacroAssemblerCompat::breakpoint()

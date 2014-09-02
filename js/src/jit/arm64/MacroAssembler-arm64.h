@@ -1704,49 +1704,8 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
   public:
     // Emits a call to a C/C++ function, resolving all argument moves.
     void callWithABI(void *fun, MoveOp::Type result = MoveOp::GENERAL);
-    void callWithABI(AsmJSImmPtr imm, MoveOp::Type result = MoveOp::GENERAL) {
-#ifdef JS_ARM64_SIMULATOR
-        passedArgTypes_ <<= ArgType_Shift;
-        switch (result) {
-          case MoveOp::GENERAL: passedArgTypes_ |= ArgType_General; break;
-          case MoveOp::DOUBLE:  passedArgTypes_ |= ArgType_Double;  break;
-          case MoveOp::FLOAT32: passedArgTypes_ |= ArgType_Float32; break;
-          default: MOZ_ASSUME_UNREACHABLE("Invalid return type");
-        }
-        ABIFunctionType type = ABIFunctionType(passedArgTypes_);
-#if 0
-        // TODO: simulator support is different on amd64.
-        fun = Simulator::RedirectNativeFunction(fun, type);
-#endif
-
-#endif
-        uint32_t stackAdjust;
-        callWithABIPre(&stackAdjust);
-        call(imm);
-        callWithABIPost(stackAdjust, result);
-    }
-    void callWithABI(Address fun, MoveOp::Type result = MoveOp::GENERAL) {
-#ifdef JS_ARM64_SIMULATOR
-        passedArgTypes_ <<= ArgType_Shift;
-        switch (result) {
-          case MoveOp::GENERAL: passedArgTypes_ |= ArgType_General; break;
-          case MoveOp::DOUBLE:  passedArgTypes_ |= ArgType_Double;  break;
-          case MoveOp::FLOAT32: passedArgTypes_ |= ArgType_Float32; break;
-          default: MOZ_ASSUME_UNREACHABLE("Invalid return type");
-        }
-        ABIFunctionType type = ABIFunctionType(passedArgTypes_);
-#if 0
-        // TODO: simulator support is different on amd64.
-        fun = Simulator::RedirectNativeFunction(fun, type);
-#endif
-
-#endif
-        uint32_t stackAdjust;
-        callWithABIPre(&stackAdjust);
-        loadPtr(fun, ScratchReg);
-        call(ScratchReg);
-        callWithABIPost(stackAdjust, result);
-    }
+    void callWithABI(AsmJSImmPtr imm, MoveOp::Type result = MoveOp::GENERAL);
+    void callWithABI(Address fun, MoveOp::Type result = MoveOp::GENERAL);
 
     CodeOffsetLabel labelForPatch() {
         JS_ASSERT(0 && "labelForPatch");
