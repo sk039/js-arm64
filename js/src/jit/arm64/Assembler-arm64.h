@@ -37,6 +37,8 @@
 namespace js {
 namespace jit {
 
+static MOZ_CONSTEXPR_VAR bool SupportsSimd = false;
+
 class Assembler : public AssemblerVIXL {
   public:
     Assembler()
@@ -188,7 +190,7 @@ class Assembler : public AssemblerVIXL {
     }
 
     static bool SupportsFloatingPoint() { return true; }
-    static bool SupportsSimd() { return SupportsSimd; }
+    static bool SupportsSimd() { return js::jit::SupportsSimd; }
 
   protected:
     void addPendingJump(BufferOffset src, ImmPtr target, Relocation::Kind kind) {
@@ -473,7 +475,6 @@ static MOZ_CONSTEXPR_VAR Register r31 = { Registers::xzr };
 static MOZ_CONSTEXPR_VAR ValueOperand JSReturnOperand = ValueOperand(JSReturnReg);
 
 // SIMD.
-static MOZ_CONSTEXPR_VAR bool SupportsSimd = false;
 static MOZ_CONSTEXPR_VAR uint32_t SimdStackAlignment = 16;
 static MOZ_CONSTEXPR_VAR uint32_t AsmJSStackAlignment = SimdStackAlignment;
 
