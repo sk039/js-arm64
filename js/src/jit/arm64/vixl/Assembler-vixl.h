@@ -35,7 +35,7 @@
 #include "jit/arm64/vixl/VIXL-Utils-vixl.h"
 #include "jit/shared/Assembler-shared.h"
 #include "jit/shared/IonAssemblerBufferWithConstantPools.h"
-#include "jit/IonSpewer.h"
+#include "jit/JitSpewer.h"
 
 namespace js {
 namespace jit {

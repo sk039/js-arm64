@@ -422,6 +422,7 @@ class ICEntry
     _(GetProp_DOMProxyShadowed) \
     _(GetProp_ArgumentsLength)  \
     _(GetProp_ArgumentsCallee)  \
+    _(GetProp_Generic)          \
                                 \
     _(SetProp_Fallback)         \
     _(SetProp_Native)           \
@@ -800,6 +801,7 @@ class ICStub
           case GetProp_CallDOMProxyNative:
           case GetProp_CallDOMProxyWithGenerationNative:
           case GetProp_DOMProxyShadowed:
+          case GetProp_Generic:
           case SetProp_CallScripted:
           case SetProp_CallNative:
           case RetSub_Fallback:
@@ -4094,7 +4096,7 @@ class ICGetProp_Fallback : public ICMonitoredFallbackStub
     { }
 
   public:
-    static const uint32_t MAX_OPTIMIZED_STUBS = 8;
+    static const uint32_t MAX_OPTIMIZED_STUBS = 16;
 
     static inline ICGetProp_Fallback *New(ICStubSpace *space, JitCode *code) {
         if (!code)
@@ -4135,6 +4137,39 @@ class ICGetProp_Fallback : public ICMonitoredFallbackStub
             if (!stub || !stub->initMonitoringChain(cx, space))
                 return nullptr;
             return stub;
+        }
+    };
+};
+
+// Stub for sites, which are too polymorphic (i.e. MAX_OPTIMIZED_STUBS was reached)
+class ICGetProp_Generic : public ICMonitoredStub
+{
+    friend class ICStubSpace;
+
+  protected:
+    explicit ICGetProp_Generic(JitCode *stubCode, ICStub *firstMonitorStub)
+      : ICMonitoredStub(ICStub::GetProp_Generic, stubCode, firstMonitorStub) {}
+
+  public:
+    static inline ICGetProp_Generic *New(ICStubSpace *space, JitCode *code, ICStub *firstMonitorStub)
+    {
+        if(!code)
+            return nullptr;
+        return space->allocate<ICGetProp_Generic>(code, firstMonitorStub);
+    }
+
+    class Compiler : public ICStubCompiler {
+      protected:
+        bool generateStubCode(MacroAssembler &masm);
+        ICStub *firstMonitorStub_;
+      public:
+        explicit Compiler(JSContext *cx, ICStub *firstMonitorStub)
+          : ICStubCompiler(cx, ICStub::GetProp_Generic),
+            firstMonitorStub_(firstMonitorStub)
+        {}
+
+        ICStub *getStub(ICStubSpace *space) {
+            return ICGetProp_Generic::New(space, getStubCode(), firstMonitorStub_);
         }
     };
 };
@@ -4290,6 +4325,12 @@ class ICGetPropNativeStub : public ICMonitoredStub
     uint32_t offset() const {
         return offset_;
     }
+    void notePreliminaryObject() {
+        extra_ = 1;
+    }
+    bool hasPreliminaryObject() const {
+        return extra_;
+    }
     static size_t offsetOfShape() {
         return offsetof(ICGetPropNativeStub, shape_);
     }
@@ -4407,7 +4448,7 @@ class ICGetPropNativeCompiler : public ICStubCompiler
         offset_(offset)
     {}
 
-    ICStub *getStub(ICStubSpace *space) {
+    ICGetPropNativeStub *getStub(ICStubSpace *space) {
         RootedShape shape(cx, obj_->lastProperty());
         if (kind == ICStub::GetProp_Native) {
             JS_ASSERT(obj_ == holder_);
@@ -5185,6 +5226,12 @@ class ICSetProp_Native : public ICUpdatedStub
     HeapPtrShape &shape() {
         return shape_;
     }
+    void notePreliminaryObject() {
+        extra_ = 1;
+    }
+    bool hasPreliminaryObject() const {
+        return extra_;
+    }
     static size_t offsetOfType() {
         return offsetof(ICSetProp_Native, type_);
     }
@@ -5215,7 +5262,7 @@ class ICSetProp_Native : public ICUpdatedStub
             offset_(offset)
         {}
 
-        ICUpdatedStub *getStub(ICStubSpace *space);
+        ICSetProp_Native *getStub(ICStubSpace *space);
     };
 };
 
@@ -5230,10 +5277,11 @@ class ICSetProp_NativeAdd : public ICUpdatedStub
   protected: // Protected to silence Clang warning.
     HeapPtrTypeObject type_;
     HeapPtrShape newShape_;
+    HeapPtrTypeObject newType_;
     uint32_t offset_;
 
     ICSetProp_NativeAdd(JitCode *stubCode, HandleTypeObject type, size_t protoChainDepth,
-                        HandleShape newShape, uint32_t offset);
+                        HandleShape newShape, HandleTypeObject newType, uint32_t offset);
 
   public:
     size_t protoChainDepth() const {
@@ -5244,6 +5292,9 @@ class ICSetProp_NativeAdd : public ICUpdatedStub
     }
     HeapPtrShape &newShape() {
         return newShape_;
+    }
+    HeapPtrTypeObject &newType() {
+        return newType_;
     }
 
     template <size_t ProtoChainDepth>
@@ -5257,6 +5308,9 @@ class ICSetProp_NativeAdd : public ICUpdatedStub
     }
     static size_t offsetOfNewShape() {
         return offsetof(ICSetProp_NativeAdd, newShape_);
+    }
+    static size_t offsetOfNewType() {
+        return offsetof(ICSetProp_NativeAdd, newType_);
     }
     static size_t offsetOfOffset() {
         return offsetof(ICSetProp_NativeAdd, offset_);
@@ -5273,17 +5327,18 @@ class ICSetProp_NativeAddImpl : public ICSetProp_NativeAdd
 
     ICSetProp_NativeAddImpl(JitCode *stubCode, HandleTypeObject type,
                             const AutoShapeVector *shapes,
-                            HandleShape newShape, uint32_t offset);
+                            HandleShape newShape, HandleTypeObject newType, uint32_t offset);
 
   public:
     static inline ICSetProp_NativeAddImpl *New(
             ICStubSpace *space, JitCode *code, HandleTypeObject type,
-            const AutoShapeVector *shapes, HandleShape newShape, uint32_t offset)
+            const AutoShapeVector *shapes, HandleShape newShape,
+            HandleTypeObject newType, uint32_t offset)
     {
         if (!code)
             return nullptr;
         return space->allocate<ICSetProp_NativeAddImpl<ProtoChainDepth> >(
-                            code, type, shapes, newShape, offset);
+                            code, type, shapes, newShape, newType, offset);
     }
 
     void traceShapes(JSTracer *trc) {
@@ -5300,6 +5355,7 @@ class ICSetPropNativeAddCompiler : public ICStubCompiler
 {
     RootedObject obj_;
     RootedShape oldShape_;
+    RootedTypeObject oldType_;
     size_t protoChainDepth_;
     bool isFixedSlot_;
     uint32_t offset_;
@@ -5313,20 +5369,27 @@ class ICSetPropNativeAddCompiler : public ICStubCompiler
     bool generateStubCode(MacroAssembler &masm);
 
   public:
-    ICSetPropNativeAddCompiler(JSContext *cx, HandleObject obj, HandleShape oldShape,
+    ICSetPropNativeAddCompiler(JSContext *cx, HandleObject obj,
+                               HandleShape oldShape, HandleTypeObject oldType,
                                size_t protoChainDepth, bool isFixedSlot, uint32_t offset);
 
     template <size_t ProtoChainDepth>
     ICUpdatedStub *getStubSpecific(ICStubSpace *space, const AutoShapeVector *shapes)
     {
-        RootedTypeObject type(cx, obj_->getType(cx));
-        if (!type)
+        RootedTypeObject newType(cx, obj_->getType(cx));
+        if (!newType)
             return nullptr;
+
+        // Only specify newType when the object's type changes due to the
+        // object becoming fully initialized per the acquired properties
+        // analysis.
+        if (newType == oldType_)
+            newType = nullptr;
 
         RootedShape newShape(cx, obj_->lastProperty());
 
         return ICSetProp_NativeAddImpl<ProtoChainDepth>::New(
-                    space, getStubCode(), type, shapes, newShape, offset_);
+                    space, getStubCode(), oldType_, shapes, newShape, newType, offset_);
     }
 
     ICUpdatedStub *getStub(ICStubSpace *space);

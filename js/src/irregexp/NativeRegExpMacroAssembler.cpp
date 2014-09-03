@@ -32,7 +32,7 @@
 
 #include "irregexp/RegExpStack.h"
 #include "jit/IonLinker.h"
-#include "jit/IonSpewer.h"
+#include "jit/JitSpewer.h"
 #ifdef JS_ION_PERF
 # include "jit/PerfSpewer.h"
 #endif
@@ -79,7 +79,7 @@ NativeRegExpMacroAssembler::NativeRegExpMacroAssembler(LifoAlloc *alloc, RegExpS
     temp1 = regs.takeAny();
     temp2 = regs.takeAny();
 
-    IonSpew(IonSpew_Codegen,
+    JitSpew(JitSpew_Codegen,
             "Starting RegExp (input_end_pointer %s) (current_character %s)"
             " (current_position %s) (backtrack_stack_pointer %s) (temp0 %s) temp1 (%s) temp2 (%s)",
             input_end_pointer.name(),
@@ -108,7 +108,7 @@ NativeRegExpMacroAssembler::NativeRegExpMacroAssembler(LifoAlloc *alloc, RegExpS
     masm.bind(&start_label_);
 }
 
-#define SPEW_PREFIX IonSpew_Codegen, "!!! "
+#define SPEW_PREFIX JitSpew_Codegen, "!!! "
 
 // The signature of the code which this generates is:
 //
@@ -119,7 +119,7 @@ NativeRegExpMacroAssembler::GenerateCode(JSContext *cx)
     if (!cx->compartment()->ensureJitCompartmentExists(cx))
         return RegExpCode();
 
-    IonSpew(SPEW_PREFIX "GenerateCode");
+    JitSpew(SPEW_PREFIX "GenerateCode");
 
     // We need an even number of registers, for stack alignment.
     if (num_registers_ % 2 == 1)
@@ -461,7 +461,7 @@ NativeRegExpMacroAssembler::GenerateCode(JSContext *cx)
                                            ImmPtr(0));
     }
 
-    IonSpew(IonSpew_Codegen, "Created RegExp (raw %p length %d)",
+    JitSpew(JitSpew_Codegen, "Created RegExp (raw %p length %d)",
             (void *) code->raw(), (int) masm.bytesNeeded());
 
     RegExpCode res;
@@ -478,7 +478,7 @@ NativeRegExpMacroAssembler::stack_limit_slack()
 void
 NativeRegExpMacroAssembler::AdvanceCurrentPosition(int by)
 {
-    IonSpew(SPEW_PREFIX "AdvanceCurrentPosition(%d)", by);
+    JitSpew(SPEW_PREFIX "AdvanceCurrentPosition(%d)", by);
 
     if (by != 0)
         masm.addPtr(Imm32(by * char_size()), current_position);
@@ -487,7 +487,7 @@ NativeRegExpMacroAssembler::AdvanceCurrentPosition(int by)
 void
 NativeRegExpMacroAssembler::AdvanceRegister(int reg, int by)
 {
-    IonSpew(SPEW_PREFIX "AdvanceRegister(%d, %d)", reg, by);
+    JitSpew(SPEW_PREFIX "AdvanceRegister(%d, %d)", reg, by);
 
     JS_ASSERT(reg >= 0);
     JS_ASSERT(reg < num_registers_);
@@ -498,7 +498,7 @@ NativeRegExpMacroAssembler::AdvanceRegister(int reg, int by)
 void
 NativeRegExpMacroAssembler::Backtrack()
 {
-    IonSpew(SPEW_PREFIX "Backtrack");
+    JitSpew(SPEW_PREFIX "Backtrack");
 
     // Check for an interrupt.
     Label noInterrupt;
@@ -517,7 +517,7 @@ NativeRegExpMacroAssembler::Backtrack()
 void
 NativeRegExpMacroAssembler::Bind(Label *label)
 {
-    IonSpew(SPEW_PREFIX "Bind");
+    JitSpew(SPEW_PREFIX "Bind");
 
     masm.bind(label);
 }
@@ -525,7 +525,7 @@ NativeRegExpMacroAssembler::Bind(Label *label)
 void
 NativeRegExpMacroAssembler::CheckAtStart(Label* on_at_start)
 {
-    IonSpew(SPEW_PREFIX "CheckAtStart");
+    JitSpew(SPEW_PREFIX "CheckAtStart");
 
     Label not_at_start;
 
@@ -545,7 +545,7 @@ NativeRegExpMacroAssembler::CheckAtStart(Label* on_at_start)
 void
 NativeRegExpMacroAssembler::CheckNotAtStart(Label* on_not_at_start)
 {
-    IonSpew(SPEW_PREFIX "CheckNotAtStart");
+    JitSpew(SPEW_PREFIX "CheckNotAtStart");
 
     // Did we start the match at the start of the string at all?
     Address startIndex(StackPointer, offsetof(FrameData, startIndex));
@@ -561,14 +561,14 @@ NativeRegExpMacroAssembler::CheckNotAtStart(Label* on_not_at_start)
 void
 NativeRegExpMacroAssembler::CheckCharacter(unsigned c, Label* on_equal)
 {
-    IonSpew(SPEW_PREFIX "CheckCharacter(%d)", (int) c);
+    JitSpew(SPEW_PREFIX "CheckCharacter(%d)", (int) c);
     masm.branch32(Assembler::Equal, current_character, Imm32(c), BranchOrBacktrack(on_equal));
 }
 
 void
 NativeRegExpMacroAssembler::CheckNotCharacter(unsigned c, Label* on_not_equal)
 {
-    IonSpew(SPEW_PREFIX "CheckNotCharacter(%d)", (int) c);
+    JitSpew(SPEW_PREFIX "CheckNotCharacter(%d)", (int) c);
     masm.branch32(Assembler::NotEqual, current_character, Imm32(c), BranchOrBacktrack(on_not_equal));
 }
 
@@ -576,7 +576,7 @@ void
 NativeRegExpMacroAssembler::CheckCharacterAfterAnd(unsigned c, unsigned and_with,
                                                    Label *on_equal)
 {
-    IonSpew(SPEW_PREFIX "CheckCharacterAfterAnd(%d, %d)", (int) c, (int) and_with);
+    JitSpew(SPEW_PREFIX "CheckCharacterAfterAnd(%d, %d)", (int) c, (int) and_with);
 
     if (c == 0) {
         masm.branchTest32(Assembler::Zero, current_character, Imm32(and_with),
@@ -592,7 +592,7 @@ void
 NativeRegExpMacroAssembler::CheckNotCharacterAfterAnd(unsigned c, unsigned and_with,
                                                       Label *on_not_equal)
 {
-    IonSpew(SPEW_PREFIX "CheckNotCharacterAfterAnd(%d, %d)", (int) c, (int) and_with);
+    JitSpew(SPEW_PREFIX "CheckNotCharacterAfterAnd(%d, %d)", (int) c, (int) and_with);
 
     if (c == 0) {
         masm.branchTest32(Assembler::NonZero, current_character, Imm32(and_with),
@@ -607,7 +607,7 @@ NativeRegExpMacroAssembler::CheckNotCharacterAfterAnd(unsigned c, unsigned and_w
 void
 NativeRegExpMacroAssembler::CheckCharacterGT(jschar c, Label* on_greater)
 {
-    IonSpew(SPEW_PREFIX "CheckCharacterGT(%d)", (int) c);
+    JitSpew(SPEW_PREFIX "CheckCharacterGT(%d)", (int) c);
     masm.branch32(Assembler::GreaterThan, current_character, Imm32(c),
                   BranchOrBacktrack(on_greater));
 }
@@ -615,14 +615,14 @@ NativeRegExpMacroAssembler::CheckCharacterGT(jschar c, Label* on_greater)
 void
 NativeRegExpMacroAssembler::CheckCharacterLT(jschar c, Label* on_less)
 {
-    IonSpew(SPEW_PREFIX "CheckCharacterLT(%d)", (int) c);
+    JitSpew(SPEW_PREFIX "CheckCharacterLT(%d)", (int) c);
     masm.branch32(Assembler::LessThan, current_character, Imm32(c), BranchOrBacktrack(on_less));
 }
 
 void
 NativeRegExpMacroAssembler::CheckGreedyLoop(Label* on_tos_equals_current_position)
 {
-    IonSpew(SPEW_PREFIX "CheckGreedyLoop");
+    JitSpew(SPEW_PREFIX "CheckGreedyLoop");
 
     Label fallthrough;
     masm.branchPtr(Assembler::NotEqual,
@@ -636,7 +636,7 @@ NativeRegExpMacroAssembler::CheckGreedyLoop(Label* on_tos_equals_current_positio
 void
 NativeRegExpMacroAssembler::CheckNotBackReference(int start_reg, Label* on_no_match)
 {
-    IonSpew(SPEW_PREFIX "CheckNotBackReference(%d)", start_reg);
+    JitSpew(SPEW_PREFIX "CheckNotBackReference(%d)", start_reg);
 
     Label fallthrough;
     Label success;
@@ -707,7 +707,7 @@ NativeRegExpMacroAssembler::CheckNotBackReference(int start_reg, Label* on_no_ma
 void
 NativeRegExpMacroAssembler::CheckNotBackReferenceIgnoreCase(int start_reg, Label* on_no_match)
 {
-    IonSpew(SPEW_PREFIX "CheckNotBackReferenceIgnoreCase(%d)", start_reg);
+    JitSpew(SPEW_PREFIX "CheckNotBackReferenceIgnoreCase(%d)", start_reg);
 
     Label fallthrough;
 
@@ -839,7 +839,7 @@ void
 NativeRegExpMacroAssembler::CheckNotCharacterAfterMinusAnd(jschar c, jschar minus, jschar and_with,
                                                            Label* on_not_equal)
 {
-    IonSpew(SPEW_PREFIX "CheckNotCharacterAfterMinusAnd(%d, %d, %d)", (int) c,
+    JitSpew(SPEW_PREFIX "CheckNotCharacterAfterMinusAnd(%d, %d, %d)", (int) c,
             (int) minus, (int) and_with);
 
     masm.computeEffectiveAddress(Address(current_character, -minus), temp0);
@@ -856,7 +856,7 @@ void
 NativeRegExpMacroAssembler::CheckCharacterInRange(jschar from, jschar to,
                                                   Label* on_in_range)
 {
-    IonSpew(SPEW_PREFIX "CheckCharacterInRange(%d, %d)", (int) from, (int) to);
+    JitSpew(SPEW_PREFIX "CheckCharacterInRange(%d, %d)", (int) from, (int) to);
 
     masm.computeEffectiveAddress(Address(current_character, -from), temp0);
     masm.branch32(Assembler::BelowOrEqual, temp0, Imm32(to - from), BranchOrBacktrack(on_in_range));
@@ -866,7 +866,7 @@ void
 NativeRegExpMacroAssembler::CheckCharacterNotInRange(jschar from, jschar to,
                                                      Label* on_not_in_range)
 {
-    IonSpew(SPEW_PREFIX "CheckCharacterNotInRange(%d, %d)", (int) from, (int) to);
+    JitSpew(SPEW_PREFIX "CheckCharacterNotInRange(%d, %d)", (int) from, (int) to);
 
     masm.computeEffectiveAddress(Address(current_character, -from), temp0);
     masm.branch32(Assembler::Above, temp0, Imm32(to - from), BranchOrBacktrack(on_not_in_range));
@@ -875,7 +875,7 @@ NativeRegExpMacroAssembler::CheckCharacterNotInRange(jschar from, jschar to,
 void
 NativeRegExpMacroAssembler::CheckBitInTable(uint8_t *table, Label *on_bit_set)
 {
-    IonSpew(SPEW_PREFIX "CheckBitInTable");
+    JitSpew(SPEW_PREFIX "CheckBitInTable");
 
     masm.movePtr(ImmPtr(table), temp0);
 
@@ -893,7 +893,7 @@ NativeRegExpMacroAssembler::CheckBitInTable(uint8_t *table, Label *on_bit_set)
 void
 NativeRegExpMacroAssembler::Fail()
 {
-    IonSpew(SPEW_PREFIX "Fail");
+    JitSpew(SPEW_PREFIX "Fail");
 
     if (!global())
         masm.movePtr(ImmWord(RegExpRunStatus_Success_NotFound), temp0);
@@ -903,7 +903,7 @@ NativeRegExpMacroAssembler::Fail()
 void
 NativeRegExpMacroAssembler::IfRegisterGE(int reg, int comparand, Label* if_ge)
 {
-    IonSpew(SPEW_PREFIX "IfRegisterGE(%d, %d)", reg, comparand);
+    JitSpew(SPEW_PREFIX "IfRegisterGE(%d, %d)", reg, comparand);
     masm.branchPtr(Assembler::GreaterThanOrEqual, register_location(reg), ImmWord(comparand),
                    BranchOrBacktrack(if_ge));
 }
@@ -911,7 +911,7 @@ NativeRegExpMacroAssembler::IfRegisterGE(int reg, int comparand, Label* if_ge)
 void
 NativeRegExpMacroAssembler::IfRegisterLT(int reg, int comparand, Label* if_lt)
 {
-    IonSpew(SPEW_PREFIX "IfRegisterLT(%d, %d)", reg, comparand);
+    JitSpew(SPEW_PREFIX "IfRegisterLT(%d, %d)", reg, comparand);
     masm.branchPtr(Assembler::LessThan, register_location(reg), ImmWord(comparand),
                    BranchOrBacktrack(if_lt));
 }
@@ -919,7 +919,7 @@ NativeRegExpMacroAssembler::IfRegisterLT(int reg, int comparand, Label* if_lt)
 void
 NativeRegExpMacroAssembler::IfRegisterEqPos(int reg, Label* if_eq)
 {
-    IonSpew(SPEW_PREFIX "IfRegisterEqPos(%d)", reg);
+    JitSpew(SPEW_PREFIX "IfRegisterEqPos(%d)", reg);
     masm.branchPtr(Assembler::Equal, register_location(reg), current_position,
                    BranchOrBacktrack(if_eq));
 }
@@ -928,7 +928,7 @@ void
 NativeRegExpMacroAssembler::LoadCurrentCharacter(int cp_offset, Label* on_end_of_input,
                                                  bool check_bounds, int characters)
 {
-    IonSpew(SPEW_PREFIX "LoadCurrentCharacter(%d, %d)", cp_offset, characters);
+    JitSpew(SPEW_PREFIX "LoadCurrentCharacter(%d, %d)", cp_offset, characters);
 
     JS_ASSERT(cp_offset >= -1);      // ^ and \b can look behind one character.
     JS_ASSERT(cp_offset < (1<<30));  // Be sane! (And ensure negation works)
@@ -940,7 +940,7 @@ NativeRegExpMacroAssembler::LoadCurrentCharacter(int cp_offset, Label* on_end_of
 void
 NativeRegExpMacroAssembler::LoadCurrentCharacterUnchecked(int cp_offset, int characters)
 {
-    IonSpew(SPEW_PREFIX "LoadCurrentCharacterUnchecked(%d, %d)", cp_offset, characters);
+    JitSpew(SPEW_PREFIX "LoadCurrentCharacterUnchecked(%d, %d)", cp_offset, characters);
 
     if (mode_ == ASCII) {
         BaseIndex address(input_end_pointer, current_position, TimesOne, cp_offset);
@@ -966,7 +966,7 @@ NativeRegExpMacroAssembler::LoadCurrentCharacterUnchecked(int cp_offset, int cha
 void
 NativeRegExpMacroAssembler::PopCurrentPosition()
 {
-    IonSpew(SPEW_PREFIX "PopCurrentPosition");
+    JitSpew(SPEW_PREFIX "PopCurrentPosition");
 
     PopBacktrack(current_position);
 }
@@ -974,7 +974,7 @@ NativeRegExpMacroAssembler::PopCurrentPosition()
 void
 NativeRegExpMacroAssembler::PopRegister(int register_index)
 {
-    IonSpew(SPEW_PREFIX "PopRegister(%d)", register_index);
+    JitSpew(SPEW_PREFIX "PopRegister(%d)", register_index);
 
     PopBacktrack(temp0);
     masm.storePtr(temp0, register_location(register_index));
@@ -983,7 +983,7 @@ NativeRegExpMacroAssembler::PopRegister(int register_index)
 void
 NativeRegExpMacroAssembler::PushBacktrack(Label *label)
 {
-    IonSpew(SPEW_PREFIX "PushBacktrack");
+    JitSpew(SPEW_PREFIX "PushBacktrack");
 
     CodeOffsetLabel patchOffset = masm.movWithPatch(ImmPtr(nullptr), temp0);
 
@@ -998,7 +998,7 @@ NativeRegExpMacroAssembler::PushBacktrack(Label *label)
 void
 NativeRegExpMacroAssembler::BindBacktrack(Label *label)
 {
-    IonSpew(SPEW_PREFIX "BindBacktrack");
+    JitSpew(SPEW_PREFIX "BindBacktrack");
 
     Bind(label);
 
@@ -1015,7 +1015,7 @@ NativeRegExpMacroAssembler::BindBacktrack(Label *label)
 void
 NativeRegExpMacroAssembler::PushBacktrack(Register source)
 {
-    IonSpew(SPEW_PREFIX "PushBacktrack");
+    JitSpew(SPEW_PREFIX "PushBacktrack");
 
     JS_ASSERT(source != backtrack_stack_pointer);
 
@@ -1027,7 +1027,7 @@ NativeRegExpMacroAssembler::PushBacktrack(Register source)
 void
 NativeRegExpMacroAssembler::PushBacktrack(int32_t value)
 {
-    IonSpew(SPEW_PREFIX "PushBacktrack(%d)", (int) value);
+    JitSpew(SPEW_PREFIX "PushBacktrack(%d)", (int) value);
 
     // Notice: This updates flags, unlike normal Push.
     masm.storePtr(ImmWord(value), Address(backtrack_stack_pointer, 0));
@@ -1037,7 +1037,7 @@ NativeRegExpMacroAssembler::PushBacktrack(int32_t value)
 void
 NativeRegExpMacroAssembler::PopBacktrack(Register target)
 {
-    IonSpew(SPEW_PREFIX "PopBacktrack");
+    JitSpew(SPEW_PREFIX "PopBacktrack");
 
     JS_ASSERT(target != backtrack_stack_pointer);
 
@@ -1049,7 +1049,7 @@ NativeRegExpMacroAssembler::PopBacktrack(Register target)
 void
 NativeRegExpMacroAssembler::CheckBacktrackStackLimit()
 {
-    IonSpew(SPEW_PREFIX "CheckBacktrackStackLimit");
+    JitSpew(SPEW_PREFIX "CheckBacktrackStackLimit");
 
     const void *limitAddr = runtime->mainThread.regexpStack.addressOfLimit();
 
@@ -1070,7 +1070,7 @@ NativeRegExpMacroAssembler::CheckBacktrackStackLimit()
 void
 NativeRegExpMacroAssembler::PushCurrentPosition()
 {
-    IonSpew(SPEW_PREFIX "PushCurrentPosition");
+    JitSpew(SPEW_PREFIX "PushCurrentPosition");
 
     PushBacktrack(current_position);
 }
@@ -1078,7 +1078,7 @@ NativeRegExpMacroAssembler::PushCurrentPosition()
 void
 NativeRegExpMacroAssembler::PushRegister(int register_index, StackCheckFlag check_stack_limit)
 {
-    IonSpew(SPEW_PREFIX "PushRegister(%d)", register_index);
+    JitSpew(SPEW_PREFIX "PushRegister(%d)", register_index);
 
     masm.loadPtr(register_location(register_index), temp0);
     PushBacktrack(temp0);
@@ -1089,7 +1089,7 @@ NativeRegExpMacroAssembler::PushRegister(int register_index, StackCheckFlag chec
 void
 NativeRegExpMacroAssembler::ReadCurrentPositionFromRegister(int reg)
 {
-    IonSpew(SPEW_PREFIX "ReadCurrentPositionFromRegister(%d)", reg);
+    JitSpew(SPEW_PREFIX "ReadCurrentPositionFromRegister(%d)", reg);
 
     masm.loadPtr(register_location(reg), current_position);
 }
@@ -1097,7 +1097,7 @@ NativeRegExpMacroAssembler::ReadCurrentPositionFromRegister(int reg)
 void
 NativeRegExpMacroAssembler::WriteCurrentPositionToRegister(int reg, int cp_offset)
 {
-    IonSpew(SPEW_PREFIX "WriteCurrentPositionToRegister(%d, %d)", reg, cp_offset);
+    JitSpew(SPEW_PREFIX "WriteCurrentPositionToRegister(%d, %d)", reg, cp_offset);
 
     if (cp_offset == 0) {
         masm.storePtr(current_position, register_location(reg));
@@ -1110,7 +1110,7 @@ NativeRegExpMacroAssembler::WriteCurrentPositionToRegister(int reg, int cp_offse
 void
 NativeRegExpMacroAssembler::ReadBacktrackStackPointerFromRegister(int reg)
 {
-    IonSpew(SPEW_PREFIX "ReadBacktrackStackPointerFromRegister(%d)", reg);
+    JitSpew(SPEW_PREFIX "ReadBacktrackStackPointerFromRegister(%d)", reg);
 
     masm.loadPtr(register_location(reg), backtrack_stack_pointer);
     masm.addPtr(Address(StackPointer, offsetof(FrameData, backtrackStackBase)), backtrack_stack_pointer);
@@ -1119,7 +1119,7 @@ NativeRegExpMacroAssembler::ReadBacktrackStackPointerFromRegister(int reg)
 void
 NativeRegExpMacroAssembler::WriteBacktrackStackPointerToRegister(int reg)
 {
-    IonSpew(SPEW_PREFIX "WriteBacktrackStackPointerToRegister(%d)", reg);
+    JitSpew(SPEW_PREFIX "WriteBacktrackStackPointerToRegister(%d)", reg);
 
     masm.movePtr(backtrack_stack_pointer, temp0);
     masm.subPtr(Address(StackPointer, offsetof(FrameData, backtrackStackBase)), temp0);
@@ -1129,7 +1129,7 @@ NativeRegExpMacroAssembler::WriteBacktrackStackPointerToRegister(int reg)
 void
 NativeRegExpMacroAssembler::SetCurrentPositionFromEnd(int by)
 {
-    IonSpew(SPEW_PREFIX "SetCurrentPositionFromEnd(%d)", by);
+    JitSpew(SPEW_PREFIX "SetCurrentPositionFromEnd(%d)", by);
 
     Label after_position;
     masm.branchPtr(Assembler::GreaterThanOrEqual, current_position,
@@ -1146,7 +1146,7 @@ NativeRegExpMacroAssembler::SetCurrentPositionFromEnd(int by)
 void
 NativeRegExpMacroAssembler::SetRegister(int register_index, int to)
 {
-    IonSpew(SPEW_PREFIX "SetRegister(%d, %d)", register_index, to);
+    JitSpew(SPEW_PREFIX "SetRegister(%d, %d)", register_index, to);
 
     JS_ASSERT(register_index >= num_saved_registers_);  // Reserved for positions!
     masm.storePtr(ImmWord(to), register_location(register_index));
@@ -1155,7 +1155,7 @@ NativeRegExpMacroAssembler::SetRegister(int register_index, int to)
 bool
 NativeRegExpMacroAssembler::Succeed()
 {
-    IonSpew(SPEW_PREFIX "Succeed");
+    JitSpew(SPEW_PREFIX "Succeed");
 
     masm.jump(&success_label_);
     return global();
@@ -1164,7 +1164,7 @@ NativeRegExpMacroAssembler::Succeed()
 void
 NativeRegExpMacroAssembler::ClearRegisters(int reg_from, int reg_to)
 {
-    IonSpew(SPEW_PREFIX "ClearRegisters(%d, %d)", reg_from, reg_to);
+    JitSpew(SPEW_PREFIX "ClearRegisters(%d, %d)", reg_from, reg_to);
 
     JS_ASSERT(reg_from <= reg_to);
     masm.loadPtr(Address(StackPointer, offsetof(FrameData, inputStartMinusOne)), temp0);
@@ -1175,7 +1175,7 @@ NativeRegExpMacroAssembler::ClearRegisters(int reg_from, int reg_to)
 void
 NativeRegExpMacroAssembler::CheckPosition(int cp_offset, Label* on_outside_input)
 {
-    IonSpew(SPEW_PREFIX "CheckPosition(%d)", cp_offset);
+    JitSpew(SPEW_PREFIX "CheckPosition(%d)", cp_offset);
     masm.branchPtr(Assembler::GreaterThanOrEqual, current_position,
                    ImmWord(-cp_offset * char_size()), BranchOrBacktrack(on_outside_input));
 }
@@ -1191,7 +1191,7 @@ NativeRegExpMacroAssembler::BranchOrBacktrack(Label *branch)
 void
 NativeRegExpMacroAssembler::JumpOrBacktrack(Label *to)
 {
-    IonSpew(SPEW_PREFIX "JumpOrBacktrack");
+    JitSpew(SPEW_PREFIX "JumpOrBacktrack");
 
     if (to)
         masm.jump(to);
@@ -1202,7 +1202,7 @@ NativeRegExpMacroAssembler::JumpOrBacktrack(Label *to)
 bool
 NativeRegExpMacroAssembler::CheckSpecialCharacterClass(jschar type, Label* on_no_match)
 {
-    IonSpew(SPEW_PREFIX "CheckSpecialCharacterClass(%d)", (int) type);
+    JitSpew(SPEW_PREFIX "CheckSpecialCharacterClass(%d)", (int) type);
 
     Label *branch = BranchOrBacktrack(on_no_match);
 
