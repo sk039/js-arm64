@@ -145,11 +145,15 @@ Simulator *Simulator::Current() {
   PerThreadData *pt = TlsPerThreadData.get();
   Simulator *sim = pt->simulator();
   if (!sim) {
-    Decoder *d = js_new<Decoder>();
-    DebuggerARM64 * dsim = js_new<DebuggerARM64>(d, stdout);
-    dsim->set_log_parameters(LOG_DISASM | LOG_REGS);
-    pt->setSimulator(dsim);
-    sim = dsim;
+    Decoder *decoder = js_new<Decoder>();
+    DebuggerARM64 *debugger = js_new<DebuggerARM64>(decoder, stdout);
+
+    // TODO: We should use the simulator instead of the debugger.
+    // But the debugger is useful for the moment, so keep it default.
+    debugger->set_log_parameters(LOG_DISASM | LOG_REGS);
+
+    pt->setSimulator(debugger);
+    return debugger;
   }
 
   return sim;
