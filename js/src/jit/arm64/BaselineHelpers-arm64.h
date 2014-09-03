@@ -53,37 +53,37 @@ inline void
 EmitEnterTypeMonitorIC(MacroAssembler &masm,
                        size_t monitorStubOffset = ICMonitoredStub::offsetOfFirstMonitorStub())
 {
-    masm.Brk(12);
+    masm.breakpoint();
 }
 
 inline void
 EmitReturnFromIC(MacroAssembler &masm)
 {
-    masm.Brk(13);
+    masm.breakpoint();
 }
 
 inline void
 EmitChangeICReturnAddress(MacroAssembler &masm, Register reg)
 {
-    masm.Brk(14);
+    masm.breakpoint();
 }
 
 inline void
 EmitTailCallVM(JitCode *target, MacroAssembler &masm, uint32_t argSize)
 {
-    masm.Brk(15);
+    masm.breakpoint();
 }
 
 inline void
 EmitCreateStubFrameDescriptor(MacroAssembler &masm, Register reg)
 {
-    masm.Brk(16);
+    masm.breakpoint();
 }
 
 inline void
 EmitCallVM(JitCode *target, MacroAssembler &masm)
 {
-    masm.Brk(17);
+    masm.breakpoint();
 }
 
 // Size of vales pushed by EmitEnterStubFrame.
@@ -93,47 +93,46 @@ static const uint32_t STUB_FRAME_SAVED_STUB_OFFSET = sizeof(void *);
 inline void
 EmitEnterStubFrame(MacroAssembler &masm, Register scratch)
 {
-    masm.Brk(18);
+    masm.breakpoint();
 }
 
 inline void
 EmitLeaveStubFrame(MacroAssembler &masm, bool calledIntoIon = false)
 {
-    masm.Brk(19);
+    masm.breakpoint();
 }
 
 inline void
 EmitStowICValues(MacroAssembler &masm, int values)
 {
-    masm.Brk(20);
+    masm.breakpoint();
 }
 
 inline void
 EmitUnstowICValues(MacroAssembler &masm, int values, bool discard = false)
 {
-    masm.Brk(21);
+    masm.breakpoint();
 }
 
 inline void
 EmitCallTypeUpdateIC(MacroAssembler &masm, JitCode *code, uint32_t objectOffset)
 {
     JS_ASSERT(R2 == ValueOperand(r0));
-    masm.Brk(22);
+    masm.breakpoint();
 }
 
 template <typename AddrType>
 inline void
 EmitPreBarrier(MacroAssembler &masm, const AddrType &addr, MIRType type)
 {
-    masm.Brk(23);
+    masm.breakpoint();
 }
 
 inline void
 EmitStubGuardFailure(MacroAssembler &masm)
 {
-    masm.Brk(24);
+    masm.breakpoint();
 }
-
 
 } // namespace jit
 } // namespace js
