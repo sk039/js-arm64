@@ -95,7 +95,7 @@ class MacroAssemblerVIXL : public Assembler
     MacroAssemblerVIXL()
       : Assembler(),
         sp_(x28),
-        tmp_list_(ip0, ip1),
+        tmp_list_(ip0_64, ip1_64),
         fptmp_list_(d31)
     { }
 
@@ -727,7 +727,7 @@ class MacroAssemblerVIXL : public Assembler
         VIXL_ASSERT(!rn.IsZero());
         rbit(rd, rn);
     }
-    void Ret(const ARMRegister& xn = lr) {
+    void Ret(const ARMRegister& xn = lr_64) {
         VIXL_ASSERT(!xn.IsZero());
         ret(xn);
     }

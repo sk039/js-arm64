@@ -71,7 +71,25 @@ EmitChangeICReturnAddress(MacroAssembler &masm, Register reg)
 inline void
 EmitTailCallVM(JitCode *target, MacroAssembler &masm, uint32_t argSize)
 {
-    masm.breakpoint();
+    // We assume that R0 and R1 have been pushed, and R2 is unused.
+    JS_ASSERT(R2 == ValueOperand(r0));
+
+    // Compute frame size.
+    masm.Sub(ScratchReg64, ARMRegister(BaselineFrameReg, 64), masm.GetStackPointer());
+    masm.Add(ScratchReg32, ScratchReg32, Operand(BaselineFrame::FramePointerOffset));
+
+    // Store frame size without VMFunction arguments for GC marking.
+    masm.Sub(w0, ScratchReg32, Operand(argSize));
+    masm.store32(r0, Address(BaselineFrameReg, BaselineFrame::reverseOffsetOfFrameSize()));
+
+    // Push frame descriptor and perform the tail call.
+    // BaselineTailCallReg (lr) already contains the return address (as we keep
+    // it there through the stub calls), but the VMWrapper code being called
+    // expects the return address to also be pushed on the stack.
+    JS_ASSERT(BaselineTailCallReg == lr);
+    masm.makeFrameDescriptor(ScratchReg, JitFrame_BaselineJS);
+    masm.MacroAssemblerVIXL::Push(ScratchReg64, lr_64);
+    masm.branch(target);
 }
 
 inline void

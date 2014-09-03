@@ -113,7 +113,7 @@ CPURegList::GetCallerSaved(unsigned size)
 {
     // ARMRegisters x0-x18 and lr (x30) are caller-saved.
     CPURegList list = CPURegList(CPURegister::kARMRegister, size, 0, 18);
-    list.Combine(lr);
+    list.Combine(lr_64);
     return list;
 }
 

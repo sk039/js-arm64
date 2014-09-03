@@ -968,6 +968,11 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     void branch(Condition cond, Label *label) {
         b(label, cond);
     }
+    void branch(JitCode *target) {
+        addPendingJump(nextOffset(), ImmPtr(target->raw()), Relocation::JITCODE);
+        movePatchablePtr(ImmPtr(target->raw()), ip0);
+        Br(ip0_64);
+    }
 
     void branch16(Condition cond, Register lhs, Register rhs, Label *label) {
         JS_ASSERT(0 && "branch16");
@@ -1793,8 +1798,8 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
     void call(JitCode *target) {
         addPendingJump(nextOffset(), ImmPtr(target->raw()), Relocation::JITCODE);
-        movePatchablePtr(ImmPtr(target->raw()), ScratchReg);
-        call(ScratchReg); // FIXME: Push something?
+        movePatchablePtr(ImmPtr(target->raw()), ip0);
+        call(ip0); // FIXME: Push something?
     }
     void call(Label *target) {
         JS_ASSERT(0 && "call");

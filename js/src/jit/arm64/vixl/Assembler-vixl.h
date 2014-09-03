@@ -286,9 +286,9 @@ REGISTER_CODE_LIST(DEFINE_FPREGISTERS)
 #undef DEFINE_FPREGISTERS
 
 // ARMRegisters aliases.
-const ARMRegister ip0 = x16;
-const ARMRegister ip1 = x17;
-const ARMRegister lr = x30;
+const ARMRegister ip0_64 = x16;
+const ARMRegister ip1_64 = x17;
+const ARMRegister lr_64 = x30;
 const ARMRegister xzr = x31;
 const ARMRegister wzr = w31;
 
@@ -790,7 +790,7 @@ class AssemblerVIXL : public AssemblerShared
     void blr(const ARMRegister& xn);
 
     // Branch to register with return hint.
-    void ret(const ARMRegister& xn = lr);
+    void ret(const ARMRegister& xn = lr_64);
 
     // Unconditional branch to label.
     BufferOffset b(Label* label);
