@@ -148,8 +148,7 @@ Simulator *Simulator::Current() {
     Decoder *d = js_new<Decoder>();
     DebuggerARM64 * dsim = js_new<DebuggerARM64>(d, stdout);
     dsim->set_log_parameters(LOG_DISASM | LOG_REGS);
-    if (getenv("INSN_DUMP"))
-      pt->setSimulator(dsim);
+    pt->setSimulator(dsim);
     sim = dsim;
   }
 
