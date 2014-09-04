@@ -59,13 +59,13 @@ EmitEnterTypeMonitorIC(MacroAssembler &masm,
 inline void
 EmitReturnFromIC(MacroAssembler &masm)
 {
-    masm.breakpoint();
+    masm.Ret(); // Defaults to lr.
 }
 
 inline void
 EmitChangeICReturnAddress(MacroAssembler &masm, Register reg)
 {
-    masm.breakpoint();
+    masm.movePtr(reg, lr);
 }
 
 inline void
