@@ -950,12 +950,15 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         Str(ScratchReg2_64, MemOperand(ARMRegister(dest.base, 64), dest.offset));
     }
     void ret() {
-        Ret(); // Stores address into lr.
+        Ret(); // Branches to lr with a return hint.
     }
 
     void retn(Imm32 n) {
         // pc <- [sp]; sp += n
-        breakpoint(); // FIXME: Implement.
+        // TODO: Can this be done in one instruction with PostIndex?
+        Ldr(ip0_64, MemOperand(GetStackPointer()));
+        Add(GetStackPointer(), GetStackPointer(), Operand(n.value));
+        Ret(ip0_64);
     }
 
     void j(Condition code , Label *dest) {

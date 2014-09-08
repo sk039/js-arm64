@@ -1191,7 +1191,7 @@ MacroAssemblerVIXL::PrintfNoPreserve(const char * format, const CPURegister& arg
     // Actually call printf. This part needs special handling for the simulator,
     // since the system printf function will use a different instruction set and
     // the procedure-call standard will not be compatible.
-#ifdef USE_SIMULATOR
+#ifdef JS_ARM64_SIMULATOR
     { InstructionAccurateScope scope(this, kPrintfLength / kInstructionSize);
         hlt(kPrintfOpcode);
         dc32(arg_count);          // kPrintfArgCountOffset
@@ -1288,7 +1288,7 @@ MacroAssemblerVIXL::Printf(const char * format, CPURegister arg0, CPURegister ar
 void
 MacroAssemblerVIXL::Trace(TraceParameters parameters, TraceCommand command)
 {
-#ifdef USE_SIMULATOR
+#ifdef JS_ARM64_SIMULATOR
     // The arguments to the trace pseudo instruction need to be contiguous in
     // memory, so make sure we don't try to emit a literal pool.
     InstructionAccurateScope scope(this, kTraceLength / kInstructionSize);
@@ -1313,7 +1313,7 @@ MacroAssemblerVIXL::Trace(TraceParameters parameters, TraceCommand command)
 void
 MacroAssemblerVIXL::Log(TraceParameters parameters)
 {
-#ifdef USE_SIMULATOR
+#ifdef JS_ARM64_SIMULATOR
     // The arguments to the log pseudo instruction need to be contiguous in
     // memory, so make sure we don't try to emit a literal pool.
     InstructionAccurateScope scope(this, kLogLength / kInstructionSize);

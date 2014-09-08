@@ -926,7 +926,7 @@ class MacroAssemblerVIXL : public Assembler
         umsubl(rd, rn, rm, ra);
     }
     void Unreachable() {
-#ifdef USE_SIMULATOR
+#ifdef JS_ARM64_SIMULATOR
         hlt(kUnreachableOpcode);
 #else
         // Branch to 0 to generate a segfault.
