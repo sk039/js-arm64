@@ -30,10 +30,11 @@
 #ifndef VIXL_PLATFORM_H
 #define VIXL_PLATFORM_H
 
-#include "js-config.h"
-
 // Define platform specific functionalities.
+// TODO: Remove used of signal.h.
 #include <signal.h>
+
+#include "js-config.h"
 
 namespace js {
 namespace jit {

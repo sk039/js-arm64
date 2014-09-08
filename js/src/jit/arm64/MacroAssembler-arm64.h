@@ -30,13 +30,13 @@
 #ifndef jit_arm64_MacroAssembler_arm64_h
 #define jit_arm64_MacroAssembler_arm64_h
 
-#include "jit/IonFrames.h"
-#include "jit/MoveResolver.h"
-
 #include "jit/arm64/Assembler-arm64.h"
 #include "jit/arm64/vixl/Debugger-vixl.h"
 #include "jit/arm64/vixl/MacroAssembler-vixl.h"
 #include "jit/arm64/vixl/VIXL-Globals-vixl.h"
+
+#include "jit/IonFrames.h"
+#include "jit/MoveResolver.h"
 
 class Operand {
     // lolwut? it looks like CodeGenerator is accessing this directly?

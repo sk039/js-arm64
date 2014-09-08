@@ -1300,10 +1300,10 @@ MacroAssemblerVIXL::Trace(TraceParameters parameters, TraceCommand command)
     // arguments.
     hlt(kTraceOpcode);
 
-    VIXL_ASSERT(SizeOfCodeGeneratedSince(&start) == kTraceParamsOffset);
+    //VIXL_ASSERT(SizeOfCodeGeneratedSince(&start) == kTraceParamsOffset);
     dc32(parameters);
 
-    VIXL_ASSERT(SizeOfCodeGeneratedSince(&start) == kTraceCommandOffset);
+    //VIXL_ASSERT(SizeOfCodeGeneratedSince(&start) == kTraceCommandOffset);
     dc32(command);
 #else
     // Emit nothing on real hardware.
@@ -1325,7 +1325,7 @@ MacroAssemblerVIXL::Log(TraceParameters parameters)
     // arguments.
     hlt(kLogOpcode);
 
-    VIXL_ASSERT(SizeOfCodeGeneratedSince(&start) == kLogParamsOffset);
+    //VIXL_ASSERT(SizeOfCodeGeneratedSince(&start) == kLogParamsOffset);
     dc32(parameters);
 #else
     // Emit nothing on real hardware.

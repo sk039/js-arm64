@@ -11,8 +11,8 @@
 #ifdef JS_ION_PERF
 # include "jit/PerfSpewer.h"
 #endif
-#include "jit/VMFunctions.h"
 #include "jit/arm64/BaselineHelpers-arm64.h"
+#include "jit/VMFunctions.h"
 
 using namespace js;
 using namespace js::jit;

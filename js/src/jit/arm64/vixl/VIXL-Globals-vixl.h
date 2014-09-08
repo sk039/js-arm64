@@ -43,19 +43,19 @@
 #define __STDC_FORMAT_MACROS
 #endif
 
-#include "js/Utility.h"
 #include "mozilla/Assertions.h"
+
+// TODO: Don't use these headers.
+#include <inttypes.h>
+#include <stdarg.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 #include "jit/arm64/vixl/VIXL-Platform-vixl.h"
 
-#include <stdint.h>
-#include <inttypes.h>
-
-#include <stdarg.h>
-#include <stdio.h>
-#include <stdint.h>
-#include <stdlib.h>
-#include <stddef.h>
+#include "js/Utility.h"
 
 typedef uint8_t byte;
 

@@ -30,8 +30,8 @@
 #ifndef VIXL_CPU_A64_H
 #define VIXL_CPU_A64_H
 
-#include "jit/arm64/vixl/VIXL-Globals-vixl.h"
 #include "jit/arm64/vixl/Instructions-vixl.h"
+#include "jit/arm64/vixl/VIXL-Globals-vixl.h"
 
 namespace js {
 namespace jit {

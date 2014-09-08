@@ -36,9 +36,9 @@
 #include "frontend/Parser.h"
 #include "jit/CodeGenerator.h"
 #include "jit/CompileWrappers.h"
+#include "jit/JitSpewer.h"
 #include "jit/MIR.h"
 #include "jit/MIRGraph.h"
-#include "jit/JitSpewer.h"
 #ifdef JS_ION_PERF
 # include "jit/PerfSpewer.h"
 #endif

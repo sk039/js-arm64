@@ -33,9 +33,11 @@
 #include "jit/arm64/vixl/Instructions-vixl.h"
 #include "jit/arm64/vixl/VIXL-Globals-vixl.h"
 #include "jit/arm64/vixl/VIXL-Utils-vixl.h"
+
+#include "jit/JitSpewer.h"
+
 #include "jit/shared/Assembler-shared.h"
 #include "jit/shared/IonAssemblerBufferWithConstantPools.h"
-#include "jit/JitSpewer.h"
 
 namespace js {
 namespace jit {

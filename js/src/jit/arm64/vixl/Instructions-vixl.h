@@ -30,9 +30,9 @@
 #ifndef VIXL_A64_INSTRUCTIONS_A64_H_
 #define VIXL_A64_INSTRUCTIONS_A64_H_
 
+#include "jit/arm64/vixl/Constants-vixl.h"
 #include "jit/arm64/vixl/VIXL-Globals-vixl.h"
 #include "jit/arm64/vixl/VIXL-Utils-vixl.h"
-#include "jit/arm64/vixl/Constants-vixl.h"
 
 namespace js {
 namespace jit {

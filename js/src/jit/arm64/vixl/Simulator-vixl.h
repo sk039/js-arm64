@@ -32,12 +32,12 @@
 
 #ifdef JS_CODEGEN_ARM64
 
-#include "jit/arm64/vixl/VIXL-Globals-vixl.h"
-#include "jit/arm64/vixl/VIXL-Utils-vixl.h"
-#include "jit/arm64/vixl/Instructions-vixl.h"
 #include "jit/arm64/vixl/Assembler-vixl.h"
 #include "jit/arm64/vixl/Disasm-vixl.h"
+#include "jit/arm64/vixl/Instructions-vixl.h"
 #include "jit/arm64/vixl/Instrument-vixl.h"
+#include "jit/arm64/vixl/VIXL-Globals-vixl.h"
+#include "jit/arm64/vixl/VIXL-Utils-vixl.h"
 
 #include "jit/IonTypes.h"
 

@@ -11,8 +11,8 @@
 #include "jit/IonLinker.h"
 
 #include "jit/JitcodeMap.h"
-#include "jit/PerfSpewer.h"
 #include "jit/JitSpewer.h"
+#include "jit/PerfSpewer.h"
 #include "jit/IonFrames-inl.h"
 #include "vm/Stack-inl.h"
 

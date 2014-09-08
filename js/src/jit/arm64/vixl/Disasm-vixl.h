@@ -30,10 +30,10 @@
 #ifndef VIXL_A64_DISASM_A64_H
 #define VIXL_A64_DISASM_A64_H
 
+#include "jit/arm64/vixl/Decoder-vixl.h"
+#include "jit/arm64/vixl/Instructions-vixl.h"
 #include "jit/arm64/vixl/VIXL-Globals-vixl.h"
 #include "jit/arm64/vixl/VIXL-Utils-vixl.h"
-#include "jit/arm64/vixl/Instructions-vixl.h"
-#include "jit/arm64/vixl/Decoder-vixl.h"
 
 namespace js {
 namespace jit {
@@ -110,6 +110,7 @@ class PrintDisassembler: public Disassembler {
   FILE *stream_;
 };
 
+#if 0
 // FIXME: Remove this.
 static void Disassemble(Instruction *ptr, uint32_t count) {
   Decoder decoder;
@@ -120,6 +121,7 @@ static void Disassemble(Instruction *ptr, uint32_t count) {
     printf("[%p]    %s\n", &ptr[i], disasm.GetOutput());
   }
 }
+#endif
 
 } // namespace jit
 } // namespace js
