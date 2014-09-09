@@ -174,7 +174,6 @@ JSRuntime::JSRuntime(JSRuntime *parentRuntime)
 #ifdef NIGHTLY_BUILD
     assertOnScriptEntryHook_(nullptr),
 #endif
-    debugMode(false),
     spsProfiler(thisFromCtor()),
     profilingScripts(false),
     suppressProfilerSampling(false),
