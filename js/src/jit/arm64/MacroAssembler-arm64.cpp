@@ -214,17 +214,27 @@ MacroAssemblerCompat::setupABICall(uint32_t args)
     stackForCall_ = ShadowStackSpace;
 }
 
-// FIXME: This could probably be shared code. Looks like all the arches are the same,
-// just using arch-specific functions for no reason.
 void
 MacroAssemblerCompat::setupUnalignedABICall(uint32_t args, Register scratch)
 {
     setupABICall(args);
     dynamicAlignment_ = true;
 
-    int32_t alignment = ~(StackAlignment - 1);
-    And(ARMRegister(scratch, 64), GetStackPointer(), Operand(alignment));
-    push(scratch);
+    int64_t alignment = ~(int64_t(ABIStackAlignment) - 1);
+    ARMRegister scratch64(scratch, 64);
+
+    // TODO: Unhandled for sp -- needs slightly different logic.
+    JS_ASSERT(!GetStackPointer().Is(sp));
+
+    // Remember the stack address on entry.
+    Mov(scratch64, GetStackPointer());
+
+    // Make alignment, including the effective push of the previous sp.
+    Sub(GetStackPointer(), GetStackPointer(), Operand(8));
+    And(GetStackPointer(), GetStackPointer(), Operand(alignment));
+
+    // Store previous sp to the top of the stack, aligned.
+    Str(scratch64, MemOperand(GetStackPointer(), 0));
 }
 
 void
@@ -314,6 +324,15 @@ MacroAssemblerCompat::callWithABIPost(uint32_t stackAdjust, MoveOp::Type result)
 {
     inCall_ = false;
     freeStack(stackAdjust);
+
+    // Restore the stack pointer from entry.
+    if (dynamicAlignment_) {
+        Ldr(GetStackPointer(), MemOperand(GetStackPointer(), 0));
+
+        if (!GetStackPointer().Is(sp));
+            Add(sp, GetStackPointer(), Operand(0));
+    }
+
     // if the ABI's return regs are where ION is expecting them, then
     // no other work needs to be done.
 }

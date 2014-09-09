@@ -260,7 +260,8 @@ JitRuntime::generateVMWrapper(JSContext *cx, const VMFunction &f)
         // the MoveResolver didn't throw an assertion failure first.
         argsBase = r8;
         regs.take(argsBase);
-        masm.Add(ARMRegister(argsBase, 64), sp, Operand(IonExitFrameLayout::SizeWithFooter()));
+        masm.Add(ARMRegister(argsBase, 64), masm.GetStackPointer(),
+                 Operand(IonExitFrameLayout::SizeWithFooter()));
     }
 
     // Reserve space for any outparameter.
@@ -269,32 +270,32 @@ JitRuntime::generateVMWrapper(JSContext *cx, const VMFunction &f)
       case Type_Value:
         outReg = regs.takeAny();
         masm.reserveStack(sizeof(Value));
-        masm.Add(ARMRegister(outReg, 64), sp, Operand(0));
+        masm.Add(ARMRegister(outReg, 64), masm.GetStackPointer(), Operand(0));
         break;
 
       case Type_Handle:
         outReg = regs.takeAny();
         masm.PushEmptyRooted(f.outParamRootType);
-        masm.Add(ARMRegister(outReg, 64), sp, Operand(0));
+        masm.Add(ARMRegister(outReg, 64), masm.GetStackPointer(), Operand(0));
         break;
 
       case Type_Int32:
       case Type_Bool:
         outReg = regs.takeAny();
-        masm.reserveStack(sizeof(int32_t));
-        masm.Add(ARMRegister(outReg, 64), sp, Operand(0));
+        masm.reserveStack(sizeof(int64_t));
+        masm.Add(ARMRegister(outReg, 64), masm.GetStackPointer(), Operand(0));
         break;
 
       case Type_Double:
         outReg = regs.takeAny();
         masm.reserveStack(sizeof(double));
-        masm.Add(ARMRegister(outReg, 64), sp, Operand(0));
+        masm.Add(ARMRegister(outReg, 64), masm.GetStackPointer(), Operand(0));
         break;
 
       case Type_Pointer:
         outReg = regs.takeAny();
         masm.reserveStack(sizeof(uintptr_t));
-        masm.Add(ARMRegister(outReg, 64), sp, Operand(0));
+        masm.Add(ARMRegister(outReg, 64), masm.GetStackPointer(), Operand(0));
         break;
 
       default:
@@ -363,12 +364,12 @@ JitRuntime::generateVMWrapper(JSContext *cx, const VMFunction &f)
 
       case Type_Int32:
         masm.Ldr(ARMRegister(ReturnReg, 32), MemOperand(sp));
-        masm.freeStack(sizeof(int32_t));
+        masm.freeStack(sizeof(int64_t));
         break;
 
       case Type_Bool:
         masm.Ldrb(ARMRegister(ReturnReg, 32), MemOperand(sp));
-        masm.freeStack(sizeof(int32_t));
+        masm.freeStack(sizeof(int64_t));
         break;
 
       case Type_Double:
