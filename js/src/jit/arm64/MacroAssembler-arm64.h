@@ -1728,20 +1728,8 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         orPtr(Imm32(type), frameSizeReg);
     }
 
-    // Save an exit frame (which must be aligned to the stack pointer) to
-    // PerThreadData::jitTop of the main thread.
-    void linkExitFrame() {
-        JS_ASSERT(0 && "linkExitFrame");
-    }
-
     void callWithExitFrame(JitCode *target, Register dynStack) {
         JS_ASSERT(0 && "callWithExitFrame");
-    }
-
-    // Save an exit frame to the thread data of the current thread, given a
-    // register that holds a PerThreadData *.
-    void linkParallelExitFrame(Register pt) {
-        JS_ASSERT(0 && "linkParallelExitFrame");
     }
 
     // FIXME: See CodeGeneratorX64 calls to noteAsmJSGlobalAccess.
