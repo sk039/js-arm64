@@ -381,3 +381,9 @@ LIRGeneratorARM64::visitSimdSplatX4(MSimdSplatX4 *ins)
 {
     MOZ_CRASH("NYI");
 }
+
+bool
+LIRGeneratorARM64::visitSimdValueX4(MSimdValueX4 *ins)
+{
+    MOZ_CRASH("NYI");
+}

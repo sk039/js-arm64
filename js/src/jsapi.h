@@ -2074,7 +2074,7 @@ typedef enum JSGCParamKey {
     /* Amount of bytes allocated by the GC. */
     JSGC_BYTES = 3,
 
-    /* Number of times when GC was invoked. */
+    /* Number of times GC has been invoked. Includes both major and minor GC. */
     JSGC_NUMBER = 4,
 
     /* Max size of the code cache in bytes. */
@@ -4892,8 +4892,8 @@ extern JS_PUBLIC_API(void)
 JS_SetOffthreadIonCompilationEnabled(JSRuntime *rt, bool enabled);
 
 #define JIT_COMPILER_OPTIONS(Register)                                  \
-    Register(BASELINE_USECOUNT_TRIGGER, "baseline.usecount.trigger")    \
-    Register(ION_USECOUNT_TRIGGER, "ion.usecount.trigger")              \
+    Register(BASELINE_WARMUP_TRIGGER, "baseline.warmup.trigger")    \
+    Register(ION_WARMUP_TRIGGER, "ion.warmup.trigger")              \
     Register(ION_ENABLE, "ion.enable")                                  \
     Register(BASELINE_ENABLE, "baseline.enable")                        \
     Register(OFFTHREAD_COMPILATION_ENABLE, "offthread-compilation.enable") \
