@@ -1042,7 +1042,6 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
             cmp32(lhs, Imm32(0));
         else
             test32(lhs, rhs);
-        fprintf(stderr, "cond is: %d\n", cond);
         B(label, cond);
     }
     void branchTest32(Condition cond, Register lhs, Imm32 imm, Label *label) {
