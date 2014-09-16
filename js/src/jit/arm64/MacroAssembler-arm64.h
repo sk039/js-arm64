@@ -1792,7 +1792,9 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         call(ip0); // FIXME: Push something?
     }
     void call(Label *target) {
-        JS_ASSERT(0 && "call");
+        // TODO: This always assumes that the site will be nearby.
+        // TODO: ARM makes this assumption also...
+        Bl(target);
     }
     void callExit(AsmJSImmPtr imm, uint32_t stackArgBytes) {
         JS_ASSERT(0 && "callExit");
