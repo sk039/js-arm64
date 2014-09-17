@@ -414,6 +414,8 @@ void
 MacroAssemblerCompat::breakpoint()
 {
     static int code = 0xA77;
+    if (getenv("STOP_BREAK") && strtol(getenv("STOP_BREAK"), 0, 0) == code)
+        MOZ_CRASH("You Rang?");
     Brk(code++);
 }
 
