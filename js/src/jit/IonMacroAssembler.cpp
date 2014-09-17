@@ -993,7 +993,11 @@ void
 MacroAssembler::linkExitFrame()
 {
     AbsoluteAddress jitTop(GetIonContext()->runtime->addressOfJitTop());
+#ifdef JS_ARM64_CODEGEN
+    storePtr(PseudoStackPointer, jitTop);
+#else
     storePtr(StackPointer, jitTop);
+#endif
 }
 
 // Save an exit frame to the thread data of the current thread, given a

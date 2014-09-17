@@ -253,7 +253,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     // Update sp with the value of the current active stack pointer, if necessary.
     void syncStackPtr() {
         if (!GetStackPointer().Is(sp))
-            Add(GetStackPointer(), sp, Operand(0));
+            Add(sp, GetStackPointer(), Operand(0));
     }
 
     void storeValue(ValueOperand val, const Address &dest) {
@@ -948,6 +948,16 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         Ldr(ScratchReg2_64, MemOperand(ARMRegister(dest.base, 64), dest.offset));
         Sub(ScratchReg2_64, ScratchReg2_64, Operand(ARMRegister(src, 64)));
         Str(ScratchReg2_64, MemOperand(ARMRegister(dest.base, 64), dest.offset));
+    }
+    void mul32(Register src1, Register src2, Register dest, Label *onOver, Label *onZero) {
+        Smull(ARMRegister(dest, 64), ARMRegister(src1, 32), ARMRegister(src2, 32));
+        if (onOver) {
+            Cmp(ARMRegister(dest, 64), Operand(ARMRegister(dest, 32), SXTX));
+            B(onOver, Overflow);
+        }
+        if (onZero) {
+            Cbz(ARMRegister(dest, 32), onZero);
+        }
     }
     void ret() {
         Ret(); // Branches to lr with a return hint.
@@ -1793,7 +1803,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         call(ip0); // FIXME: Push something?
     }
     void call(Label *target) {
-        JS_ASSERT(0 && "call");
+        Bl(target);
     }
     void callExit(AsmJSImmPtr imm, uint32_t stackArgBytes) {
         JS_ASSERT(0 && "callExit");
@@ -1890,7 +1900,14 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     void loadAsmJSActivation(Register dest) {
         loadPtr(Address(GlobalReg, AsmJSActivationGlobalDataOffset), dest);
     }
-
+    // This moves an un-tagged value from src into a
+    // dest that already has the correct tag, and /anything/ in the lower bits
+    void monoTagMove(Register dest, Register src) {
+        Bfi(ARMRegister(dest, 64), ARMRegister(src, 64), 0, JSVAL_TAG_SHIFT);
+    }
+    void monoTagMove(ARMRegister dest, ARMRegister src) {
+        Bfi(dest, src, 0, JSVAL_TAG_SHIFT);
+    }
     // FIXME: Should be in Assembler?
     // FIXME: Should be const?
     uint32_t currentOffset() {
