@@ -94,6 +94,11 @@ JitRuntime::generateEnterJIT(JSContext *cx, EnterJitType type)
 
         masm.Mov(tmp_argc, ARMRegister(reg_argc, 64));
 
+        // sp -= 8
+        // Since we're using PostIndex Str below, this is necessary to avoid overwriting
+        // the SPS mark pushed above.
+        masm.Sub(PseudoStackPointer64, PseudoStackPointer64, Operand(8));
+
         // sp -= 8 * argc
         masm.Sub(PseudoStackPointer64, PseudoStackPointer64, Operand(tmp_argc, SXTX, 3));
 
@@ -151,8 +156,6 @@ JitRuntime::generateEnterJIT(JSContext *cx, EnterJitType type)
     // Since AArch64 doesn't have the pc register available, the callee must push lr.
     masm.Blr(ARMRegister(reg_code, 64));
 
-    // TODO: Unwind the EnterJIT SPS mark.
-    masm.breakpoint();
     masm.Pop(r19);
     masm.Add(PseudoStackPointer64, PseudoStackPointer64, Operand(x19, LSR, FRAMESIZE_SHIFT));
     masm.spsUnmarkJit(&cx->runtime()->spsProfiler, r20);
