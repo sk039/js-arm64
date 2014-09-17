@@ -128,7 +128,7 @@ MoveEmitterARM64::emitGeneralMove(const MoveOperand &from, const MoveOperand &to
 
         // TODO: HOO BOY ACTUALLY IMPLEMENT THIS
         if (to.isGeneralReg())
-            masm.mov(toARMReg64(from), toARMReg64(to));
+            masm.mov(toARMReg64(to), toARMReg64(from));
         else
             masm.Str(toARMReg64(from), toMemOperand(to));
         return;

@@ -53,7 +53,7 @@ JitRuntime::generateEnterJIT(JSContext *cx, EnterJitType type)
     // Save callee-save integer registers.
     masm.MacroAssemblerVIXL::Push(x19, x20, x21, x22);
     masm.MacroAssemblerVIXL::Push(x23, x24, x25, x26);
-    masm.MacroAssemblerVIXL::Push(x27, x28);
+    masm.MacroAssemblerVIXL::Push(x27, x28, x29, x30);
 
     // Save callee-save floating-point registers.
     // AArch64 ABI specifies that only the lower 64 bits must be saved.
@@ -152,19 +152,24 @@ JitRuntime::generateEnterJIT(JSContext *cx, EnterJitType type)
     masm.Blr(ARMRegister(reg_code, 64));
 
     // TODO: Unwind the EnterJIT SPS mark.
-    //masm.spsUnmarkJit(&cx->runtime()->spsProfiler, ???);
-
-    // FIXME: Actually implement returning.
     masm.breakpoint();
-
+    masm.Pop(r19);
+    masm.Add(PseudoStackPointer64, PseudoStackPointer64, Operand(x19, LSR, FRAMESIZE_SHIFT));
+    masm.spsUnmarkJit(&cx->runtime()->spsProfiler, r20);
+    masm.SetStackPointer(sp);
+    masm.Add(sp, PseudoStackPointer64, Operand(0));
+    
     // Restore callee-save floating-point registers.
     masm.MacroAssemblerVIXL::Pop(d15, d14, d13, d12);
     masm.MacroAssemblerVIXL::Pop(d11, d10,  d9,  d8);
 
     // Restore callee-save integer registers.
-    masm.MacroAssemblerVIXL::Pop(x28, x27, x26, x25);
-    masm.MacroAssemblerVIXL::Pop(x24, x23, x22, x21);
-    masm.MacroAssemblerVIXL::Pop(x20, x19);
+    masm.MacroAssemblerVIXL::Pop(x30, x29, x28, x27);
+    masm.MacroAssemblerVIXL::Pop(x26, x25, x24, x23);
+    masm.MacroAssemblerVIXL::Pop(x22, x21, x20, x19);
+
+
+    masm.br(x30);
 
     Linker linker(masm);
     JitCode *code = linker.newCode<NoGC>(cx, OTHER_CODE);

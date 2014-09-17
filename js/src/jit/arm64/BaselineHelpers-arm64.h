@@ -149,7 +149,19 @@ EmitPreBarrier(MacroAssembler &masm, const AddrType &addr, MIRType type)
 inline void
 EmitStubGuardFailure(MacroAssembler &masm)
 {
-    masm.breakpoint();
+    // NOTE: This routine assumes that the stub guard code left the stack in the
+    // same state it was in when it was entered.
+
+    // BaselineStubEntry points to the current stub.
+
+    // Load next stub into BaselineStubReg.
+    masm.loadPtr(Address(BaselineStubReg, ICStub::offsetOfNext()), BaselineStubReg);
+
+    // Load stubcode pointer from BaselineStubEntry into scratch register.
+    masm.loadPtr(Address(BaselineStubReg, ICStub::offsetOfStubCode()), r0);
+
+    // Return address is already loaded, just jump to the next stubcode.
+    masm.Br(x0);
 }
 
 } // namespace jit
