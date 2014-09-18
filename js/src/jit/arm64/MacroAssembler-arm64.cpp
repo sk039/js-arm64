@@ -329,11 +329,11 @@ MacroAssemblerCompat::callWithABIPost(uint32_t stackAdjust, MoveOp::Type result)
     if (dynamicAlignment_) {
         Ldr(GetStackPointer(), MemOperand(GetStackPointer(), 0));
 
-        if (!GetStackPointer().Is(sp));
+        if (!GetStackPointer().Is(sp))
             Add(sp, GetStackPointer(), Operand(0));
     }
 
-    // if the ABI's return regs are where ION is expecting them, then
+    // If the ABI's return regs are where ION is expecting them, then
     // no other work needs to be done.
 }
 
