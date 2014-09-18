@@ -308,10 +308,12 @@ BaselineCompiler::emitPrologue()
 #endif
 
     masm.push(BaselineFrameReg);
+    masm.DisableInvariant(checkFrameSizeID);
     masm.movePtr(BaselineStackReg, BaselineFrameReg);
 
     // TODO: subStackPtr()?
     masm.subPtr(Imm32(BaselineFrame::Size()), BaselineStackReg);
+    masm.EnableInvariant(checkFrameSizeID);
     masm.syncStackPtr();
     //masm.checkStackAlignment(); TODO: check here?
 
@@ -432,10 +434,10 @@ BaselineCompiler::emitEpilogue()
 
     // Pop SPS frame if necessary
     emitSPSPop();
-
+    masm.DisableInvariant(checkFrameSizeID);
     masm.movePtr(BaselineFrameReg, BaselineStackReg);
     masm.pop(BaselineFrameReg);
-
+    masm.EnableInvariant(checkFrameSizeID);
 #ifdef JS_CODEGEN_ARM64
     // Pop into lr: RET uses lr if no register is specified.
     masm.pop(r30);

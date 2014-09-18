@@ -43,7 +43,12 @@
 
 namespace js {
 namespace jit {
-
+class DebuggerARM64;
+typedef bool (*InvariantChecker) (DebuggerARM64* sim);
+struct Invariant {
+  InvariantChecker check;
+  const char *name;
+};
 // Debug instructions.
 //
 // VIXL's macro-assembler and debugger support a few pseudo instructions to
@@ -81,6 +86,10 @@ const Instr kLogOpcode = 0xdeb3;
 const unsigned kLogParamsOffset = 1 * kInstructionSize;
 const unsigned kLogLength = 2 * kInstructionSize;
 
+const Instr kInvariantOpcode = 0xdeb4;
+const unsigned kInvariantCommandOffset = 1 * kInstructionSize;
+const unsigned kInvariantLength = 2 * kInstructionSize;
+
 // Trace commands.
 enum TraceCommand {
   TRACE_ENABLE   = 1,
@@ -112,7 +121,6 @@ class FormatToken;
 class DebuggerARM64 : public Simulator {
  public:
   DebuggerARM64(Decoder* decoder, FILE* stream = stdout);
-
   virtual void Run();
   void VisitException(Instruction* instr);
 
@@ -180,7 +188,7 @@ class DebuggerARM64 : public Simulator {
   void DoUnreachable(Instruction* instr);
   void DoTrace(Instruction* instr);
   void DoLog(Instruction* instr);
-
+  void DoInvariants(Instruction *instr);
   int  log_parameters_;
   int  debug_parameters_;
   bool pending_request_;
@@ -188,7 +196,19 @@ class DebuggerARM64 : public Simulator {
   DebugCommand* last_command_;
   PrintDisassembler* disasm_;
   Decoder* printer_;
-
+  uint64_t active_invariants;
+  void enableInvariant(int index) {
+    active_invariants |= 1ull << index;
+  }
+  void disableInvariant(int index) {
+    active_invariants &= ~(1ull << index);
+  }
+  void CheckInvariants();
+  static Invariant invariant_checkers[64];
+  static int32_t num_invariants;
+ public:
+  static int registerInvariant(InvariantChecker c, const char *name);
+ private:
   // Length of the biggest command line accepted by the debugger shell.
   static const int kMaxDebugShellLine = 256;
 };

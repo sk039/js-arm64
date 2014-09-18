@@ -1948,9 +1948,10 @@ class AssemblerVIXL : public AssemblerShared
   private:
     // Emit data inline in the instruction stream.
     void EmitData(void const * data, unsigned size) {
-        JS_ASSERT(0 && "EmitData()");
-#if 0
         VIXL_STATIC_ASSERT(sizeof(*pc_) == 1);
+        VIXL_ASSERT(size == 4);
+        pc_ += 1;
+        armbuffer_.putInt(*(uint32_t*)(data), false);
         // TODO: VIXL_ASSERT((pc_ + size) <= (buffer_ + buffer_size_));
 
 #ifdef DEBUG
@@ -1958,12 +1959,6 @@ class AssemblerVIXL : public AssemblerShared
 #endif
 
 
-        // TODO: Record this 'instruction' as data, so that it can be disassembled
-        // correctly.
-        memcpy(pc_, data, size);
-        pc_ += size;
-        CheckBufferSpace();
-#endif
     }
 
     inline void CheckBufferSpace() {

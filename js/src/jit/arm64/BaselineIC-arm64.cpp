@@ -7,6 +7,13 @@
 #include "jit/BaselineHelpers.h"
 #include "jit/BaselineIC.h"
 
+#ifdef JS_ARM64_SIMULATOR
+#include "jit/arm64/Assembler-arm64.h"
+#include "jit/arm64/BaselineCompiler-arm64.h"
+#include "jit/arm64/vixl/Debugger-vixl.h"
+#endif
+
+
 using namespace js;
 using namespace js::jit;
 
@@ -204,5 +211,16 @@ ICUnaryArith_Int32::Compiler::generateStubCode(MacroAssembler &masm)
     MOZ_ASSUME_UNREACHABLE("ICUnaryArith_Int32 generateStubCode");
 }
 
+#ifdef JS_ARM64_SIMULATOR
+
+void
+BaselineCompilerARM64::initChecks() {
+    if (checkFrameSizeID < 0)
+        checkFrameSizeID = js::jit::DebuggerARM64::registerInvariant(checkFrameSize, "FramePointer - FrameSize >= StackPointer");
+}
+
+int
+BaselineCompilerARM64::checkFrameSizeID = -1;
+#endif
 } // namespace jit
 } // namespace js

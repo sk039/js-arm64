@@ -1027,6 +1027,8 @@ class MacroAssemblerVIXL : public Assembler
     // already being logged.
     void Trace(TraceParameters parameters, TraceCommand command);
 
+    void EnableInvariant(int32_t idx);
+    void DisableInvariant(int32_t idx);
     // Log the requested data independently of what is being traced.
     //
     // For example:
