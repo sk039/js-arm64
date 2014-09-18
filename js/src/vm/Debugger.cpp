@@ -1340,21 +1340,6 @@ Debugger::onSingleStep(JSContext *cx, MutableHandleValue vp)
     }
 #endif
 
-    /* Preserve the debuggee's iterValue while handlers run. */
-    class PreserveIterValue {
-        JSContext *cx;
-        RootedValue savedIterValue;
-
-      public:
-        explicit PreserveIterValue(JSContext *cx) : cx(cx), savedIterValue(cx, cx->iterValue) {
-            cx->iterValue.setMagic(JS_NO_ITER_VALUE);
-        }
-        ~PreserveIterValue() {
-            cx->iterValue = savedIterValue;
-        }
-    };
-    PreserveIterValue piv(cx);
-
     /* Call all the onStep handlers we found. */
     for (JSObject **p = frames.begin(); p != frames.end(); p++) {
         RootedObject frame(cx, *p);
@@ -3009,7 +2994,7 @@ const JSFunctionSpec Debugger::methods[] = {
     JS_FN("hasDebuggee", Debugger::hasDebuggee, 1, 0),
     JS_FN("getDebuggees", Debugger::getDebuggees, 0, 0),
     JS_FN("getNewestFrame", Debugger::getNewestFrame, 0, 0),
-    JS_FN("clearAllBreakpoints", Debugger::clearAllBreakpoints, 1, 0),
+    JS_FN("clearAllBreakpoints", Debugger::clearAllBreakpoints, 0, 0),
     JS_FN("findScripts", Debugger::findScripts, 1, 0),
     JS_FN("findAllGlobals", Debugger::findAllGlobals, 0, 0),
     JS_FN("makeGlobalObjectReference", Debugger::makeGlobalObjectReference, 1, 0),

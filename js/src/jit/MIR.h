@@ -23,7 +23,7 @@
 #include "jit/TypedObjectPrediction.h"
 #include "jit/TypePolicy.h"
 #include "vm/ScopeObject.h"
-#include "vm/TypedArrayObject.h"
+#include "vm/TypedArrayCommon.h"
 
 namespace js {
 
@@ -62,7 +62,7 @@ MIRType MIRTypeFromValue(const js::Value &vp)
     _(InWorklist)                                                               \
     _(EmittedAtUses)                                                            \
     _(Commutative)                                                              \
-    _(Movable)       /* Allow LICM and GVN to move this instruction */          \
+    _(Movable)       /* Allow passes like LICM to move this instruction */      \
     _(Lowered)       /* (Debug only) has a virtual register */                  \
     _(Guard)         /* Not removable if uses == 0 */                           \
                                                                                 \
@@ -156,7 +156,7 @@ class MUse : public TempObject, public InlineListNode<MUse>
     // Set this use, which was not previously clear.
     inline void replaceProducer(MDefinition *producer);
     // Clear this use.
-    inline void discardProducer();
+    inline void releaseProducer();
 
     MDefinition *producer() const {
         JS_ASSERT(producer_ != nullptr);
@@ -189,8 +189,6 @@ typedef InlineList<MUse>::iterator MUseIterator;
 // nodes holding such a reference (its use chain).
 class MNode : public TempObject
 {
-    friend class MDefinition;
-
   protected:
     MBasicBlock *block_;    // Containing basic block.
 
@@ -237,15 +235,12 @@ class MNode : public TempObject
 
     // Resets the operand to an uninitialized state, breaking the link
     // with the previous operand's producer.
-    void discardOperand(size_t index) {
-        getUseFor(index)->discardProducer();
+    void releaseOperand(size_t index) {
+        getUseFor(index)->releaseProducer();
     }
-
-#if DEBUG
-    bool operandDiscarded(size_t index) const {
-        return !getUseFor(index)->hasProducer();
+    bool hasOperand(size_t index) const {
+        return getUseFor(index)->hasProducer();
     }
-#endif
 
     inline MDefinition *toDefinition();
     inline MResumePoint *toResumePoint();
@@ -1890,6 +1885,8 @@ class MTableSwitch MOZ_FINAL
     TypePolicy *typePolicy() {
         return this;
     }
+
+    MDefinition *foldsTo(TempAllocator &alloc);
 };
 
 template <size_t Arity, size_t Successors>
@@ -4333,6 +4330,11 @@ class MTypeOf
             return false;
         }
         return congruentIfOperandsEqual(ins);
+    }
+
+    bool writeRecoverData(CompactBufferWriter &writer) const;
+    bool canRecoverOnBailout() const {
+        return true;
     }
 };
 
@@ -7224,7 +7226,6 @@ class MNot
     bool operandMightEmulateUndefined_;
     bool operandIsNeverNaN_;
 
-  public:
     explicit MNot(MDefinition *input)
       : MUnaryInstruction(input),
         operandMightEmulateUndefined_(true),
@@ -7234,6 +7235,7 @@ class MNot
         setMovable();
     }
 
+  public:
     static MNot *New(TempAllocator &alloc, MDefinition *elements) {
         return new(alloc) MNot(elements);
     }
@@ -7950,10 +7952,10 @@ class MLoadTypedArrayElementStatic
   : public MUnaryInstruction,
     public ConvertToInt32Policy<0>
 {
-    MLoadTypedArrayElementStatic(TypedArrayObject *typedArray, MDefinition *ptr)
-      : MUnaryInstruction(ptr), typedArray_(typedArray), fallible_(true)
+    MLoadTypedArrayElementStatic(JSObject *someTypedArray, MDefinition *ptr)
+      : MUnaryInstruction(ptr), someTypedArray_(someTypedArray), fallible_(true)
     {
-        int type = typedArray_->type();
+        int type = viewType();
         if (type == Scalar::Float32)
             setResultType(MIRType_Float32);
         else if (type == Scalar::Float64)
@@ -7962,20 +7964,20 @@ class MLoadTypedArrayElementStatic
             setResultType(MIRType_Int32);
     }
 
-    AlwaysTenured<TypedArrayObject*> typedArray_;
+    AlwaysTenured<JSObject*> someTypedArray_;
     bool fallible_;
 
   public:
     INSTRUCTION_HEADER(LoadTypedArrayElementStatic);
 
-    static MLoadTypedArrayElementStatic *New(TempAllocator &alloc, TypedArrayObject *typedArray,
+    static MLoadTypedArrayElementStatic *New(TempAllocator &alloc, JSObject *someTypedArray,
                                              MDefinition *ptr)
     {
-        return new(alloc) MLoadTypedArrayElementStatic(typedArray, ptr);
+        return new(alloc) MLoadTypedArrayElementStatic(someTypedArray, ptr);
     }
 
     Scalar::Type viewType() const {
-        return typedArray_->type();
+        return AnyTypedArrayType(someTypedArray_);
     }
     void *base() const;
     size_t length() const;
@@ -7999,7 +8001,7 @@ class MLoadTypedArrayElementStatic
 
     void computeRange(TempAllocator &alloc);
     bool truncate(TruncateKind kind);
-    bool canProduceFloat32() const { return typedArray_->type() == Scalar::Float32; }
+    bool canProduceFloat32() const { return viewType() == Scalar::Float32; }
 };
 
 class MStoreTypedArrayElement
@@ -8147,19 +8149,19 @@ class MStoreTypedArrayElementStatic :
     public MBinaryInstruction
   , public StoreTypedArrayElementStaticPolicy
 {
-    MStoreTypedArrayElementStatic(TypedArrayObject *typedArray, MDefinition *ptr, MDefinition *v)
-      : MBinaryInstruction(ptr, v), typedArray_(typedArray)
+    MStoreTypedArrayElementStatic(JSObject *someTypedArray, MDefinition *ptr, MDefinition *v)
+      : MBinaryInstruction(ptr, v), someTypedArray_(someTypedArray)
     {}
 
-    AlwaysTenured<TypedArrayObject*> typedArray_;
+    AlwaysTenured<JSObject*> someTypedArray_;
 
   public:
     INSTRUCTION_HEADER(StoreTypedArrayElementStatic);
 
-    static MStoreTypedArrayElementStatic *New(TempAllocator &alloc, TypedArrayObject *typedArray,
+    static MStoreTypedArrayElementStatic *New(TempAllocator &alloc, JSObject *someTypedArray,
                                               MDefinition *ptr, MDefinition *v)
     {
-        return new(alloc) MStoreTypedArrayElementStatic(typedArray, ptr, v);
+        return new(alloc) MStoreTypedArrayElementStatic(someTypedArray, ptr, v);
     }
 
     TypePolicy *typePolicy() {
@@ -8167,7 +8169,7 @@ class MStoreTypedArrayElementStatic :
     }
 
     Scalar::Type viewType() const {
-        return typedArray_->type();
+        return AnyTypedArrayType(someTypedArray_);
     }
     bool isFloatArray() const {
         return viewType() == Scalar::Float32 ||
@@ -8185,7 +8187,7 @@ class MStoreTypedArrayElementStatic :
     TruncateKind operandTruncateKind(size_t index) const;
 
     bool canConsumeFloat32(MUse *use) const {
-        return use == getUseFor(1) && typedArray_->type() == Scalar::Float32;
+        return use == getUseFor(1) && viewType() == Scalar::Float32;
     }
 };
 
@@ -10211,31 +10213,6 @@ class MIteratorStart
     }
 };
 
-class MIteratorNext
-  : public MUnaryInstruction,
-    public SingleObjectPolicy
-{
-    explicit MIteratorNext(MDefinition *iter)
-      : MUnaryInstruction(iter)
-    {
-        setResultType(MIRType_Value);
-    }
-
-  public:
-    INSTRUCTION_HEADER(IteratorNext)
-
-    static MIteratorNext *New(TempAllocator &alloc, MDefinition *iter) {
-        return new(alloc) MIteratorNext(iter);
-    }
-
-    TypePolicy *typePolicy() {
-        return this;
-    }
-    MDefinition *iterator() const {
-        return getOperand(0);
-    }
-};
-
 class MIteratorMore
   : public MUnaryInstruction,
     public SingleObjectPolicy
@@ -10243,7 +10220,7 @@ class MIteratorMore
     explicit MIteratorMore(MDefinition *iter)
       : MUnaryInstruction(iter)
     {
-        setResultType(MIRType_Boolean);
+        setResultType(MIRType_Value);
     }
 
   public:
@@ -10258,6 +10235,28 @@ class MIteratorMore
     }
     MDefinition *iterator() const {
         return getOperand(0);
+    }
+};
+
+class MIsNoIter
+  : public MUnaryInstruction
+{
+    MIsNoIter(MDefinition *def)
+      : MUnaryInstruction(def)
+    {
+        setResultType(MIRType_Boolean);
+        setMovable();
+    }
+
+  public:
+    INSTRUCTION_HEADER(IsNoIter)
+
+    static MIsNoIter *New(TempAllocator &alloc, MDefinition *def) {
+        return new(alloc) MIsNoIter(def);
+    }
+
+    AliasSet getAliasSet() const {
+        return AliasSet::None();
     }
 };
 
@@ -11228,10 +11227,10 @@ class MResumePoint MOZ_FINAL :
         return mode_;
     }
 
-    void discardUses() {
+    void releaseUses() {
         for (size_t i = 0; i < operands_.length(); i++) {
             if (operands_[i].hasProducer())
-                operands_[i].discardProducer();
+                operands_[i].releaseProducer();
         }
     }
 
@@ -11782,7 +11781,7 @@ void MUse::replaceProducer(MDefinition *producer)
     producer_->addUse(this);
 }
 
-void MUse::discardProducer()
+void MUse::releaseProducer()
 {
     MOZ_ASSERT(consumer_, "Clearing MUse without a consumer");
     producer_->removeUse(this);
@@ -11823,8 +11822,8 @@ MControlInstruction *MDefinition::toControlInstruction() {
 // Helper functions used to decide how to build MIR.
 
 bool ElementAccessIsDenseNative(MDefinition *obj, MDefinition *id);
-bool ElementAccessIsTypedArray(MDefinition *obj, MDefinition *id,
-                               Scalar::Type *arrayType);
+bool ElementAccessIsAnyTypedArray(MDefinition *obj, MDefinition *id,
+                                  Scalar::Type *arrayType);
 bool ElementAccessIsPacked(types::CompilerConstraintList *constraints, MDefinition *obj);
 bool ElementAccessMightBeCopyOnWrite(types::CompilerConstraintList *constraints, MDefinition *obj);
 bool ElementAccessHasExtraIndexedProperty(types::CompilerConstraintList *constraints,

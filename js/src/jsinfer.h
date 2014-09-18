@@ -759,8 +759,11 @@ class TemporaryTypeSet : public TypeSet
     /* Get the prototype shared by all objects in this set, or nullptr. */
     JSObject *getCommonPrototype();
 
-    /* Get the typed array type of all objects in this set, or TypedArrayObject::TYPE_MAX. */
+    /* Get the typed array type of all objects in this set, or Scalar::TypeMax. */
     Scalar::Type getTypedArrayType();
+
+    /* Get the shared typed array type of all objects in this set, or Scalar::TypeMax. */
+    Scalar::Type getSharedTypedArrayType();
 
     /* Whether all objects have JSCLASS_IS_DOMJSCLASS set. */
     bool isDOMClass();
@@ -996,7 +999,7 @@ class TypeNewScript
  */
 
 /* Type information about an object accessed by a script. */
-struct TypeObject : gc::BarrieredCell<TypeObject>
+struct TypeObject : public gc::TenuredCell
 {
   private:
     /* Class shared by object using this type. */

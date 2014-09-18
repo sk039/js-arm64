@@ -4852,6 +4852,7 @@ function ThreadSources(aThreadActor, aOptions, aAllowPredicate,
 ThreadSources._blackBoxedSources = new Set(["self-hosted"]);
 ThreadSources._prettyPrintedSources = new Map();
 
+
 /**
  * Matches strings of the form "foo.min.js" or "foo-min.js", etc. If the regular
  * expression matches, we can be fairly sure that the source is minified, and
@@ -5433,6 +5434,11 @@ function getInnerId(window) {
                 getInterface(Ci.nsIDOMWindowUtils).currentInnerWindowID;
 };
 
+function getInnerId(window) {
+  return window.QueryInterface(Ci.nsIInterfaceRequestor).
+                getInterface(Ci.nsIDOMWindowUtils).currentInnerWindowID;
+};
+
 const symbolProtoToString = typeof Symbol === "function" ? Symbol.prototype.toString : null;
 
 function getSymbolName(symbol) {
@@ -5440,14 +5446,9 @@ function getSymbolName(symbol) {
   return name || undefined;
 }
 
-exports.register = function(handle) {
+exports.cleanup = function() {
+  // Reset shared globals when reloading the debugger server
   ThreadActor.breakpointStore = new BreakpointStore();
-  ThreadSources._blackBoxedSources = new Set(["self-hosted"]);
-  ThreadSources._prettyPrintedSources = new Map();
-};
-
-exports.unregister = function(handle) {
-  ThreadActor.breakpointStore = null;
   ThreadSources._blackBoxedSources.clear();
   ThreadSources._prettyPrintedSources.clear();
-};
+}

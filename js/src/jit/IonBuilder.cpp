@@ -491,6 +491,8 @@ IonBuilder::analyzeNewLoopTypes(MBasicBlock *entry, jsbytecode *start, jsbytecod
             continue;
         if (!analysis().maybeInfo(pc))
             continue;
+        if (!last)
+            continue;
 
         MPhi *phi = entry->getSlot(slot)->toPhi();
 
@@ -561,7 +563,6 @@ IonBuilder::analyzeNewLoopTypes(MBasicBlock *entry, jsbytecode *start, jsbytecod
               case JSOP_STRING:
               case JSOP_TYPEOF:
               case JSOP_TYPEOFEXPR:
-              case JSOP_ITERNEXT:
                 type = MIRType_String;
                 break;
               case JSOP_ADD:
@@ -1783,11 +1784,11 @@ IonBuilder::inspectOpcode(JSOp op)
       case JSOP_ITER:
         return jsop_iter(GET_INT8(pc));
 
-      case JSOP_ITERNEXT:
-        return jsop_iternext();
-
       case JSOP_MOREITER:
         return jsop_itermore();
+
+      case JSOP_ISNOITER:
+        return jsop_isnoiter();
 
       case JSOP_ENDITER:
         return jsop_iterend();
@@ -2258,6 +2259,23 @@ IonBuilder::processWhileCondEnd(CFGState &state)
     pc = state.loop.bodyStart;
     if (!setCurrentAndSpecializePhis(body))
         return ControlStatus_Error;
+
+    // If this is a for-in loop, unbox the current value as string if possible.
+    if (ins->isIsNoIter()) {
+        MIteratorMore *iterMore = ins->toIsNoIter()->input()->toIteratorMore();
+        jsbytecode *iterMorePc = iterMore->resumePoint()->pc();
+        MOZ_ASSERT(*iterMorePc == JSOP_MOREITER);
+
+        if (!nonStringIteration_ && !inspector->hasSeenNonStringIterMore(iterMorePc)) {
+            MDefinition *val = current->peek(-1);
+            MOZ_ASSERT(val == iterMore);
+            MInstruction *ins = MUnbox::New(alloc(), val, MIRType_String, MUnbox::Fallible,
+                                            Bailout_NonStringInputInvalidate);
+            current->add(ins);
+            current->rewriteAtDepth(-1, ins);
+        }
+    }
+
     return ControlStatus_Jumped;
 }
 
@@ -6760,7 +6778,7 @@ NumFixedSlots(JSObject *object)
     // shape and can race with the main thread if we are building off thread.
     // The allocation kind and object class (which goes through the type) can
     // be read freely, however.
-    gc::AllocKind kind = object->tenuredGetAllocKind();
+    gc::AllocKind kind = object->asTenured()->getAllocKind();
     return gc::GetGCKindSlots(kind, object->getClass());
 }
 
@@ -7139,7 +7157,7 @@ IonBuilder::getElemTryTypedObject(bool *emitted, MDefinition *obj, MDefinition *
         return true;
 
     switch (elemPrediction.kind()) {
-      case type::X4:
+      case type::Simd:
         // FIXME (bug 894105): load into a MIRType_float32x4 etc
         return true;
 
@@ -7414,7 +7432,7 @@ IonBuilder::getElemTryTypedStatic(bool *emitted, MDefinition *obj, MDefinition *
     JS_ASSERT(*emitted == false);
 
     Scalar::Type arrayType;
-    if (!ElementAccessIsTypedArray(obj, index, &arrayType))
+    if (!ElementAccessIsAnyTypedArray(obj, index, &arrayType))
         return true;
 
     if (!LIRGenerator::allowStaticTypedArrayAccesses())
@@ -7430,14 +7448,12 @@ IonBuilder::getElemTryTypedStatic(bool *emitted, MDefinition *obj, MDefinition *
     if (!tarrObj)
         return true;
 
-    TypedArrayObject *tarr = &tarrObj->as<TypedArrayObject>();
-
-    types::TypeObjectKey *tarrType = types::TypeObjectKey::get(tarr);
+    types::TypeObjectKey *tarrType = types::TypeObjectKey::get(tarrObj);
     if (tarrType->unknownProperties())
         return true;
 
     // LoadTypedArrayElementStatic currently treats uint32 arrays as int32.
-    Scalar::Type viewType = tarr->type();
+    Scalar::Type viewType = AnyTypedArrayType(tarrObj);
     if (viewType == Scalar::Uint32)
         return true;
 
@@ -7446,12 +7462,14 @@ IonBuilder::getElemTryTypedStatic(bool *emitted, MDefinition *obj, MDefinition *
         return true;
 
     // Emit LoadTypedArrayElementStatic.
-    tarrType->watchStateChangeForTypedArrayData(constraints());
+
+    if (tarrObj->is<TypedArrayObject>())
+        tarrType->watchStateChangeForTypedArrayData(constraints());
 
     obj->setImplicitlyUsedUnchecked();
     index->setImplicitlyUsedUnchecked();
 
-    MLoadTypedArrayElementStatic *load = MLoadTypedArrayElementStatic::New(alloc(), tarr, ptr);
+    MLoadTypedArrayElementStatic *load = MLoadTypedArrayElementStatic::New(alloc(), tarrObj, ptr);
     current->add(load);
     current->push(load);
 
@@ -7480,7 +7498,7 @@ IonBuilder::getElemTryTypedArray(bool *emitted, MDefinition *obj, MDefinition *i
     JS_ASSERT(*emitted == false);
 
     Scalar::Type arrayType;
-    if (!ElementAccessIsTypedArray(obj, index, &arrayType))
+    if (!ElementAccessIsAnyTypedArray(obj, index, &arrayType))
         return true;
 
     // Emit typed getelem variant.
@@ -7804,8 +7822,8 @@ IonBuilder::addTypedArrayLengthAndData(MDefinition *obj,
     MOZ_ASSERT((index != nullptr) == (elements != nullptr));
 
     if (obj->isConstant() && obj->toConstant()->value().isObject()) {
-        TypedArrayObject *tarr = &obj->toConstant()->value().toObject().as<TypedArrayObject>();
-        void *data = tarr->viewData();
+        JSObject *tarr = &obj->toConstant()->value().toObject();
+        void *data = AnyTypedArrayViewData(tarr);
         // Bug 979449 - Optimistically embed the elements and use TI to
         //              invalidate if we move them.
 #ifdef JSGC_GENERATIONAL
@@ -7814,15 +7832,16 @@ IonBuilder::addTypedArrayLengthAndData(MDefinition *obj,
         bool isTenured = true;
 #endif
         if (isTenured && tarr->hasSingletonType()) {
-            // The 'data' pointer can change in rare circumstances
+            // The 'data' pointer of TypedArrayObject can change in rare circumstances
             // (ArrayBufferObject::changeContents).
             types::TypeObjectKey *tarrType = types::TypeObjectKey::get(tarr);
             if (!tarrType->unknownProperties()) {
-                tarrType->watchStateChangeForTypedArrayData(constraints());
+                if (tarr->is<TypedArrayObject>())
+                    tarrType->watchStateChangeForTypedArrayData(constraints());
 
                 obj->setImplicitlyUsedUnchecked();
 
-                int32_t len = AssertedCast<int32_t>(tarr->length());
+                int32_t len = AssertedCast<int32_t>(AnyTypedArrayLength(tarr));
                 *length = MConstant::New(alloc(), Int32Value(len));
                 current->add(*length);
 
@@ -8054,7 +8073,7 @@ IonBuilder::setElemTryTypedObject(bool *emitted, MDefinition *obj,
         return true;
 
     switch (elemPrediction.kind()) {
-      case type::X4:
+      case type::Simd:
         // FIXME (bug 894105): store a MIRType_float32x4 etc
         return true;
 
@@ -8116,7 +8135,7 @@ IonBuilder::setElemTryTypedStatic(bool *emitted, MDefinition *object,
     JS_ASSERT(*emitted == false);
 
     Scalar::Type arrayType;
-    if (!ElementAccessIsTypedArray(object, index, &arrayType))
+    if (!ElementAccessIsAnyTypedArray(object, index, &arrayType))
         return true;
 
     if (!LIRGenerator::allowStaticTypedArrayAccesses())
@@ -8131,24 +8150,24 @@ IonBuilder::setElemTryTypedStatic(bool *emitted, MDefinition *object,
     if (!tarrObj)
         return true;
 
-    TypedArrayObject *tarr = &tarrObj->as<TypedArrayObject>();
-
 #ifdef JSGC_GENERATIONAL
-    if (tarr->runtimeFromMainThread()->gc.nursery.isInside(tarr->viewData()))
+    if (tarrObj->runtimeFromMainThread()->gc.nursery.isInside(AnyTypedArrayViewData(tarrObj)))
         return true;
 #endif
 
-    types::TypeObjectKey *tarrType = types::TypeObjectKey::get(tarr);
+    types::TypeObjectKey *tarrType = types::TypeObjectKey::get(tarrObj);
     if (tarrType->unknownProperties())
         return true;
 
-    Scalar::Type viewType = tarr->type();
+    Scalar::Type viewType = AnyTypedArrayType(tarrObj);
     MDefinition *ptr = convertShiftToMaskForStaticTypedArray(index, viewType);
     if (!ptr)
         return true;
 
     // Emit StoreTypedArrayElementStatic.
-    tarrType->watchStateChangeForTypedArrayData(constraints());
+
+    if (tarrObj->is<TypedArrayObject>())
+        tarrType->watchStateChangeForTypedArrayData(constraints());
 
     object->setImplicitlyUsedUnchecked();
     index->setImplicitlyUsedUnchecked();
@@ -8160,7 +8179,7 @@ IonBuilder::setElemTryTypedStatic(bool *emitted, MDefinition *object,
         current->add(toWrite->toInstruction());
     }
 
-    MInstruction *store = MStoreTypedArrayElementStatic::New(alloc(), tarr, ptr, toWrite);
+    MInstruction *store = MStoreTypedArrayElementStatic::New(alloc(), tarrObj, ptr, toWrite);
     current->add(store);
     current->push(value);
 
@@ -8178,7 +8197,7 @@ IonBuilder::setElemTryTypedArray(bool *emitted, MDefinition *object,
     JS_ASSERT(*emitted == false);
 
     Scalar::Type arrayType;
-    if (!ElementAccessIsTypedArray(object, index, &arrayType))
+    if (!ElementAccessIsAnyTypedArray(object, index, &arrayType))
         return true;
 
     // Emit typed setelem variant.
@@ -8729,7 +8748,7 @@ IonBuilder::objectsHaveCommonPrototype(types::TemporaryTypeSet *types, PropertyN
             // Look for a getter/setter on the class itself which may need
             // to be called. Ignore the getGeneric hook for typed arrays, it
             // only handles integers and forwards names to the prototype.
-            if (isGetter && clasp->ops.getGeneric && !IsTypedArrayClass(clasp))
+            if (isGetter && clasp->ops.getGeneric && !IsAnyTypedArrayClass(clasp))
                 return false;
             if (!isGetter && clasp->ops.setGeneric)
                 return false;
@@ -9220,7 +9239,7 @@ IonBuilder::getPropTryTypedObject(bool *emitted,
       case type::Reference:
         return true;
 
-      case type::X4:
+      case type::Simd:
         // FIXME (bug 894104): load into a MIRType_float32x4 etc
         return true;
 
@@ -9885,7 +9904,7 @@ IonBuilder::setPropTryTypedObject(bool *emitted, MDefinition *obj,
         return true;
 
     switch (fieldPrediction.kind()) {
-      case type::X4:
+      case type::Simd:
         // FIXME (bug 894104): store into a MIRType_float32x4 etc
         return true;
 
@@ -10453,28 +10472,6 @@ IonBuilder::jsop_iter(uint8_t flags)
 }
 
 bool
-IonBuilder::jsop_iternext()
-{
-    MDefinition *iter = current->peek(-1);
-    MInstruction *ins = MIteratorNext::New(alloc(), iter);
-
-    current->add(ins);
-    current->push(ins);
-
-    if (!resumeAfter(ins))
-        return false;
-
-    if (!nonStringIteration_ && !inspector->hasSeenNonStringIterNext(pc)) {
-        ins = MUnbox::New(alloc(), ins, MIRType_String, MUnbox::Fallible,
-                          Bailout_NonStringInputInvalidate);
-        current->add(ins);
-        current->rewriteAtDepth(-1, ins);
-    }
-
-    return true;
-}
-
-bool
 IonBuilder::jsop_itermore()
 {
     MDefinition *iter = current->peek(-1);
@@ -10484,6 +10481,19 @@ IonBuilder::jsop_itermore()
     current->push(ins);
 
     return resumeAfter(ins);
+}
+
+bool
+IonBuilder::jsop_isnoiter()
+{
+    MDefinition *def = current->peek(-1);
+    MOZ_ASSERT(def->isIteratorMore());
+
+    MInstruction *ins = MIsNoIter::New(alloc(), def);
+    current->add(ins);
+    current->push(ins);
+
+    return true;
 }
 
 bool

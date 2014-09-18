@@ -410,7 +410,7 @@ GetFrameTime() {
 
 class MOZ_STACK_CLASS StateChangeNotificationBlocker {
 public:
-  StateChangeNotificationBlocker(AsyncPanZoomController* aApzc)
+  explicit StateChangeNotificationBlocker(AsyncPanZoomController* aApzc)
     : mApzc(aApzc)
   {
     ReentrantMonitorAutoEnter lock(mApzc->mMonitor);
@@ -2599,6 +2599,19 @@ Matrix4x4 AsyncPanZoomController::GetTransformToLastDispatchedPaint() const {
 
   return Matrix4x4().Translate(scrollChange.x, scrollChange.y, 0) *
          Matrix4x4().Scale(zoomChange, zoomChange, 1);
+}
+
+bool AsyncPanZoomController::IsCurrentlyCheckerboarding() const {
+  ReentrantMonitorAutoEnter lock(mMonitor);
+
+  if (!gfxPrefs::APZAllowCheckerboarding()) {
+    return false;
+  }
+
+  CSSPoint currentScrollOffset = mFrameMetrics.GetScrollOffset() + mTestAsyncScrollOffset;
+  CSSRect painted = mLastContentPaintMetrics.mDisplayPort + mLastContentPaintMetrics.GetScrollOffset();
+  CSSRect visible = CSSRect(currentScrollOffset, mFrameMetrics.CalculateCompositedSizeInCssPixels());
+  return !painted.Contains(visible);
 }
 
 void AsyncPanZoomController::NotifyLayersUpdated(const FrameMetrics& aLayerMetrics, bool aIsFirstPaint) {

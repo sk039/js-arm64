@@ -150,7 +150,12 @@
           var action = this._parseActionUrl(aValue);
 
           if (action) {
-            returnValue = action.param;
+            switch (action.type) {
+              case "switchtab": {
+                returnValue = action.params.url;
+                break;
+              }
+            }
           }
 
           // Set the actiontype only if the user is not overriding actions.
@@ -300,9 +305,9 @@
 
           let matchLastLocationChange = true;
           if (action) {
-            url = action.param;
             if (this.hasAttribute("actiontype")) {
               if (action.type == "switchtab") {
+                url = action.params.url;
                 this.handleRevert();
                 let prevTab = gBrowser.selectedTab;
                 if (switchToTabHavingURI(url) &&
@@ -739,9 +744,28 @@
           if (!aUrl.startsWith("moz-action:"))
             return null;
 
-          // url is in the format moz-action:ACTION,PARAM
-          let [, action, param] = aUrl.match(/^moz-action:([^,]+),(.*)$/);
-          return {type: action, param: param};
+          // URL is in the format moz-action:ACTION,PARAMS
+          // Where PARAMS is a JSON encoded object.
+          aUrl = decodeURI(aUrl);
+          let [, type, params] = aUrl.match(/^moz-action:([^,]+),(.*)$/);
+
+          let action = {
+            type: type,
+          };
+
+          try {
+            action.params = JSON.parse(params);
+          } catch (e) {
+            // If this failed, we assume that params is not a JSON object, and
+            // is instead just a flat string. This will happen when
+            // UnifiedComplete is disabled - in which case, the param is always
+            // a URL.
+            action.params = {
+              url: params,
+            }
+          }
+
+          return action;
         ]]></body>
       </method>
 
@@ -910,13 +934,13 @@
             var where = whereToOpenLink(aEvent, false, true);
             searchBar.doSearch(search, where);
           }
-          ]]></body>
-        </method>
-      </implementation>
-    </binding>
+        ]]></body>
+      </method>
+    </implementation>
+  </binding>
 
-    <binding id="urlbar-rich-result-popup" extends="chrome://global/content/bindings/autocomplete.xml#autocomplete-rich-result-popup">
-      <implementation>
+  <binding id="urlbar-rich-result-popup" extends="chrome://global/content/bindings/autocomplete.xml#autocomplete-rich-result-popup">
+    <implementation>
       <field name="_maxResults">0</field>
 
       <field name="_bundle" readonly="true">
@@ -1626,7 +1650,7 @@
                   &mixedContentBlocked2.message;
                 </xul:description>
                 <xul:description class="popup-notification-item-message"
-                  xbl:inherits="popupid">
+                  xbl:inherits="popupid,mixedblockdisabled">
                   &mixedContentBlocked2.moreinfo;
                 </xul:description>
                 <xul:label anonid="mixedContent.helplink"
@@ -1648,8 +1672,7 @@
                 </xul:menupopup>
               </xul:button>
             </xul:hbox>
-            <xul:hbox anonid="mixedContentProtectionDisabled" hidden="true"
-                      class="popup-notification-footer" xbl:inherits="popupid">
+            <xul:hbox class="popup-notification-footer" xbl:inherits="popupid,mixedblockdisabled">
               <xul:description class="popup-notification-item-message popup-notification-item-message-critical" xbl:inherits="popupid">
                   &mixedContentBlocked2.disabled.message;
               </xul:description>
@@ -1665,7 +1688,7 @@
                   &trackingContentBlocked.message;
                 </xul:description>
                 <xul:description class="popup-notification-item-message"
-                  xbl:inherits="popupid">
+                  xbl:inherits="popupid,trackingblockdisabled">
                   &trackingContentBlocked.moreinfo;
                 </xul:description>
                 <xul:label anonid="trackingContent.helplink"
@@ -1677,16 +1700,17 @@
                 sizetopopup="none">
                 <xul:menupopup>
                   <xul:menuitem anonid="trackingContentAction.unblock"
-                    hidden="true" label="&trackingContentBlocked.unblock.label2;"
+                    hidden="true" label="&trackingContentBlocked.unblock2.label;"
+                    accesskey="&trackingContentBlocked.unblock2.accesskey;"
                     oncommand="document.getBindingParent(this).disableTrackingContentProtection();"/>
                   <xul:menuitem anonid="trackingContentAction.block"
                     hidden="true" label="&trackingContentBlocked.block.label;"
+                    accesskey="&trackingContentBlocked.block.accesskey;"
                     oncommand="document.getBindingParent(this).enableTrackingContentProtection();"/>
                 </xul:menupopup>
               </xul:button>
             </xul:hbox>
-            <xul:hbox anonid="trackingContentProtectionDisabled" hidden="true"
-                      class="popup-notification-footer" xbl:inherits="popupid">
+            <xul:hbox class="popup-notification-footer" xbl:inherits="popupid,trackingblockdisabled">
               <xul:description class="popup-notification-item-message popup-notification-item-message-critical" xbl:inherits="popupid">
                 &trackingContentBlocked.disabled.message;
                 </xul:description>
@@ -1724,10 +1748,6 @@
         document.getAnonymousElementByAttribute(this, "anonid",
           "mixedContentAction.block");
       </field>
-      <field name="_mixedContentProtectionDisabledWarning">
-        document.getAnonymousElementByAttribute(this, "anonid",
-          "mixedContentProtectionDisabled")
-      </field>
       <field name="_mixedContentHelpLink">
         document.getAnonymousElementByAttribute(this, "anonid",
           "mixedContent.helplink")
@@ -1749,10 +1769,6 @@
       <field name="_trackingContentBlock">
         document.getAnonymousElementByAttribute(this, "anonid",
           "trackingContentAction.block");
-      </field>
-      <field name="_trackingContentProtectionDisabledWarning">
-        document.getAnonymousElementByAttribute(this, "anonid",
-          "trackingContentProtectionDisabled")
       </field>
       <field name="_trackingContentHelpLink">
         document.getAnonymousElementByAttribute(this, "anonid",
@@ -1783,9 +1799,9 @@
         }
         if (this.notification.options.state &
             Ci.nsIWebProgressListener.STATE_LOADED_MIXED_ACTIVE_CONTENT) {
+          this.setAttribute("mixedblockdisabled", true);
           _mixedContent.hidden = false;
           _mixedContentBlock.hidden = false;
-          _mixedContentProtectionDisabledWarning.hidden = false;
           _mixedContentHelpLink.href =
             Services.urlFormatter.formatURLPref("app.support.baseURL")
               + "mixed-content";
@@ -1795,7 +1811,7 @@
           _doorhangerTitle.value =
             gNavigatorBundle.getFormattedString(
               "badContentBlocked.blocked.message", [this._brandShortName]);
-          _trackingContent.hidden = false
+          _trackingContent.hidden = false;
           _trackingContentUnblock.hidden = false;
           _trackingContentHelpLink.href =
             Services.urlFormatter.formatURLPref("app.support.baseURL")
@@ -1803,9 +1819,9 @@
         }
         if (this.notification.options.state &
             Ci.nsIWebProgressListener.STATE_LOADED_TRACKING_CONTENT) {
-          _trackingContent.hidden = false
+          this.setAttribute("trackingblockdisabled", true);
+          _trackingContent.hidden = false;
           _trackingContentBlock.hidden = false;
-          _trackingContentProtectionDisabledWarning.hidden = false;
           _trackingContentHelpLink.href =
             Services.urlFormatter.formatURLPref("app.support.baseURL")
               + "tracking-protection";
@@ -1976,7 +1992,7 @@
             return;
           }
 
-          let host = gPluginHandler._getHostFromPrincipal(this.notification.browser.contentWindow.document.nodePrincipal);
+          let host = this.notification.options.host;
           this._setupDescription("pluginActivateMultiple.message", null, host);
 
           var showBox = document.getAnonymousElementByAttribute(this, "anonid", "plugin-notification-showbox");
