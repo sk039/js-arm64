@@ -147,15 +147,25 @@ Simulator *Simulator::Current() {
   PerThreadData *pt = TlsPerThreadData.get();
   Simulator *sim = pt->simulator();
   if (!sim) {
-    Decoder *decoder = js_new<Decoder>();
-    DebuggerARM64 *debugger = js_new<DebuggerARM64>(decoder, stdout);
 
-    // TODO: We should use the simulator instead of the debugger.
-    // But the debugger is useful for the moment, so keep it default.
-    debugger->set_log_parameters(LOG_DISASM | LOG_REGS);
+    // TODO: We should always use the simulator instead of the debugger.
+    // TODO: Maybe have a more surfaceable toggle for the shell.
+    if (getenv("USE_DEBUGGER") != nullptr) {
+      Decoder *decoder = js_new<Decoder>();
+      DebuggerARM64 *debugger = js_new<DebuggerARM64>(decoder, stdout);
+      debugger->set_log_parameters(LOG_DISASM | LOG_REGS);
+      pt->setSimulator(debugger);
+      return debugger;
+    }
 
-    pt->setSimulator(debugger);
-    return debugger;
+    SimulatorRuntime *srt = CreateSimulatorRuntime();
+    if (!srt) {
+      MOZ_ReportAssertionFailure("[unhandlable oom] SimulatorRuntime creation", __FILE__, __LINE__);
+      MOZ_CRASH();
+    }
+
+    sim = js_new<Simulator>(srt);
+    pt->setSimulator(sim);
   }
 
   return sim;
