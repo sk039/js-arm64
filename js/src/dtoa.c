@@ -3246,3 +3246,6 @@ dtoa
 		*rve = s;
 	return s0;
 	}
+
+// Undefine: bleeds through with unified builds.
+#undef CONST
