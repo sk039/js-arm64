@@ -158,6 +158,7 @@ Simulator *Simulator::Current() {
       return debugger;
     }
 
+    // FIXME: SimulatorRuntime separation seems wonky. Do we need a new one?
     SimulatorRuntime *srt = CreateSimulatorRuntime();
     if (!srt) {
       MOZ_ReportAssertionFailure("[unhandlable oom] SimulatorRuntime creation", __FILE__, __LINE__);
