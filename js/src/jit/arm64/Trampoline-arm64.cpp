@@ -51,9 +51,10 @@ JitRuntime::generateEnterJIT(JSContext *cx, EnterJitType type)
     masm.SetStackPointer(sp);
 
     // Save callee-save integer registers.
+    // Also save x7 (reg_vp) and x30 (lr), for use later.
     masm.MacroAssemblerVIXL::Push(x19, x20, x21, x22);
     masm.MacroAssemblerVIXL::Push(x23, x24, x25, x26);
-    masm.MacroAssemblerVIXL::Push(x27, x28, x29, x30);
+    masm.MacroAssemblerVIXL::Push(x27, x28, x7,  x30);
 
     // Save callee-save floating-point registers.
     // AArch64 ABI specifies that only the lower 64 bits must be saved.
@@ -167,12 +168,16 @@ JitRuntime::generateEnterJIT(JSContext *cx, EnterJitType type)
     masm.MacroAssemblerVIXL::Pop(d11, d10,  d9,  d8);
 
     // Restore callee-save integer registers.
-    masm.MacroAssemblerVIXL::Pop(x30, x29, x28, x27);
+    // Also restore x7 (reg_vp) and x30 (lr).
+    masm.MacroAssemblerVIXL::Pop(x30, x7,  x28, x27);
     masm.MacroAssemblerVIXL::Pop(x26, x25, x24, x23);
     masm.MacroAssemblerVIXL::Pop(x22, x21, x20, x19);
 
+    // Store return value (in JSReturnReg = x2 to just-popped reg_vp).
+    masm.storeValue(JSReturnOperand, Address(reg_vp, 0));
 
-    masm.br(x30);
+    // Return using the value popped into x30.
+    masm.MacroAssemblerVIXL::Ret();
 
     Linker linker(masm);
     JitCode *code = linker.newCode<NoGC>(cx, OTHER_CODE);
