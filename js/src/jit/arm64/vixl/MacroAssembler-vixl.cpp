@@ -1336,6 +1336,10 @@ void
 MacroAssemblerVIXL::EnableInvariant(int idx)
 {
 #ifdef JS_ARM64_SIMULATOR
+    // FIXME: This is hacky.
+    if (!getenv("USE_DEBUGGER"))
+        return;
+
     // The arguments to the log pseudo instruction need to be contiguous in
     // memory, so make sure we don't try to emit a literal pool.
     InstructionAccurateScope scope(this, kLogLength / kInstructionSize);
@@ -1357,6 +1361,10 @@ void
 MacroAssemblerVIXL::DisableInvariant(int idx)
 {
 #ifdef JS_ARM64_SIMULATOR
+    // FIXME: This is hacky.
+    if (!getenv("USE_DEBUGGER"))
+        return;
+
     // The arguments to the log pseudo instruction need to be contiguous in
     // memory, so make sure we don't try to emit a literal pool.
     InstructionAccurateScope scope(this, kLogLength / kInstructionSize);
