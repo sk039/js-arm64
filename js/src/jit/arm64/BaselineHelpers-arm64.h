@@ -95,13 +95,22 @@ EmitTailCallVM(JitCode *target, MacroAssembler &masm, uint32_t argSize)
 inline void
 EmitCreateStubFrameDescriptor(MacroAssembler &masm, Register reg)
 {
-    masm.breakpoint();
+    ARMRegister reg64(reg, 64);
+
+    // Compute stub frame size. We have to add two pointers: the stub reg and previous
+    // frame pointer pushed by EmitEnterStubFrame.
+    masm.Add(reg64, ARMRegister(BaselineFrameReg, 64), Operand(sizeof(void *) * 2));
+    masm.Sub(reg64, reg64, masm.GetStackPointer());
+
+    masm.makeFrameDescriptor(reg, JitFrame_BaselineStub);
 }
 
 inline void
 EmitCallVM(JitCode *target, MacroAssembler &masm)
 {
-    masm.breakpoint();
+    EmitCreateStubFrameDescriptor(masm, r0);
+    masm.push(r0);
+    masm.call(target);
 }
 
 // Size of vales pushed by EmitEnterStubFrame.
