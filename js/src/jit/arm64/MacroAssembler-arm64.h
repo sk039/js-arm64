@@ -372,15 +372,15 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         return scratch;
     }
     Register extractObject(const ValueOperand &value, Register scratch) {
-        JS_ASSERT(0 && "extractObject()");
+        unboxObject(value, scratch);
         return scratch;
     }
     Register extractInt32(const ValueOperand &value, Register scratch) {
-        JS_ASSERT(0 && "extractInt32()");
+        unboxInt32(value, scratch);
         return scratch;
     }
     Register extractBoolean(const ValueOperand &value, Register scratch) {
-        JS_ASSERT(0 && "extractBoolean()");
+        unboxBoolean(value, scratch);
         return scratch;
     }
 
