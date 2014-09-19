@@ -87,44 +87,34 @@ ICBinaryArith_Int32::Compiler::generateStubCode(MacroAssembler &masm)
       }
       case JSOP_DIV:
       case JSOP_MOD: {
-#if 0
+
         // Check for INT_MIN / -1, it results in a double.
-        masm.ma_cmp(R0.payloadReg(), Imm32(INT_MIN));
-        masm.ma_cmp(R1.payloadReg(), Imm32(-1), Assembler::Equal);
+        masm.Cmp(W0, Operand(INT_MIN));
+        masm.Ccmp(W0, Operand(-1), NoFlag, Assembler::Equal);
         masm.j(Assembler::Equal, &failure);
 
         // Check for both division by zero and 0 / X with X < 0 (results in -0).
-        masm.ma_cmp(R1.payloadReg(), Imm32(0));
-        masm.ma_cmp(R0.payloadReg(), Imm32(0), Assembler::LessThan);
+        masm.Cmp(W1, Operand(0));
+        masm.Ccmp(W0, Operand(0), NoFlag, Assembler::LessThan);
         masm.j(Assembler::Equal, &failure);
 
-        // The call will preserve registers r4-r11. Save R0 and the link
-        // register.
-        JS_ASSERT(R1 == ValueOperand(r5, r4));
-        JS_ASSERT(R0 == ValueOperand(r3, r2));
-        masm.moveValue(R0, savedValue);
-
-        masm.setupAlignedABICall(2);
-        masm.passABIArg(R0.payloadReg());
-        masm.passABIArg(R1.payloadReg());
-        masm.callWithABI(JS_FUNC_TO_DATA_PTR(void *, __aeabi_idivmod));
-
-        // idivmod returns the quotient in r0, and the remainder in r1.
+        masm.Sdiv(Wscratch, W0, W1);
+        // Start calculating the remainder, x - (x / y) * y.
+        masm.mul(WTemp, W1, Wscratch);
         if (op_ == JSOP_DIV) {
-            // Result is a double if the remainder != 0.
-            masm.branch32(Assembler::NotEqual, r1, Imm32(0), &revertRegister);
-            masm.tagValue(JSVAL_TYPE_INT32, r0, R0);
+            // Result is a double if the remainder != 0, which happens
+            // when (x/y)*y != x.
+            masm.branch32(Assembler::NotEqual, R0.valueReg(), ExtractTemp0, &revertRegister);
+            masm.monoTagMove(X0, Xscratch);
         } else {
+            // Calculate the actual mod. Set the condition code, so we can see if it is non-zero.
+            masm.Subs(WTemp, W0, WTemp);
+
             // If X % Y == 0 and X < 0, the result is -0.
-            Label done;
-            masm.branch32(Assembler::NotEqual, r1, Imm32(0), &done);
-            masm.branch32(Assembler::LessThan, savedValue.payloadReg(), Imm32(0), &revertRegister);
-            masm.bind(&done);
-            masm.tagValue(JSVAL_TYPE_INT32, r1, R0);
+            masm.Ccmp(W0, Operand(0), NoFlag, Assembler::Equal);
+            masm.branch(Assembler::LessThan, &revertRegister);
+            masm.monoTagMove(X0, XTemp);
         }
-#else
-        MOZ_ASSERT(0 && "TODO: BinaryArith_Int32::DivMod");
-#endif
         break;
       }
         // ORR, EOR, AND can trivially be coerced int
@@ -150,23 +140,20 @@ ICBinaryArith_Int32::Compiler::generateStubCode(MacroAssembler &masm)
         break;
       case JSOP_URSH:
         masm.Lsr(Wscratch, W0, W1);
-        masm.Cmp(Wscratch, Operand(0));
         if (allowDouble_) {
-#if 0
             Label toUint;
-            masm.j(Assembler::LessThan, &toUint);
+            // Testing for negative is equivalent to testing bit 31
+            masm.Tbnz(Wscratch, 31, &toUint);
             // Move result and box for return.
-            masm.mov(scratchReg, R0.payloadReg());
+            masm.monoTagMove(X0, Xscratch);
             EmitReturnFromIC(masm);
 
             masm.bind(&toUint);
-            masm.convertUInt32ToDouble(scratchReg, ScratchDoubleReg);
+            masm.convertUInt32ToDouble(ExtractTemp0, ScratchDoubleReg);
             masm.boxDouble(ScratchDoubleReg, R0);
-#else
-            MOZ_CRASH("Unhandled op for BinaryArith_Int32.");
-#endif
         } else {
-            masm.j(Assembler::LessThan, &failure);
+            // Testing for negative is equivalent to testing bit 31
+            masm.Tbnz(Wscratch, 31, &failure);
             // Move result for return.
             masm.monoTagMove(X0, Xscratch);
         }
@@ -192,7 +179,7 @@ ICBinaryArith_Int32::Compiler::generateStubCode(MacroAssembler &masm)
       case JSOP_DIV:
       case JSOP_MOD:
         masm.bind(&revertRegister);
-        masm.moveValue(savedValue, R0);
+        // masm.moveValue(savedValue, R0);
         break;
       default:
         break;
