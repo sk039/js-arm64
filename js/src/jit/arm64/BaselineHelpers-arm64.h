@@ -132,7 +132,6 @@ EmitEnterStubFrame(MacroAssembler &masm, Register scratch)
     // Note: when making changes here, don't forget to update STUB_FRAME_SIZE
     // if needed.
 
-
     // Push frame descriptor and return address.
     // Save old frame pointer, stack pointer, and stub reg.
     masm.makeFrameDescriptor(scratch, JitFrame_BaselineJS);
@@ -165,6 +164,9 @@ EmitLeaveStubFrame(MacroAssembler &masm, bool calledIntoIon = false)
                                  ARMRegister(BaselineStubReg, 64),
                                  ARMRegister(BaselineTailCallReg, 64),
                                  ScratchReg64);
+
+    // Stack should remain 16-byte aligned.
+    masm.checkStackAlignment();
 }
 
 inline void
