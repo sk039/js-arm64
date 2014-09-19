@@ -111,13 +111,51 @@ static const uint32_t STUB_FRAME_SAVED_STUB_OFFSET = sizeof(void *);
 inline void
 EmitEnterStubFrame(MacroAssembler &masm, Register scratch)
 {
-    masm.breakpoint();
+    JS_ASSERT(scratch != BaselineTailCallReg);
+
+    // Compute frame size.
+    masm.movePtr(BaselineFrameReg, scratch);
+    masm.addPtr(Imm32(BaselineFrame::FramePointerOffset), scratch);
+    masm.Sub(ARMRegister(scratch, 64), ARMRegister(scratch, 64), masm.GetStackPointer());
+
+    masm.store32(scratch, Address(BaselineFrameReg, BaselineFrame::reverseOffsetOfFrameSize()));
+
+    // Note: when making changes here, don't forget to update STUB_FRAME_SIZE
+    // if needed.
+
+
+    // Push frame descriptor and return address.
+    // Save old frame pointer, stack pointer, and stub reg.
+    masm.makeFrameDescriptor(scratch, JitFrame_BaselineJS);
+    masm.MacroAssemblerVIXL::Push(ARMRegister(scratch, 64),
+                                  ARMRegister(BaselineTailCallReg, 64),
+                                  ARMRegister(BaselineStubReg, 64),
+                                  ARMRegister(BaselineFrameReg, 64));
+
+    // Stack should remain 16-byte aligned.
+    masm.checkStackAlignment();
 }
 
 inline void
 EmitLeaveStubFrame(MacroAssembler &masm, bool calledIntoIon = false)
 {
-    masm.breakpoint();
+    // Ion frames do not save and restore the frame pointer. If we called
+    // into Ion, we have to restore the stack pointer from the frame descriptor.
+    // If we performed a VM call, the descriptor has been popped already so
+    // in that case we use the frame pointer.
+    if (calledIntoIon) {
+        masm.pop(ScratchReg);
+        masm.Lsr(ScratchReg64, ScratchReg64, FRAMESIZE_SHIFT);
+        masm.Add(masm.GetStackPointer(), masm.GetStackPointer(), ScratchReg64);
+    } else {
+        masm.Add(masm.GetStackPointer(), ARMRegister(BaselineFrameReg, 64), Operand(0));
+    }
+
+    // Pop values, discarding the frame descriptor.
+    masm.MacroAssemblerVIXL::Pop(ARMRegister(BaselineFrameReg, 64),
+                                 ARMRegister(BaselineStubReg, 64),
+                                 ARMRegister(BaselineTailCallReg, 64),
+                                 ScratchReg64);
 }
 
 inline void
