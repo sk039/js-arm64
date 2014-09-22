@@ -1679,9 +1679,17 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         JS_ASSERT(0 && "writePrebarrierOffset");
     }
 
-    template <typename T>
-    void computeEffectiveAddress(const T &address, Register dest) {
-        JS_ASSERT(0 && "computeEffectiveAddress");
+    void computeEffectiveAddress(const Address &address, Register dest) {
+        Add(ARMRegister(dest, 64), ARMRegister(address.base, 64), Operand(address.offset));
+    }
+    void computeEffectiveAddress(const BaseIndex &address, Register dest) {
+        ARMRegister dest64(dest, 64);
+        ARMRegister base64(address.base, 64);
+        ARMRegister index64(address.index, 64);
+
+        Add(dest64, base64, Operand(index64, LSL, address.scale));
+        if (address.offset)
+            Add(dest64, dest64, Operand(address.offset));
     }
 
   private:
