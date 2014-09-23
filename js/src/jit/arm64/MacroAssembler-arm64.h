@@ -167,7 +167,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
     void push(Imm32 imm) {
         move32(imm, ScratchReg);
-        MacroAssemblerVIXL::Push(ScratchReg32);
+        MacroAssemblerVIXL::Push(ScratchReg64);
     }
     void push(ImmWord imm) {
         Mov(ScratchReg64, imm.value);
