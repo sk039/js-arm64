@@ -434,10 +434,18 @@ BaselineCompiler::emitEpilogue()
 
     // Pop SPS frame if necessary
     emitSPSPop();
+
+#ifdef JS_ARM64_SIMULATOR
     masm.DisableInvariant(checkFrameSizeID);
+#endif
+
     masm.movePtr(BaselineFrameReg, BaselineStackReg);
     masm.pop(BaselineFrameReg);
+
+#ifdef JS_ARM64_SIMULATOR
     masm.EnableInvariant(checkFrameSizeID);
+#endif
+
 #ifdef JS_CODEGEN_ARM64
     // Pop into lr: RET uses lr if no register is specified.
     masm.pop(r30);
