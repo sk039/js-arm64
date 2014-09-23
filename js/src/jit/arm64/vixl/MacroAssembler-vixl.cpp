@@ -864,6 +864,10 @@ MacroAssemblerVIXL::PushHelper(int count, int size, const CPURegister& src0,
     VIXL_ASSERT(AreSameSizeAndType(src0, src1, src2, src3));
     VIXL_ASSERT(size == src0.SizeInBytes());
 
+    // The JS engine should never push 4 bytes, since we're trying to keep
+    // 8-byte alignment at all times for sanity.
+    VIXL_ASSERT(size >= 8);
+
     // When pushing multiple registers, the store order is chosen such that
     // Push(a, b) is equivalent to Push(a) followed by Push(b).
     switch (count) {
