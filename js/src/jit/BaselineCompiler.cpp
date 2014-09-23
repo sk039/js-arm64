@@ -308,12 +308,16 @@ BaselineCompiler::emitPrologue()
 #endif
 
     masm.push(BaselineFrameReg);
+#ifdef JS_ARM64_SIMULATOR
     masm.DisableInvariant(checkFrameSizeID);
+#endif
     masm.movePtr(BaselineStackReg, BaselineFrameReg);
 
     // TODO: subStackPtr()?
     masm.subPtr(Imm32(BaselineFrame::Size()), BaselineStackReg);
+#ifdef JS_ARM64_SIMULATOR
     masm.EnableInvariant(checkFrameSizeID);
+#endif
     masm.syncStackPtr();
     //masm.checkStackAlignment(); TODO: check here?
 
