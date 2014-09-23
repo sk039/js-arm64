@@ -7,12 +7,13 @@
 #ifndef jit_arm64_BaselineCompiler_arm64_h
 #define jit_arm64_BaselineCompiler_arm64_h
 
-#include "jit/shared/BaselineCompiler-shared.h"
 #ifdef JS_ARM64_SIMULATOR
-#include "jit/BaselineFrame.h"
-#include "jit/arm64/Assembler-arm64.h"
-#include "jit/arm64/vixl/Debugger-vixl.h"
+# include "jit/arm64/Assembler-arm64.h"
+# include "jit/arm64/vixl/Debugger-vixl.h"
+# include "jit/BaselineFrame.h"
 #endif
+
+#include "jit/shared/BaselineCompiler-shared.h"
 
 namespace js {
 namespace jit {
@@ -23,10 +24,14 @@ class BaselineCompilerARM64 : public BaselineCompilerShared
     BaselineCompilerARM64(JSContext *cx, TempAllocator &alloc, JSScript *script)
       : BaselineCompilerShared(cx, alloc, script)
     {
+#ifdef JS_ARM64_SIMULATOR
         initChecks();
+#endif
     }
+
 #ifdef JS_ARM64_SIMULATOR
     void initChecks();
+
     static bool checkFrameSize(DebuggerARM64 *sim) {
         int64_t xsp = sim->xreg(PseudoStackPointer.code());
         int64_t xfp = sim->xreg(BaselineFrameReg.code());
@@ -39,7 +44,7 @@ class BaselineCompilerARM64 : public BaselineCompilerShared
         return true;
     }
     static int checkFrameSizeID;
-#endif
+#endif // JS_ARM64_SIMULATOR
 };
 
 typedef BaselineCompilerARM64 BaselineCompilerSpecific;

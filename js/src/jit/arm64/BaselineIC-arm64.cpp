@@ -199,15 +199,20 @@ ICUnaryArith_Int32::Compiler::generateStubCode(MacroAssembler &masm)
 }
 
 #ifdef JS_ARM64_SIMULATOR
-
 void
-BaselineCompilerARM64::initChecks() {
-    if (checkFrameSizeID < 0)
-        checkFrameSizeID = js::jit::DebuggerARM64::registerInvariant(checkFrameSize, "FramePointer - FrameSize >= StackPointer");
+BaselineCompilerARM64::initChecks()
+{
+    if (checkFrameSizeID < 0) {
+        checkFrameSizeID = js::jit::DebuggerARM64::registerInvariant(
+            checkFrameSize, "FramePointer - FrameSize >= StackPointer"
+        );
+    }
 }
-
-int
-BaselineCompilerARM64::checkFrameSizeID = -1;
 #endif
+
+#ifdef JS_ARM64_SIMULATOR
+int BaselineCompilerARM64::checkFrameSizeID = -1;
+#endif
+
 } // namespace jit
 } // namespace js
