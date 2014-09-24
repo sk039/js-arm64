@@ -82,13 +82,16 @@ EmitTailCallVM(JitCode *target, MacroAssembler &masm, uint32_t argSize)
     masm.Sub(w0, ScratchReg32, Operand(argSize));
     masm.store32(r0, Address(BaselineFrameReg, BaselineFrame::reverseOffsetOfFrameSize()));
 
-    // Push frame descriptor and perform the tail call.
-    // BaselineTailCallReg (lr) already contains the return address (as we keep
-    // it there through the stub calls), but the VMWrapper code being called
-    // expects the return address to also be pushed on the stack.
+    // Push frame descriptor (minus the return address) and perform the tail call.
     JS_ASSERT(BaselineTailCallReg == lr);
     masm.makeFrameDescriptor(ScratchReg, JitFrame_BaselineJS);
-    masm.MacroAssemblerVIXL::Push(ScratchReg64, lr_64);
+    masm.MacroAssemblerVIXL::Push(ScratchReg64);
+
+    // The return address will be pushed by the VM wrapper, for compatibility
+    // with direct calls. Refer to the top of generateVMWrapper().
+    // BaselineTailCallReg (lr) already contains the return address (as we keep
+    // it there through the stub calls).
+
     masm.branch(target);
 }
 

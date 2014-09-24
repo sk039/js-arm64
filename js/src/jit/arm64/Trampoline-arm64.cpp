@@ -253,6 +253,12 @@ JitRuntime::generateVMWrapper(JSContext *cx, const VMFunction &f)
     // Wrapper register set is a superset of the Volatile register set.
     JS_STATIC_ASSERT((Register::Codes::VolatileMask & ~Register::Codes::WrapperMask) == 0);
 
+    // Unlike on other platforms, it is the responsibility of the VM *callee* to
+    // push the return address, while the caller must ensure that the address
+    // is stored in lr on entry. This allows the VM wrapper to work with both direct
+    // calls and tail calls.
+    masm.push(lr);
+
     // First argument is the JSContext.
     Register reg_cx = IntArgReg0;
     regs.take(reg_cx);
@@ -261,7 +267,7 @@ JitRuntime::generateVMWrapper(JSContext *cx, const VMFunction &f)
     //    ... frame ...
     //  +12 [args]
     //  +8  descriptor
-    //  +0  returnAddress
+    //  +0  returnAddress (pushed by this function, caller sets as lr)
     //
     //  We're aligned to an exit frame, so link it up.
     masm.enterExitFrameAndLoadContext(&f, reg_cx, regs.getAny(), f.executionMode);
