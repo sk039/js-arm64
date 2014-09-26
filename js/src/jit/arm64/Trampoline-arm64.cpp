@@ -78,6 +78,10 @@ JitRuntime::generateEnterJIT(JSContext *cx, EnterJitType type)
     // Remember stack depth without padding and arguments.
     masm.Mov(x19, PseudoStackPointer64);
 
+    // Save stack pointer for pushing in Baseline's emitPrologue().
+    if (type == EnterJitBaseline)
+        masm.movePtr(PseudoStackPointer, BaselineFrameReg); // x11
+
     // IonJSFrameLayout is as follows (higher is higher in memory):
     //  N*8  - [ JS argument vector ] (base 16-byte aligned)
     //  8    - numActualArgs
