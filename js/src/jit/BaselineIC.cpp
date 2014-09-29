@@ -8508,6 +8508,11 @@ DoCallFallback(JSContext *cx, BaselineFrame *frame, ICCall_Fallback *stub_, uint
     RootedValue callee(cx, vp[0]);
     RootedValue thisv(cx, vp[1]);
 
+    // FIXME: THIS IS DEBUGGING STUFF
+    JS_ASSERT(callee.isObject());
+    JS_ASSERT(thisv.isObject());
+    JS_ASSERT(thisv.toObject().is<ArrayObject>());
+
     Value *args = vp + 2;
 
     // Handle funapply with JSOP_ARGUMENTS
@@ -8911,13 +8916,14 @@ ICCall_Fallback::Compiler::generateStubCode(MacroAssembler &masm)
 
     pushCallArguments(masm, regs, R0.scratchReg());
 
-    masm.push(BaselineStackReg);
-    masm.push(R0.scratchReg());
-    masm.push(BaselineStubReg);
+    masm.breakpoint();
+    masm.push(BaselineStackReg); // Value *vp.
+    masm.push(R0.scratchReg());  // uint32_t argc.
+    masm.push(BaselineStubReg);  // ICCall_Fallback *stub_.
 
     // Load previous frame pointer, push BaselineFrame *.
     masm.loadPtr(Address(BaselineFrameReg, 0), R0.scratchReg());
-    masm.pushBaselineFramePtr(R0.scratchReg(), R0.scratchReg());
+    masm.pushBaselineFramePtr(R0.scratchReg(), R0.scratchReg()); // BaselineFrame *frame.
 
     if (!callVM(DoCallFallbackInfo, masm))
         return false;
