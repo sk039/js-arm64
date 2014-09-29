@@ -116,7 +116,7 @@ EmitCallVM(JitCode *target, MacroAssembler &masm)
     masm.call(target);
 }
 
-// Size of vales pushed by EmitEnterStubFrame.
+// Size of values pushed by EmitEnterStubFrame.
 static const uint32_t STUB_FRAME_SIZE = 4 * sizeof(void *);
 static const uint32_t STUB_FRAME_SAVED_STUB_OFFSET = sizeof(void *);
 
@@ -142,6 +142,9 @@ EmitEnterStubFrame(MacroAssembler &masm, Register scratch)
                                   ARMRegister(BaselineTailCallReg, 64),
                                   ARMRegister(BaselineStubReg, 64),
                                   ARMRegister(BaselineFrameReg, 64));
+
+    // Update the frame register.
+    masm.Add(ARMRegister(BaselineFrameReg, 64), masm.GetStackPointer(), Operand(0));
 
     // Stack should remain 16-byte aligned.
     masm.checkStackAlignment();

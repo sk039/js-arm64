@@ -1341,7 +1341,7 @@ MacroAssemblerVIXL::EnableInvariant(int idx)
 {
 #ifdef JS_ARM64_SIMULATOR
     // FIXME: This is hacky.
-    if (!getenv("USE_DEBUGGER"))
+    if (!getenv("CHECK_INVARIANTS"))
         return;
 
     // The arguments to the log pseudo instruction need to be contiguous in
@@ -1366,7 +1366,7 @@ MacroAssemblerVIXL::DisableInvariant(int idx)
 {
 #ifdef JS_ARM64_SIMULATOR
     // FIXME: This is hacky.
-    if (!getenv("USE_DEBUGGER"))
+    if (!getenv("CHECK_INVARIANTS"))
         return;
 
     // The arguments to the log pseudo instruction need to be contiguous in
