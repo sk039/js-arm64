@@ -770,13 +770,13 @@ MacroAssemblerVIXL::Push(const CPURegister& src0, const CPURegister& src1,
     //   str x28, [x28, #-8]!
     // which pre-decrements the stack pointer (x28 in this case) by 8,
     // and then stores the decremented value.
-    VIXL_ASSERT(!src0.Is(masm.GetStackPointer()));
+    VIXL_ASSERT(!src0.Is(GetStackPointer()));
     VIXL_ASSERT(!src0.Is(sp));
-    VIXL_ASSERT(!src1.Is(masm.GetStackPointer()));
+    VIXL_ASSERT(!src1.Is(GetStackPointer()));
     VIXL_ASSERT(!src1.Is(sp));
-    VIXL_ASSERT(!src2.Is(masm.GetStackPointer()));
+    VIXL_ASSERT(!src2.Is(GetStackPointer()));
     VIXL_ASSERT(!src2.Is(sp));
-    VIXL_ASSERT(!src3.Is(masm.GetStackPointer()));
+    VIXL_ASSERT(!src3.Is(GetStackPointer()));
     VIXL_ASSERT(!src3.Is(sp));
 
     int count = 1 + src1.IsValid() + src2.IsValid() + src3.IsValid();
