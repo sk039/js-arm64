@@ -632,6 +632,8 @@ class MacroAssemblerX86Shared : public Assembler
         movaps(src, dest);
     }
 
+    void syncStackPtr() { /* no-op */ };
+
     // Checks whether a double is representable as a 32-bit integer. If so, the
     // integer is written to the output register. Otherwise, a bailout is taken to
     // the given snapshot. This function overwrites the scratch float register.
