@@ -9336,7 +9336,7 @@ ICCall_Native::Compiler::generateStubCode(MacroAssembler &masm)
     masm.branchIfFalseBool(ReturnReg, masm.exceptionLabel());
 
     // Load the return value into R0.
-    masm.loadValue(Address(StackPointer, IonNativeExitFrameLayout::offsetOfResult()), R0);
+    masm.loadValue(Address(BaselineStackReg, IonNativeExitFrameLayout::offsetOfResult()), R0);
 
     leaveStubFrame(masm);
 
