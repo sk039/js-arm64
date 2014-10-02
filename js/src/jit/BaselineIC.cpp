@@ -8621,7 +8621,7 @@ ICCallStubCompiler::pushCallArguments(MacroAssembler &masm, GeneralRegisterSet r
 
     // Push the callee and |this| too.
     Register count = regs.takeAny();
-    masm.movePtr(argcReg, count);
+    masm.move32(argcReg, count);
     masm.add32(Imm32(2), count);
 
     // argPtr initially points to the last argument.
