@@ -765,26 +765,17 @@ MacroAssemblerVIXL::Push(const CPURegister& src0, const CPURegister& src1,
     VIXL_ASSERT(AreSameSizeAndType(src0, src1, src2, src3));
     VIXL_ASSERT(src0.IsValid());
 
-    // Pushing the current stack pointer is only handled if a
-    // pseudo-stack register is used, to function as a temporary.
-    //
-    // Pushing the current stack pointer leads to implementation-defined
-    // behavior, which may be surprising. In particular, this emits:
-    //   str sp, [sp, #-8]!
-    // which pre-decrements the stack pointer, storing the decremented value.
-    //
-    // If a pseudo-stack pointer is given, we use PostIndex.
-    VIXL_ASSERT(!src0.Is(sp));
-    VIXL_ASSERT(!src1.Is(sp));
-    VIXL_ASSERT(!src2.Is(sp));
-    VIXL_ASSERT(!src3.Is(sp));
-
     int count = 1 + src1.IsValid() + src2.IsValid() + src3.IsValid();
     int size = src0.SizeInBytes();
 
     PrepareForPush(count, size);
 
-    // Push the stack pointer using PostIndex.
+    // Pushing the current stack pointer leads to implementation-defined
+    // behavior, which may be surprising. In particular, this emits:
+    //   str sp, [sp, #-8]!
+    // which pre-decrements the stack pointer, storing the decremented value.
+    //
+    // Instead, we must use a scratch register. This hijacks ip1.
     if (src0.Is(GetStackPointer())) {
         // Only pushing the pseudo-stackpointer by itself is handled.
         VIXL_ASSERT(!src1.IsValid() && !src2.IsValid() && !src3.IsValid());
@@ -879,10 +870,11 @@ MacroAssemblerVIXL::PushMultipleTimes(int count, ARMRegister src)
 void
 MacroAssemblerVIXL::PushPseudoStackPointerHelper()
 {
-    VIXL_ASSERT(!GetStackPointer().Is(sp));
-    VIXL_ASSERT(GetStackPointer().SizeInBytes() == 8);
+    // FIXME: This is gross. The helper register should be required in the call.
+    ARMRegister scratch(ip1, 64);
 
-    str(GetStackPointer(), MemOperand(GetStackPointer(), -8, PostIndex));
+    add(scratch, GetStackPointer(), Operand(0));
+    str(scratch, MemOperand(GetStackPointer(), -8, PreIndex));
 }
 
 void
@@ -895,6 +887,12 @@ MacroAssemblerVIXL::PushHelper(int count, int size, const CPURegister& src0,
 
     VIXL_ASSERT(AreSameSizeAndType(src0, src1, src2, src3));
     VIXL_ASSERT(size == src0.SizeInBytes());
+
+    // Pushing the stack pointer has unexpected behavior. See Push().
+    VIXL_ASSERT(!src0.Is(GetStackPointer()) && !src0.Is(sp));
+    VIXL_ASSERT(!src1.Is(GetStackPointer()) && !src1.Is(sp));
+    VIXL_ASSERT(!src2.Is(GetStackPointer()) && !src2.Is(sp));
+    VIXL_ASSERT(!src3.Is(GetStackPointer()) && !src3.Is(sp));
 
     // The JS engine should never push 4 bytes, since we're trying to keep
     // 8-byte alignment at all times for sanity.
