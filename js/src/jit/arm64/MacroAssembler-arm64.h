@@ -533,7 +533,19 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         ldr(ARMRegister(dest, 64), MemOperand(address));
     }
     void loadPtr(const BaseIndex &src, Register dest) {
-        JS_ASSERT(0 && "loadPtr");
+        Register base = src.base;
+        uint32_t scale = Imm32::ShiftOf(src.scale).value;
+
+        if (src.offset) {
+            Add(ScratchReg64, ARMRegister(base, 64), Operand(int64_t(src.offset)));
+            base = ScratchReg;
+        }
+
+        ARMRegister dest64(dest, 64);
+        ARMRegister base64(base, 64);
+        ARMRegister index64(src.index, 64);
+
+        Ldr(dest64, MemOperand(base64, index64, LSL, scale));
     }
     void loadPrivate(const Address &src, Register dest) {
         JS_ASSERT(0 && "loadPrivate");
