@@ -406,7 +406,12 @@ MacroAssemblerCompat::callWithABI(AsmJSImmPtr imm, MoveOp::Type result)
 void
 MacroAssemblerCompat::callWithABI(Address fun, MoveOp::Type result)
 {
-    MOZ_CRASH("NYI"); // TODO
+    loadPtr(fun, ip0);
+
+    uint32_t stackAdjust;
+    callWithABIPre(&stackAdjust);
+    call(ip0);
+    callWithABIPost(stackAdjust, result);
 }
 
 // FIXME: Probably just call Brk() in the header.
