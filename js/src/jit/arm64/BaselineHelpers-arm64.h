@@ -53,7 +53,17 @@ inline void
 EmitEnterTypeMonitorIC(MacroAssembler &masm,
                        size_t monitorStubOffset = ICMonitoredStub::offsetOfFirstMonitorStub())
 {
-    masm.breakpoint();
+    // This is expected to be called from within an IC, when BaselineStubReg is
+    // properly initialized to point to the stub.
+    masm.loadPtr(Address(BaselineStubReg, (uint32_t) monitorStubOffset), BaselineStubReg);
+
+    // Load stubcode pointer from BaselineStubEntry.
+    // R2 won't be active when we call ICs, so we can use r0.
+    JS_ASSERT(R2 == ValueOperand(r0));
+    masm.loadPtr(Address(BaselineStubReg, ICStub::offsetOfStubCode()), r0);
+
+    // Jump to the stubcode.
+    masm.Br(x0);
 }
 
 inline void
