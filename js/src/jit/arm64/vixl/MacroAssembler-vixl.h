@@ -1061,6 +1061,10 @@ class MacroAssemblerVIXL : public Assembler
                    const CPURegister& dst0, const CPURegister& dst1,
                    const CPURegister& dst2, const CPURegister& dst3);
 
+    // A special helper function that pushes the pseudo-stackpointer
+    // using PostIndex, matching behavior on x86.
+    void PushPseudoStackPointerHelper();
+
     // Perform necessary maintenance operations before a push or pop.
     //
     // Note that size is per register, and is specified in bytes.

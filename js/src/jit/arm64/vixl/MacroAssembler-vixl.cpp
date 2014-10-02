@@ -765,25 +765,34 @@ MacroAssemblerVIXL::Push(const CPURegister& src0, const CPURegister& src1,
     VIXL_ASSERT(AreSameSizeAndType(src0, src1, src2, src3));
     VIXL_ASSERT(src0.IsValid());
 
+    // Pushing the current stack pointer is only handled if a
+    // pseudo-stack register is used, to function as a temporary.
+    //
     // Pushing the current stack pointer leads to implementation-defined
     // behavior, which may be surprising. In particular, this emits:
-    //   str x28, [x28, #-8]!
-    // which pre-decrements the stack pointer (x28 in this case) by 8,
-    // and then stores the decremented value.
-    VIXL_ASSERT(!src0.Is(GetStackPointer()));
+    //   str sp, [sp, #-8]!
+    // which pre-decrements the stack pointer, storing the decremented value.
+    //
+    // If a pseudo-stack pointer is given, we use PostIndex.
     VIXL_ASSERT(!src0.Is(sp));
-    VIXL_ASSERT(!src1.Is(GetStackPointer()));
     VIXL_ASSERT(!src1.Is(sp));
-    VIXL_ASSERT(!src2.Is(GetStackPointer()));
     VIXL_ASSERT(!src2.Is(sp));
-    VIXL_ASSERT(!src3.Is(GetStackPointer()));
     VIXL_ASSERT(!src3.Is(sp));
 
     int count = 1 + src1.IsValid() + src2.IsValid() + src3.IsValid();
     int size = src0.SizeInBytes();
 
     PrepareForPush(count, size);
-    PushHelper(count, size, src0, src1, src2, src3);
+
+    // Push the stack pointer using PostIndex.
+    if (src0.Is(GetStackPointer())) {
+        // Only pushing the pseudo-stackpointer by itself is handled.
+        VIXL_ASSERT(!src1.IsValid() && !src2.IsValid() && !src3.IsValid());
+        VIXL_ASSERT(!GetStackPointer().Is(sp));
+        PushPseudoStackPointerHelper();
+    } else {
+        PushHelper(count, size, src0, src1, src2, src3);
+    }
 }
 
 void
@@ -865,6 +874,15 @@ MacroAssemblerVIXL::PushMultipleTimes(int count, ARMRegister src)
         count -= 1;
     }
     VIXL_ASSERT(count == 0);
+}
+
+void
+MacroAssemblerVIXL::PushPseudoStackPointerHelper()
+{
+    VIXL_ASSERT(!GetStackPointer().Is(sp));
+    VIXL_ASSERT(GetStackPointer().SizeInBytes() == 8);
+
+    str(GetStackPointer(), MemOperand(GetStackPointer(), -8, PostIndex));
 }
 
 void
