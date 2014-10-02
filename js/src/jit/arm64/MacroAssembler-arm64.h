@@ -1236,52 +1236,63 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     // Perform a type-test on a Value addressed by BaseIndex.
     // Clobbers the ScratchReg.
     void branchTestUndefined(Condition cond, const BaseIndex &address, Label *label) {
-        JS_ASSERT(0 && "branchTestUndefined");
+        Condition c = testUndefined(cond, address);
+        B(label, c);
     }
     void branchTestInt32(Condition cond, const BaseIndex &address, Label *label) {
-        JS_ASSERT(0 && "branchTestInt32");
+        Condition c = testInt32(cond, address);
+        B(label, c);
     }
     void branchTestBoolean(Condition cond, const BaseIndex &address, Label *label) {
-        JS_ASSERT(0 && "branchTestBoolean");
+        Condition c = testBoolean(cond, address);
+        B(label, c);
     }
     void branchTestDouble(Condition cond, const BaseIndex &address, Label *label) {
-        JS_ASSERT(0 && "branchTestDouble");
+        Condition c = testDouble(cond, address);
+        B(label, c);
     }
     void branchTestNull(Condition cond, const BaseIndex &address, Label *label) {
-        JS_ASSERT(0 && "branchTestNull");
+        Condition c = testNull(cond, address);
+        B(label, c);
     }
     void branchTestString(Condition cond, const BaseIndex &address, Label *label) {
-        JS_ASSERT(0 && "branchTestString");
+        Condition c = testString(cond, address);
+        B(label, c);
     }
     void branchTestSymbol(Condition cond, const BaseIndex &address, Label *label) {
-        JS_ASSERT(0 && "branchTestSymbol");
+        Condition c = testSymbol(cond, address);
+        B(label, c);
     }
     void branchTestObject(Condition cond, const BaseIndex &address, Label *label) {
-        JS_ASSERT(0 && "branchTestObject");
+        Condition c = testObject(cond, address);
+        B(label, c);
     }
     template <typename T>
     void branchTestGCThing(Condition cond, const T &src, Label *label) {
-        JS_ASSERT(0 && "branchTestGCThing");
+        Condition c = testGCThing(cond, src);
+        B(label, c);
     }
     template <typename T>
     void branchTestPrimitive(Condition cond, const T &t, Label *label) {
-        JS_ASSERT(0 && "branchTestPrimitive");
+        Condition c = testPrimitive(cond, t);
+        B(label, c);
     }
     template <typename T>
     void branchTestMagic(Condition cond, const T &t, Label *label) {
-        JS_ASSERT(0 && "branchTestMagic");
+        Condition c = testMagic(cond, t);
+        B(label, c);
     }
     void branchTestMagicValue(Condition cond, const ValueOperand &val, JSWhyMagic why, Label *label) {
-        JS_ASSERT(0 && "branchTestMagicValue");
+        JS_ASSERT(cond == Equal || cond == NotEqual);
+        branchTestValue(cond, val, MagicValue(why), label);
     }
     Condition testMagic(Condition cond, const ValueOperand &src) {
-        JS_ASSERT(0 && "testMagic");
-        return Condition::Equal;
+        splitTag(src, ScratchReg);
+        return testMagic(cond, ScratchReg);
     }
 
     Condition testError(Condition cond, const ValueOperand &src) {
-        JS_ASSERT(0 && "testError");
-        return Condition::Equal;
+        return testMagic(cond, src);
     }
     void branchTestValue(Condition cond, const ValueOperand &value, const Value &v, Label *label) {
         JS_ASSERT(0 && "branchTestValue");
