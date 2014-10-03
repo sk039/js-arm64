@@ -307,7 +307,10 @@ class FloatRegisters
 static const uint32_t ABIStackAlignment = 16;
 static const uint32_t CodeAlignment = 8;
 static const bool StackKeptAligned = false; // FIXME: Verify.
-static const uint32_t StackAlignment = 16;
+
+// Although sp is only usable if 16-byte alignment is kept,
+// the Pseudo-StackPointer enables use of 8-byte alignment.
+static const uint32_t StackAlignment = 8;
 static const uint32_t NativeFrameSize = 8;
 
 struct FloatRegister {
