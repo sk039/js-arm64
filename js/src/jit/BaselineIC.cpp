@@ -9290,7 +9290,9 @@ ICCall_Native::Compiler::generateStubCode(MacroAssembler &masm)
         masm.storeValue(MagicValue(JS_IS_CONSTRUCTING), Address(BaselineStackReg, sizeof(Value)));
     }
 
-    masm.checkStackAlignment();
+    // TODO: Check alignment here?
+    // Maybe alignment should actually be 8, given that we never use sp.
+    //masm.checkStackAlignment();
 
     // Native functions have the signature:
     //
@@ -9301,7 +9303,7 @@ ICCall_Native::Compiler::generateStubCode(MacroAssembler &masm)
 
     // Initialize vp.
     Register vpReg = regs.takeAny();
-    masm.movePtr(StackPointer, vpReg);
+    masm.movePtr(BaselineStackReg, vpReg);
 
     // Construct a native exit frame.
     masm.push(argcReg);
@@ -9614,7 +9616,7 @@ ICCall_ScriptedFunCall::Compiler::generateStubCode(MacroAssembler &masm)
     pushCallArguments(masm, regs, argcReg);
 
     // Discard callee (function.call).
-    masm.addPtr(Imm32(sizeof(Value)), StackPointer);
+    masm.addPtr(Imm32(sizeof(Value)), BaselineStackReg);
 
     // Pop scripted callee (the original |this|).
     ValueOperand val = regs.takeAnyValue();
@@ -9728,7 +9730,7 @@ ICTableSwitch::Compiler::generateStubCode(MacroAssembler &masm)
     } else {
         // Pass pointer to double value.
         masm.pushValue(R0);
-        masm.movePtr(StackPointer, R0.scratchReg());
+        masm.movePtr(BaselineStackReg, R0.scratchReg());
 
         masm.setupUnalignedABICall(1, scratch);
         masm.passABIArg(R0.scratchReg());
