@@ -527,7 +527,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
 
     void loadPtr(AbsoluteAddress address, Register dest) {
         movePtr(ImmWord((uintptr_t)address.addr), ScratchReg);
-        ldr(ARMRegister(dest, 64), MemOperand(ARMRegister(ScratchReg, 64)));
+        ldr(ARMRegister(dest, 64), MemOperand(ScratchReg64));
     }
     void loadPtr(const Address &address, Register dest) {
         ldr(ARMRegister(dest, 64), MemOperand(address));

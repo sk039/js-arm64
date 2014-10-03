@@ -13,7 +13,7 @@ void
 MoveEmitterARM64::emit(const MoveResolver &moves)
 {
     if (moves.numCycles()) {
-        masm.reserveStack(sizeof(double));
+        masm.reserveStack(sizeof(void *));
         pushedAtCycle_ = masm.framePushed();
     }
 
@@ -25,7 +25,9 @@ MoveEmitterARM64::emit(const MoveResolver &moves)
 void
 MoveEmitterARM64::finish()
 {
+    JS_ASSERT(!inCycle_);
     masm.freeStack(masm.framePushed() - pushedAtStart_);
+    JS_ASSERT(masm.framePushed() == pushedAtStart_);
 }
 
 void
@@ -38,6 +40,7 @@ MoveEmitterARM64::emitMove(const MoveOp &move)
         JS_ASSERT(inCycle_);
         completeCycle(from, to, move.type());
         inCycle_ = false;
+        return;
     }
 
     // TODO: MoveEmitterX86 has logic to attempt to avoid using the stack.
@@ -126,7 +129,6 @@ MoveEmitterARM64::emitGeneralMove(const MoveOperand &from, const MoveOperand &to
     if (from.isGeneralReg()) {
         JS_ASSERT(to.isGeneralReg() || to.isMemory());
 
-        // TODO: HOO BOY ACTUALLY IMPLEMENT THIS
         if (to.isGeneralReg())
             masm.mov(toARMReg64(to), toARMReg64(from));
         else
@@ -163,11 +165,11 @@ MoveEmitterARM64::emitGeneralMove(const MoveOperand &from, const MoveOperand &to
 MemOperand
 MoveEmitterARM64::cycleSlot()
 {
-    if (pushedAtCycle_ == -1) {
-        // Reserve stack for cycle resolution, preserving 16-byte alignment.
-        masm.reserveStack(sizeof(void *) * 2);
-        pushedAtCycle_ = masm.framePushed();
-    }
+    // Using SP as stack pointer requires alignment preservation below.
+    JS_ASSERT(!masm.GetStackPointer().Is(sp));
+
+    // emit() already allocated a slot for resolving the cycle.
+    JS_ASSERT(pushedAtCycle_ != -1);
 
     return MemOperand(masm.GetStackPointer(), masm.framePushed() - pushedAtCycle_);
 }
@@ -204,10 +206,10 @@ MoveEmitterARM64::breakCycle(const MoveOperand &from, const MoveOperand &to, Mov
         break;
       case MoveOp::GENERAL:
         if (to.isMemory()) {
-            masm.Ldr(ScratchReg32, toMemOperand(to));
-            masm.push(ScratchReg);
+            masm.Ldr(ScratchReg64, toMemOperand(to));
+            masm.Str(ScratchReg64, cycleSlot());
         } else {
-            masm.push(to.reg());
+            masm.Str(toARMReg64(to), cycleSlot());
         }
         break;
       default:
