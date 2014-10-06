@@ -526,7 +526,7 @@ AssemblerVIXL::b(Label* label)
     // Flush the instruction buffer before calculating relative offset.
     BufferOffset branch = b(0);
     Instruction *ins = getInstructionAt(branch);
-    JS_ASSERT(ins->IsUncondBranchImm());
+    MOZ_ASSERT(ins->IsUncondBranchImm());
 
     // Encode the relative offset.
     b(ins, LinkAndGetInstructionOffsetTo(branch, label));
@@ -539,7 +539,7 @@ AssemblerVIXL::b(Label* label, Condition cond)
     // Flush the instruction buffer before calculating relative offset.
     BufferOffset branch = b(0, Always);
     Instruction *ins = getInstructionAt(branch);
-    JS_ASSERT(ins->IsCondBranchImm());
+    MOZ_ASSERT(ins->IsCondBranchImm());
 
     // Encode the relative offset.
     b(ins, LinkAndGetInstructionOffsetTo(branch, label), cond);
@@ -578,7 +578,7 @@ AssemblerVIXL::cbz(const ARMRegister& rt, int imm19)
 void
 AssemblerVIXL::cbz(const ARMRegister& rt, Label* label)
 {
-    JS_ASSERT(0 && "cbz()");
+    MOZ_ASSERT(0 && "cbz()");
     //cbz(rt, LinkAndGetInstructionOffsetTo(label));
 }
 
@@ -591,7 +591,7 @@ AssemblerVIXL::cbnz(const ARMRegister& rt, int imm19)
 void
 AssemblerVIXL::cbnz(const ARMRegister& rt, Label* label)
 {
-    JS_ASSERT(0 && "cbnz()");
+    MOZ_ASSERT(0 && "cbnz()");
     //cbnz(rt, LinkAndGetInstructionOffsetTo(label));
 }
 
@@ -605,7 +605,7 @@ AssemblerVIXL::tbz(const ARMRegister& rt, unsigned bit_pos, int imm14)
 void
 AssemblerVIXL::tbz(const ARMRegister& rt, unsigned bit_pos, Label* label)
 {
-    JS_ASSERT(0 && "tbz()");
+    MOZ_ASSERT(0 && "tbz()");
     //tbz(rt, bit_pos, LinkAndGetInstructionOffsetTo(label));
 }
 
@@ -619,7 +619,7 @@ AssemblerVIXL::tbnz(const ARMRegister& rt, unsigned bit_pos, int imm14)
 void
 AssemblerVIXL::tbnz(const ARMRegister& rt, unsigned bit_pos, Label* label)
 {
-    JS_ASSERT(0 && "tbnz()");
+    MOZ_ASSERT(0 && "tbnz()");
     //tbnz(rt, bit_pos, LinkAndGetInstructionOffsetTo(label));
 }
 
@@ -633,7 +633,7 @@ AssemblerVIXL::adr(const ARMRegister& rd, int imm21)
 void
 AssemblerVIXL::adr(const ARMRegister& rd, Label* label)
 {
-    JS_ASSERT(0 && "adr()");
+    MOZ_ASSERT(0 && "adr()");
     //adr(rd, LinkAndGetByteOffsetTo(label));
 }
 
@@ -649,7 +649,7 @@ void
 AssemblerVIXL::adrp(const ARMRegister& rd, Label* label)
 {
     VIXL_ASSERT(AllowPageOffsetDependentCode());
-    JS_ASSERT(0 && "adrp()");
+    MOZ_ASSERT(0 && "adrp()");
     //adrp(rd, LinkAndGetPageOffsetTo(label));
 }
 
@@ -2259,7 +2259,7 @@ AssemblerVIXL::LoadLiteral(const CPURegister& rt, uint64_t imm, LoadLiteralOp op
     VIXL_ASSERT(is_int32(imm) || is_uint32(imm) || (rt.Is64Bits()));
 
     //FIXME: BlockLiteralPoolScope scope(this);
-    JS_ASSERT(0 && "LoadLiteral");
+    MOZ_ASSERT(0 && "LoadLiteral");
     RecordLiteral(imm, rt.SizeInBytes());
     Emit(op | ImmLLiteral(0) | Rt(rt));
 }
@@ -2617,7 +2617,7 @@ struct PoolHeader
           : data(data)
         {
             JS_STATIC_ASSERT(sizeof(Header) == sizeof(uint32_t));
-            JS_ASSERT(ONES == 0xffff);
+            MOZ_ASSERT(ONES == 0xffff);
         }
 
         uint32_t raw() const {
@@ -2662,9 +2662,9 @@ AssemblerVIXL::WritePoolHeader(uint8_t *start, Pool *p, bool isNatural)
     uint8_t *pool = start + sizeof(PoolHeader) + p->getPoolSize();
 
     uintptr_t size = pool - start;
-    JS_ASSERT((size & 3) == 0);
+    MOZ_ASSERT((size & 3) == 0);
     size = size >> 2;
-    JS_ASSERT(size < (1 << 15));
+    MOZ_ASSERT(size < (1 << 15));
 
     PoolHeader header(size, isNatural);
     *(PoolHeader *)start = header;
@@ -2680,7 +2680,7 @@ AssemblerVIXL::WritePoolFooter(uint8_t *start, Pool *p, bool isNatural)
 ptrdiff_t
 AssemblerVIXL::GetBranchOffset(const Instruction *ins)
 {
-    JS_ASSERT_IF(!ins->IsBranchLinkImm(), ins->BranchType() != UnknownBranchType);
+    MOZ_ASSERT_IF(!ins->IsBranchLinkImm(), ins->BranchType() != UnknownBranchType);
     return ins->ImmPCRawOffset();
 }
 
@@ -2692,7 +2692,7 @@ AssemblerVIXL::RetargetNearBranch(Instruction *i, int offset, Condition cond, bo
         b(i, offset, cond); // FIXME: Is this right? What about BL()?
         break;
       case UnknownBranchType:
-        JS_ASSERT(i->IsBranchLinkImm());
+        MOZ_ASSERT(i->IsBranchLinkImm());
         bl(i, offset); // FIXME: Is this right? What about BL()?
         break;
       case UncondBranchType:
@@ -2702,7 +2702,7 @@ AssemblerVIXL::RetargetNearBranch(Instruction *i, int offset, Condition cond, bo
       case TestBranchType:
 
       default:
-        MOZ_ASSUME_UNREACHABLE("Unsupported branch type");
+        MOZ_CRASH("Unsupported branch type");
     }
 }
 
@@ -2720,27 +2720,27 @@ AssemblerVIXL::RetargetNearBranch(Instruction *i, int offset, bool final)
           break;
       }
       case UnknownBranchType:
-        JS_ASSERT(i->IsBranchLinkImm());
+        MOZ_ASSERT(i->IsBranchLinkImm());
         bl(i, offset); // FIXME: Is this right? What about BL()?
         break;
       case CompareBranchType:
       case TestBranchType:
       default:
-        MOZ_ASSUME_UNREACHABLE("Unsupported branch type");
+        MOZ_CRASH("Unsupported branch type");
     }
 }
 
 void
 AssemblerVIXL::RetargetFarBranch(Instruction *i, uint8_t **slot, uint8_t *dest, Condition cond)
 {
-    JS_ASSERT(0 && "RetargetFarBranch()");
+    MOZ_ASSERT(0 && "RetargetFarBranch()");
 }
 
 void
 AssemblerVIXL::RecordLiteral(int64_t imm, unsigned size)
 {
     //FIXME: literals_.push_front(new Literal(pc_, imm, size));
-    JS_ASSERT(0 && "RecordLiteral");
+    MOZ_ASSERT(0 && "RecordLiteral");
 }
 
 bool

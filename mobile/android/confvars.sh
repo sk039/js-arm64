@@ -49,8 +49,6 @@ MOZ_APP_STATIC_INI=1
 # Enable on-demand decompression
 MOZ_ENABLE_SZIP=1
 
-MOZ_FOLD_LIBS=1
-
 # Enable navigator.mozPay
 MOZ_PAY=1
 
@@ -81,6 +79,12 @@ else
   MOZ_ANDROID_SEARCH_ACTIVITY=
 fi
 
+# Enable the new tablet UI in pre-release builds
+# if the max Android sdk is undefined or at least 11.
+if test ! "$RELEASE_BUILD"; then
+  MOZ_ANDROID_NEW_TABLET_UI=1
+fi
+
 # Enable the share handler in pre-release builds.
 if test ! "$RELEASE_BUILD"; then
   MOZ_ANDROID_SHARE_OVERLAY=1
@@ -92,3 +96,14 @@ if test "$NIGHTLY_BUILD"; then
 else
   MOZ_ANDROID_MLS_STUMBLER=
 fi
+
+# Enable adding to the system downloads list in pre-release builds.
+if test ! "$RELEASE_BUILD"; then
+  MOZ_ANDROID_DOWNLOADS_INTEGRATION=1
+fi
+
+# Enable generational GC on mobile.
+JSGC_GENERATIONAL=1
+
+# Use the low-memory GC tuning.
+JS_GC_SMALL_CHUNK_SIZE=1

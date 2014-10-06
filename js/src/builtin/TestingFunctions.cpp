@@ -36,6 +36,8 @@
 #include "jscntxtinlines.h"
 #include "jsobjinlines.h"
 
+#include "vm/ObjectImpl-inl.h"
+
 using namespace js;
 using namespace JS;
 
@@ -734,7 +736,7 @@ class CountHeapTracer
 static void
 CountHeapNotify(JSTracer *trc, void **thingp, JSGCTraceKind kind)
 {
-    JS_ASSERT(trc->callback == CountHeapNotify);
+    MOZ_ASSERT(trc->callback == CountHeapNotify);
 
     CountHeapTracer *countTracer = (CountHeapTracer *)trc;
     void *thing = *thingp;
@@ -875,6 +877,25 @@ CountHeap(JSContext *cx, unsigned argc, jsval *vp)
     }
 
     args.rval().setNumber(double(counter));
+    return true;
+}
+
+// Stolen from jsmath.cpp
+static const uint64_t RNG_MULTIPLIER = 0x5DEECE66DLL;
+static const uint64_t RNG_MASK = (1LL << 48) - 1;
+
+static bool
+SetSavedStacksRNGState(JSContext *cx, unsigned argc, jsval *vp)
+{
+    CallArgs args = CallArgsFromVp(argc, vp);
+    if (!args.requireAtLeast(cx, "setSavedStacksRNGState", 1))
+        return false;
+
+    int32_t seed;
+    if (!ToInt32(cx, args[0], &seed))
+        return false;
+
+    cx->compartment()->savedStacks().setRNGState((seed ^ RNG_MULTIPLIER) & RNG_MASK);
     return true;
 }
 
@@ -1153,7 +1174,7 @@ js::testingFunc_inParallelSection(JSContext *cx, unsigned argc, jsval *vp)
 
     // If we were actually *in* a parallel section, then this function
     // would be inlined to TRUE in ion-generated code.
-    JS_ASSERT(!InParallelSection());
+    MOZ_ASSERT(!InParallelSection());
     args.rval().setBoolean(false);
     return true;
 }
@@ -1358,7 +1379,7 @@ SetIonCheckGraphCoherency(JSContext *cx, unsigned argc, jsval *vp)
     return true;
 }
 
-class CloneBufferObject : public JSObject {
+class CloneBufferObject : public NativeObject {
     static const JSPropertySpec props_[2];
     static const size_t DATA_SLOT   = 0;
     static const size_t LENGTH_SLOT = 1;
@@ -1371,8 +1392,8 @@ class CloneBufferObject : public JSObject {
         RootedObject obj(cx, JS_NewObject(cx, Jsvalify(&class_), JS::NullPtr(), JS::NullPtr()));
         if (!obj)
             return nullptr;
-        obj->setReservedSlot(DATA_SLOT, PrivateValue(nullptr));
-        obj->setReservedSlot(LENGTH_SLOT, Int32Value(0));
+        obj->as<CloneBufferObject>().setReservedSlot(DATA_SLOT, PrivateValue(nullptr));
+        obj->as<CloneBufferObject>().setReservedSlot(LENGTH_SLOT, Int32Value(0));
 
         if (!JS_DefineProperties(cx, obj, props_))
             return nullptr;
@@ -1397,7 +1418,7 @@ class CloneBufferObject : public JSObject {
     }
 
     void setData(uint64_t *aData) {
-        JS_ASSERT(!data());
+        MOZ_ASSERT(!data());
         setReservedSlot(DATA_SLOT, PrivateValue(aData));
     }
 
@@ -1406,7 +1427,7 @@ class CloneBufferObject : public JSObject {
     }
 
     void setNBytes(size_t nbytes) {
-        JS_ASSERT(nbytes <= UINT32_MAX);
+        MOZ_ASSERT(nbytes <= UINT32_MAX);
         setReservedSlot(LENGTH_SLOT, Int32Value(nbytes));
     }
 
@@ -1461,7 +1482,7 @@ class CloneBufferObject : public JSObject {
     static bool
     getCloneBuffer_impl(JSContext* cx, CallArgs args) {
         Rooted<CloneBufferObject*> obj(cx, &args.thisv().toObject().as<CloneBufferObject>());
-        JS_ASSERT(args.length() == 0);
+        MOZ_ASSERT(args.length() == 0);
 
         if (!obj->data()) {
             args.rval().setUndefined();
@@ -1676,6 +1697,39 @@ DumpObject(JSContext *cx, unsigned argc, jsval *vp)
     js_DumpObject(obj);
 
     args.rval().setUndefined();
+    return true;
+}
+#endif
+
+#ifdef NIGHTLY_BUILD
+static bool
+ObjectAddress(JSContext *cx, unsigned argc, jsval *vp)
+{
+    CallArgs args = CallArgsFromVp(argc, vp);
+    if (args.length() != 1) {
+        RootedObject callee(cx, &args.callee());
+        ReportUsageError(cx, callee, "Wrong number of arguments");
+        return false;
+    }
+    if (!args[0].isObject()) {
+        RootedObject callee(cx, &args.callee());
+        ReportUsageError(cx, callee, "Expected object");
+        return false;
+    }
+
+#ifdef JS_MORE_DETERMINISTIC
+    args.rval().setInt32(0);
+#else
+    char buffer[64];
+    JS_snprintf(buffer, sizeof(buffer), "%p", &args[0].toObject());
+
+    JSString *str = JS_NewStringCopyZ(cx, buffer);
+    if (!str)
+        return false;
+
+    args.rval().setString(str);
+#endif
+
     return true;
 }
 #endif
@@ -1932,7 +1986,7 @@ FindPath(JSContext *cx, unsigned argc, jsval *vp)
     //
     //   { node: undefined, edge: <string> }
     size_t length = nodes.length();
-    RootedObject result(cx, NewDenseFullyAllocatedArray(cx, length));
+    RootedArrayObject result(cx, NewDenseFullyAllocatedArray(cx, length));
     if (!result)
         return false;
     result->ensureDenseInitializedLength(cx, 0, length);
@@ -2064,6 +2118,10 @@ static const JSFunctionSpecWithHelp TestingFunctions[] = {
 "  to count only things of that kind. If kind is the string 'specific',\n"
 "  then you can provide an extra argument with some specific traceable\n"
 "  thing to count.\n"),
+
+    JS_FN_HELP("setSavedStacksRNGState", SetSavedStacksRNGState, 1, 0,
+"setSavedStacksRNGState(seed)",
+"  Set this compartment's SavedStacks' RNG state.\n"),
 
     JS_FN_HELP("getSavedFrameCount", GetSavedFrameCount, 0, 0,
 "getSavedFrameCount()",
@@ -2337,6 +2395,13 @@ static const JSFunctionSpecWithHelp TestingFunctions[] = {
     JS_FN_HELP("dumpObject", DumpObject, 1, 0,
 "dumpObject()",
 "  Dump an internal representation of an object."),
+#endif
+
+#ifdef NIGHTLY_BUILD
+    JS_FN_HELP("objectAddress", ObjectAddress, 1, 0,
+"objectAddress(obj)",
+"  Return the current address of the object. For debugging only--this\n"
+"  address may change during a moving GC."),
 #endif
 
     JS_FN_HELP("evalReturningScope", EvalReturningScope, 1, 0,

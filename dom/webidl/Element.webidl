@@ -51,6 +51,8 @@ interface Element : Node {
   boolean hasAttribute(DOMString name);
   [Pure]
   boolean hasAttributeNS(DOMString? namespace, DOMString localName);
+  [Pure]
+  boolean hasAttributes();
 
   [Throws, Pure]
   Element? closest(DOMString selector);
@@ -219,3 +221,4 @@ Element implements ChildNode;
 Element implements NonDocumentTypeChildNode;
 Element implements ParentNode;
 Element implements Animatable;
+Element implements GeometryUtils;

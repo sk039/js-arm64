@@ -590,7 +590,8 @@ nsDisplayOuterSVG::Paint(nsDisplayListBuilder* aBuilder,
 
   // Create an SVGAutoRenderState so we can call SetPaintingToWindow on
   // it, but do so without changing the render mode:
-  SVGAutoRenderState state(aContext, SVGAutoRenderState::GetRenderMode(aContext));
+  SVGAutoRenderState state(aContext->GetDrawTarget(),
+    SVGAutoRenderState::GetRenderMode(aContext->GetDrawTarget()));
 
   if (aBuilder->IsPaintingToWindow()) {
     state.SetPaintingToWindow(true);
@@ -617,8 +618,6 @@ nsDisplayOuterSVG::Paint(nsDisplayListBuilder* aBuilder,
                    gfxMatrix::Translation(devPixelOffset);
   nsSVGUtils::PaintFrameWithEffects(mFrame, aContext, tm, &contentAreaDirtyRect);
   aContext->ThebesContext()->Restore();
-
-  NS_ASSERTION(!aContext->ThebesContext()->HasError(), "Cairo in error state");
 
 #if defined(DEBUG) && defined(SVG_DEBUG_PAINT_TIMING)
   PRTime end = PR_Now();

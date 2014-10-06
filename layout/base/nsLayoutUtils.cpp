@@ -394,8 +394,7 @@ nsLayoutUtils::HasAnimations(nsIContent* aContent,
 
 bool
 nsLayoutUtils::HasCurrentAnimations(nsIContent* aContent,
-                                    nsIAtom* aAnimationProperty,
-                                    nsPresContext* aPresContext)
+                                    nsIAtom* aAnimationProperty)
 {
   if (!aContent->MayHaveAnimations())
     return false;
@@ -404,6 +403,26 @@ nsLayoutUtils::HasCurrentAnimations(nsIContent* aContent,
     static_cast<AnimationPlayerCollection*>(
       aContent->GetProperty(aAnimationProperty));
   return (collection && collection->HasCurrentAnimations());
+}
+
+bool
+nsLayoutUtils::HasCurrentAnimationsForProperty(nsIContent* aContent,
+                                               nsCSSProperty aProperty)
+{
+  if (!aContent->MayHaveAnimations())
+    return false;
+
+  static nsIAtom* const sAnimProps[] = { nsGkAtoms::transitionsProperty,
+                                         nsGkAtoms::animationsProperty,
+                                         nullptr };
+  for (nsIAtom* const* animProp = sAnimProps; *animProp; animProp++) {
+    AnimationPlayerCollection* collection =
+      static_cast<AnimationPlayerCollection*>(aContent->GetProperty(*animProp));
+    if (collection && collection->HasCurrentAnimationsForProperty(aProperty))
+      return true;
+  }
+
+  return false;
 }
 
 static gfxSize
@@ -605,6 +624,22 @@ nsLayoutUtils::CSSFiltersEnabled()
   }
 
   return sCSSFiltersEnabled;
+}
+
+bool
+nsLayoutUtils::CSSClipPathShapesEnabled()
+{
+  static bool sCSSClipPathShapesEnabled;
+  static bool sCSSClipPathShapesPrefCached = false;
+
+  if (!sCSSClipPathShapesPrefCached) {
+   sCSSClipPathShapesPrefCached = true;
+   Preferences::AddBoolVarCache(&sCSSClipPathShapesEnabled,
+                                "layout.css.clip-path-shapes.enabled",
+                                false);
+  }
+
+  return sCSSClipPathShapesEnabled;
 }
 
 bool
@@ -2707,7 +2742,7 @@ static FrameMetrics
 CalculateFrameMetricsForDisplayPort(nsIFrame* aScrollFrame,
                                     nsIScrollableFrame* aScrollFrameAsScrollable) {
   // Calculate the metrics necessary for calculating the displayport.
-  // This code has a lot in common with the code in RecordFrameMetrics();
+  // This code has a lot in common with the code in ComputeFrameMetrics();
   // we may want to refactor this at some point.
   FrameMetrics metrics;
   nsPresContext* presContext = aScrollFrame->PresContext();
@@ -2786,7 +2821,7 @@ nsLayoutUtils::GetOrMaybeCreateDisplayPort(nsDisplayListBuilder& aBuilder,
       LayerMargin displayportMargins = AsyncPanZoomController::CalculatePendingDisplayPort(
           metrics, ScreenPoint(0.0f, 0.0f), 0.0);
       nsIPresShell* presShell = aScrollFrame->PresContext()->GetPresShell();
-      gfx::IntSize alignment = gfxPrefs::LayersTilesEnabled()
+      gfx::IntSize alignment = gfxPlatform::GetPlatform()->UseTiling()
           ? gfx::IntSize(gfxPrefs::LayersTileWidth(), gfxPrefs::LayersTileHeight()) :
             gfx::IntSize(0, 0);
       nsLayoutUtils::SetDisplayPortMargins(
@@ -3418,8 +3453,10 @@ nsLayoutUtils::GetFontMetricsForStyleContext(nsStyleContext* aStyleContext,
   if (aInflation != 1.0f) {
     font.size = NSToCoordRound(font.size * aInflation);
   }
+  WritingMode wm(aStyleContext->StyleVisibility());
   return pc->DeviceContext()->GetMetricsFor(
                   font, aStyleContext->StyleFont()->mLanguage,
+                  wm.IsVertical() ? gfxFont::eVertical : gfxFont::eHorizontal,
                   fs, tp, *aFontMetrics);
 }
 
@@ -5091,17 +5128,19 @@ ComputeSnappedImageDrawingParameters(gfxContext*     aCtx,
 
   gfxSize destScale = didSnap ? gfxSize(currentMatrix._11, currentMatrix._22)
                               : gfxSize(1.0, 1.0);
-  gfxSize snappedDest(NSAppUnitsToIntPixels(dest.width * destScale.width,
-                                            aAppUnitsPerDevPixel),
-                      NSAppUnitsToIntPixels(dest.height * destScale.height,
-                                            aAppUnitsPerDevPixel));
+  gfxSize appUnitScaledDest(dest.width * destScale.width,
+                            dest.height * destScale.height);
+  gfxSize scaledDest = appUnitScaledDest / aAppUnitsPerDevPixel;
+  gfxSize snappedScaledDest =
+    gfxSize(NSAppUnitsToIntPixels(appUnitScaledDest.width, aAppUnitsPerDevPixel),
+            NSAppUnitsToIntPixels(appUnitScaledDest.height, aAppUnitsPerDevPixel));
 
-  if (snappedDest.IsEmpty()) {
+  if (scaledDest.IsEmpty() || snappedScaledDest.IsEmpty()) {
     return SnappedImageDrawingParameters();
   }
 
   nsIntSize intImageSize =
-    aImage->OptimalImageSizeForDest(snappedDest,
+    aImage->OptimalImageSizeForDest(snappedScaledDest,
                                     imgIContainer::FRAME_CURRENT,
                                     aGraphicsFilter, aImageFlags);
   gfxSize imageSize(intImageSize.width, intImageSize.height);
@@ -5149,7 +5188,7 @@ ComputeSnappedImageDrawingParameters(gfxContext*     aCtx,
       anchorPoint.Round();
     }
 
-    gfxRect anchoredDestRect(anchorPoint, snappedDest);
+    gfxRect anchoredDestRect(anchorPoint, scaledDest);
     gfxRect anchoredImageRect(imageSpaceAnchorPoint, imageSize);
     transform = TransformBetweenRects(anchoredImageRect, anchoredDestRect);
     invTransform = TransformBetweenRects(anchoredDestRect, anchoredImageRect);
@@ -6698,8 +6737,8 @@ nsLayoutUtils::UpdateImageVisibilityForFrame(nsIFrame* aImageFrame)
 }
 
 /* static */ bool
-nsLayoutUtils::GetContentViewerBounds(nsPresContext* aPresContext,
-                                      LayoutDeviceIntRect& aOutRect)
+nsLayoutUtils::GetContentViewerSize(nsPresContext* aPresContext,
+                                    LayoutDeviceIntSize& aOutSize)
 {
   nsCOMPtr<nsIDocShell> docShell = aPresContext->GetDocShell();
   if (!docShell) {
@@ -6714,7 +6753,7 @@ nsLayoutUtils::GetContentViewerBounds(nsPresContext* aPresContext,
 
   nsIntRect bounds;
   cv->GetBounds(bounds);
-  aOutRect = LayoutDeviceIntRect::FromUntyped(bounds);
+  aOutSize = LayoutDeviceIntRect::FromUntyped(bounds).Size();
   return true;
 }
 
@@ -6727,7 +6766,7 @@ nsLayoutUtils::CalculateCompositionSizeForFrame(nsIFrame* aFrame)
   nsIPresShell* presShell = presContext->PresShell();
 
   // See the comments in the code that calculates the root
-  // composition bounds in RecordFrameMetrics.
+  // composition bounds in ComputeFrameMetrics.
   // TODO: Reuse that code here.
   bool isRootContentDocRootScrollFrame = presContext->IsRootContentDocument()
                                       && aFrame == presShell->GetRootScrollFrame();
@@ -6752,9 +6791,9 @@ nsLayoutUtils::CalculateCompositionSizeForFrame(nsIFrame* aFrame)
         }
 #endif
       } else {
-        LayoutDeviceIntRect contentBounds;
-        if (nsLayoutUtils::GetContentViewerBounds(presContext, contentBounds)) {
-          size = LayoutDevicePixel::ToAppUnits(contentBounds.Size(), auPerDevPixel);
+        LayoutDeviceIntSize contentSize;
+        if (nsLayoutUtils::GetContentViewerSize(presContext, contentSize)) {
+          size = LayoutDevicePixel::ToAppUnits(contentSize, auPerDevPixel);
         }
       }
     }
@@ -6820,14 +6859,14 @@ nsLayoutUtils::CalculateRootCompositionSize(nsIFrame* aFrame,
         }
 #endif
       } else {
-        LayoutDeviceIntRect contentBounds;
-        if (nsLayoutUtils::GetContentViewerBounds(rootPresContext, contentBounds)) {
+        LayoutDeviceIntSize contentSize;
+        if (nsLayoutUtils::GetContentViewerSize(rootPresContext, contentSize)) {
           LayoutDeviceToLayerScale scale(1.0f);
           if (rootPresContext->GetParentPresContext()) {
             gfxSize res = rootPresContext->GetParentPresContext()->PresShell()->GetCumulativeResolution();
             scale = LayoutDeviceToLayerScale(res.width, res.height);
           }
-          rootCompositionSize = contentBounds.Size() * scale;
+          rootCompositionSize = contentSize * scale;
         }
       }
     }

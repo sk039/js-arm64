@@ -76,6 +76,7 @@ public class GeckoEvent {
         KEY_EVENT(1),
         MOTION_EVENT(2),
         SENSOR_EVENT(3),
+        PROCESS_OBJECT(4),
         LOCATION_EVENT(5),
         IME_EVENT(6),
         SIZE_CHANGED(8),
@@ -183,6 +184,8 @@ public class GeckoEvent {
     public static final int ACTION_GAMEPAD_BUTTON = 1;
     public static final int ACTION_GAMEPAD_AXES = 2;
 
+    public static final int ACTION_OBJECT_LAYER_CLIENT = 1;
+
     private final int mType;
     private int mAction;
     private boolean mAckNeeded;
@@ -192,6 +195,7 @@ public class GeckoEvent {
     private int mPointerIndex; // index of the point that has changed
     private float[] mOrientations;
     private float[] mPressures;
+    private int[] mToolTypes;
     private Point[] mPointRadii;
     private Rect mRect;
     private double mX;
@@ -243,6 +247,8 @@ public class GeckoEvent {
     private float[] mGamepadValues;
 
     private String[] mPrefNames;
+
+    private Object mObject;
 
     private GeckoEvent(NativeGeckoEvent event) {
         mType = event.value;
@@ -449,6 +455,7 @@ public class GeckoEvent {
                 mPointIndicies = new int[mCount];
                 mOrientations = new float[mCount];
                 mPressures = new float[mCount];
+                mToolTypes = new int[mCount];
                 mPointRadii = new Point[mCount];
                 mPointerIndex = m.getActionIndex();
                 for (int i = 0; i < mCount; i++) {
@@ -463,6 +470,7 @@ public class GeckoEvent {
                 mPointIndicies = new int[mCount];
                 mOrientations = new float[mCount];
                 mPressures = new float[mCount];
+                mToolTypes = new int[mCount];
                 mPointRadii = new Point[mCount];
             }
         }
@@ -509,6 +517,9 @@ public class GeckoEvent {
                 mPointRadii[index].y /= zoom;
             }
             mPressures[index] = event.getPressure(eventIndex);
+            if (Versions.feature14Plus) {
+                mToolTypes[index] = event.getToolType(index);
+            }
         } catch (Exception ex) {
             Log.e(LOGTAG, "Error creating motion point " + index, ex);
             mPointRadii[index] = new Point(0, 0);
@@ -588,6 +599,13 @@ public class GeckoEvent {
             event.mX = s.values[0];
             break;
         }
+        return event;
+    }
+
+    public static GeckoEvent createObjectEvent(final int action, final Object object) {
+        GeckoEvent event = GeckoEvent.get(NativeGeckoEvent.PROCESS_OBJECT);
+        event.mAction = action;
+        event.mObject = object;
         return event;
     }
 

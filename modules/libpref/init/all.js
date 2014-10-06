@@ -135,7 +135,7 @@ pref("dom.serviceWorkers.enabled", false);
 pref("dom.enable_performance", true);
 
 // Whether resource timing will be gathered and returned by performance.GetEntries*
-pref("dom.enable_resource_timing", false);
+pref("dom.enable_resource_timing", true);
 
 // Whether the Gamepad API is enabled
 pref("dom.gamepad.enabled", true);
@@ -153,11 +153,7 @@ pref("dom.keyboardevent.code.enabled", true);
 #endif
 
 // Whether the WebCrypto API is enabled
-#ifdef RELEASE_BUILD
-pref("dom.webcrypto.enabled", false);
-#else
 pref("dom.webcrypto.enabled", true);
-#endif
 
 // Whether the UndoManager API is enabled
 pref("dom.undo_manager.enabled", false);
@@ -165,7 +161,11 @@ pref("dom.undo_manager.enabled", false);
 // Whether to run add-on code in different compartments from browser code. This
 // causes a separate compartment for each (addon, global) combination, which may
 // significantly increase the number of compartments in the system.
+#ifdef NIGHTLY_BUILD
+pref("dom.compartment_per_addon", true);
+#else
 pref("dom.compartment_per_addon", false);
+#endif
 
 // Fastback caching - if this pref is negative, then we calculate the number
 // of content viewers to cache based on the amount of available memory.
@@ -337,7 +337,6 @@ pref("media.peerconnection.video.max_bitrate", 2000);
 #endif
 pref("media.navigator.permission.disabled", false);
 pref("media.peerconnection.default_iceservers", "[{\"url\": \"stun:stun.services.mozilla.com\"}]");
-pref("media.peerconnection.trickle_ice", true);
 pref("media.peerconnection.use_document_iceservers", true);
 // Do not enable identity before ensuring that the UX cannot be spoofed
 // see Bug 884573 for details
@@ -349,11 +348,16 @@ pref("media.peerconnection.identity.timeout", 10000);
 // kXxxUnchanged = 0, kXxxDefault = 1, and higher values are specific to each
 // setting (for Xxx = Ec, Agc, or Ns).  Defaults are all set to kXxxDefault here.
 pref("media.peerconnection.turn.disable", false);
+#if defined(MOZ_WEBRTC_HARDWARE_AEC_NS)
+pref("media.getusermedia.aec_enabled", false);
+pref("media.getusermedia.noise_enabled", false);
+#else
 pref("media.getusermedia.aec_enabled", true);
+pref("media.getusermedia.noise_enabled", true);
+#endif
+pref("media.getusermedia.noise", 1);
 pref("media.getusermedia.agc_enabled", false);
 pref("media.getusermedia.agc", 1);
-pref("media.getusermedia.noise_enabled", true);
-pref("media.getusermedia.noise", 1);
 // Adjustments for OS-specific input delay (lower bound)
 // Adjustments for OS-specific AudioStream+cubeb+output delay (lower bound)
 #if defined(XP_MACOSX)
@@ -431,6 +435,9 @@ pref("layers.async-pan-zoom.enabled", false);
 // Whether to enable containerless async scrolling
 pref("layout.async-containerless-scrolling.enabled", true);
 
+// Whether to enable event region building during painting
+pref("layout.event-regions.enabled", false);
+
 // APZ preferences. For documentation/details on what these prefs do, check 
 // gfx/layers/apz/src/AsyncPanZoomController.cpp.
 pref("apz.allow_checkerboarding", true);
@@ -464,6 +471,7 @@ pref("apz.num_paint_duration_samples", 3);
 pref("apz.overscroll.enabled", false);
 pref("apz.overscroll.fling_friction", "0.02");
 pref("apz.overscroll.fling_stopped_threshold", "0.4");
+pref("apz.overscroll.min_pan_distance_ratio", "1.0");
 pref("apz.overscroll.stretch_factor", "0.5");
 pref("apz.overscroll.snap_back.spring_stiffness", "0.6");
 pref("apz.overscroll.snap_back.spring_friction", "0.1");
@@ -526,6 +534,11 @@ pref("gfx.color_management.enablev4", false);
 
 pref("gfx.downloadable_fonts.enabled", true);
 pref("gfx.downloadable_fonts.fallback_delay", 3000);
+#ifdef RELEASE_BUILD
+pref("gfx.downloadable_fonts.woff2.enabled", false);
+#else
+pref("gfx.downloadable_fonts.woff2.enabled", true);
+#endif
 
 #ifdef ANDROID
 pref("gfx.bundled_fonts.enabled", true);
@@ -565,8 +578,8 @@ pref("gfx.font_rendering.opentype_svg.enabled", true);
 #ifdef XP_WIN
 // comma separated list of backends to use in order of preference
 // e.g., pref("gfx.canvas.azure.backends", "direct2d,skia,cairo");
-pref("gfx.canvas.azure.backends", "direct2d,skia,cairo");
-pref("gfx.content.azure.backends", "direct2d,cairo");
+pref("gfx.canvas.azure.backends", "direct2d1.1,direct2d,skia,cairo");
+pref("gfx.content.azure.backends", "direct2d1.1,direct2d,cairo");
 #else
 #ifdef XP_MACOSX
 pref("gfx.content.azure.backends", "cg");
@@ -620,6 +633,7 @@ pref("ui.scrollToClick", 0);
 pref("canvas.focusring.enabled", true);
 pref("canvas.customfocusring.enabled", false);
 pref("canvas.hitregions.enabled", false);
+pref("canvas.filters.enabled", false);
 // Add support for canvas path objects
 pref("canvas.path.enabled", true);
 
@@ -1011,6 +1025,10 @@ pref("security.fileuri.strict_origin_policy", true);
 // the results
 pref("network.allow-experiments", true);
 
+// Allow the network changed event to get sent when a network topology or
+// setup change is noticed while running.
+pref("network.notify.changed", true);
+
 // Transmit UDP busy-work to the LAN when anticipating low latency
 // network reads and on wifi to mitigate 802.11 Power Save Polling delays
 pref("network.tickle-wifi.enabled", false);
@@ -1187,6 +1205,11 @@ pref("network.http.connection-retry-timeout", 250);
 // to give up if the OS does not give up first
 pref("network.http.connection-timeout", 90);
 
+// The number of seconds to allow active connections to prove that they have
+// traffic before considered stalled, after a network change has been detected
+// and signalled.
+pref("network.http.network-changed.timeout", 5);
+
 // The maximum number of current global half open sockets allowable
 // when starting a new speculative connection.
 pref("network.http.speculative-parallel-limit", 6);
@@ -1212,6 +1235,7 @@ pref("network.http.spdy.enabled", true);
 pref("network.http.spdy.enabled.v3", true);
 pref("network.http.spdy.enabled.v3-1", true);
 pref("network.http.spdy.enabled.http2draft", true);
+pref("network.http.spdy.enabled.http2", false);
 pref("network.http.spdy.enforce-tls-profile", true);
 pref("network.http.spdy.chunk-size", 16000);
 pref("network.http.spdy.timeout", 180);
@@ -1730,6 +1754,10 @@ pref("security.mixed_content.block_display_content", false);
 
 // Disable pinning checks by default.
 pref("security.cert_pinning.enforcement_level", 0);
+// Do not process hpkp headers rooted by not built in roots by default.
+// This is to prevent accidental pinning from MITM devices and is used
+// for tests.
+pref("security.cert_pinning.process_headers_from_non_builtin_roots", false);
 
 // Modifier key prefs: default to Windows settings,
 // menu access key = alt, accelerator key = control.
@@ -1980,7 +2008,10 @@ pref("layout.css.masking.enabled", true);
 pref("layout.css.mix-blend-mode.enabled", true);
 
 // Is support for CSS Filters enabled?
-pref("layout.css.filters.enabled", false);
+pref("layout.css.filters.enabled", true);
+
+// Is support for basic shapes in clip-path enabled?
+pref("layout.css.clip-path-shapes.enabled", false);
 
 // Is support for CSS sticky positioning enabled?
 pref("layout.css.sticky.enabled", true);
@@ -2087,6 +2118,12 @@ pref("layout.css.scroll-behavior.spring-constant", "250.0");
 // When equal to 1.0, the system is critically-damped; it will reach the target
 // at the greatest speed without overshooting.
 pref("layout.css.scroll-behavior.damping-ratio", "1.0");
+
+// Is support for document.fonts enabled?
+//
+// Don't enable the pref for the CSS Font Loading API until bug 1072101 is
+// fixed, as we don't want to expose more indexed properties on the Web.
+pref("layout.css.font-loading-api.enabled", false);
 
 // pref for which side vertical scrollbars should be on
 // 0 = end-side in UI direction
@@ -2243,6 +2280,9 @@ pref("dom.ipc.plugins.reportCrashURL", true);
 pref("dom.ipc.plugins.unloadTimeoutSecs", 30);
 
 pref("dom.ipc.processCount", 1);
+
+// Enable caching of Moz2D Path objects for SVG geometry elements
+pref("svg.path-caching.enabled", true);
 
 // Enable the use of display-lists for SVG hit-testing and painting.
 pref("svg.display-lists.hit-testing.enabled", true);
@@ -3645,13 +3685,7 @@ pref("image.cache.timeweight", 500);
 // The default Accept header sent for images loaded over HTTP(S)
 pref("image.http.accept", "image/png,image/*;q=0.8,*/*;q=0.5");
 
-// Whether we do high-quality image downscaling. OS X natively supports
-// high-quality image scaling.
-#ifdef XP_MACOSX
-pref("image.high_quality_downscaling.enabled", false);
-#else
 pref("image.high_quality_downscaling.enabled", true);
-#endif
 
 // The minimum percent downscaling we'll use high-quality downscaling on,
 // interpreted as a floating-point number / 1000.
@@ -3875,6 +3909,7 @@ pref("gfx.xrender.enabled",true);
 #ifdef XP_WIN
 // Whether to disable the automatic detection and use of direct2d.
 pref("gfx.direct2d.disabled", false);
+pref("gfx.direct2d.use1_1", true);
 
 // Whether to attempt to enable Direct2D regardless of automatic detection or
 // blacklisting

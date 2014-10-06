@@ -14,6 +14,7 @@
 
 #include "mozilla/MemoryReporting.h"
 #include "mozilla/css/GroupRule.h"
+#include "mozilla/dom/FontFace.h"
 #include "nsIDOMCSSConditionRule.h"
 #include "nsIDOMCSSCounterStyleRule.h"
 #include "nsIDOMCSSFontFaceRule.h"
@@ -180,6 +181,20 @@ protected:
 };
 
 } // namespace css
+
+struct CSSFontFaceDescriptors
+{
+#define CSS_FONT_DESC(name_, method_) nsCSSValue m##method_;
+#include "nsCSSFontDescList.h"
+#undef CSS_FONT_DESC
+
+  const nsCSSValue& Get(nsCSSFontDesc aFontDescID) const;
+  nsCSSValue& Get(nsCSSFontDesc aFontDescID);
+
+private:
+  static nsCSSValue CSSFontFaceDescriptors::* const Fields[];
+};
+
 } // namespace mozilla
 
 // A nsCSSFontFaceStyleDecl is always embedded in a nsCSSFontFaceRule.
@@ -212,13 +227,11 @@ protected:
   ~nsCSSFontFaceStyleDecl() {}
 
   friend class nsCSSFontFaceRule;
-#define CSS_FONT_DESC(name_, method_) nsCSSValue m##method_;
-#include "nsCSSFontDescList.h"
-#undef CSS_FONT_DESC
 
-  static nsCSSValue nsCSSFontFaceStyleDecl::* const Fields[];
   inline nsCSSFontFaceRule* ContainingRule();
   inline const nsCSSFontFaceRule* ContainingRule() const;
+
+  mozilla::CSSFontFaceDescriptors mDescriptors;
 
 private:
   // NOT TO BE IMPLEMENTED
@@ -264,8 +277,18 @@ public:
 
   virtual size_t SizeOfIncludingThis(mozilla::MallocSizeOf aMallocSizeOf) const MOZ_OVERRIDE;
 
+  mozilla::dom::FontFace* GetFontFace() const { return mFontFace; }
+  void SetFontFace(mozilla::dom::FontFace* aFontFace) { mFontFace = aFontFace; }
+
+  void GetDescriptors(mozilla::CSSFontFaceDescriptors& aDescriptors) const
+    { aDescriptors = mDecl.mDescriptors; }
+
 protected:
   ~nsCSSFontFaceRule() {}
+
+  // The CSS-connected FontFace object reflecting this @font-face rule, if one
+  // has been created.
+  nsRefPtr<mozilla::dom::FontFace> mFontFace;
 
   friend class nsCSSFontFaceStyleDecl;
   nsCSSFontFaceStyleDecl mDecl;

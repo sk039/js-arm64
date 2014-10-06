@@ -335,7 +335,7 @@ JSRuntime::init(uint32_t maxbytes, uint32_t maxNurseryBytes)
 
 JSRuntime::~JSRuntime()
 {
-    JS_ASSERT(!isHeapBusy());
+    MOZ_ASSERT(!isHeapBusy());
 
     if (gcInitialized) {
         /* Free source hook early, as its destructor may want to delete roots. */
@@ -379,15 +379,15 @@ JSRuntime::~JSRuntime()
      */
     finishSelfHosting();
 
-    JS_ASSERT(!exclusiveAccessOwner);
+    MOZ_ASSERT(!exclusiveAccessOwner);
     if (exclusiveAccessLock)
         PR_DestroyLock(exclusiveAccessLock);
 
     // Avoid bogus asserts during teardown.
-    JS_ASSERT(!numExclusiveThreads);
+    MOZ_ASSERT(!numExclusiveThreads);
     mainThreadHasExclusiveAccess = true;
 
-    JS_ASSERT(!interruptLockOwner);
+    MOZ_ASSERT(!interruptLockOwner);
     if (interruptLock)
         PR_DestroyLock(interruptLock);
 
@@ -398,7 +398,7 @@ JSRuntime::~JSRuntime()
     FreeScriptData(this);
 
 #ifdef DEBUG
-    /* Don't hurt everyone in leaky ol' Mozilla with a fatal JS_ASSERT! */
+    /* Don't hurt everyone in leaky ol' Mozilla with a fatal MOZ_ASSERT! */
     if (hasContexts()) {
         unsigned cxcount = 0;
         for (ContextIter acx(this); !acx.done(); acx.next()) {
@@ -437,7 +437,7 @@ JSRuntime::~JSRuntime()
 #endif
 
     DebugOnly<size_t> oldCount = liveRuntimesCount--;
-    JS_ASSERT(oldCount > 0);
+    MOZ_ASSERT(oldCount > 0);
 
     js::TlsPerThreadData.set(nullptr);
 }
@@ -450,8 +450,8 @@ NewObjectCache::clearNurseryObjects(JSRuntime *rt)
         Entry &e = entries[i];
         JSObject *obj = reinterpret_cast<JSObject *>(&e.templateObject);
         if (IsInsideNursery(e.key) ||
-            rt->gc.nursery.isInside(obj->slots) ||
-            rt->gc.nursery.isInside(obj->elements))
+            rt->gc.nursery.isInside(obj->fakeNativeSlots()) ||
+            rt->gc.nursery.isInside(obj->fakeNativeElements()))
         {
             PodZero(&e);
         }
@@ -554,8 +554,8 @@ JSRuntime::requestInterrupt(InterruptMode mode)
 jit::ExecutableAllocator *
 JSRuntime::createExecutableAllocator(JSContext *cx)
 {
-    JS_ASSERT(!execAlloc_);
-    JS_ASSERT(cx->runtime() == this);
+    MOZ_ASSERT(!execAlloc_);
+    MOZ_ASSERT(cx->runtime() == this);
 
     execAlloc_ = js_new<jit::ExecutableAllocator>();
     if (!execAlloc_)
@@ -566,8 +566,8 @@ JSRuntime::createExecutableAllocator(JSContext *cx)
 MathCache *
 JSRuntime::createMathCache(JSContext *cx)
 {
-    JS_ASSERT(!mathCache_);
-    JS_ASSERT(cx->runtime() == this);
+    MOZ_ASSERT(!mathCache_);
+    MOZ_ASSERT(cx->runtime() == this);
 
     MathCache *newMathCache = js_new<MathCache>();
     if (!newMathCache) {
@@ -709,7 +709,7 @@ JSRuntime::activeGCInAtomsZone()
 void
 JSRuntime::setUsedByExclusiveThread(Zone *zone)
 {
-    JS_ASSERT(!zone->usedByExclusiveThread);
+    MOZ_ASSERT(!zone->usedByExclusiveThread);
     zone->usedByExclusiveThread = true;
     numExclusiveThreads++;
 }
@@ -717,7 +717,7 @@ JSRuntime::setUsedByExclusiveThread(Zone *zone)
 void
 JSRuntime::clearUsedByExclusiveThread(Zone *zone)
 {
-    JS_ASSERT(zone->usedByExclusiveThread);
+    MOZ_ASSERT(zone->usedByExclusiveThread);
     zone->usedByExclusiveThread = false;
     numExclusiveThreads--;
 }
@@ -735,7 +735,7 @@ js::CurrentThreadCanAccessZone(Zone *zone)
         return true;
     if (InParallelSection()) {
         DebugOnly<PerThreadData *> pt = js::TlsPerThreadData.get();
-        JS_ASSERT(pt && pt->associatedWith(zone->runtime_));
+        MOZ_ASSERT(pt && pt->associatedWith(zone->runtime_));
         return true;
     }
 
@@ -755,11 +755,11 @@ JSRuntime::assertCanLock(RuntimeLock which)
     // it must be done in the order below.
     switch (which) {
       case ExclusiveAccessLock:
-        JS_ASSERT(exclusiveAccessOwner != PR_GetCurrentThread());
+        MOZ_ASSERT(exclusiveAccessOwner != PR_GetCurrentThread());
       case HelperThreadStateLock:
-        JS_ASSERT(!HelperThreadState().isLocked());
+        MOZ_ASSERT(!HelperThreadState().isLocked());
       case InterruptLock:
-        JS_ASSERT(!currentThreadOwnsInterruptLock());
+        MOZ_ASSERT(!currentThreadOwnsInterruptLock());
       case GCLock:
         gc.assertCanLock();
         break;

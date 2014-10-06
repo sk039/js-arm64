@@ -97,7 +97,7 @@ class Assembler : public AssemblerVIXL {
     }
 
     bool addCodeLabel(CodeLabel label) {
-        JS_ASSERT(0 && "addCodeLabel()");
+        MOZ_ASSERT(0 && "addCodeLabel()");
         return false;
     }
     size_t numCodeLabels() const {
@@ -145,19 +145,19 @@ class Assembler : public AssemblerVIXL {
     // opportunistic dump of the pool, preferrably when it is more convenient
     // to do a dump.
     void flushBuffer() {
-        JS_ASSERT(0 && "flushBuffer()");
+        MOZ_ASSERT(0 && "flushBuffer()");
     }
     void enterNoPool(size_t maxInst) {
-        JS_ASSERT(0 && "enterNoPool()");
+        MOZ_ASSERT(0 && "enterNoPool()");
     }
     void leaveNoPool() {
-        JS_ASSERT(0 && "leaveNoPool()");
+        MOZ_ASSERT(0 && "leaveNoPool()");
     }
 
     // The buffer is about to be linked. Ensure any constant pools or
     // excess bookkeeping has been flushed to the instruction stream.
     void flush() {
-        // TODO: JS_ASSERT(!isFinished);
+        // TODO: MOZ_ASSERT(!isFinished);
         armbuffer_.flushPool();
     }
 
@@ -171,22 +171,22 @@ class Assembler : public AssemblerVIXL {
         return labelOff;
     }
     static uint8_t *PatchableJumpAddress(JitCode *code, uint32_t index) {
-        JS_ASSERT(0 && "patchableJumpAddress");
+        MOZ_ASSERT(0 && "patchableJumpAddress");
     }
     void executableCopy(uint8_t *buffer){
-        // TODO: JS_ASSERT(isFinished);
+        // TODO: MOZ_ASSERT(isFinished);
         armbuffer_.executableCopy(buffer);
         // TODO: AutoFlushICache
     }
     void setPrinter(Sprinter *sp) {
-        JS_ASSERT(0 && "setPrinter()");
+        MOZ_ASSERT(0 && "setPrinter()");
     }
 
     static void TraceJumpRelocations(JSTracer *trc, JitCode *code, CompactBufferReader &reader) {
-        JS_ASSERT(0 && "TraceJumpRelocations()");
+        MOZ_ASSERT(0 && "TraceJumpRelocations()");
     }
     static void TraceDataRelocations(JSTracer *trc, JitCode *code, CompactBufferReader &reader) {
-        JS_ASSERT(0 && "TraceDataRelocations()");
+        MOZ_ASSERT(0 && "TraceDataRelocations()");
     }
 
     static bool SupportsFloatingPoint() { return true; }
@@ -201,16 +201,16 @@ class Assembler : public AssemblerVIXL {
 
   public:
     static uint32_t PatchWrite_NearCallSize() {
-        JS_ASSERT(0 && "PatchWrite_NearCallSize()");
+        MOZ_ASSERT(0 && "PatchWrite_NearCallSize()");
         return 0;
     }
 
     static uint32_t NopSize() {
-        JS_ASSERT(0 && "NopSize()");
+        MOZ_ASSERT(0 && "NopSize()");
         return 4;
     }
     static void PatchWrite_NearCall(CodeLocationLabel start, CodeLocationLabel toCall) {
-        JS_ASSERT(0 && "PatchWrite_NearCall()");
+        MOZ_ASSERT(0 && "PatchWrite_NearCall()");
     }
     static void PatchDataWithValueCheck(CodeLocationLabel label,
                                         PatchedImmPtr newValue,
@@ -221,43 +221,43 @@ class Assembler : public AssemblerVIXL {
                                         ImmPtr expected);
 
     static void PatchWrite_Imm32(CodeLocationLabel label, Imm32 imm) {
-        JS_ASSERT(0 && "PatchWrite_Imm32()");
+        MOZ_ASSERT(0 && "PatchWrite_Imm32()");
     }
     static uint32_t AlignDoubleArg(uint32_t offset) {
-        JS_ASSERT(0 && "AlignDoubleArg()");
+        MOZ_ASSERT(0 && "AlignDoubleArg()");
         return (offset+1)&~1;
     }
     static uint8_t *NextInstruction(uint8_t *instruction, uint32_t *count = nullptr) {
-        JS_ASSERT(0 && "NextInstruction()");
+        MOZ_ASSERT(0 && "NextInstruction()");
         return nullptr;
     }
     static uintptr_t GetPointer(uint8_t *) {
-        JS_ASSERT(0 && "GetPointer()");
+        MOZ_ASSERT(0 && "GetPointer()");
         return 0;
     }
 
     // Toggle a jmp or cmp emitted by toggledJump().
     static void ToggleToJmp(CodeLocationLabel inst_) {
-        JS_ASSERT(0 && "ToggleToJmp()");
+        MOZ_ASSERT(0 && "ToggleToJmp()");
     }
     static void ToggleToCmp(CodeLocationLabel inst_) {
-        JS_ASSERT(0 && "ToggleToCmp()");
+        MOZ_ASSERT(0 && "ToggleToCmp()");
     }
 
     static void ToggleCall(CodeLocationLabel inst_, bool enabled) {
-        JS_ASSERT(0 && "ToggleCall()");
+        MOZ_ASSERT(0 && "ToggleCall()");
     }
 
     static void updateBoundsCheck(uint32_t logHeapSize, Instruction *inst) {
-        JS_ASSERT(0 && "updateBoundsCheck()");
+        MOZ_ASSERT(0 && "updateBoundsCheck()");
     }
 
     static int32_t ExtractCodeLabelOffset(uint8_t *code) {
-        JS_ASSERT(0 && "ExtractCodeLabelOffset");
+        MOZ_ASSERT(0 && "ExtractCodeLabelOffset");
         return 0;
     }
     static void PatchInstructionImmediate(uint8_t *code, PatchedImmPtr imm) {
-        JS_ASSERT(0 && "PatchInstructionImmediate");
+        MOZ_ASSERT(0 && "PatchInstructionImmediate");
     }
 
   protected:
@@ -352,7 +352,7 @@ GetFloatArgReg(uint32_t usedIntArgs, uint32_t usedFloatArgs, FloatRegister *out)
 static inline bool
 GetTempRegForIntArg(uint32_t usedIntArgs, uint32_t usedFloatArgs, Register *out)
 {
-    JS_ASSERT(0 && "TODO");
+    MOZ_ASSERT(0 && "TODO");
     return false;
 }
 

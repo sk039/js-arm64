@@ -4,7 +4,6 @@
 
 package org.mozilla.search.providers;
 
-import android.graphics.Color;
 import android.net.Uri;
 import android.util.Log;
 import android.util.Xml;
@@ -15,6 +14,7 @@ import org.xmlpull.v1.XmlPullParserException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Locale;
+import java.util.Set;
 
 /**
  * Extend this class to add a new search engine to
@@ -195,20 +195,28 @@ public class SearchEngine {
         return iconURL;
     }
 
-    public int getColor() {
-        // TOOD: Add brand colors to search plugin XML.
-        if (identifier.equals("yahoo")) {
-            return 0xFF500095;
-        }
-        return Color.TRANSPARENT;
-    }
-
     /**
      * Determine whether a particular url belongs to this search engine. If not,
      * the url will be sent to Fennec.
      */
     public boolean isSearchResultsPage(String url) {
         return resultsUri.getAuthority().equalsIgnoreCase(Uri.parse(url).getAuthority());
+    }
+
+    /**
+     * Finds the search query encoded in a given results URL.
+     *
+     * @param url Current results URL.
+     * @return The search query, or an empty string if a query couldn't be found.
+     */
+    public String queryForResultsUrl(String url) {
+        final Set<String> names = resultsUri.getQueryParameterNames();
+        for (String name : names) {
+            if (resultsUri.getQueryParameter(name).matches(OS_PARAM_USER_DEFINED)) {
+                return Uri.parse(url).getQueryParameter(name);
+            }
+        }
+        return "";
     }
 
     /**

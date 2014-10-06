@@ -100,6 +100,7 @@
 
 using namespace mozilla;
 using namespace mozilla::dom;
+using namespace mozilla::ipc;
 using namespace mozilla::layers;
 using namespace mozilla::widget;
 using namespace mozilla::gfx;
@@ -2116,7 +2117,14 @@ nsDOMWindowUtils::SendCompositionEvent(const nsAString& aType,
   } else if (aType.EqualsLiteral("compositionend")) {
     msg = NS_COMPOSITION_END;
   } else if (aType.EqualsLiteral("compositionupdate")) {
-    msg = NS_COMPOSITION_UPDATE;
+    // Now we don't support manually dispatching composition update with this
+    // API.  compositionupdate is dispatched when text event modifies
+    // composition string automatically.  For backward compatibility, this
+    // shouldn't return error in this case.
+    NS_WARNING("Don't call nsIDOMWindowUtils.sendCompositionEvent() for "
+               "compositionupdate since it's ignored and the event is "
+               "fired automatically when it's necessary");
+    return NS_OK;
   } else {
     return NS_ERROR_FAILURE;
   }
@@ -3004,30 +3012,65 @@ nsDOMWindowUtils::AreDialogsEnabled(bool* aResult)
 
 NS_IMETHODIMP
 nsDOMWindowUtils::GetFileId(JS::Handle<JS::Value> aFile, JSContext* aCx,
-                            int64_t* aResult)
+                            int64_t* _retval)
 {
   MOZ_RELEASE_ASSERT(nsContentUtils::IsCallerChrome());
 
-  if (!aFile.isPrimitive()) {
-    JSObject* obj = aFile.toObjectOrNull();
-
-    indexedDB::IDBMutableFile* mutableFile = nullptr;
-    if (NS_SUCCEEDED(UNWRAP_OBJECT(IDBMutableFile, obj, mutableFile))) {
-      *aResult = mutableFile->GetFileId();
-      return NS_OK;
-    }
-
-    nsISupports* nativeObj =
-      nsContentUtils::XPConnect()->GetNativeOfWrapper(aCx, obj);
-
-    nsCOMPtr<nsIDOMBlob> blob = do_QueryInterface(nativeObj);
-    if (blob) {
-      *aResult = blob->GetFileId();
-      return NS_OK;
-    }
+  if (aFile.isPrimitive()) {
+    *_retval = -1;
+    return NS_OK;
   }
 
-  *aResult = -1;
+  JSObject* obj = aFile.toObjectOrNull();
+
+  indexedDB::IDBMutableFile* mutableFile = nullptr;
+  if (NS_SUCCEEDED(UNWRAP_OBJECT(IDBMutableFile, obj, mutableFile))) {
+    *_retval = mutableFile->GetFileId();
+    return NS_OK;
+  }
+
+  nsISupports* nativeObj =
+    nsContentUtils::XPConnect()->GetNativeOfWrapper(aCx, obj);
+
+  nsCOMPtr<nsIDOMBlob> blob = do_QueryInterface(nativeObj);
+  if (blob) {
+    *_retval = blob->GetFileId();
+    return NS_OK;
+  }
+
+  *_retval = -1;
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsDOMWindowUtils::GetFilePath(JS::HandleValue aFile, JSContext* aCx,
+                              nsAString& _retval)
+{
+  MOZ_RELEASE_ASSERT(nsContentUtils::IsCallerChrome());
+
+  if (aFile.isPrimitive()) {
+    _retval.Truncate();
+    return NS_OK;
+  }
+
+  JSObject* obj = aFile.toObjectOrNull();
+
+  nsISupports* nativeObj =
+    nsContentUtils::XPConnect()->GetNativeOfWrapper(aCx, obj);
+
+  nsCOMPtr<nsIDOMFile> file = do_QueryInterface(nativeObj);
+  if (file) {
+    nsString filePath;
+    nsresult rv = file->GetMozFullPathInternal(filePath);
+    if (NS_WARN_IF(NS_FAILED(rv))) {
+      return rv;
+    }
+
+    _retval = filePath;
+    return NS_OK;
+  }
+
+  _retval.Truncate();
   return NS_OK;
 }
 

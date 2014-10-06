@@ -150,8 +150,14 @@ user_pref("layout.css.object-fit-and-position.enabled", true);
 // Enable CSS Ruby for testing
 user_pref("layout.css.ruby.enabled", true);
 
+// Enable CSS Font Loading API for testing
+user_pref("layout.css.font-loading-api.enabled", true);
+
 // Disable spammy layout warnings because they pollute test logs
 user_pref("layout.spammy_warnings.enabled", false);
+
+// Enable Media Source Extensions for testing
+user_pref("media.mediasource.enabled", true);
 
 // Enable mozContacts
 user_pref("dom.mozContacts.enabled", true);
@@ -246,10 +252,14 @@ user_pref("browser.newtabpage.directory.ping", "");
 // Enable Loop
 user_pref("loop.enabled", true);
 user_pref("loop.throttled", false);
+user_pref("loop.oauth.google.URL", "http://%(server)s/browser/browser/components/loop/test/mochitest/google_service.sjs?action=");
+user_pref("loop.oauth.google.getContactsURL", "http://%(server)s/browser/browser/components/loop/test/mochitest/google_service.sjs?action=contacts");
 
 // Ensure UITour won't hit the network
 user_pref("browser.uitour.pinnedTabUrl", "http://%(server)s/uitour-dummy/pinnedTab");
 user_pref("browser.uitour.url", "http://%(server)s/uitour-dummy/tour");
+
+user_pref("media.eme.enabled", true);
 
 // Don't prompt about e10s
 user_pref("browser.displayedE10SPrompt", 5);

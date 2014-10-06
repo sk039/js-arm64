@@ -653,6 +653,10 @@ class GTestCommands(MachCommandBase):
         self._run_make(directory="testing/gtest", target='gtest', ensure_exit_code=True)
 
         app_path = self.get_binary_path('app')
+        cwd = os.path.join(self.topobjdir, '_tests', 'gtest')
+
+        if not os.path.isdir(cwd):
+            os.makedirs(cwd)
 
         # Use GTest environment variable to control test execution
         # For details see:
@@ -670,6 +674,7 @@ class GTestCommands(MachCommandBase):
         if jobs == 1:
             return self.run_process([app_path, "-unittest"],
                                     append_env=gtest_env,
+                                    cwd=cwd,
                                     ensure_exit_code=False,
                                     pass_thru=True)
 
@@ -685,6 +690,7 @@ class GTestCommands(MachCommandBase):
         for i in range(0, jobs):
             gtest_env["GTEST_SHARD_INDEX"] = str(i)
             processes[i] = ProcessHandlerMixin([app_path, "-unittest"],
+                             cwd=cwd,
                              env=gtest_env,
                              processOutputLine=[functools.partial(handle_line, i)],
                              universal_newlines=True)
@@ -774,6 +780,41 @@ class Install(MachCommandBase):
     def install(self):
         return self._run_make(directory=".", target='install', ensure_exit_code=False)
 
+
+def get_run_args(mach_command, params, remote, background, noprofile):
+    """
+    Parses the given options to create an args array for running firefox.
+    Creates a scratch profile and uses that if one is not specified.
+    """
+    try:
+        args = [mach_command.get_binary_path('app')]
+    except Exception as e:
+        print("It looks like your program isn't built.",
+            "You can run |mach build| to build it.")
+        print(e)
+        return None
+
+    if not remote:
+        args.append('-no-remote')
+
+    if not background and sys.platform == 'darwin':
+        args.append('-foreground')
+
+    if '-profile' not in params and '-P' not in params and not noprofile:
+        path = os.path.join(mach_command.topobjdir, 'tmp', 'scratch_user')
+        if not os.path.isdir(path):
+            os.makedirs(path)
+        args.append('-profile')
+        args.append(path)
+
+    if params:
+        args.extend(params)
+
+    if '--' in args:
+        args.remove('--')
+
+    return args
+
 @CommandProvider
 class RunProgram(MachCommandBase):
     """Launch the compiled binary"""
@@ -786,26 +827,13 @@ class RunProgram(MachCommandBase):
         help='Do not pass the -no-remote argument by default.')
     @CommandArgument('+background', '+b', action='store_true',
         help='Do not pass the -foreground argument by default on Mac')
-    def run(self, params, remote, background):
-        try:
-            args = [self.get_binary_path('app')]
-        except Exception as e:
-            print("It looks like your program isn't built.",
-                "You can run |mach build| to build it.")
-            print(e)
+    @CommandArgument('+noprofile', '+n', action='store_true',
+        help='Do not pass the -profile argument by default.')
+    def run(self, params, remote, background, noprofile):
+        args = get_run_args(self, params, remote, background, noprofile)
+        if not args:
             return 1
-        if not remote:
-            args.append('-no-remote')
-        if not background and sys.platform == 'darwin':
-            args.append('-foreground')
-        if '-profile' not in params and '-P' not in params:
-            path = os.path.join(self.topobjdir, 'tmp', 'scratch_user')
-            if not os.path.isdir(path):
-                os.makedirs(path)
-            args.append('-profile')
-            args.append(path)
-        if params:
-            args.extend(params)
+
         return self.run_process(args=args, ensure_exit_code=False,
             pass_thru=True)
 
@@ -832,7 +860,9 @@ class DebugProgram(MachCommandBase):
     # automatic resuming; see the bug.
     @CommandArgument('+slowscript', action='store_true',
         help='Do not set the JS_DISABLE_SLOW_SCRIPT_SIGNALS env variable; when not set, recoverable but misleading SIGSEGV instances may occur in Ion/Odin JIT code')
-    def debug(self, params, remote, background, debugger, debugparams, slowscript):
+    @CommandArgument('+noprofile', '+n', action='store_true',
+        help='Do not pass the -profile argument by default.')
+    def debug(self, params, remote, background, debugger, debugparams, slowscript, noprofile):
         # Parameters come from the CLI. We need to convert them before their use.
         if debugparams:
             import pymake.process
@@ -878,7 +908,7 @@ class DebugProgram(MachCommandBase):
             args.append('-foreground')
         if params:
             args.extend(params)
-        if '-profile' not in params and '-P' not in params:
+        if '-profile' not in params and '-P' not in params and not noprofile:
             path = os.path.join(self.topobjdir, 'tmp', 'scratch_user')
             if not os.path.isdir(path):
                 os.makedirs(path)
@@ -888,6 +918,75 @@ class DebugProgram(MachCommandBase):
             extra_env['JS_DISABLE_SLOW_SCRIPT_SIGNALS'] = '1'
         return self.run_process(args=args, append_env=extra_env,
             ensure_exit_code=False, pass_thru=True)
+
+@CommandProvider
+class RunDmd(MachCommandBase):
+    """Launch the compiled binary with DMD enabled"""
+
+    @Command('dmd', category='post-build',
+        description='Run the compiled program with DMD enabled.')
+    @CommandArgument('params', default=None, nargs='...',
+        help=('Command-line arguments to be passed through to the program. '
+              'Not specifying a -profile or -P option will result in a '
+              'temporary profile being used. If passing -params use a "--" to '
+              'indicate the start of params to pass to firefox.'))
+    @CommandArgument('--remote', '-r', action='store_true',
+        help='Do not pass the -no-remote argument by default.')
+    @CommandArgument('--background', '-b', action='store_true',
+        help='Do not pass the -foreground argument by default on Mac')
+    @CommandArgument('--noprofile', '-n', action='store_true',
+        help='Do not pass the -profile argument by default.')
+    @CommandArgument('--sample-below', default=None, type=str,
+        help='The sample size to use, [1..n]. Default is 4093.')
+    @CommandArgument('--max-frames', default=None, type=str,
+        help='The max number of stack frames to capture in allocation traces, [1..24] Default is 24.')
+    @CommandArgument('--show-dump-stats', action='store_true',
+        help='Show stats when doing dumps.')
+    def dmd(self, params, remote, background, noprofile, sample_below, max_frames, show_dump_stats):
+        args = get_run_args(self, params, remote, background, noprofile)
+        if not args:
+            return 1
+
+        lib_dir = os.path.join(self.distdir, 'lib')
+        lib_name = self.substs['DLL_PREFIX'] + 'dmd' + self.substs['DLL_SUFFIX']
+        dmd_lib = os.path.join(lib_dir, lib_name)
+        if not os.path.exists(dmd_lib):
+            print("You need to build with |--enable-dmd| to use dmd.")
+            return 1
+
+        dmd_params = []
+
+        if sample_below:
+            dmd_params.append('--sample-below=' + sample_below)
+        if max_frames:
+            dmd_params.append('--max-frames=' + max_frames)
+        if show_dump_stats:
+            dmd_params.append('--show-dump-stats=yes')
+
+        if dmd_params:
+            dmd_str = " ".join(dmd_params)
+        else:
+            dmd_str = "1"
+
+        env_vars = {
+            "Darwin": {
+                "DYLD_INSERT_LIBRARIES": dmd_lib,
+                "LD_LIBRARY_PATH": lib_dir,
+                "DMD": dmd_str,
+            },
+            "Linux": {
+                "LD_PRELOAD": dmd_lib,
+                "LD_LIBRARY_PATH": lib_dir,
+                "DMD": dmd_str,
+            },
+            "WINNT": {
+                "MOZ_REPLACE_MALLOC_LIB": dmd_lib,
+                "DMD": dmd_str,
+            },
+        }
+
+        return self.run_process(args=args, ensure_exit_code=False,
+            pass_thru=True, append_env=env_vars[self.substs['OS_ARCH']])
 
 @CommandProvider
 class Buildsymbols(MachCommandBase):
@@ -1031,6 +1130,8 @@ class MachDebug(MachCommandBase):
         if self.mozconfig['make_extra']:
             for arg in self.mozconfig['make_extra']:
                 print(arg, file=out)
+        if self.mozconfig['make_flags']:
+            print('MOZ_MAKE_FLAGS=%s' % ' '.join(self.mozconfig['make_flags']))
         objdir = mozpath.normsep(self.topobjdir)
         print('MOZ_OBJDIR=%s' % objdir, file=out)
         if 'MOZ_CURRENT_PROJECT' in os.environ:

@@ -54,6 +54,7 @@ class Heap;
 
 namespace js {
 class JS_FRIEND_API(BaseProxyHandler);
+class InterpreterFrame;
 } /* namespace js */
 
 extern JS_FRIEND_API(void)
@@ -86,6 +87,10 @@ JS_GetCustomIteratorCount(JSContext *cx);
 
 extern JS_FRIEND_API(bool)
 JS_NondeterministicGetWeakMapKeys(JSContext *cx, JS::HandleObject obj, JS::MutableHandleObject ret);
+
+// Raw JSScript* because this needs to be callable from a signal handler.
+extern JS_FRIEND_API(unsigned)
+JS_PCToLineNumber(JSScript *script, jsbytecode *pc);
 
 /*
  * Determine whether the given object is backed by a DeadObjectProxy.
@@ -138,8 +143,9 @@ JS_SetCompartmentPrincipals(JSCompartment *compartment, JSPrincipals *principals
 extern JS_FRIEND_API(JSPrincipals *)
 JS_GetScriptPrincipals(JSScript *script);
 
-extern JS_FRIEND_API(JSPrincipals *)
-JS_GetScriptOriginPrincipals(JSScript *script);
+extern JS_FRIEND_API(bool)
+JS_ScriptHasMutedErrors(JSScript *script);
+
 
 /* Safe to call with input obj == nullptr. Returns non-nullptr iff obj != nullptr. */
 extern JS_FRIEND_API(JSObject *)
@@ -194,7 +200,28 @@ js_DumpObject(JSObject *obj);
 
 extern JS_FRIEND_API(void)
 js_DumpChars(const char16_t *s, size_t n);
+
+extern JS_FRIEND_API(void)
+js_DumpValue(const JS::Value &val);
+
+extern JS_FRIEND_API(void)
+js_DumpId(jsid id);
+
+extern JS_FRIEND_API(void)
+js_DumpInterpreterFrame(JSContext *cx, js::InterpreterFrame *start = nullptr);
+
 #endif
+
+extern JS_FRIEND_API(void)
+js_DumpBacktrace(JSContext *cx);
+
+namespace JS {
+
+// Exposed for DumpJSStack
+extern JS_FRIEND_API(char *)
+FormatStackDump(JSContext *cx, char *buf, bool showArgs, bool showLocals, bool showThisProps);
+
+} // namespace JS
 
 /*
  * Copies all own properties from |obj| to |target|. |obj| must be a "native"
@@ -218,9 +245,6 @@ JS_CopyPropertyFrom(JSContext *cx, JS::HandleId id, JS::HandleObject target,
 
 extern JS_FRIEND_API(bool)
 JS_WrapPropertyDescriptor(JSContext *cx, JS::MutableHandle<JSPropertyDescriptor> desc);
-
-extern JS_FRIEND_API(bool)
-JS_WrapAutoIdVector(JSContext *cx, JS::AutoIdVector &props);
 
 extern JS_FRIEND_API(bool)
 JS_EnumerateState(JSContext *cx, JS::HandleObject obj, JSIterateOp enum_op,
@@ -633,17 +657,14 @@ JS_FRIEND_API(const Class *)
 ProtoKeyToClass(JSProtoKey key);
 
 // Returns true if the standard class identified by |key| inherits from
-// another standard class with the same js::Class. This basically means
-// that the various properties described by our js::Class are intended
-// to live higher up on the proto chain.
+// another standard class (in addition to Object) along its proto chain.
 //
 // In practice, this only returns true for Error subtypes.
 inline bool
 StandardClassIsDependent(JSProtoKey key)
 {
-    JSProtoKey keyFromClass = JSCLASS_CACHED_PROTO_KEY(ProtoKeyToClass(key));
-    MOZ_ASSERT(keyFromClass);
-    return key != keyFromClass;
+    const Class *clasp = ProtoKeyToClass(key);
+    return clasp->spec.defined() && clasp->spec.dependent();
 }
 
 // Returns the key for the class inherited by a given standard class (that
@@ -660,10 +681,9 @@ ParentKeyForStandardClass(JSProtoKey key)
     if (key == JSProto_Object)
         return JSProto_Null;
 
-    // If we're dependent (i.e. an Error subtype), return the key of the class
-    // we depend on.
+    // If we're dependent, return the key of the class we depend on.
     if (StandardClassIsDependent(key))
-        return JSCLASS_CACHED_PROTO_KEY(ProtoKeyToClass(key));
+        return ProtoKeyToClass(key)->spec.parentKey();
 
     // Otherwise, we inherit [Object].
     return JSProto_Object;
@@ -691,7 +711,7 @@ IsCallObject(JSObject *obj);
 inline JSObject *
 GetObjectParent(JSObject *obj)
 {
-    JS_ASSERT(!IsScopeObject(obj));
+    MOZ_ASSERT(!IsScopeObject(obj));
     return reinterpret_cast<shadow::Object*>(obj)->shape->base->parent;
 }
 
@@ -780,7 +800,7 @@ GetObjectPrivate(JSObject *obj)
 inline const JS::Value &
 GetReservedSlot(JSObject *obj, size_t slot)
 {
-    JS_ASSERT(slot < JSCLASS_RESERVED_SLOTS(GetObjectClass(obj)));
+    MOZ_ASSERT(slot < JSCLASS_RESERVED_SLOTS(GetObjectClass(obj)));
     return reinterpret_cast<const shadow::Object *>(obj)->slotRef(slot);
 }
 
@@ -790,7 +810,7 @@ SetReservedSlotWithBarrier(JSObject *obj, size_t slot, const JS::Value &value);
 inline void
 SetReservedSlot(JSObject *obj, size_t slot, const JS::Value &value)
 {
-    JS_ASSERT(slot < JSCLASS_RESERVED_SLOTS(GetObjectClass(obj)));
+    MOZ_ASSERT(slot < JSCLASS_RESERVED_SLOTS(GetObjectClass(obj)));
     shadow::Object *sobj = reinterpret_cast<shadow::Object *>(obj);
     if (sobj->slotRef(slot).isMarkable()
 #ifdef JSGC_GENERATIONAL
@@ -810,7 +830,7 @@ GetObjectSlotSpan(JSObject *obj);
 inline const JS::Value &
 GetObjectSlot(JSObject *obj, size_t slot)
 {
-    JS_ASSERT(slot < GetObjectSlotSpan(obj));
+    MOZ_ASSERT(slot < GetObjectSlotSpan(obj));
     return reinterpret_cast<const shadow::Object *>(obj)->slotRef(slot);
 }
 
@@ -1136,6 +1156,10 @@ GetErrorTypeName(JSRuntime *rt, int16_t exnType);
 extern JS_FRIEND_API(unsigned)
 GetEnterCompartmentDepth(JSContext* cx);
 #endif
+
+class RegExpGuard;
+extern JS_FRIEND_API(bool)
+RegExpToSharedNonInline(JSContext *cx, JS::HandleObject regexp, RegExpGuard *shared);
 
 /* Implemented in jswrapper.cpp. */
 typedef enum NukeReferencesToWindow {
@@ -1761,7 +1785,7 @@ const size_t TypedArrayLengthSlot = 1;
 inline void \
 Get ## Type ## ArrayLengthAndData(JSObject *obj, uint32_t *length, type **data) \
 { \
-    JS_ASSERT(GetObjectClass(obj) == detail::Type ## ArrayClassPtr); \
+    MOZ_ASSERT(GetObjectClass(obj) == detail::Type ## ArrayClassPtr); \
     const JS::Value &slot = GetReservedSlot(obj, detail::TypedArrayLengthSlot); \
     *length = mozilla::AssertedCast<uint32_t>(slot.toInt32()); \
     *data = static_cast<type*>(GetObjectPrivate(obj)); \
@@ -2387,7 +2411,7 @@ inline int CheckIsParallelNative(JSParallelNative parallelNative);
 static MOZ_ALWAYS_INLINE const JSJitInfo *
 FUNCTION_VALUE_TO_JITINFO(const JS::Value& v)
 {
-    JS_ASSERT(js::GetObjectClass(&v.toObject()) == js::FunctionClassPtr);
+    MOZ_ASSERT(js::GetObjectClass(&v.toObject()) == js::FunctionClassPtr);
     return reinterpret_cast<js::shadow::Function *>(&v.toObject())->jitinfo;
 }
 
@@ -2398,7 +2422,7 @@ static MOZ_ALWAYS_INLINE void
 SET_JITINFO(JSFunction * func, const JSJitInfo *info)
 {
     js::shadow::Function *fun = reinterpret_cast<js::shadow::Function *>(func);
-    JS_ASSERT(!(fun->flags & JS_FUNCTION_INTERPRETED_BIT));
+    MOZ_ASSERT(!(fun->flags & JS_FUNCTION_INTERPRETED_BIT));
     fun->jitinfo = info;
 }
 
@@ -2445,9 +2469,9 @@ bool IdMatchesAtom(jsid id, JSAtom *atom);
 static MOZ_ALWAYS_INLINE jsid
 NON_INTEGER_ATOM_TO_JSID(JSAtom *atom)
 {
-    JS_ASSERT(((size_t)atom & 0x7) == 0);
+    MOZ_ASSERT(((size_t)atom & 0x7) == 0);
     jsid id = JSID_FROM_BITS((size_t)atom);
-    JS_ASSERT(js::detail::IdMatchesAtom(id, atom));
+    MOZ_ASSERT(js::detail::IdMatchesAtom(id, atom));
     return id;
 }
 
@@ -2483,7 +2507,7 @@ IdToValue(jsid id)
         return JS::Int32Value(JSID_TO_INT(id));
     if (JSID_IS_SYMBOL(id))
         return JS::SymbolValue(JSID_TO_SYMBOL(id));
-    JS_ASSERT(JSID_IS_VOID(id));
+    MOZ_ASSERT(JSID_IS_VOID(id));
     return JS::UndefinedValue();
 }
 

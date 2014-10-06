@@ -12,6 +12,7 @@
 
 #include "mozilla/ArrayUtils.h"
 #include "mozilla/AutoRestore.h"
+#include "mozilla/BinarySearch.h"
 #include "mozilla/DebugOnly.h"
 #include "mozilla/MemoryReporting.h"
 #include "mozilla/Likely.h"
@@ -153,7 +154,6 @@
 #include "mozAutoDocUpdate.h"
 #include "nsGlobalWindow.h"
 #include "mozilla/dom/EncodingUtils.h"
-#include "mozilla/dom/quota/QuotaManager.h"
 #include "nsDOMNavigationTiming.h"
 
 #include "nsSMILAnimationController.h"
@@ -223,6 +223,7 @@
 #include "mozilla/dom/DOMStringList.h"
 #include "nsWindowMemoryReporter.h"
 #include "nsLocation.h"
+#include "mozilla/dom/FontFaceSet.h"
 
 #ifdef MOZ_MEDIA_NAVIGATOR
 #include "mozilla/MediaManager.h"
@@ -549,6 +550,26 @@ nsIdentifierMapEntry::FireChangeCallbacks(Element* aOldElement,
   mChangeCallbacks->EnumerateEntries(FireChangeEnumerator, &args);
 }
 
+namespace {
+
+struct PositionComparator
+{
+  Element* const mElement;
+  PositionComparator(Element* const aElement) : mElement(aElement) {}
+
+  int operator()(void* aElement) const {
+    Element* curElement = static_cast<Element*>(aElement);
+    if (mElement == curElement) {
+      return 0;
+    }
+    if (nsContentUtils::PositionIsBefore(mElement, curElement)) {
+      return -1;
+    }
+    return 1;
+  }
+};
+} // namespace
+
 bool
 nsIdentifierMapEntry::AddIdElement(Element* aElement)
 {
@@ -572,33 +593,20 @@ nsIdentifierMapEntry::AddIdElement(Element* aElement)
 
   // We seem to have multiple content nodes for the same id, or XUL is messing
   // with us.  Search for the right place to insert the content.
-  int32_t start = 0;
-  int32_t end = mIdContentList.Count();
-  do {
-    NS_ASSERTION(start < end, "Bogus start/end");
 
-    int32_t cur = (start + end) / 2;
-    NS_ASSERTION(cur >= start && cur < end, "What happened here?");
+  size_t idx;
+  if (BinarySearchIf(mIdContentList, 0, mIdContentList.Count(),
+                     PositionComparator(aElement), &idx)) {
+    // Already in the list, so already in the right spot.  Get out of here.
+    // XXXbz this only happens because XUL does all sorts of random
+    // UpdateIdTableEntry calls.  Hate, hate, hate!
+    return true;
+  }
 
-    Element* curElement = static_cast<Element*>(mIdContentList[cur]);
-    if (curElement == aElement) {
-      // Already in the list, so already in the right spot.  Get out of here.
-      // XXXbz this only happens because XUL does all sorts of random
-      // UpdateIdTableEntry calls.  Hate, hate, hate!
-      return true;
-    }
-
-    if (nsContentUtils::PositionIsBefore(aElement, curElement)) {
-      end = cur;
-    } else {
-      start = cur + 1;
-    }
-  } while (start != end);
-
-  if (!mIdContentList.InsertElementAt(aElement, start))
+  if (!mIdContentList.InsertElementAt(aElement, idx))
     return false;
 
-  if (start == 0) {
+  if (idx == 0) {
     Element* oldElement =
       static_cast<Element*>(mIdContentList.SafeElementAt(1));
     NS_ASSERTION(currentElement == oldElement, "How did that happen?");
@@ -1320,7 +1328,15 @@ nsExternalResourceMap::PendingLoad::StartLoad(nsIURI* aURI,
 
   nsCOMPtr<nsILoadGroup> loadGroup = doc->GetDocumentLoadGroup();
   nsCOMPtr<nsIChannel> channel;
-  rv = NS_NewChannel(getter_AddRefs(channel), aURI, nullptr, loadGroup, req);
+  rv = NS_NewChannel(getter_AddRefs(channel),
+                     aURI,
+                     aRequestingNode,
+                     nsILoadInfo::SEC_NORMAL,
+                     nsIContentPolicy::TYPE_OTHER,
+                     nullptr, // aChannelPolicy
+                     loadGroup,
+                     req); // aCallbacks
+
   NS_ENSURE_SUCCESS(rv, rv);
 
   mURI = aURI;
@@ -1982,6 +1998,8 @@ NS_IMPL_CYCLE_COLLECTION_TRAVERSE_BEGIN_INTERNAL(nsDocument)
   NS_IMPL_CYCLE_COLLECTION_TRAVERSE(mOnDemandBuiltInUASheets)
   NS_IMPL_CYCLE_COLLECTION_TRAVERSE(mPreloadingImages)
 
+  NS_IMPL_CYCLE_COLLECTION_TRAVERSE(mSubImportLinks)
+
   for (uint32_t i = 0; i < tmp->mFrameRequestCallbacks.Length(); ++i) {
     NS_CYCLE_COLLECTION_NOTE_EDGE_NAME(cb, "mFrameRequestCallbacks[i]");
     cb.NoteXPCOMChild(tmp->mFrameRequestCallbacks[i].mCallback.GetISupports());
@@ -2046,6 +2064,7 @@ NS_IMPL_CYCLE_COLLECTION_UNLINK_BEGIN(nsDocument)
   NS_IMPL_CYCLE_COLLECTION_UNLINK(mRegistry)
   NS_IMPL_CYCLE_COLLECTION_UNLINK(mMasterDocument)
   NS_IMPL_CYCLE_COLLECTION_UNLINK(mImportManager)
+  NS_IMPL_CYCLE_COLLECTION_UNLINK(mSubImportLinks)
 
   tmp->mParentDocument = nullptr;
 
@@ -3461,6 +3480,19 @@ nsDocument::SetBaseURI(nsIURI* aURI)
     bool equalBases = false;
     mDocumentBaseURI->Equals(aURI, &equalBases);
     if (equalBases) {
+      return NS_OK;
+    }
+  }
+
+  // Check if CSP allows this base-uri
+  nsCOMPtr<nsIContentSecurityPolicy> csp;
+  nsresult rv = NodePrincipal()->GetCsp(getter_AddRefs(csp));
+  NS_ENSURE_SUCCESS(rv, rv);
+  if (csp) {
+    bool permitsBaseURI = false;
+    rv = csp->PermitsBaseURI(aURI, &permitsBaseURI);
+    NS_ENSURE_SUCCESS(rv, rv);
+    if (!permitsBaseURI) {
       return NS_OK;
     }
   }
@@ -5869,7 +5901,7 @@ nsDocument::RegisterElement(JSContext* aCx, const nsAString& aType,
   JSAutoCompartment ac(aCx, global);
 
   JS::Handle<JSObject*> htmlProto(
-    HTMLElementBinding::GetProtoObject(aCx, global));
+    HTMLElementBinding::GetProtoObjectHandle(aCx, global));
   if (!htmlProto) {
     rv.Throw(NS_ERROR_OUT_OF_MEMORY);
     return;
@@ -5915,7 +5947,7 @@ nsDocument::RegisterElement(JSContext* aCx, const nsAString& aType,
     }
 
     JS::Handle<JSObject*> svgProto(
-      SVGElementBinding::GetProtoObject(aCx, global));
+      SVGElementBinding::GetProtoObjectHandle(aCx, global));
     if (!svgProto) {
       rv.Throw(NS_ERROR_OUT_OF_MEMORY);
       return;
@@ -6024,7 +6056,8 @@ nsDocument::RegisterElement(JSContext* aCx, const nsAString& aType,
       }
 
       EnqueueLifecycleCallback(nsIDocument::eCreated, elem, nullptr, definition);
-      if (elem->GetCurrentDoc()) {
+      //XXXsmaug It is unclear if we should use GetComposedDoc() here.
+      if (elem->GetUncomposedDoc()) {
         // Normally callbacks can not be enqueued until the created
         // callback has been invoked, however, the attached callback
         // in element upgrade is an exception so pretend the created
@@ -8510,13 +8543,6 @@ nsDocument::CanSavePresentation(nsIRequest *aNewRequest)
     }
   }
 
-  // Check if we have running offline storage transactions
-  quota::QuotaManager* quotaManager =
-    win ? quota::QuotaManager::Get() : nullptr;
-  if (quotaManager && quotaManager->HasOpenTransactions(win)) {
-   return false;
-  }
-
 #ifdef MOZ_MEDIA_NAVIGATOR
   // Check if we have active GetUserMedia use
   if (MediaManager::Exists() && win &&
@@ -9157,14 +9183,6 @@ nsDocument::CloneDocHelper(nsDocument* clone) const
   nsresult rv = clone->Init();
   NS_ENSURE_SUCCESS(rv, rv);
 
-  // Set URI/principal
-  clone->nsDocument::SetDocumentURI(nsIDocument::GetDocumentURI());
-  clone->SetChromeXHRDocURI(mChromeXHRDocURI);
-  // Must set the principal first, since SetBaseURI checks it.
-  clone->SetPrincipal(NodePrincipal());
-  clone->mDocumentBaseURI = mDocumentBaseURI;
-  clone->SetChromeXHRDocBaseURI(mChromeXHRDocBaseURI);
-
   if (mCreatingStaticClone) {
     nsCOMPtr<nsILoadGroup> loadGroup;
 
@@ -9188,6 +9206,18 @@ nsDocument::CloneDocHelper(nsDocument* clone) const
 
     clone->SetContainer(mDocumentContainer);
   }
+
+  // Now ensure that our clone has the same URI, base URI, and principal as us.
+  // We do this after the mCreatingStaticClone block above, because that block
+  // can set the base URI to an incorrect value in cases when base URI
+  // information came from the channel.  So we override explicitly, and do it
+  // for all these properties, in case ResetToURI messes with any of the rest of
+  // them.
+  clone->nsDocument::SetDocumentURI(nsIDocument::GetDocumentURI());
+  clone->SetChromeXHRDocURI(mChromeXHRDocURI);
+  clone->SetPrincipal(NodePrincipal());
+  clone->mDocumentBaseURI = mDocumentBaseURI;
+  clone->SetChromeXHRDocBaseURI(mChromeXHRDocBaseURI);
 
   // Set scripting object
   bool hasHadScriptObject = true;
@@ -11498,7 +11528,7 @@ public:
     nsCOMPtr<Element> e = do_QueryReferent(mElement);
     nsCOMPtr<nsIDocument> d = do_QueryReferent(mDocument);
     if (!e || !d || gPendingPointerLockRequest != this ||
-        e->GetCurrentDoc() != d) {
+        e->GetUncomposedDoc() != d) {
       Handled();
       DispatchPointerLockError(d);
       return NS_OK;
@@ -11613,7 +11643,7 @@ nsPointerLockPermissionRequest::Allow(JS::HandleValue aChoices)
   nsCOMPtr<nsIDocument> doc = do_QueryReferent(mDocument);
   nsDocument* d = static_cast<nsDocument*>(doc.get());
   if (!e || !d || gPendingPointerLockRequest != this ||
-      e->GetCurrentDoc() != d ||
+      e->GetUncomposedDoc() != d ||
       (!mUserInputOrChromeCaller && !d->mIsApprovedForFullscreen)) {
     Handled();
     DispatchPointerLockError(d);
@@ -11680,7 +11710,7 @@ nsDocument::Observe(nsISupports *aSubject,
       bool userInputOrChromeCaller =
         gPendingPointerLockRequest->mUserInputOrChromeCaller;
       gPendingPointerLockRequest->Handled();
-      if (doc == this && el && el->GetCurrentDoc() == doc) {
+      if (doc == this && el && el->GetUncomposedDoc() == doc) {
         nsPointerLockPermissionRequest* clone =
           new nsPointerLockPermissionRequest(el, userInputOrChromeCaller);
         gPendingPointerLockRequest = clone;
@@ -12387,3 +12417,20 @@ nsAutoSyncOperation::~nsAutoSyncOperation()
   nsContentUtils::SetMicroTaskLevel(mMicroTaskLevel);
 }
 
+FontFaceSet*
+nsIDocument::GetFonts(ErrorResult& aRv)
+{
+  nsIPresShell* shell = GetShell();
+  if (!shell) {
+    aRv.Throw(NS_ERROR_FAILURE);
+    return nullptr;
+  }
+
+  nsPresContext* presContext = shell->GetPresContext();
+  if (!presContext) {
+    aRv.Throw(NS_ERROR_FAILURE);
+    return nullptr;
+  }
+
+  return presContext->Fonts();
+}

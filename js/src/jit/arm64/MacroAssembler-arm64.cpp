@@ -135,7 +135,7 @@ MacroAssembler::PopRegsInMaskIgnore(RegisterSet set, RegisterSet ignore, FloatRe
         nextOffset += sizeof(double);
         ++iter;
 
-        JS_ASSERT(!src0.Is(src1));
+        MOZ_ASSERT(!src0.Is(src1));
         ldp(src0, src1, MemOperand(GetStackPointer(), offset));
     }
 
@@ -203,7 +203,7 @@ MacroAssemblerCompat::handleFailureWithHandlerTail()
 void
 MacroAssemblerCompat::setupABICall(uint32_t args)
 {
-    JS_ASSERT(!inCall_);
+    MOZ_ASSERT(!inCall_);
     inCall_ = true;
 
     args_ = args;
@@ -224,7 +224,7 @@ MacroAssemblerCompat::setupUnalignedABICall(uint32_t args, Register scratch)
     ARMRegister scratch64(scratch, 64);
 
     // TODO: Unhandled for sp -- needs slightly different logic.
-    JS_ASSERT(!GetStackPointer().Is(sp));
+    MOZ_ASSERT(!GetStackPointer().Is(sp));
 
     // Remember the stack address on entry.
     Mov(scratch64, GetStackPointer());
@@ -258,7 +258,7 @@ MacroAssemblerCompat::passABIArg(const MoveOperand &from, MoveOp::Type type)
         return;
     }
 
-    JS_ASSERT(type == MoveOp::FLOAT32 || type == MoveOp::DOUBLE);
+    MOZ_ASSERT(type == MoveOp::FLOAT32 || type == MoveOp::DOUBLE);
     if (type == MoveOp::FLOAT32)
         passedArgTypes_ = (passedArgTypes_ << ArgType_Shift) | ArgType_Float32;
     else
@@ -275,7 +275,7 @@ MacroAssemblerCompat::passABIArg(const MoveOperand &from, MoveOp::Type type)
     switch (type) {
       case MoveOp::FLOAT32: stackForCall_ += sizeof(float);  break;
       case MoveOp::DOUBLE:  stackForCall_ += sizeof(double); break;
-      default: MOZ_ASSUME_UNREACHABLE("Unexpected float register class argument type");
+      default: MOZ_CRASH("Unexpected float register class argument type");
     }
 }
 
@@ -363,7 +363,7 @@ AssertValidABIFunctionType(uint32_t passedArgTypes)
       case Args_Int_IntDouble:
         break;
       default:
-        MOZ_ASSUME_UNREACHABLE("Unexpected type");
+        MOZ_CRASH("Unexpected type");
     }
 }
 #endif // DEBUG && JS_ARM64_SIMULATOR
@@ -378,7 +378,7 @@ MacroAssemblerCompat::callWithABI(void *fun, MoveOp::Type result)
       case MoveOp::GENERAL: passedArgTypes_ |= ArgType_General; break;
       case MoveOp::DOUBLE:  passedArgTypes_ |= ArgType_Double;  break;
       case MoveOp::FLOAT32: passedArgTypes_ |= ArgType_Float32; break;
-      default: MOZ_ASSUME_UNREACHABLE("Invalid return type");
+      default: MOZ_CRASH("Invalid return type");
     }
 # ifdef DEBUG
     AssertValidABIFunctionType(passedArgTypes_);
@@ -394,6 +394,17 @@ MacroAssemblerCompat::callWithABI(void *fun, MoveOp::Type result)
     uint32_t stackAdjust;
     callWithABIPre(&stackAdjust);
     call(callTarget);
+    callWithABIPost(stackAdjust, result);
+}
+
+void
+MacroAssemblerCompat::callWithABI(Register fun, MoveOp::Type result)
+{
+    movePtr(fun, ip0);
+
+    uint32_t stackAdjust;
+    callWithABIPre(&stackAdjust);
+    call(ip0);
     callWithABIPost(stackAdjust, result);
 }
 

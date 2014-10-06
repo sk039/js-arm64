@@ -275,13 +275,6 @@ var DebuggerServer = {
     }
     gRegisteredModules = {};
 
-    // The thread actor is special. It isn't registered as all the other ones
-    // with a global or tab scope. It is loaded instead by its parent tab actor
-    // on an 'attach' request. But tests still expect to observe its state
-    // being reset when DebuggerServer is reset, so let's explicitly reset
-    // it here.
-    require("devtools/server/actors/script").cleanup();
-
     this.closeAllListeners();
     this.globalActorFactories = {};
     this.tabActorFactories = {};
@@ -442,7 +435,11 @@ var DebuggerServer = {
       });
     }
 
-    this.addActors("resource://gre/modules/devtools/server/actors/webapps.js");
+    this.registerModule("devtools/server/actors/webapps", {
+      prefix: "webapps",
+      constructor: "WebappsActor",
+      type: { global: true }
+    });
     this.registerModule("devtools/server/actors/device", {
       prefix: "device",
       constructor: "DeviceActor",

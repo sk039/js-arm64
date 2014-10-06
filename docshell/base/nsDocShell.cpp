@@ -112,6 +112,7 @@
 #include "nsIWindowWatcher.h"
 #include "nsIPromptFactory.h"
 #include "nsITransportSecurityInfo.h"
+#include "nsINode.h"
 #include "nsINSSErrorsService.h"
 #include "nsIApplicationCacheChannel.h"
 #include "nsIApplicationCacheContainer.h"
@@ -199,6 +200,10 @@
 #include "mozilla/dom/EncodingUtils.h"
 #include "mozilla/dom/ScriptSettings.h"
 #include "mozilla/dom/URLSearchParams.h"
+
+#ifdef MOZ_TOOLKIT_SEARCH
+#include "nsIBrowserSearchService.h"
+#endif
 
 static NS_DEFINE_CID(kAppShellCID, NS_APPSHELL_CID);
 
@@ -2860,22 +2865,24 @@ nsDocShell::PopProfileTimelineMarkers(JSContext* aCx,
           mProfileTimelineMarkers[j]->mPayload);
         const char* endMarkerName = mProfileTimelineMarkers[j]->mName;
 
-        // Look for Layer markers to stream out paint markers
+        // Look for Layer markers to stream out paint markers.
         if (strcmp(endMarkerName, "Layer") == 0) {
           hasSeenPaintedLayer = true;
         }
 
         bool isSameMarkerType = strcmp(startMarkerName, endMarkerName) == 0;
-        bool isValidType = strcmp(endMarkerName, "Paint") != 0 ||
-                           hasSeenPaintedLayer;
+        bool isPaint = strcmp(startMarkerName, "Paint") == 0;
 
-        if (endPayload->GetMetaData() == TRACING_INTERVAL_END &&
-            isSameMarkerType && isValidType) {
-          mozilla::dom::ProfileTimelineMarker marker;
-          marker.mName = NS_ConvertUTF8toUTF16(startMarkerName);
-          marker.mStart = mProfileTimelineMarkers[i]->mTime;
-          marker.mEnd = mProfileTimelineMarkers[j]->mTime;
-          profileTimelineMarkers.AppendElement(marker);
+        // Pair start and end markers.
+        if (endPayload->GetMetaData() == TRACING_INTERVAL_END && isSameMarkerType) {
+          // But ignore paint start/end if no layer has been painted.
+          if (!isPaint || (isPaint && hasSeenPaintedLayer)) {
+            mozilla::dom::ProfileTimelineMarker marker;
+            marker.mName = NS_ConvertUTF8toUTF16(startMarkerName);
+            marker.mStart = mProfileTimelineMarkers[i]->mTime;
+            marker.mEnd = mProfileTimelineMarkers[j]->mTime;
+            profileTimelineMarkers.AppendElement(marker);
+          }
 
           break;
         }
@@ -3053,14 +3060,14 @@ nsDocShell::RemoveWeakScrollObserver(nsIScrollObserver* aObserver)
 }
 
 void
-nsDocShell::NotifyAsyncPanZoomStarted()
+nsDocShell::NotifyAsyncPanZoomStarted(const mozilla::CSSIntPoint aScrollPos)
 {
     nsTObserverArray<nsWeakPtr>::ForwardIterator iter(mScrollObservers);
     while (iter.HasMore()) {
         nsWeakPtr ref = iter.GetNext();
         nsCOMPtr<nsIScrollObserver> obs = do_QueryReferent(ref);
         if (obs) {
-            obs->AsyncPanZoomStarted();
+            obs->AsyncPanZoomStarted(aScrollPos);
         } else {
             mScrollObservers.RemoveElement(ref);
         }
@@ -3068,14 +3075,14 @@ nsDocShell::NotifyAsyncPanZoomStarted()
 }
 
 void
-nsDocShell::NotifyAsyncPanZoomStopped()
+nsDocShell::NotifyAsyncPanZoomStopped(const mozilla::CSSIntPoint aScrollPos)
 {
     nsTObserverArray<nsWeakPtr>::ForwardIterator iter(mScrollObservers);
     while (iter.HasMore()) {
         nsWeakPtr ref = iter.GetNext();
         nsCOMPtr<nsIScrollObserver> obs = do_QueryReferent(ref);
         if (obs) {
-            obs->AsyncPanZoomStopped();
+            obs->AsyncPanZoomStopped(aScrollPos);
         } else {
             mScrollObservers.RemoveElement(ref);
         }
@@ -4580,6 +4587,7 @@ nsDocShell::LoadURIWithBase(const char16_t * aURI,
         aLoadFlags &= ~LOAD_FLAGS_ALLOW_THIRD_PARTY_FIXUP;
     }
     
+    nsCOMPtr<nsIURIFixupInfo> fixupInfo;
     if (sURIFixup) {
         // Call the fixup object.  This will clobber the rv from NS_NewURI
         // above, but that's fine with us.  Note that we need to do this even
@@ -4593,7 +4601,6 @@ nsDocShell::LoadURIWithBase(const char16_t * aURI,
           fixupFlags |= nsIURIFixup::FIXUP_FLAG_FIX_SCHEME_TYPOS;
         }
         nsCOMPtr<nsIInputStream> fixupStream;
-        nsCOMPtr<nsIURIFixupInfo> fixupInfo;
         rv = sURIFixup->GetFixupURIInfo(uriString, fixupFlags,
                                         getter_AddRefs(fixupStream),
                                         getter_AddRefs(fixupInfo));
@@ -4604,7 +4611,7 @@ nsDocShell::LoadURIWithBase(const char16_t * aURI,
         }
 
         if (fixupStream) {
-            // CreateFixupURI only returns a post data stream if it succeeded
+            // GetFixupURIInfo only returns a post data stream if it succeeded
             // and changed the URI, in which case we should override the
             // passed-in post data.
             postStream = fixupStream;
@@ -4662,6 +4669,13 @@ nsDocShell::LoadURIWithBase(const char16_t * aURI,
     loadInfo->SetReferrer(aReferringURI);
     loadInfo->SetHeadersStream(aHeaderStream);
     loadInfo->SetBaseURI(aBaseURI);
+
+    if (fixupInfo) {
+        nsAutoString searchProvider, keyword;
+        fixupInfo->GetKeywordProviderName(searchProvider);
+        fixupInfo->GetKeywordAsSent(keyword);
+        MaybeNotifyKeywordSearchLoading(searchProvider, keyword);
+    }
 
     rv = LoadURI(uri, loadInfo, extraFlags, true);
 
@@ -7379,6 +7393,7 @@ nsDocShell::EndPageLoad(nsIWebProgress * aProgress,
             //
             // First try keyword fixup
             //
+            nsAutoString keywordProviderName, keywordAsSent;
             if (aStatus == NS_ERROR_UNKNOWN_HOST && mAllowKeywordFixup) {
                 bool keywordsEnabled =
                     Preferences::GetBool("keyword.enabled", false);
@@ -7409,11 +7424,12 @@ nsDocShell::EndPageLoad(nsIWebProgress * aProgress,
                 }
 
                 if (keywordsEnabled && (kNotFound == dotLoc)) {
+                    nsCOMPtr<nsIURIFixupInfo> info;
                     // only send non-qualified hosts to the keyword server
                     if (!mOriginalUriString.IsEmpty()) {
                         sURIFixup->KeywordToURI(mOriginalUriString,
                                                 getter_AddRefs(newPostData),
-                                                getter_AddRefs(newURI));
+                                                getter_AddRefs(info));
                     }
                     else {
                         //
@@ -7435,12 +7451,18 @@ nsDocShell::EndPageLoad(nsIWebProgress * aProgress,
                             NS_SUCCEEDED(idnSrv->ConvertACEtoUTF8(host, utf8Host))) {
                             sURIFixup->KeywordToURI(utf8Host,
                                                     getter_AddRefs(newPostData),
-                                                    getter_AddRefs(newURI));
+                                                    getter_AddRefs(info));
                         } else {
                             sURIFixup->KeywordToURI(host,
                                                     getter_AddRefs(newPostData),
-                                                    getter_AddRefs(newURI));
+                                                    getter_AddRefs(info));
                         }
+                    }
+
+                    info->GetPreferredURI(getter_AddRefs(newURI));
+                    if (newURI) {
+                        info->GetKeywordAsSent(keywordAsSent);
+                        info->GetKeywordProviderName(keywordProviderName);
                     }
                 } // end keywordsEnabled
             }
@@ -7474,6 +7496,8 @@ nsDocShell::EndPageLoad(nsIWebProgress * aProgress,
                 if (doCreateAlternate) {
                     newURI = nullptr;
                     newPostData = nullptr;
+                    keywordProviderName.Truncate();
+                    keywordAsSent.Truncate();
                     sURIFixup->CreateFixupURI(oldSpec,
                       nsIURIFixup::FIXUP_FLAGS_MAKE_ALTERNATE_URI,
                                               getter_AddRefs(newPostData),
@@ -7493,6 +7517,10 @@ nsDocShell::EndPageLoad(nsIWebProgress * aProgress,
                     nsAutoCString newSpec;
                     newURI->GetSpec(newSpec);
                     NS_ConvertUTF8toUTF16 newSpecW(newSpec);
+
+                    // This notification is meant for Firefox Health Report so it
+                    // can increment counts from the search engine
+                    MaybeNotifyKeywordSearchLoading(keywordProviderName, keywordAsSent);
 
                     return LoadURI(newSpecW.get(),  // URI string
                                    LOAD_FLAGS_NONE, // Load flags
@@ -9178,6 +9206,29 @@ nsDocShell::JustStartedNetworkLoad()
            mDocumentRequest != GetCurrentDocChannel();
 }
 
+nsresult
+nsDocShell::CreatePrincipalFromReferrer(nsIURI*        aReferrer,
+                                        nsIPrincipal** outPrincipal)
+{
+  nsresult rv;
+  nsCOMPtr<nsIScriptSecurityManager> secMan =
+    do_GetService(NS_SCRIPTSECURITYMANAGER_CONTRACTID, &rv);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  uint32_t appId;
+  rv = GetAppId(&appId);
+  NS_ENSURE_SUCCESS(rv, rv);
+  bool isInBrowserElement;
+  rv = GetIsInBrowserElement(&isInBrowserElement);
+  NS_ENSURE_SUCCESS(rv, rv);
+  rv = secMan->GetAppCodebasePrincipal(aReferrer,
+                                       appId,
+                                       isInBrowserElement,
+                                       outPrincipal);
+  NS_ENSURE_SUCCESS(rv, rv);
+  return NS_OK;
+}
+
 NS_IMETHODIMP
 nsDocShell::InternalLoad(nsIURI * aURI,
                          nsIURI * aReferrer,
@@ -9296,12 +9347,8 @@ nsDocShell::InternalLoad(nsIURI * aURI,
     // XXXbz would be nice to know the loading principal here... but we don't
     nsCOMPtr<nsIPrincipal> loadingPrincipal = do_QueryInterface(aOwner);
     if (!loadingPrincipal && aReferrer) {
-        nsCOMPtr<nsIScriptSecurityManager> secMan =
-            do_GetService(NS_SCRIPTSECURITYMANAGER_CONTRACTID, &rv);
-        NS_ENSURE_SUCCESS(rv, rv);
-
-        rv = secMan->GetSimpleCodebasePrincipal(aReferrer,
-                                                getter_AddRefs(loadingPrincipal));
+      rv = CreatePrincipalFromReferrer(aReferrer, getter_AddRefs(loadingPrincipal));
+      NS_ENSURE_SUCCESS(rv, rv);
     }
 
     rv = NS_CheckContentLoadPolicy(contentType,
@@ -9349,7 +9396,7 @@ nsDocShell::InternalLoad(nsIURI * aURI,
     {
         bool willInherit;
         // This condition needs to match the one in
-        // nsContentUtils::SetUpChannelOwner.
+        // nsContentUtils::ChannelShouldInheritPrincipal.
         // Except we reverse the rv check to be safe in case
         // nsContentUtils::URIInheritsSecurityContext fails here and
         // succeeds there.
@@ -9816,7 +9863,18 @@ nsDocShell::InternalLoad(nsIURI * aURI,
             return NS_OK;
         }
     }
-    
+
+    // Check if the webbrowser chrome wants the load to proceed; this can be
+    // used to cancel attempts to load URIs in the wrong process.
+    nsCOMPtr<nsIWebBrowserChrome3> browserChrome3 = do_GetInterface(mTreeOwner);
+    if (browserChrome3) {
+        bool shouldLoad;
+        rv = browserChrome3->ShouldLoadURI(this, aURI, aReferrer, &shouldLoad);
+        if (NS_SUCCEEDED(rv) && !shouldLoad) {
+            return NS_OK;
+        }
+    }
+
     // mContentViewer->PermitUnload can destroy |this| docShell, which
     // causes the next call of CanSavePresentation to crash. 
     // Hold onto |this| until we return, to prevent a crash from happening. 
@@ -9967,7 +10025,7 @@ nsDocShell::InternalLoad(nsIURI * aURI,
                    (aFlags & INTERNAL_LOAD_FLAGS_FIRST_LOAD) != 0,
                    (aFlags & INTERNAL_LOAD_FLAGS_BYPASS_CLASSIFIER) != 0,
                    (aFlags & INTERNAL_LOAD_FLAGS_FORCE_ALLOW_COOKIES) != 0,
-                   srcdoc, aBaseURI);
+                   srcdoc, aBaseURI, contentType);
     if (req && aRequest)
         NS_ADDREF(*aRequest = req);
 
@@ -10047,7 +10105,8 @@ nsDocShell::DoURILoad(nsIURI * aURI,
                       bool aBypassClassifier,
                       bool aForceAllowCookies,
                       const nsAString &aSrcdoc,
-                      nsIURI * aBaseURI)
+                      nsIURI * aBaseURI,
+                      nsContentPolicyType aContentPolicyType)
 {
 #ifdef MOZ_VISUAL_EVENT_TRACER
     nsAutoCString urlSpec;
@@ -10118,14 +10177,55 @@ nsDocShell::DoURILoad(nsIURI * aURI,
     nsCOMPtr<nsIChannel> channel;
 
     bool isSrcdoc = !aSrcdoc.IsVoid();
+
+    nsCOMPtr<nsINode> requestingNode;
+    if (mScriptGlobal) {
+      requestingNode = mScriptGlobal->GetFrameElementInternal();
+      if (!requestingNode) {
+        requestingNode = mScriptGlobal->GetExtantDoc();
+      }
+    }
+
+    bool isSandBoxed = mSandboxFlags & SANDBOXED_ORIGIN;
+    // only inherit if we have a requestingPrincipal
+    bool inherit = false;
+
+    nsCOMPtr<nsIPrincipal> requestingPrincipal = do_QueryInterface(aOwner);
+    if (requestingPrincipal) {
+      inherit = nsContentUtils::ChannelShouldInheritPrincipal(requestingPrincipal,
+                                                              aURI,
+                                                              true, // aInheritForAboutBlank
+                                                              isSrcdoc);
+    }
+    else if (!requestingPrincipal && aReferrerURI) {
+      rv = CreatePrincipalFromReferrer(aReferrerURI,
+                                       getter_AddRefs(requestingPrincipal));
+      NS_ENSURE_SUCCESS(rv, rv);
+    }
+    else {
+      requestingPrincipal = nsContentUtils::GetSystemPrincipal();
+    }
+
+    nsSecurityFlags securityFlags = nsILoadInfo::SEC_NORMAL;
+    if (inherit) {
+      securityFlags |= nsILoadInfo::SEC_FORCE_INHERIT_PRINCIPAL;
+    }
+    if (isSandBoxed) {
+      securityFlags |= nsILoadInfo::SEC_SANDBOXED;
+    }
+
     if (!isSrcdoc) {
-        rv = NS_NewChannel(getter_AddRefs(channel),
-                           aURI,
-                           nullptr,
-                           nullptr,
-                           static_cast<nsIInterfaceRequestor *>(this),
-                           loadFlags,
-                           channelPolicy);
+        rv = NS_NewChannelInternal(getter_AddRefs(channel),
+                                   aURI,
+                                   requestingNode,
+                                   requestingPrincipal,
+                                   securityFlags,
+                                   aContentPolicyType,
+                                   channelPolicy,
+                                   nullptr,   // loadGroup
+                                   static_cast<nsIInterfaceRequestor*>(this),
+                                   loadFlags);
+
         if (NS_FAILED(rv)) {
             if (rv == NS_ERROR_UNKNOWN_PROTOCOL) {
                 // This is a uri with a protocol scheme we don't know how
@@ -10173,6 +10273,14 @@ nsDocShell::DoURILoad(nsIURI * aURI,
             MOZ_ASSERT(isc);
             isc->SetBaseURI(aBaseURI);
         }
+        // NS_NewInputStreamChannel does not yet attach the loadInfo in nsNetutil.h,
+        // hence we have to manually attach the loadInfo for that channel.
+        nsCOMPtr<nsILoadInfo> loadInfo =
+          new LoadInfo(requestingPrincipal,
+                       requestingNode,
+                       securityFlags,
+                       aContentPolicyType);
+        channel->SetLoadInfo(loadInfo);
     }
 
     nsCOMPtr<nsIApplicationCacheChannel> appCacheChannel =
@@ -10334,11 +10442,6 @@ nsDocShell::DoURILoad(nsIURI * aURI,
             httpChannel->SetReferrer(aReferrerURI);
         }
     }
-
-    nsCOMPtr<nsIPrincipal> ownerPrincipal = do_QueryInterface(aOwner);
-    nsContentUtils::SetUpChannelOwner(ownerPrincipal, channel, aURI, true,
-                                      mSandboxFlags & SANDBOXED_ORIGIN,
-                                      isSrcdoc);
 
     nsCOMPtr<nsIScriptChannel> scriptChannel = do_QueryInterface(channel);
     if (scriptChannel) {
@@ -13429,4 +13532,37 @@ URLSearchParams*
 nsDocShell::GetURLSearchParams()
 {
   return mURLSearchParams;
+}
+
+void
+nsDocShell::MaybeNotifyKeywordSearchLoading(const nsString &aProvider,
+                                            const nsString &aKeyword) {
+
+  if (aProvider.IsEmpty()) {
+    return;
+  }
+
+  if (XRE_GetProcessType() == GeckoProcessType_Content) {
+    dom::ContentChild* contentChild = dom::ContentChild::GetSingleton();
+    if (contentChild) {
+      contentChild->SendNotifyKeywordSearchLoading(aProvider, aKeyword);
+    }
+    return;
+  }
+
+#ifdef MOZ_TOOLKIT_SEARCH
+  nsCOMPtr<nsIBrowserSearchService> searchSvc = do_GetService("@mozilla.org/browser/search-service;1");
+  if (searchSvc) {
+    nsCOMPtr<nsISearchEngine> searchEngine;
+    searchSvc->GetEngineByName(aProvider, getter_AddRefs(searchEngine));
+    if (searchEngine) {
+      nsCOMPtr<nsIObserverService> obsSvc = mozilla::services::GetObserverService();
+      if (obsSvc) {
+        // Note that "keyword-search" refers to a search via the url
+        // bar, not a bookmarks keyword search.
+        obsSvc->NotifyObservers(searchEngine, "keyword-search", aKeyword.get());
+      }
+    }
+  }
+#endif
 }

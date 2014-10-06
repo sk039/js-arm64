@@ -553,6 +553,31 @@ WrapperAnswer::AnswerClassName(const ObjectId &objId, nsString *name)
 }
 
 bool
+WrapperAnswer::AnswerRegExpToShared(const ObjectId &objId, ReturnStatus *rs,
+                                    nsString *source, uint32_t *flags)
+{
+    AutoSafeJSContext cx;
+    RootedObject obj(cx, findObjectById(cx, objId));
+    if (!obj)
+        return fail(cx, rs);
+
+    JSAutoCompartment ac(cx, obj);
+    MOZ_RELEASE_ASSERT(JS_ObjectIsRegExp(cx, obj));
+
+    RootedString sourceJSStr(cx, JS_GetRegExpSource(cx, obj));
+    if (!sourceJSStr)
+        return fail(cx, rs);
+    nsAutoJSString sourceStr;
+    if (!sourceStr.init(cx, sourceJSStr))
+        return fail(cx, rs);
+    source->Assign(sourceStr);
+
+    *flags = JS_GetRegExpFlags(cx, obj);
+
+    return ok(rs);
+}
+
+bool
 WrapperAnswer::AnswerGetPropertyNames(const ObjectId &objId, const uint32_t &flags,
 				      ReturnStatus *rs, nsTArray<nsString> *names)
 {
@@ -636,11 +661,52 @@ WrapperAnswer::AnswerDOMInstanceOf(const ObjectId &objId, const int &prototypeID
 }
 
 bool
+WrapperAnswer::AnswerIsCallable(const ObjectId &objId, bool *result)
+{
+    AutoSafeJSContext cx;
+    JSAutoRequest request(cx);
+
+    RootedObject obj(cx, findObjectById(cx, objId));
+    if (!obj) {
+        // This is very unfortunate, but we have no choice.
+        *result = false;
+        return true;
+    }
+    JSAutoCompartment ac(cx, obj); // Not really necessary here, but be safe.
+
+    LOG("%s.isCallable()", ReceiverObj(objId));
+
+    *result = JS::IsCallable(obj);
+    return true;
+}
+
+bool
+WrapperAnswer::AnswerIsConstructor(const ObjectId &objId, bool *result)
+{
+    AutoSafeJSContext cx;
+    JSAutoRequest request(cx);
+
+    RootedObject obj(cx, findObjectById(cx, objId));
+    if (!obj) {
+        // This is very unfortunate, but we have no choice.
+        *result = false;
+        return true;
+    }
+    JSAutoCompartment ac(cx, obj); // Not really necessary here, but be safe.
+
+    LOG("%s.isConstructor()", ReceiverObj(objId));
+
+    *result = JS::IsConstructor(obj);
+    return true;
+}
+
+
+bool
 WrapperAnswer::RecvDropObject(const ObjectId &objId)
 {
-    JSObject *obj = findObjectById(objId);
+    JSObject *obj = objects_.find(objId);
     if (obj) {
-        objectIds_.remove(obj);
+        objectIdMap(objId.hasXrayWaiver()).remove(obj);
         objects_.remove(objId);
     }
     return true;

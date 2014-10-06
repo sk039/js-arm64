@@ -13,8 +13,9 @@
 #endif
 
 #include "ContentChild.h"
+
+#include "BlobChild.h"
 #include "CrashReporterChild.h"
-#include "FileDescriptorSetChild.h"
 #include "TabChild.h"
 
 #include "mozilla/Attributes.h"
@@ -30,6 +31,7 @@
 #include "mozilla/dom/nsIContentChild.h"
 #include "mozilla/hal_sandbox/PHalChild.h"
 #include "mozilla/ipc/BackgroundChild.h"
+#include "mozilla/ipc/FileDescriptorSetChild.h"
 #include "mozilla/ipc/FileDescriptorUtils.h"
 #include "mozilla/ipc/GeckoChildProcessHost.h"
 #include "mozilla/ipc/TestShellChild.h"
@@ -51,6 +53,7 @@
 
 #include "mozilla/unused.h"
 
+#include "mozInlineSpellChecker.h"
 #include "nsIConsoleListener.h"
 #include "nsICycleCollectorListener.h"
 #include "nsIIPCBackgroundChildCreateCallback.h"
@@ -75,6 +78,7 @@
 #include "nsIJSRuntimeService.h"
 #include "nsThreadManager.h"
 #include "nsAnonymousTemporaryFile.h"
+#include "nsISpellChecker.h"
 
 #include "IHistory.h"
 #include "nsNetUtil.h"
@@ -126,7 +130,7 @@
 #include "ipc/Nuwa.h"
 #endif
 
-#include "mozilla/dom/indexedDB/PIndexedDBChild.h"
+#include "mozilla/dom/cellbroadcast/CellBroadcastIPCService.h"
 #include "mozilla/dom/mobileconnection/MobileConnectionChild.h"
 #include "mozilla/dom/mobilemessage/SmsChild.h"
 #include "mozilla/dom/devicestorage/DeviceStorageRequestChild.h"
@@ -141,7 +145,6 @@
 #endif
 
 #include "nsDOMFile.h"
-#include "nsIRemoteBlob.h"
 #include "ProcessUtils.h"
 #include "StructuredCloneUtils.h"
 #include "URIUtils.h"
@@ -153,6 +156,7 @@
 #include "mozilla/dom/DataStoreService.h"
 #include "mozilla/dom/telephony/PTelephonyChild.h"
 #include "mozilla/dom/time/DateCacheCleaner.h"
+#include "mozilla/dom/voicemail/VoicemailIPCService.h"
 #include "mozilla/net/NeckoMessageUtils.h"
 #include "mozilla/RemoteSpellCheckEngineChild.h"
 
@@ -160,12 +164,13 @@ using namespace base;
 using namespace mozilla;
 using namespace mozilla::docshell;
 using namespace mozilla::dom::bluetooth;
+using namespace mozilla::dom::cellbroadcast;
 using namespace mozilla::dom::devicestorage;
 using namespace mozilla::dom::ipc;
 using namespace mozilla::dom::mobileconnection;
 using namespace mozilla::dom::mobilemessage;
-using namespace mozilla::dom::indexedDB;
 using namespace mozilla::dom::telephony;
+using namespace mozilla::dom::voicemail;
 using namespace mozilla::hal_sandbox;
 using namespace mozilla::ipc;
 using namespace mozilla::layers;
@@ -386,7 +391,7 @@ ConsoleListener::Observe(nsIConsoleMessage* aMessage)
 {
     if (!mChild)
         return NS_OK;
-    
+
     nsCOMPtr<nsIScriptError> scriptError = do_QueryInterface(aMessage);
     if (scriptError) {
         nsString msg, sourceName, sourceLine;
@@ -677,6 +682,8 @@ ContentChild::InitXPCOM()
         MOZ_CRASH("Failed to create PBackgroundChild!");
     }
 
+    BlobChild::Startup(BlobChild::FriendKey());
+
     nsCOMPtr<nsIConsoleService> svc(do_GetService(NS_CONSOLESERVICE_CONTRACTID));
     if (!svc) {
         NS_WARNING("Couldn't acquire console service");
@@ -688,7 +695,7 @@ ContentChild::InitXPCOM()
         NS_WARNING("Couldn't register console listener for child process");
 
     bool isOffline;
-    SendGetXPCOMProcessAttributes(&isOffline);
+    SendGetXPCOMProcessAttributes(&isOffline, &mAvailableDictionaries);
     RecvSetOffline(isOffline);
 
     DebugOnly<FileUpdateDispatcher*> observer = FileUpdateDispatcher::GetSingleton();
@@ -1120,6 +1127,12 @@ ContentChild::RecvPBrowserConstructor(PBrowserChild* aActor,
     return true;
 }
 
+void
+ContentChild::GetAvailableDictionaries(InfallibleTArray<nsString>& aDictionaries)
+{
+    aDictionaries = mAvailableDictionaries;
+}
+
 PFileDescriptorSetChild*
 ContentChild::AllocPFileDescriptorSetChild(const FileDescriptor& aFD)
 {
@@ -1148,7 +1161,7 @@ ContentChild::AllocPBlobChild(const BlobConstructorParams& aParams)
 mozilla::PRemoteSpellcheckEngineChild *
 ContentChild::AllocPRemoteSpellcheckEngineChild()
 {
-    NS_NOTREACHED("Default Constructor for PRemoteSpellcheckEngineChilf should never be called");
+    NS_NOTREACHED("Default Constructor for PRemoteSpellcheckEngineChild should never be called");
     return nullptr;
 }
 
@@ -1200,20 +1213,6 @@ bool
 ContentChild::DeallocPHalChild(PHalChild* aHal)
 {
     delete aHal;
-    return true;
-}
-
-PIndexedDBChild*
-ContentChild::AllocPIndexedDBChild()
-{
-    NS_NOTREACHED("Should never get here!");
-    return nullptr;
-}
-
-bool
-ContentChild::DeallocPIndexedDBChild(PIndexedDBChild* aActor)
-{
-    delete aActor;
     return true;
 }
 
@@ -1390,6 +1389,30 @@ ContentChild::DeallocPExternalHelperAppChild(PExternalHelperAppChild* aService)
     return true;
 }
 
+PCellBroadcastChild*
+ContentChild::AllocPCellBroadcastChild()
+{
+    MOZ_CRASH("No one should be allocating PCellBroadcastChild actors");
+}
+
+PCellBroadcastChild*
+ContentChild::SendPCellBroadcastConstructor(PCellBroadcastChild* aActor)
+{
+    aActor = PContentChild::SendPCellBroadcastConstructor(aActor);
+    if (aActor) {
+        static_cast<CellBroadcastIPCService*>(aActor)->AddRef();
+    }
+
+    return aActor;
+}
+
+bool
+ContentChild::DeallocPCellBroadcastChild(PCellBroadcastChild* aActor)
+{
+    static_cast<CellBroadcastIPCService*>(aActor)->Release();
+    return true;
+}
+
 PSmsChild*
 ContentChild::AllocPSmsChild()
 {
@@ -1413,6 +1436,30 @@ bool
 ContentChild::DeallocPTelephonyChild(PTelephonyChild* aActor)
 {
     delete aActor;
+    return true;
+}
+
+PVoicemailChild*
+ContentChild::AllocPVoicemailChild()
+{
+    MOZ_CRASH("No one should be allocating PVoicemailChild actors");
+}
+
+PVoicemailChild*
+ContentChild::SendPVoicemailConstructor(PVoicemailChild* aActor)
+{
+    aActor = PContentChild::SendPVoicemailConstructor(aActor);
+    if (aActor) {
+        static_cast<VoicemailIPCService*>(aActor)->AddRef();
+    }
+
+    return aActor;
+}
+
+bool
+ContentChild::DeallocPVoicemailChild(PVoicemailChild* aActor)
+{
+    static_cast<VoicemailIPCService*>(aActor)->Release();
     return true;
 }
 
@@ -1704,6 +1751,14 @@ ContentChild::RecvGeolocationUpdate(const GeoPosition& somewhere)
 }
 
 bool
+ContentChild::RecvUpdateDictionaryList(const InfallibleTArray<nsString>& aDictionaries)
+{
+    mAvailableDictionaries = aDictionaries;
+    mozInlineSpellChecker::UpdateCanEnableInlineSpellChecking();
+    return true;
+}
+
+bool
 ContentChild::RecvAddPermission(const IPC::Permission& permission)
 {
 #if MOZ_PERMISSIONS
@@ -1827,12 +1882,15 @@ PreloadSlowThings()
 
 bool
 ContentChild::RecvAppInfo(const nsCString& version, const nsCString& buildID,
-                          const nsCString& name, const nsCString& UAName)
+                          const nsCString& name, const nsCString& UAName,
+                          const nsCString& ID, const nsCString& vendor)
 {
     mAppInfo.version.Assign(version);
     mAppInfo.buildID.Assign(buildID);
     mAppInfo.name.Assign(name);
     mAppInfo.UAName.Assign(UAName);
+    mAppInfo.ID.Assign(ID);
+    mAppInfo.vendor.Assign(vendor);
 
     if (!Preferences::GetBool("dom.ipc.processPrelaunch.enabled", false)) {
         return true;
@@ -1893,12 +1951,14 @@ ContentChild::RecvFileSystemUpdate(const nsString& aFsName,
                                    const bool& aIsMediaPresent,
                                    const bool& aIsSharing,
                                    const bool& aIsFormatting,
-                                   const bool& aIsFake)
+                                   const bool& aIsFake,
+                                   const bool& aIsUnmounting)
 {
 #ifdef MOZ_WIDGET_GONK
     nsRefPtr<nsVolume> volume = new nsVolume(aFsName, aVolumeName, aState,
                                              aMountGeneration, aIsMediaPresent,
-                                             aIsSharing, aIsFormatting, aIsFake);
+                                             aIsSharing, aIsFormatting, aIsFake,
+                                             aIsUnmounting);
 
     nsRefPtr<nsVolumeService> vs = nsVolumeService::GetSingleton();
     if (vs) {
@@ -1914,6 +1974,7 @@ ContentChild::RecvFileSystemUpdate(const nsString& aFsName,
     unused << aIsSharing;
     unused << aIsFormatting;
     unused << aIsFake;
+    unused << aIsUnmounting;
 #endif
     return true;
 }

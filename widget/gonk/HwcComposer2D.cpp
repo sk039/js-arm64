@@ -21,6 +21,7 @@
 #include "HwcUtils.h"
 #include "HwcComposer2D.h"
 #include "LayerScope.h"
+#include "mozilla/layers/CompositorParent.h"
 #include "mozilla/layers/LayerManagerComposite.h"
 #include "mozilla/layers/PLayerTransaction.h"
 #include "mozilla/layers/ShadowLayerUtilsGralloc.h"
@@ -29,6 +30,11 @@
 #include "cutils/properties.h"
 #include "gfx2DGlue.h"
 #include "GeckoTouchDispatcher.h"
+
+#ifdef MOZ_ENABLE_PROFILER_SPS
+#include "GeckoProfiler.h"
+#include "ProfilerMarkers.h"
+#endif
 
 #if ANDROID_VERSION >= 17
 #include "libdisplay/FramebufferSurface.h"
@@ -69,10 +75,12 @@ using namespace mozilla::layers;
 namespace mozilla {
 
 #if ANDROID_VERSION >= 17
+nsecs_t sAndroidInitTime = 0;
+mozilla::TimeStamp sMozInitTime;
 static void
 HookInvalidate(const struct hwc_procs* aProcs)
 {
-    // no op
+    HwcComposer2D::GetInstance()->Invalidate();
 }
 
 static void
@@ -111,6 +119,7 @@ HwcComposer2D::HwcComposer2D()
 #endif
     , mPrepared(false)
     , mHasHWVsync(false)
+    , mLock("mozilla.HwcComposer2D.mLock")
 {
 }
 
@@ -152,6 +161,8 @@ HwcComposer2D::Init(hwc_display_t dpy, hwc_surface_t sur, gl::GLContext* aGLCont
     }
 
     if (RegisterHwcEventCallback()) {
+        sAndroidInitTime = systemTime(SYSTEM_TIME_MONOTONIC);
+        sMozInitTime = TimeStamp::Now();
         EnableVsync(true);
     }
 #else
@@ -196,10 +207,6 @@ HwcComposer2D::EnableVsync(bool aEnable)
 bool
 HwcComposer2D::RegisterHwcEventCallback()
 {
-    if (!gfxPrefs::FrameUniformityHWVsyncEnabled()) {
-        return false;
-    }
-
     HwcDevice* device = (HwcDevice*)GetGonkDisplay()->GetHWCDevice();
     if (!device || !device->registerProcs) {
         LOGE("Failed to get hwc");
@@ -209,9 +216,14 @@ HwcComposer2D::RegisterHwcEventCallback()
     // Disable Vsync first, and then register callback functions.
     device->eventControl(device, HWC_DISPLAY_PRIMARY, HWC_EVENT_VSYNC, false);
     device->registerProcs(device, &sHWCProcs);
-
     mHasHWVsync = true;
-    return true;
+
+    if (!gfxPrefs::FrameUniformityHWVsyncEnabled()) {
+        device->eventControl(device, HWC_DISPLAY_PRIMARY, HWC_EVENT_VSYNC, false);
+        mHasHWVsync = false;
+    }
+
+    return mHasHWVsync;
 }
 
 void
@@ -226,11 +238,41 @@ HwcComposer2D::RunVsyncEventControl(bool aEnable)
 }
 
 void
-HwcComposer2D::Vsync(int aDisplay, int64_t aTimestamp)
+HwcComposer2D::Vsync(int aDisplay, nsecs_t aVsyncTimestamp)
 {
-    GeckoTouchDispatcher::NotifyVsync(aTimestamp);
+#ifdef MOZ_ENABLE_PROFILER_SPS
+    if (profiler_is_active()) {
+      nsecs_t timeSinceInit = aVsyncTimestamp - sAndroidInitTime;
+      TimeStamp vsyncTime = sMozInitTime + TimeDuration::FromMicroseconds(timeSinceInit / 1000);
+      CompositorParent::PostInsertVsyncProfilerMarker(vsyncTime);
+    }
+#endif
+
+    GeckoTouchDispatcher::NotifyVsync(aVsyncTimestamp);
+}
+
+// Called on the "invalidator" thread (run from HAL).
+void
+HwcComposer2D::Invalidate()
+{
+    if (!Initialized()) {
+        LOGE("HwcComposer2D::Invalidate failed!");
+        return;
+    }
+
+    MutexAutoLock lock(mLock);
+    if (mCompositorParent) {
+        mCompositorParent->ScheduleRenderOnCompositorThread();
+    }
 }
 #endif
+
+void
+HwcComposer2D::SetCompositorParent(CompositorParent* aCompositorParent)
+{
+    MutexAutoLock lock(mLock);
+    mCompositorParent = aCompositorParent;
+}
 
 bool
 HwcComposer2D::ReallocLayerList()
@@ -364,7 +406,7 @@ HwcComposer2D::PrepareLayerList(Layer* aLayer,
         }
     }
     // Buffer rotation is not to be confused with the angled rotation done by a transform matrix
-    // It's a fancy ThebesLayer feature used for scrolling
+    // It's a fancy PaintedLayer feature used for scrolling
     if (state.BufferRotated()) {
         LOGD("%s Layer has a rotated buffer", aLayer->Name());
         return false;

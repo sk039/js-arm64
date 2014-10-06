@@ -36,8 +36,15 @@ const BDADDR_LOCAL = "ff:ff:ff:00:00:00";
 // A user friendly name for remote BT device.
 const REMOTE_DEVICE_NAME = "Remote_BT_Device";
 
-let Promise =
-  SpecialPowers.Cu.import("resource://gre/modules/Promise.jsm").Promise;
+// Emulate Promise.jsm semantics.
+Promise.defer = function() { return new Deferred(); }
+function Deferred()  {
+  this.promise = new Promise(function(resolve, reject) {
+    this.resolve = resolve;
+    this.reject = reject;
+  }.bind(this));
+  Object.freeze(this);
+}
 
 let bluetoothManager;
 
@@ -288,18 +295,17 @@ function getSettings(aKey) {
  * @return A deferred promise.
  */
 function setSettings(aSettings) {
+  let lock = window.navigator.mozSettings.createLock();
+  let request = lock.set(aSettings);
   let deferred = Promise.defer();
-
-  let request = navigator.mozSettings.createLock().set(aSettings);
-  request.addEventListener("success", function() {
+  lock.onsettingstransactionsuccess = function () {
     ok(true, "setSettings(" + JSON.stringify(aSettings) + ")");
     deferred.resolve();
-  });
-  request.addEventListener("error", function() {
+  };
+  lock.onsettingstransactionfailure = function (aEvent) {
     ok(false, "setSettings(" + JSON.stringify(aSettings) + ")");
     deferred.reject();
-  });
-
+  };
   return deferred.promise;
 }
 

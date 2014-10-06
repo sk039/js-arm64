@@ -35,7 +35,7 @@ struct Register {
     typedef Codes::SetType SetType;
     Code code_;
     static Register FromCode(uint32_t i) {
-        JS_ASSERT(i < Registers::Total);
+        MOZ_ASSERT(i < Registers::Total);
         Register r = { (Registers::Code)i };
         return r;
     }
@@ -70,7 +70,7 @@ struct Register {
     // miscompiled it on win64 when the value was simply returned.  This
     // now has an explicit outparam for compatability.
     void aliased(uint32_t aliasIdx, Register *ret) const {
-        JS_ASSERT(aliasIdx == 0);
+        MOZ_ASSERT(aliasIdx == 0);
         *ret = *this;
     }
     static uint32_t SetSize(SetType x) {

@@ -44,6 +44,7 @@ class AsyncPanZoomController;
 class CompositorParent;
 class APZPaintLogHelper;
 class OverscrollHandoffChain;
+struct OverscrollHandoffState;
 class LayerMetricsWrapper;
 
 /**
@@ -312,8 +313,7 @@ public:
   bool DispatchScroll(AsyncPanZoomController* aApzc,
                       ScreenPoint aStartPoint,
                       ScreenPoint aEndPoint,
-                      const OverscrollHandoffChain& aOverscrollHandoffChain,
-                      uint32_t aOverscrollHandoffChainIndex);
+                      OverscrollHandoffState& aOverscrollHandoffState);
 
   /**
    * This is a callback for AsyncPanZoomController to call when it wants to
@@ -340,8 +340,6 @@ public:
                      ScreenPoint aVelocity,
                      nsRefPtr<const OverscrollHandoffChain> aOverscrollHandoffChain,
                      bool aHandoff);
-
-  void SnapBackOverscrolledApzc(AsyncPanZoomController* aStart);
 
   /*
    * Build the chain of APZCs that will handle overscroll for a pan starting at |aInitialTarget|.
@@ -380,6 +378,7 @@ private:
                              ScrollableLayerGuid* aOutTargetGuid);
   void UpdateZoomConstraintsRecursively(AsyncPanZoomController* aApzc,
                                         const ZoomConstraints& aConstraints);
+  void FlushRepaintsRecursively(AsyncPanZoomController* aApzc);
 
   AsyncPanZoomController* PrepareAPZCForLayer(const LayerMetricsWrapper& aLayer,
                                               const FrameMetrics& aMetrics,

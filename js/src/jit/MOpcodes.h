@@ -15,12 +15,15 @@ namespace jit {
     _(SimdValueX4)                                                          \
     _(SimdSplatX4)                                                          \
     _(SimdConstant)                                                         \
+    _(SimdConvert)                                                          \
+    _(SimdReinterpretCast)                                                  \
     _(SimdExtractElement)                                                   \
     _(SimdInsertElement)                                                    \
     _(SimdSignMask)                                                         \
     _(SimdBinaryComp)                                                       \
     _(SimdBinaryArith)                                                      \
     _(SimdBinaryBitwise)                                                    \
+    _(SimdShift)                                                            \
     _(SimdTernaryBitwise)                                                   \
     _(CloneLiteral)                                                         \
     _(Parameter)                                                            \

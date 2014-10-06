@@ -777,7 +777,7 @@ class AssemblerVIXL : public AssemblerShared
     }
 
     static inline Condition ConditionFromDoubleCondition(DoubleCondition cond) {
-        JS_ASSERT(!(cond & DoubleConditionBitSpecial));
+        MOZ_ASSERT(!(cond & DoubleConditionBitSpecial));
         return static_cast<Condition>(cond);
     }
 
@@ -1972,7 +1972,7 @@ class AssemblerVIXL : public AssemblerShared
     static void InsertIndexIntoTag(uint8_t *load, uint32_t index);
     static bool PatchConstantPoolLoad(void *loadAddr, void *constPoolAddr);
     static uint32_t PlaceConstantPoolBarrier(int offset) {
-        MOZ_ASSUME_UNREACHABLE("PlaceConstantPoolBarrier");
+        MOZ_CRASH("PlaceConstantPoolBarrier");
     }
     static void WritePoolGuard(BufferOffset branch, Instruction *inst, BufferOffset dest) {
         b(inst, dest.getOffset() - branch.getOffset());

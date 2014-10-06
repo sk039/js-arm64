@@ -67,19 +67,19 @@ public:
     {
     public:
         ImageInfo()
-            : mWebGLFormat(LOCAL_GL_NONE)
-            , mWebGLType(LOCAL_GL_NONE)
+            : mInternalFormat(LOCAL_GL_NONE)
+            , mType(LOCAL_GL_NONE)
             , mImageDataStatus(WebGLImageDataStatus::NoImageData)
         {}
 
         ImageInfo(GLsizei width,
                   GLsizei height,
-                  GLenum webGLFormat,
-                  GLenum webGLType,
+                  TexInternalFormat internalFormat,
+                  TexType type,
                   WebGLImageDataStatus status)
             : WebGLRectangleObject(width, height)
-            , mWebGLFormat(webGLFormat)
-            , mWebGLType(webGLType)
+            , mInternalFormat(internalFormat)
+            , mType(type)
             , mImageDataStatus(status)
         {
             // shouldn't use this constructor to construct a null ImageInfo
@@ -90,8 +90,8 @@ public:
             return mImageDataStatus == a.mImageDataStatus &&
                    mWidth == a.mWidth &&
                    mHeight == a.mHeight &&
-                   mWebGLFormat == a.mWebGLFormat &&
-                   mWebGLType == a.mWebGLType;
+                   mInternalFormat == a.mInternalFormat &&
+                   mType == a.mType;
         }
         bool operator!=(const ImageInfo& a) const {
             return !(*this == a);
@@ -114,16 +114,17 @@ public:
          * It can be converted to a value to be passed to driver with
          * DriverFormatsFromFormatAndType().
          */
-        GLenum WebGLFormat() const { return mWebGLFormat; }
+        TexInternalFormat InternalFormat() const { return mInternalFormat; }
+
         /*! This is the type passed from JS to WebGL.
          * It can be converted to a value to be passed to driver with
          * DriverTypeFromType().
          */
-        GLenum WebGLType() const { return mWebGLType; }
+        TexType Type() const { return mType; }
 
     protected:
-        GLenum mWebGLFormat; //!< This is the WebGL/GLES format
-        GLenum mWebGLType;   //!< This is the WebGL/GLES type
+        TexInternalFormat mInternalFormat; //!< This is the WebGL/GLES internal format.
+        TexType mType;   //!< This is the WebGL/GLES type
         WebGLImageDataStatus mImageDataStatus;
 
         friend class WebGLTexture;
@@ -194,12 +195,16 @@ public:
 
 protected:
 
-    GLenum mMinFilter, mMagFilter, mWrapS, mWrapT;
+    TexMinFilter mMinFilter;
+    TexMagFilter mMagFilter;
+    TexWrap mWrapS, mWrapT;
 
     size_t mFacesCount, mMaxLevelWithCustomImages;
     nsTArray<ImageInfo> mImageInfos;
 
-    bool mHaveGeneratedMipmap;
+    bool mHaveGeneratedMipmap; // set by generateMipmap
+    bool mImmutable; // set by texStorage*
+
     WebGLTextureFakeBlackStatus mFakeBlackStatus;
 
     void EnsureMaxLevelWithCustomImagesAtLeast(size_t aMaxLevelWithCustomImages) {
@@ -225,25 +230,26 @@ public:
 
     void SetImageInfo(TexImageTarget aTarget, GLint aLevel,
                       GLsizei aWidth, GLsizei aHeight,
-                      GLenum aFormat, GLenum aType, WebGLImageDataStatus aStatus);
+                      TexInternalFormat aInternalFormat, TexType aType,
+                      WebGLImageDataStatus aStatus);
 
-    void SetMinFilter(GLenum aMinFilter) {
+    void SetMinFilter(TexMinFilter aMinFilter) {
         mMinFilter = aMinFilter;
         SetFakeBlackStatus(WebGLTextureFakeBlackStatus::Unknown);
     }
-    void SetMagFilter(GLenum aMagFilter) {
+    void SetMagFilter(TexMagFilter aMagFilter) {
         mMagFilter = aMagFilter;
         SetFakeBlackStatus(WebGLTextureFakeBlackStatus::Unknown);
     }
-    void SetWrapS(GLenum aWrapS) {
+    void SetWrapS(TexWrap aWrapS) {
         mWrapS = aWrapS;
         SetFakeBlackStatus(WebGLTextureFakeBlackStatus::Unknown);
     }
-    void SetWrapT(GLenum aWrapT) {
+    void SetWrapT(TexWrap aWrapT) {
         mWrapT = aWrapT;
         SetFakeBlackStatus(WebGLTextureFakeBlackStatus::Unknown);
     }
-    GLenum MinFilter() const { return mMinFilter; }
+    TexMinFilter MinFilter() const { return mMinFilter; }
 
     bool DoesMinFilterRequireMipmap() const {
         return !(mMinFilter == LOCAL_GL_NEAREST || mMinFilter == LOCAL_GL_LINEAR);
@@ -267,10 +273,23 @@ public:
 
     void SetFakeBlackStatus(WebGLTextureFakeBlackStatus x);
 
+    bool IsImmutable() const { return mImmutable; }
+    void SetImmutable() { mImmutable = true; }
+
+    size_t MaxLevelWithCustomImages() const { return mMaxLevelWithCustomImages; }
+
     // Returns the current fake-black-status, except if it was Unknown,
     // in which case this function resolves it first, so it never returns Unknown.
     WebGLTextureFakeBlackStatus ResolvedFakeBlackStatus();
 };
+
+inline TexImageTarget
+TexImageTargetForTargetAndFace(TexTarget target, size_t face)
+{
+    return target == LOCAL_GL_TEXTURE_2D
+           ? LOCAL_GL_TEXTURE_2D
+           : LOCAL_GL_TEXTURE_CUBE_MAP_POSITIVE_X + face;
+}
 
 } // namespace mozilla
 

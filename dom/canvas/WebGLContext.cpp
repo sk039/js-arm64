@@ -227,6 +227,7 @@ WebGLContextOptions::WebGLContextOptions()
 
 WebGLContext::WebGLContext()
     : gl(nullptr)
+    , mNeedsFakeNoAlpha(false)
 {
     SetIsDOMBinding();
 
@@ -926,6 +927,12 @@ WebGLContext::SetDimensions(int32_t sWidth, int32_t sHeight)
     MOZ_ASSERT(gl->Caps().antialias == mOptions.antialias || !gl->Caps().antialias);
     MOZ_ASSERT(gl->Caps().preserve == mOptions.preserveDrawingBuffer);
 
+    if (gl->WorkAroundDriverBugs() && gl->IsANGLE()) {
+        if (!mOptions.alpha) {
+            mNeedsFakeNoAlpha = true;
+        }
+    }
+
     AssertCachedBindings();
     AssertCachedState();
 
@@ -1340,7 +1347,12 @@ WebGLContext::ForceClearFramebufferWithDefaultValues(GLbitfield mask, const bool
         }
 
         gl->fColorMask(1, 1, 1, 1);
-        gl->fClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+
+        if (mNeedsFakeNoAlpha) {
+            gl->fClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        } else {
+            gl->fClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+        }
     }
 
     if (initializeDepthBuffer) {
@@ -1431,7 +1443,7 @@ WebGLContext::PresentScreenBuffer()
 void
 WebGLContext::DummyFramebufferOperation(const char *info)
 {
-    GLenum status = CheckFramebufferStatus(LOCAL_GL_FRAMEBUFFER);
+    FBStatus status = CheckFramebufferStatus(LOCAL_GL_FRAMEBUFFER);
     if (status != LOCAL_GL_FRAMEBUFFER_COMPLETE)
         ErrorInvalidFramebufferOperation("%s: incomplete framebuffer", info);
 }
@@ -1797,7 +1809,8 @@ bool WebGLContext::TexImageFromVideoElement(const TexImageTarget texImageTarget,
     }
     bool ok = gl->BlitHelper()->BlitImageToTexture(srcImage.get(), srcImage->GetSize(), tex->GLName(), texImageTarget.get(), mPixelStoreFlipY);
     if (ok) {
-        tex->SetImageInfo(texImageTarget, level, srcImage->GetSize().width, srcImage->GetSize().height, format, type, WebGLImageDataStatus::InitializedImageData);
+        tex->SetImageInfo(texImageTarget, level, srcImage->GetSize().width, srcImage->GetSize().height, internalformat, type,
+                          WebGLImageDataStatus::InitializedImageData);
         tex->Bind(TexImageTargetToTexTarget(texImageTarget));
     }
     srcImage = nullptr;
@@ -1805,9 +1818,32 @@ bool WebGLContext::TexImageFromVideoElement(const TexImageTarget texImageTarget,
     return ok;
 }
 
-//
+////////////////////////////////////////////////////////////////////////////////
+
+
+WebGLContext::ScopedMaskWorkaround::ScopedMaskWorkaround(WebGLContext& webgl)
+    : mWebGL(webgl)
+    , mNeedsChange(NeedsChange(webgl))
+{
+    if (mNeedsChange) {
+        mWebGL.gl->fColorMask(mWebGL.mColorWriteMask[0],
+                              mWebGL.mColorWriteMask[1],
+                              mWebGL.mColorWriteMask[2],
+                              false);
+    }
+}
+
+WebGLContext::ScopedMaskWorkaround::~ScopedMaskWorkaround()
+{
+    if (mNeedsChange) {
+        mWebGL.gl->fColorMask(mWebGL.mColorWriteMask[0],
+                              mWebGL.mColorWriteMask[1],
+                              mWebGL.mColorWriteMask[2],
+                              mWebGL.mColorWriteMask[3]);
+    }
+}
+////////////////////////////////////////////////////////////////////////////////
 // XPCOM goop
-//
 
 NS_IMPL_CYCLE_COLLECTING_ADDREF(WebGLContext)
 NS_IMPL_CYCLE_COLLECTING_RELEASE(WebGLContext)

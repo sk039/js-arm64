@@ -9,6 +9,7 @@
 
 #include "mozilla/DebugOnly.h"
 #include "mozilla/PodOperations.h"
+#include "mozilla/UniquePtr.h"
 
 #include "jsalloc.h"
 #include "jspubtd.h"
@@ -42,14 +43,14 @@ enum Phase {
     PHASE_SWEEP_SYMBOL_REGISTRY,
     PHASE_SWEEP_COMPARTMENTS,
     PHASE_SWEEP_DISCARD_CODE,
-    PHASE_SWEEP_TABLES,
-    PHASE_SWEEP_TABLES_INNER_VIEWS,
-    PHASE_SWEEP_TABLES_WRAPPER,
-    PHASE_SWEEP_TABLES_BASE_SHAPE,
-    PHASE_SWEEP_TABLES_INITIAL_SHAPE,
-    PHASE_SWEEP_TABLES_TYPE_OBJECT,
-    PHASE_SWEEP_TABLES_BREAKPOINT,
-    PHASE_SWEEP_TABLES_REGEXP,
+    PHASE_SWEEP_INNER_VIEWS,
+    PHASE_SWEEP_CC_WRAPPER,
+    PHASE_SWEEP_BASE_SHAPE,
+    PHASE_SWEEP_INITIAL_SHAPE,
+    PHASE_SWEEP_TYPE_OBJECT,
+    PHASE_SWEEP_BREAKPOINT,
+    PHASE_SWEEP_REGEXP,
+    PHASE_SWEEP_MISC,
     PHASE_DISCARD_ANALYSIS,
     PHASE_DISCARD_TI,
     PHASE_FREE_TI_ARENA,
@@ -59,12 +60,12 @@ enum Phase {
     PHASE_SWEEP_SCRIPT,
     PHASE_SWEEP_SHAPE,
     PHASE_SWEEP_JITCODE,
+    PHASE_FINALIZE_END,
+    PHASE_DESTROY,
     PHASE_COMPACT,
     PHASE_COMPACT_MOVE,
     PHASE_COMPACT_UPDATE,
     PHASE_COMPACT_UPDATE_GRAY,
-    PHASE_FINALIZE_END,
-    PHASE_DESTROY,
     PHASE_GC_END,
 
     PHASE_LIMIT
@@ -83,17 +84,22 @@ class StatisticsSerializer;
 struct ZoneGCStats
 {
     /* Number of zones collected in this GC. */
-    int collectedCount;
+    int collectedZoneCount;
 
     /* Total number of zones in the Runtime at the start of this GC. */
     int zoneCount;
 
+    /* Total number of comaprtments in all zones collected. */
+    int collectedCompartmentCount;
+
     /* Total number of compartments in the Runtime at the start of this GC. */
     int compartmentCount;
 
-    bool isCollectingAllZones() const { return collectedCount == zoneCount; }
+    bool isCollectingAllZones() const { return collectedZoneCount == zoneCount; }
 
-    ZoneGCStats() : collectedCount(0), zoneCount(0), compartmentCount(0) {}
+    ZoneGCStats()
+      : collectedZoneCount(0), zoneCount(0), collectedCompartmentCount(0), compartmentCount(0)
+    {}
 };
 
 struct Statistics
@@ -111,7 +117,7 @@ struct Statistics
     void nonincremental(const char *reason) { nonincrementalReason = reason; }
 
     void count(Stat s) {
-        JS_ASSERT(s < STAT_LIMIT);
+        MOZ_ASSERT(s < STAT_LIMIT);
         counts[s]++;
     }
 
@@ -120,6 +126,7 @@ struct Statistics
 
     char16_t *formatMessage();
     char16_t *formatJSON(uint64_t timestamp);
+    UniqueChars formatDetailedMessage();
 
     JS::GCSliceCallback setSliceCallback(JS::GCSliceCallback callback);
 
@@ -200,6 +207,11 @@ struct Statistics
     void printStats();
     bool formatData(StatisticsSerializer &ss, uint64_t timestamp);
 
+    UniqueChars formatDescription();
+    UniqueChars formatSliceDescription(unsigned i, const SliceData &slice);
+    UniqueChars formatTotals();
+    UniqueChars formatPhaseTimes(int64_t *phaseTimes);
+
     double computeMMU(int64_t resolution);
 };
 
@@ -222,40 +234,27 @@ struct AutoPhase
 {
     AutoPhase(Statistics &stats, Phase phase
               MOZ_GUARD_OBJECT_NOTIFIER_PARAM)
-      : stats(stats), phase(phase)
+      : stats(stats), phase(phase), enabled(true)
     {
         MOZ_GUARD_OBJECT_NOTIFIER_INIT;
         stats.beginPhase(phase);
     }
+    AutoPhase(Statistics &stats, bool condition, Phase phase
+              MOZ_GUARD_OBJECT_NOTIFIER_PARAM)
+      : stats(stats), phase(phase), enabled(condition)
+    {
+        MOZ_GUARD_OBJECT_NOTIFIER_INIT;
+        if (enabled)
+            stats.beginPhase(phase);
+    }
     ~AutoPhase() {
-        stats.endPhase(phase);
+        if (enabled)
+            stats.endPhase(phase);
     }
 
     Statistics &stats;
     Phase phase;
-    MOZ_DECL_USE_GUARD_OBJECT_NOTIFIER
-};
-
-struct MaybeAutoPhase
-{
-    explicit MaybeAutoPhase(Statistics &statsArg, bool condition, Phase phaseArg
-                            MOZ_GUARD_OBJECT_NOTIFIER_PARAM)
-      : stats(nullptr)
-    {
-        MOZ_GUARD_OBJECT_NOTIFIER_INIT;
-        if (condition) {
-            stats = &statsArg;
-            phase = phaseArg;
-            stats->beginPhase(phase);
-        }
-    }
-    ~MaybeAutoPhase() {
-        if (stats)
-            stats->endPhase(phase);
-    }
-
-    Statistics *stats;
-    Phase phase;
+    bool enabled;
     MOZ_DECL_USE_GUARD_OBJECT_NOTIFIER
 };
 

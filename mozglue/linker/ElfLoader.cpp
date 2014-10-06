@@ -90,9 +90,11 @@ int
 __wrap_dladdr(void *addr, Dl_info *info)
 {
   RefPtr<LibHandle> handle = ElfLoader::Singleton.GetHandleByPtr(addr);
-  if (!handle)
-    return 0;
+  if (!handle) {
+    return dladdr(addr, info);
+  }
   info->dli_fname = handle->GetPath();
+  info->dli_fbase = handle->GetBase();
   return 1;
 }
 
@@ -561,7 +563,7 @@ ElfLoader::DestructorCaller::Call()
   }
 }
 
-ElfLoader::DebuggerHelper::DebuggerHelper(): dbg(nullptr)
+ElfLoader::DebuggerHelper::DebuggerHelper(): dbg(nullptr), firstAdded(nullptr)
 {
   /* Find ELF auxiliary vectors.
    *
@@ -968,6 +970,12 @@ SEGVHandler::SEGVHandler()
 : initialized(false), registeredHandler(false), signalHandlingBroken(true)
 , signalHandlingSlow(true)
 {
+  /* Ensure logging is initialized before the DEBUG_LOG in the test_handler.
+   * As this constructor runs before the ElfLoader constructor (by effect
+   * of ElfLoader inheriting from this class), this also initializes on behalf
+   * of ElfLoader and DebuggerHelper. */
+  Logging::Init();
+
   /* Initialize oldStack.ss_flags to an invalid value when used to set
    * an alternative stack, meaning we haven't got information about the
    * original alternative stack and thus don't mean to restore it in

@@ -415,8 +415,8 @@ var WifiManager = (function() {
         // and routing table is changed but still cannot connect to network
         // so the workaround here is disable interface the enable again to
         // trigger network reconnect with static ip.
-        netUtil.disableInterface(manager.ifname, function (ok) {
-          netUtil.enableInterface(manager.ifname, function (ok) {
+        gNetworkService.disableInterface(manager.ifname, function (ok) {
+          gNetworkService.enableInterface(manager.ifname, function (ok) {
           });
         });
       }
@@ -442,12 +442,12 @@ var WifiManager = (function() {
     }
 
     // Set ip, mask length, gateway, dns to network interface
-    netUtil.configureInterface( { ifname: ifname,
-                                  ipaddr: staticIpInfo.ipaddr,
-                                  mask: staticIpInfo.maskLength,
-                                  gateway: staticIpInfo.gateway,
-                                  dns1: staticIpInfo.dns1,
-                                  dns2: staticIpInfo.dns2 }, function (data) {
+    gNetworkService.configureInterface( { ifname: ifname,
+                                          ipaddr: staticIpInfo.ipaddr,
+                                          mask: staticIpInfo.maskLength,
+                                          gateway: staticIpInfo.gateway,
+                                          dns1: staticIpInfo.dns1,
+                                          dns2: staticIpInfo.dns2 }, function (data) {
       netUtil.runIpConfig(ifname, staticIpInfo, function(data) {
         dhcpInfo = data.info;
         notify("networkconnected", data);
@@ -587,17 +587,17 @@ var WifiManager = (function() {
 
   manager.connectionDropped = function(callback) {
     // Reset network interface when connection drop
-    netUtil.configureInterface( { ifname: manager.ifname,
-                                  ipaddr: 0,
-                                  mask: 0,
-                                  gateway: 0,
-                                  dns1: 0,
-                                  dns2: 0 }, function (data) {
+    gNetworkService.configureInterface( { ifname: manager.ifname,
+                                          ipaddr: 0,
+                                          mask: 0,
+                                          gateway: 0,
+                                          dns1: 0,
+                                          dns2: 0 }, function (data) {
     });
 
     // If we got disconnected, kill the DHCP client in preparation for
     // reconnection.
-    netUtil.resetConnections(manager.ifname, function() {
+    gNetworkService.resetConnections(manager.ifname, function() {
       netUtil.stopDhcp(manager.ifname, function() {
         callback();
       });
@@ -889,7 +889,7 @@ var WifiManager = (function() {
       }
       suppressEvents = true;
       wifiCommand.killSupplicant(function() {
-        netUtil.disableInterface(manager.ifname, function (ok) {
+        gNetworkService.disableInterface(manager.ifname, function (ok) {
           suppressEvents = false;
           callback();
         });
@@ -996,7 +996,7 @@ var WifiManager = (function() {
                 }
 
                 manager.supplicantStarted = true;
-                netUtil.enableInterface(manager.ifname, function (ok) {
+                gNetworkService.enableInterface(manager.ifname, function (ok) {
                   callback(ok ? 0 : -1);
                 });
               });
@@ -1040,7 +1040,7 @@ var WifiManager = (function() {
             wifiCommand.closeSupplicantConnection(function() {
               manager.connectToSupplicant = false;
               manager.state = "UNINITIALIZED";
-              netUtil.disableInterface(manager.ifname, function (ok) {
+              gNetworkService.disableInterface(manager.ifname, function (ok) {
                 unloadDriver(WIFI_FIRMWARE_STATION, callback);
               });
             });
@@ -3077,6 +3077,12 @@ WifiWorker.prototype = {
       debug("Invalid SSID value.");
       return null;
     }
+    // Truncate ssid if its length of encoded to utf8 is longer than 32.
+    while (unescape(encodeURIComponent(ssid)).length > 32)
+    {
+      ssid = ssid.substring(0, ssid.length-1);
+    }
+
     if (securityType != WIFI_SECURITY_TYPE_NONE &&
         securityType != WIFI_SECURITY_TYPE_WPA_PSK &&
         securityType != WIFI_SECURITY_TYPE_WPA2_PSK) {
@@ -3642,17 +3648,16 @@ WifiWorker.prototype = {
   observe: function observe(subject, topic, data) {
     switch (topic) {
     case kMozSettingsChangedObserverTopic:
-      // The string we're interested in will be a JSON string that looks like:
-      // {"key":"wifi.enabled","value":"true"}.
-
-      let setting = JSON.parse(data);
       // To avoid WifiWorker setting the wifi again, don't need to deal with
       // the "mozsettings-changed" event fired from internal setting.
-      if (setting.isInternalChange) {
+      if ("wrappedJSObject" in subject) {
+        subject = subject.wrappedJSObject;
+      }
+      if (subject.isInternalChange) {
         return;
       }
 
-      this.handle(setting.key, setting.value);
+      this.handle(subject.key, subject.value);
       break;
 
     case "xpcom-shutdown":

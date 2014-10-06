@@ -20,6 +20,8 @@ XPCOMUtils.defineLazyModuleGetter(this, 'ContentControl',
   'resource://gre/modules/accessibility/ContentControl.jsm');
 XPCOMUtils.defineLazyModuleGetter(this, 'Roles',
   'resource://gre/modules/accessibility/Constants.jsm');
+XPCOMUtils.defineLazyModuleGetter(this, 'States',
+  'resource://gre/modules/accessibility/Constants.jsm');
 
 Logger.debug('content-script.js');
 
@@ -87,7 +89,6 @@ function scroll(aMessage) {
                      { bounds: Utils.getBounds(position, true),
                        page: aMessage.json.page,
                        horizontal: aMessage.json.horizontal });
-    sendScrollCoordinates(position);
   }
 }
 
@@ -140,9 +141,23 @@ addMessageListener(
     if (!eventManager) {
       eventManager = new EventManager(this, contentControl);
     }
+    eventManager.inTest = m.json.inTest;
     eventManager.start();
 
-    sendAsyncMessage('AccessFu:ContentStarted');
+    function contentStarted() {
+      let accDoc = Utils.AccRetrieval.getAccessibleFor(content.document);
+      if (accDoc && !Utils.getState(accDoc).contains(States.BUSY)) {
+        sendAsyncMessage('AccessFu:ContentStarted');
+      } else {
+        content.setTimeout(contentStarted, 0);
+      }
+    }
+
+    if (m.json.inTest) {
+      // During a test we want to wait for the document to finish loading for
+      // consistency.
+      contentStarted();
+    }
   });
 
 addMessageListener(

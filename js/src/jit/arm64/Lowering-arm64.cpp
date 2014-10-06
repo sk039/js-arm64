@@ -22,7 +22,7 @@ bool
 LIRGeneratorARM64::useBox(LInstruction *lir, size_t n, MDefinition *mir,
                           LUse::Policy policy, bool useAtStart)
 {
-    JS_ASSERT(mir->type() == MIRType_Value);
+    MOZ_ASSERT(mir->type() == MIRType_Value);
 
     if (!ensureDefined(mir))
         return false;
@@ -34,7 +34,7 @@ LIRGeneratorARM64::useBox(LInstruction *lir, size_t n, MDefinition *mir,
 bool
 LIRGeneratorARM64::useBoxFixed(LInstruction *lir, size_t n, MDefinition *mir, Register reg1, Register)
 {
-    JS_ASSERT(mir->type() == MIRType_Value);
+    MOZ_ASSERT(mir->type() == MIRType_Value);
 
     if (!ensureDefined(mir))
         return false;
@@ -123,7 +123,7 @@ bool
 LIRGeneratorARM64::visitReturn(MReturn *ret)
 {
     MDefinition *opd = ret->getOperand(0);
-    JS_ASSERT(opd->type() == MIRType_Value);
+    MOZ_ASSERT(opd->type() == MIRType_Value);
 
     LReturn *ins = new(alloc()) LReturn;
     ins->setOperand(0, useFixed(opd, JSReturnReg));
@@ -178,14 +178,14 @@ LIRGeneratorARM64::lowerForBitAndAndBranch(LBitAndAndBranch *baab, MInstruction 
 bool
 LIRGeneratorARM64::defineUntypedPhi(MPhi *phi, size_t lirIndex)
 {
-    JS_ASSERT(0 && "defineUntypedPhi");
+    MOZ_ASSERT(0 && "defineUntypedPhi");
     return false;
 }
 
 void
 LIRGeneratorARM64::lowerUntypedPhiInput(MPhi *phi, uint32_t inputPosition, LBlock *block, size_t lirIndex)
 {
-    JS_ASSERT(0 && "lowerUntypedPhiInput");
+    MOZ_ASSERT(0 && "lowerUntypedPhiInput");
 }
 
 bool
@@ -199,21 +199,21 @@ LIRGeneratorARM64::lowerForShift(LInstructionHelper<1, 2, 0> *ins, MDefinition *
 bool
 LIRGeneratorARM64::lowerDivI(MDiv *div)
 {
-    JS_ASSERT(0 && "lowerDivI");
+    MOZ_ASSERT(0 && "lowerDivI");
     return false;
 }
 
 bool
 LIRGeneratorARM64::lowerMulI(MMul *mul, MDefinition *lhs, MDefinition *rhs)
 {
-    JS_ASSERT(0 && "lowerMulI");
+    MOZ_ASSERT(0 && "lowerMulI");
     return false;
 }
 
 bool
 LIRGeneratorARM64::lowerModI(MMod *mod)
 {
-    JS_ASSERT(0 && "lowerModI");
+    MOZ_ASSERT(0 && "lowerModI");
     return false;
 }
 
@@ -221,7 +221,7 @@ bool
 LIRGeneratorARM64::visitPowHalf(MPowHalf *ins)
 {
     MDefinition *input = ins->input();
-    JS_ASSERT(input->type() == MIRType_Double);
+    MOZ_ASSERT(input->type() == MIRType_Double);
     LPowHalfD *lir = new(alloc()) LPowHalfD(useRegisterAtStart(input));
     return defineReuseInput(lir, ins, 0);
 }
@@ -242,7 +242,7 @@ LIRGeneratorARM64::newLTableSwitchV(MTableSwitch *tableswitch)
 bool
 LIRGeneratorARM64::visitGuardShape(MGuardShape *ins)
 {
-    JS_ASSERT(ins->obj()->type() == MIRType_Object);
+    MOZ_ASSERT(ins->obj()->type() == MIRType_Object);
 
     LDefinition tempObj = temp(LDefinition::OBJECT);
     LGuardShape *guard = new(alloc()) LGuardShape(useRegister(ins->obj()), tempObj);
@@ -256,7 +256,7 @@ LIRGeneratorARM64::visitGuardShape(MGuardShape *ins)
 bool
 LIRGeneratorARM64::visitGuardObjectType(MGuardObjectType *ins)
 {
-    JS_ASSERT(ins->obj()->type() == MIRType_Object);
+    MOZ_ASSERT(ins->obj()->type() == MIRType_Object);
 
     LDefinition tempObj = temp(LDefinition::OBJECT);
     LGuardObjectType *guard = new(alloc()) LGuardObjectType(useRegister(ins->obj()), tempObj);
@@ -273,8 +273,8 @@ LIRGeneratorARM64::lowerUrshD(MUrsh *mir)
     MDefinition *lhs = mir->lhs();
     MDefinition *rhs = mir->rhs();
 
-    JS_ASSERT(lhs->type() == MIRType_Int32);
-    JS_ASSERT(rhs->type() == MIRType_Int32);
+    MOZ_ASSERT(lhs->type() == MIRType_Int32);
+    MOZ_ASSERT(rhs->type() == MIRType_Int32);
 
     LUrshD *lir = new(alloc()) LUrshD(useRegister(lhs), useRegisterOrConstant(rhs), temp());
     return define(lir, mir);
@@ -289,27 +289,27 @@ LIRGeneratorARM64::visitAsmJSNeg(MAsmJSNeg *ins)
     if(ins->type() == MIRType_Float32)
         return define(new(alloc()) LNegF(useRegisterAtStart(ins->input())), ins);
 
-    JS_ASSERT(ins->type() == MIRType_Double);
+    MOZ_ASSERT(ins->type() == MIRType_Double);
     return define(new(alloc()) LNegD(useRegisterAtStart(ins->input())), ins);
 }
 
 bool
 LIRGeneratorARM64::lowerUDiv(MDiv *div)
 {
-    JS_ASSERT(0 && "lowerUDiv");
+    MOZ_ASSERT(0 && "lowerUDiv");
     return false;
 }
 
 bool
 LIRGeneratorARM64::lowerUMod(MMod *mod)
 {
-    JS_ASSERT(0 && "lowerUMod");
+    MOZ_ASSERT(0 && "lowerUMod");
 }
 
 bool
 LIRGeneratorARM64::visitAsmJSUnsignedToDouble(MAsmJSUnsignedToDouble *ins)
 {
-    JS_ASSERT(ins->input()->type() == MIRType_Int32);
+    MOZ_ASSERT(ins->input()->type() == MIRType_Int32);
     LAsmJSUInt32ToDouble *lir = new(alloc()) LAsmJSUInt32ToDouble(useRegisterAtStart(ins->input()));
     return define(lir, ins);
 }
@@ -317,7 +317,7 @@ LIRGeneratorARM64::visitAsmJSUnsignedToDouble(MAsmJSUnsignedToDouble *ins)
 bool
 LIRGeneratorARM64::visitAsmJSUnsignedToFloat32(MAsmJSUnsignedToFloat32 *ins)
 {
-    JS_ASSERT(ins->input()->type() == MIRType_Int32);
+    MOZ_ASSERT(ins->input()->type() == MIRType_Int32);
     LAsmJSUInt32ToFloat32 *lir = new(alloc()) LAsmJSUInt32ToFloat32(useRegisterAtStart(ins->input()));
     return define(lir, ins);
 }
@@ -325,13 +325,13 @@ LIRGeneratorARM64::visitAsmJSUnsignedToFloat32(MAsmJSUnsignedToFloat32 *ins)
 bool
 LIRGeneratorARM64::visitAsmJSLoadHeap(MAsmJSLoadHeap *ins)
 {
-    JS_ASSERT(0 && "visitAsmJSLoadHeap");
+    MOZ_ASSERT(0 && "visitAsmJSLoadHeap");
 }
 
 bool
 LIRGeneratorARM64::visitAsmJSStoreHeap(MAsmJSStoreHeap *ins)
 {
-    JS_ASSERT(0 && "visitAsmJSStoreHeap");
+    MOZ_ASSERT(0 && "visitAsmJSStoreHeap");
 }
 
 bool
@@ -344,7 +344,7 @@ bool
 LIRGeneratorARM64::lowerTruncateDToInt32(MTruncateToInt32 *ins)
 {
     MDefinition *opd = ins->input();
-    JS_ASSERT(opd->type() == MIRType_Double);
+    MOZ_ASSERT(opd->type() == MIRType_Double);
 
     return define(new(alloc()) LTruncateDToInt32(useRegister(opd), LDefinition::BogusTemp()), ins);
 }
@@ -353,7 +353,7 @@ bool
 LIRGeneratorARM64::lowerTruncateFToInt32(MTruncateToInt32 *ins)
 {
     MDefinition *opd = ins->input();
-    JS_ASSERT(opd->type() == MIRType_Float32);
+    MOZ_ASSERT(opd->type() == MIRType_Float32);
 
     return define(new(alloc()) LTruncateFToInt32(useRegister(opd), LDefinition::BogusTemp()), ins);
 }
@@ -361,13 +361,13 @@ LIRGeneratorARM64::lowerTruncateFToInt32(MTruncateToInt32 *ins)
 bool
 LIRGeneratorARM64::visitStoreTypedArrayElementStatic(MStoreTypedArrayElementStatic *ins)
 {
-    MOZ_ASSUME_UNREACHABLE("NYI");
+    MOZ_CRASH("NYI");
 }
 
 bool
 LIRGeneratorARM64::visitForkJoinGetSlice(MForkJoinGetSlice *ins)
 {
-    MOZ_ASSUME_UNREACHABLE("NYI");
+    MOZ_CRASH("NYI");
 }
 
 bool

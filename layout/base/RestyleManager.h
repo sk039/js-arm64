@@ -11,6 +11,7 @@
 #ifndef mozilla_RestyleManager_h
 #define mozilla_RestyleManager_h
 
+#include "mozilla/RestyleLogging.h"
 #include "nsISupportsImpl.h"
 #include "nsChangeHint.h"
 #include "RestyleTracker.h"
@@ -90,6 +91,28 @@ public:
   // Get a counter that increments on every style change, that we use to
   // track whether off-main-thread animations are up-to-date.
   uint64_t GetAnimationGeneration() const { return mAnimationGeneration; }
+
+  // Whether rule matching should skip styles associated with animation
+  bool SkipAnimationRules() const {
+    MOZ_ASSERT(mSkipAnimationRules || !mPostAnimationRestyles,
+               "inconsistent state");
+    return mSkipAnimationRules;
+  }
+
+  // Whether rule matching should post animation restyles when it skips
+  // styles associated with animation.  Only true when
+  // SkipAnimationRules() is also true.
+  bool PostAnimationRestyles() const {
+    MOZ_ASSERT(mSkipAnimationRules || !mPostAnimationRestyles,
+               "inconsistent state");
+    return mPostAnimationRestyles;
+  }
+
+  // Whether we're currently in the animation phase of restyle
+  // processing (to be eliminated in bug 960465)
+  bool IsProcessingAnimationStyleChange() const {
+    return mIsProcessingAnimationStyleChange;
+  }
 
   /**
    * Reparent the style contexts of this frame subtree.  The parent frame of
@@ -239,6 +262,9 @@ public:
   // itself.
   void ProcessPendingRestyles();
 
+  // Returns whether there are any pending restyles.
+  bool HasPendingRestyles() { return mPendingRestyles.Count() != 0; }
+
   // ProcessPendingRestyles calls into one of our RestyleTracker
   // objects.  It then calls back to these functions at the beginning
   // and end of its work.
@@ -294,7 +320,7 @@ public:
   {
     if (mPresContext) {
       PostRestyleEventCommon(aElement, aRestyleHint, aMinChangeHint,
-                             mPresContext->IsProcessingAnimationStyleChange());
+                             IsProcessingAnimationStyleChange());
     }
   }
 
@@ -315,6 +341,11 @@ public:
   {
     mOverflowChangedTracker.Flush();
   }
+
+#ifdef DEBUG
+  static nsCString RestyleHintToString(nsRestyleHint aHint);
+  static nsCString ChangeHintToString(nsChangeHint aHint);
+#endif
 
 private:
   /**
@@ -351,6 +382,47 @@ public:
    */
   void PostRebuildAllStyleDataEvent(nsChangeHint aExtraHint);
 
+#ifdef RESTYLE_LOGGING
+  /**
+   * Returns whether a restyle event currently being processed by this
+   * RestyleManager should be logged.
+   */
+  bool ShouldLogRestyle() {
+    return ShouldLogRestyle(mPresContext);
+  }
+
+  /**
+   * Returns whether a restyle event currently being processed for the
+   * document with the specified nsPresContext should be logged.
+   */
+  static bool ShouldLogRestyle(nsPresContext* aPresContext) {
+    return aPresContext->RestyleLoggingEnabled() &&
+           (!aPresContext->RestyleManager()->
+               IsProcessingAnimationStyleChange() ||
+            AnimationRestyleLoggingEnabled());
+  }
+
+  static bool RestyleLoggingInitiallyEnabled() {
+    static bool enabled = getenv("MOZ_DEBUG_RESTYLE") != 0;
+    return enabled;
+  }
+
+  static bool AnimationRestyleLoggingEnabled() {
+    static bool animations = getenv("MOZ_DEBUG_RESTYLE_ANIMATIONS") != 0;
+    return animations;
+  }
+
+  // Set MOZ_DEBUG_RESTYLE_STRUCTS to a comma-separated string of
+  // style struct names -- such as "Font,SVGReset" -- to log the style context
+  // tree and those cached struct pointers before each restyle.  This
+  // function returns a bitfield of the structs named in the
+  // environment variable.
+  static uint32_t StructsToLog();
+
+  static nsCString StructNamesToString(uint32_t aSIDs);
+  int32_t& LoggingDepth() { return mLoggingDepth; }
+#endif
+
 private:
   /* aMinHint is the minimal change that should be made to the element */
   // XXXbz do we really need the aPrimaryFrame argument here?
@@ -378,6 +450,16 @@ private:
   bool mObservingRefreshDriver : 1;
   // True if we're in the middle of a nsRefreshDriver refresh
   bool mInStyleRefresh : 1;
+  // Whether rule matching should skip styles associated with animation
+  bool mSkipAnimationRules : 1;
+  // Whether rule matching should post animation restyles when it skips
+  // styles associated with animation.  Only true when
+  // mSkipAnimationRules is also true.
+  bool mPostAnimationRestyles : 1;
+  // Whether we're currently in the animation phase of restyle
+  // processing (to be eliminated in bug 960465)
+  bool mIsProcessingAnimationStyleChange : 1;
+
   uint32_t mHoverGeneration;
   nsChangeHint mRebuildAllExtraHint;
 
@@ -393,6 +475,14 @@ private:
 
   RestyleTracker mPendingRestyles;
   RestyleTracker mPendingAnimationRestyles;
+
+#ifdef DEBUG
+  bool mIsProcessingRestyles;
+#endif
+
+#ifdef RESTYLE_LOGGING
+  int32_t mLoggingDepth;
+#endif
 };
 
 /**
@@ -451,6 +541,12 @@ public:
    */
   nsChangeHint HintsHandledForFrame() { return mHintsHandled; }
 
+#ifdef RESTYLE_LOGGING
+  bool ShouldLogRestyle() {
+    return RestyleManager::ShouldLogRestyle(mPresContext);
+  }
+#endif
+
 private:
   // Enum for the result of RestyleSelf, which indicates whether the
   // restyle procedure should continue to the children, and how.
@@ -474,8 +570,7 @@ private:
    */
   RestyleResult RestyleSelf(nsIFrame* aSelf,
                             nsRestyleHint aRestyleHint,
-                            uint32_t* aSwappedStructs,
-                            nsIFrame** aProviderFrame);
+                            uint32_t* aSwappedStructs);
 
   /**
    * Restyle the children of this frame (and, in turn, their children).
@@ -518,6 +613,14 @@ private:
     eNotifyHidden
   };
 
+#ifdef RESTYLE_LOGGING
+  int32_t& LoggingDepth() { return mLoggingDepth; }
+#endif
+
+#ifdef DEBUG
+  static nsCString RestyleResultToString(RestyleResult aRestyleResult);
+#endif
+
 private:
   nsPresContext* const mPresContext;
   nsIFrame* const mFrame;
@@ -546,6 +649,10 @@ private:
   A11yNotificationType mOurA11yNotification;
   nsTArray<nsIContent*>& mVisibleKidsOfHiddenElement;
   bool mWasFrameVisible;
+#endif
+
+#ifdef RESTYLE_LOGGING
+  int32_t mLoggingDepth;
 #endif
 };
 

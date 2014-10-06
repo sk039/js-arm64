@@ -56,6 +56,7 @@ import org.mozilla.gecko.util.HardwareUtils;
 import org.mozilla.gecko.util.NativeEventListener;
 import org.mozilla.gecko.util.NativeJSObject;
 import org.mozilla.gecko.util.PrefUtils;
+import org.mozilla.gecko.util.StringUtils;
 import org.mozilla.gecko.util.ThreadUtils;
 import org.mozilla.gecko.webapp.EventListener;
 import org.mozilla.gecko.webapp.UninstallListener;
@@ -1086,11 +1087,10 @@ public abstract class GeckoApp
     }
 
     /**
-     * Check and start the Java profiler if MOZ_PROFILER_STARTUP env var is specified
+     * Check and start the Java profiler if MOZ_PROFILER_STARTUP env var is specified.
      **/
-    protected void earlyStartJavaSampler(Intent intent)
-    {
-        String env = intent.getStringExtra("env0");
+    protected static void earlyStartJavaSampler(Intent intent) {
+        String env = StringUtils.getStringExtra(intent, "env0");
         for (int i = 1; env != null; i++) {
             if (env.startsWith("MOZ_PROFILER_STARTUP=")) {
                 if (!env.endsWith("=")) {
@@ -1124,7 +1124,8 @@ public abstract class GeckoApp
         mGeckoReadyStartupTimer = new Telemetry.UptimeTimer("FENNEC_STARTUP_TIME_GECKOREADY");
 
         final Intent intent = getIntent();
-        final String args = intent.getStringExtra("args");
+        final String action = intent.getAction();
+        final String args = StringUtils.getStringExtra(intent, "args");
 
         earlyStartJavaSampler(intent);
 
@@ -1152,17 +1153,7 @@ public abstract class GeckoApp
                         profilePath =  m.group(1);
                     }
                     if (profileName == null) {
-                        try {
-                            profileName = getDefaultProfileName();
-                        } catch (NoMozillaDirectoryException e) {
-                            Log.wtf(LOGTAG, "Unable to fetch default profile name!", e);
-                            // There's nothing at all we can do now. If the Mozilla directory
-                            // didn't exist, then we're screwed.
-                            // Crash here so we can fix the bug.
-                            throw new RuntimeException(e);
-                        }
-                        if (profileName == null)
-                            profileName = GeckoProfile.DEFAULT_PROFILE;
+                        profileName = GeckoProfile.DEFAULT_PROFILE;
                     }
                     GeckoProfile.sIsUsingCustomProfile = true;
                 }
@@ -1173,7 +1164,13 @@ public abstract class GeckoApp
             }
         }
 
-        BrowserDB.initialize(getProfile().getName());
+        // Speculatively pre-fetch the profile in the background.
+        ThreadUtils.postToBackgroundThread(new Runnable() {
+            @Override
+            public void run() {
+                getProfile();
+            }
+        });
 
         // Workaround for <http://code.google.com/p/android/issues/detail?id=20915>.
         try {
@@ -1190,8 +1187,6 @@ public abstract class GeckoApp
         // `(GeckoApplication) getApplication()` here.
         GeckoAppShell.setContextGetter(this);
         GeckoAppShell.setGeckoInterface(this);
-
-        ThreadUtils.setUiThread(Thread.currentThread(), new Handler());
 
         Tabs.getInstance().attachToContext(this);
         try {
@@ -1217,6 +1212,30 @@ public abstract class GeckoApp
             // without killing the entire application (see Bug 769269).
             mIsRestoringActivity = true;
             Telemetry.HistogramAdd("FENNEC_RESTORING_ACTIVITY", 1);
+
+        } else {
+            final String uri = getURIFromIntent(intent);
+
+            GeckoThread.setArgs(args);
+            GeckoThread.setAction(action);
+            GeckoThread.setUri(TextUtils.isEmpty(uri) ? null : uri);
+        }
+
+        if (!ACTION_DEBUG.equals(action) &&
+                GeckoThread.checkAndSetLaunchState(GeckoThread.LaunchState.Launching,
+                                                   GeckoThread.LaunchState.Launched)) {
+            GeckoThread.createAndStart();
+
+        } else if (ACTION_DEBUG.equals(action) &&
+                GeckoThread.checkAndSetLaunchState(GeckoThread.LaunchState.Launching,
+                                                   GeckoThread.LaunchState.WaitForDebugger)) {
+            ThreadUtils.getUiHandler().postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    GeckoThread.setLaunchState(GeckoThread.LaunchState.Launched);
+                    GeckoThread.createAndStart();
+                }
+            }, 1000 * 5 /* 5 seconds */);
         }
 
         Bundle stateBundle = getIntent().getBundleExtra(EXTRA_STATE_BUNDLE);
@@ -1380,6 +1399,9 @@ public abstract class GeckoApp
             layerView.initializeView(EventDispatcher.getInstance());
             mLayerView = layerView;
             GeckoAppShell.setLayerView(layerView);
+            GeckoAppShell.sendEventToGecko(GeckoEvent.createObjectEvent(
+                GeckoEvent.ACTION_OBJECT_LAYER_CLIENT, layerView.getLayerClientObject()));
+
             // bind the GeckoEditable instance to the new LayerView
             GeckoAppShell.notifyIMEContext(GeckoEditableListener.IME_STATE_DISABLED, "", "", "");
         }
@@ -1437,6 +1459,8 @@ public abstract class GeckoApp
 
         initializeChrome();
 
+        BrowserDB.initialize(getProfile().getName());
+
         // If we are doing a restore, read the session data and send it to Gecko
         if (!mIsRestoringActivity) {
             String restoreMessage = null;
@@ -1478,25 +1502,6 @@ public abstract class GeckoApp
         }
 
         Telemetry.HistogramAdd("FENNEC_STARTUP_GECKOAPP_ACTION", startupAction.ordinal());
-
-        if (!mIsRestoringActivity) {
-            GeckoThread.setArgs(intent.getStringExtra("args"));
-            GeckoThread.setAction(intent.getAction());
-            GeckoThread.setUri(passedUri);
-        }
-        if (!ACTION_DEBUG.equals(action) &&
-            GeckoThread.checkAndSetLaunchState(GeckoThread.LaunchState.Launching, GeckoThread.LaunchState.Launched)) {
-            GeckoThread.createAndStart();
-        } else if (ACTION_DEBUG.equals(action) &&
-            GeckoThread.checkAndSetLaunchState(GeckoThread.LaunchState.Launching, GeckoThread.LaunchState.WaitForDebugger)) {
-            ThreadUtils.getUiHandler().postDelayed(new Runnable() {
-                @Override
-                public void run() {
-                    GeckoThread.setLaunchState(GeckoThread.LaunchState.Launching);
-                    GeckoThread.createAndStart();
-                }
-            }, 1000 * 5 /* 5 seconds */);
-        }
 
         // Check if launched from data reporting notification.
         if (ACTION_LAUNCH_SETTINGS.equals(action)) {
@@ -1592,7 +1597,6 @@ public abstract class GeckoApp
             if (selectedTab != null)
                 Tabs.getInstance().notifyListeners(selectedTab, Tabs.TabEvents.SELECTED);
             geckoConnected();
-            GeckoAppShell.setLayerClient(mLayerView.getLayerClientObject());
             GeckoAppShell.sendEventToGecko(GeckoEvent.createBroadcastEvent("Viewport:Flush", null));
         }
 
@@ -1659,7 +1663,7 @@ public abstract class GeckoApp
         }
     }
 
-    public GeckoProfile getProfile() {
+    public synchronized GeckoProfile getProfile() {
         // fall back to default profile if we didn't load a specific one
         if (mProfile == null) {
             mProfile = GeckoProfile.get(this);
@@ -1832,20 +1836,22 @@ public abstract class GeckoApp
     }
 
     /*
-     * Handles getting a uri from and intent in a way that is backwards
-     * compatable with our previous implementations
+     * Handles getting a URI from an intent in a way that is backwards-
+     * compatible with our previous implementations.
      */
     protected String getURIFromIntent(Intent intent) {
         final String action = intent.getAction();
-        if (ACTION_ALERT_CALLBACK.equals(action) || NotificationHelper.HELPER_BROADCAST_ACTION.equals(action))
+        if (ACTION_ALERT_CALLBACK.equals(action) || NotificationHelper.HELPER_BROADCAST_ACTION.equals(action)) {
             return null;
+        }
 
         String uri = intent.getDataString();
-        if (uri != null)
+        if (uri != null) {
             return uri;
+        }
 
         if ((action != null && action.startsWith(ACTION_WEBAPP_PREFIX)) || ACTION_HOMESCREEN_SHORTCUT.equals(action)) {
-            uri = intent.getStringExtra("args");
+            uri = StringUtils.getStringExtra(intent, "args");
             if (uri != null && uri.startsWith("--url=")) {
                 uri.replace("--url=", "");
             }
@@ -2319,14 +2325,25 @@ public abstract class GeckoApp
     {
     }
 
+    private static final String CPU = "cpu";
+    private static final String SCREEN = "screen";
+
     // Called when a Gecko Hal WakeLock is changed
     public void notifyWakeLockChanged(String topic, String state) {
         PowerManager.WakeLock wl = mWakeLocks.get(topic);
         if (state.equals("locked-foreground") && wl == null) {
             PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
-            wl = pm.newWakeLock(PowerManager.SCREEN_BRIGHT_WAKE_LOCK, topic);
-            wl.acquire();
-            mWakeLocks.put(topic, wl);
+
+            if (CPU.equals(topic)) {
+              wl = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, topic);
+            } else if (SCREEN.equals(topic)) {
+              wl = pm.newWakeLock(PowerManager.SCREEN_BRIGHT_WAKE_LOCK, topic);
+            }
+
+            if (wl != null) {
+              wl.acquire();
+              mWakeLocks.put(topic, wl);
+            }
         } else if (!state.equals("locked-foreground") && wl != null) {
             wl.release();
             mWakeLocks.remove(topic);

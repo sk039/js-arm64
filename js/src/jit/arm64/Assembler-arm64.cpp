@@ -29,7 +29,7 @@ using mozilla::CountLeadingZeroes32;
 ABIArg
 ABIArgGenerator::next(MIRType type)
 {
-    JS_ASSERT(0 && "ABIArgGenerator::next");
+    MOZ_ASSERT(0 && "ABIArgGenerator::next");
     return current_;
 }
 
@@ -98,7 +98,7 @@ Assembler::bind(RepatchLabel *label)
         return;
     }
 
-    JS_ASSERT(0 && "bind (RepatchLabel)");
+    MOZ_ASSERT(0 && "bind (RepatchLabel)");
 }
 
 // FIXME: Share with ARM?
@@ -110,7 +110,7 @@ Assembler::trace(JSTracer *trc)
         if (rp.kind == Relocation::JITCODE) {
             JitCode *code = JitCode::FromExecutable((uint8_t *)rp.target);
             MarkJitCodeUnbarriered(trc, &code, "masmrel32");
-            JS_ASSERT(code == JitCode::FromExecutable((uint8_t *)rp.target));
+            MOZ_ASSERT(code == JitCode::FromExecutable((uint8_t *)rp.target));
         }
     }
 
@@ -124,7 +124,7 @@ Assembler::trace(JSTracer *trc)
 // FIXME: Shouldn't this be a static method of Assembler?
 void
 PatchJump(CodeLocationJump &jump_, CodeLocationLabel label) {
-    JS_ASSERT(0 && "PatchJump()");
+    MOZ_ASSERT(0 && "PatchJump()");
 }
 
 void

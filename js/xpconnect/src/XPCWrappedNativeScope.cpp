@@ -379,6 +379,12 @@ xpc::GetAddonScope(JSContext *cx, JS::HandleObject contentScope, JSAddonId *addo
 
     JSAutoCompartment ac(cx, contentScope);
     XPCWrappedNativeScope *nativeScope = CompartmentPrivate::Get(contentScope)->scope;
+    if (nativeScope->GetPrincipal() != nsXPConnect::SystemPrincipal()) {
+        // This can happen if, for example, Jetpack loads an unprivileged HTML
+        // page from the add-on. It's not clear what to do there, so we just use
+        // the normal global.
+        return js::GetGlobalForObjectCrossCompartment(contentScope);
+    }
     JSObject *scope = nativeScope->EnsureAddonScope(cx, addonId);
     NS_ENSURE_TRUE(scope, nullptr);
 
@@ -487,10 +493,11 @@ XPCWrappedNativeScope::SuspectAllWrappers(XPCJSRuntime* rt,
 
 // static
 void
-XPCWrappedNativeScope::StartFinalizationPhaseOfGC(JSFreeOp *fop, XPCJSRuntime* rt)
+XPCWrappedNativeScope::UpdateWeakPointersAfterGC(XPCJSRuntime* rt)
 {
-    // We are in JSGC_MARK_END and JSGC_FINALIZE_END must always follow it
-    // calling FinishedFinalizationPhaseOfGC and clearing gDyingScopes in
+    // If this is called from the finalization callback in JSGC_MARK_END then
+    // JSGC_FINALIZE_END must always follow it calling
+    // FinishedFinalizationPhaseOfGC and clearing gDyingScopes in
     // KillDyingScopes.
     MOZ_ASSERT(!gDyingScopes, "JSGC_MARK_END without JSGC_FINALIZE_END");
 
@@ -504,28 +511,27 @@ XPCWrappedNativeScope::StartFinalizationPhaseOfGC(JSFreeOp *fop, XPCJSRuntime* r
 
         XPCWrappedNativeScope* next = cur->mNext;
 
-        if (cur->mGlobalJSObject && cur->mGlobalJSObject.isAboutToBeFinalized()) {
-            cur->mGlobalJSObject.finalize(fop->runtime());
-            // Move this scope from the live list to the dying list.
-            if (prev)
-                prev->mNext = next;
-            else
-                gScopes = next;
-            cur->mNext = gDyingScopes;
-            gDyingScopes = cur;
-            cur = nullptr;
+        // Check for finalization of the global object.  Note that global
+        // objects are never moved, so we don't need to handle updating the
+        // object pointer here.
+        if (cur->mGlobalJSObject) {
+            cur->mGlobalJSObject.updateWeakPointerAfterGC();
+            if (!cur->mGlobalJSObject) {
+                // Move this scope from the live list to the dying list.
+                if (prev)
+                    prev->mNext = next;
+                else
+                    gScopes = next;
+                cur->mNext = gDyingScopes;
+                gDyingScopes = cur;
+                cur = nullptr;
+            }
         }
+
         if (cur)
             prev = cur;
         cur = next;
     }
-}
-
-// static
-void
-XPCWrappedNativeScope::FinishedFinalizationPhaseOfGC()
-{
-    KillDyingScopes();
 }
 
 static PLDHashOperator

@@ -10,19 +10,27 @@
 (function() {
   "use strict";
 
+  // Stop the default init functions running to avoid conflicts.
+  document.removeEventListener('DOMContentLoaded', loop.panel.init);
+  document.removeEventListener('DOMContentLoaded', loop.conversation.init);
+
   // 1. Desktop components
   // 1.1 Panel
   var PanelView = loop.panel.PanelView;
   // 1.2. Conversation Window
   var IncomingCallView = loop.conversation.IncomingCallView;
+  var DesktopPendingConversationView = loop.conversationViews.PendingConversationView;
+  var CallFailedView = loop.conversationViews.CallFailedView;
 
   // 2. Standalone webapp
   var HomeView = loop.webapp.HomeView;
-  var UnsupportedBrowserView = loop.webapp.UnsupportedBrowserView;
-  var UnsupportedDeviceView = loop.webapp.UnsupportedDeviceView;
-  var CallUrlExpiredView    = loop.webapp.CallUrlExpiredView;
+  var UnsupportedBrowserView  = loop.webapp.UnsupportedBrowserView;
+  var UnsupportedDeviceView   = loop.webapp.UnsupportedDeviceView;
+  var CallUrlExpiredView      = loop.webapp.CallUrlExpiredView;
   var PendingConversationView = loop.webapp.PendingConversationView;
-  var StartConversationView = loop.webapp.StartConversationView;
+  var StartConversationView   = loop.webapp.StartConversationView;
+  var FailedConversationView  = loop.webapp.FailedConversationView;
+  var EndedConversationView   = loop.webapp.EndedConversationView;
 
   // 3. Shared components
   var ConversationToolbar = loop.shared.views.ConversationToolbar;
@@ -62,9 +70,20 @@
   });
   mockConversationModel.startSession = noop;
 
+  var mockWebSocket = new loop.CallConnectionWebSocket({
+    url: "fake",
+    callId: "fakeId",
+    websocketToken: "fakeToken"
+  });
+
   var notifications = new loop.shared.models.NotificationCollection();
   var errNotifications = new loop.shared.models.NotificationCollection();
-  errNotifications.error("Error!");
+  errNotifications.add({
+    level: "error",
+    message: "Could Not Authenticate",
+    details: "Did you change your password?",
+    detailsButtonLabel: "Retry",
+  });
 
   var Example = React.createClass({
     render: function() {
@@ -148,27 +167,26 @@
           </Section>
 
           <Section name="IncomingCallView">
-            <Example summary="Default / incoming video call" dashed="true" style={{width: "280px"}}>
+            <Example summary="Default / incoming video call" dashed="true" style={{width: "260px", height: "254px"}}>
               <div className="fx-embedded">
                 <IncomingCallView model={mockConversationModel}
-                                  video={{enabled: true}} />
+                                  video={true} />
               </div>
             </Example>
 
-            <Example summary="Default / incoming audio only call" dashed="true" style={{width: "280px"}}>
+            <Example summary="Default / incoming audio only call" dashed="true" style={{width: "260px", height: "254px"}}>
               <div className="fx-embedded">
                 <IncomingCallView model={mockConversationModel}
-                                  video={{enabled: false}} />
+                                  video={false} />
               </div>
             </Example>
           </Section>
 
           <Section name="IncomingCallView-ActiveState">
-            <Example summary="Default" dashed="true" style={{width: "280px"}}>
+            <Example summary="Default" dashed="true" style={{width: "260px", height: "254px"}}>
               <div className="fx-embedded" >
                 <IncomingCallView  model={mockConversationModel}
-                                   showDeclineMenu={true}
-                                   video={{enabled: true}} />
+                                   showMenu={true} />
               </div>
             </Example>
           </Section>
@@ -222,12 +240,30 @@
           <Section name="PendingConversationView">
             <Example summary="Pending conversation view (connecting)" dashed="true">
               <div className="standalone">
-                <PendingConversationView />
+                <PendingConversationView websocket={mockWebSocket}/>
               </div>
             </Example>
             <Example summary="Pending conversation view (ringing)" dashed="true">
               <div className="standalone">
-                <PendingConversationView callState="ringing"/>
+                <PendingConversationView websocket={mockWebSocket} callState="ringing"/>
+              </div>
+            </Example>
+          </Section>
+
+          <Section name="PendingConversationView (Desktop)">
+            <Example summary="Connecting" dashed="true"
+                     style={{width: "260px", height: "265px"}}>
+              <div className="fx-embedded">
+                <DesktopPendingConversationView callState={"gather"} calleeId="Mr Smith" />
+              </div>
+            </Example>
+          </Section>
+
+          <Section name="CallFailedView">
+            <Example summary="Call Failed" dashed="true"
+                     style={{width: "260px", height: "265px"}}>
+              <div className="fx-embedded">
+                <CallFailedView />
               </div>
             </Example>
           </Section>
@@ -235,10 +271,19 @@
           <Section name="StartConversationView">
             <Example summary="Start conversation view" dashed="true">
               <div className="standalone">
-                <StartConversationView model={mockConversationModel}
+                <StartConversationView conversation={mockConversationModel}
                                        client={mockClient}
-                                       notifications={notifications}
-                                       showCallOptionsMenu={true} />
+                                       notifications={notifications} />
+              </div>
+            </Example>
+          </Section>
+
+          <Section name="FailedConversationView">
+            <Example summary="Failed conversation view" dashed="true">
+              <div className="standalone">
+                <FailedConversationView conversation={mockConversationModel}
+                                        client={mockClient}
+                                        notifications={notifications} />
               </div>
             </Example>
           </Section>
@@ -318,13 +363,13 @@
               <strong>Note:</strong> For the useable demo, you can access submitted data at&nbsp;
               <a href="https://input.allizom.org/">input.allizom.org</a>.
             </p>
-            <Example summary="Default (useable demo)" dashed="true" style={{width: "280px"}}>
+            <Example summary="Default (useable demo)" dashed="true" style={{width: "260px"}}>
               <FeedbackView feedbackApiClient={stageFeedbackApiClient} />
             </Example>
-            <Example summary="Detailed form" dashed="true" style={{width: "280px"}}>
+            <Example summary="Detailed form" dashed="true" style={{width: "260px"}}>
               <FeedbackView feedbackApiClient={stageFeedbackApiClient} step="form" />
             </Example>
-            <Example summary="Thank you!" dashed="true" style={{width: "280px"}}>
+            <Example summary="Thank you!" dashed="true" style={{width: "260px"}}>
               <FeedbackView feedbackApiClient={stageFeedbackApiClient} step="finished" />
             </Example>
           </Section>
@@ -335,6 +380,19 @@
             </Example>
             <Example summary="Non-Firefox User">
               <CallUrlExpiredView helper={{isFirefox: returnFalse}} />
+            </Example>
+          </Section>
+
+          <Section name="EndedConversationView">
+            <Example summary="Displays the feedback form">
+              <div className="standalone">
+                <EndedConversationView sdk={mockSDK}
+                                       video={{enabled: true}}
+                                       audio={{enabled: true}}
+                                       conversation={mockConversationModel}
+                                       feedbackApiClient={stageFeedbackApiClient}
+                                       onAfterFeedbackReceived={noop} />
+              </div>
             </Example>
           </Section>
 
@@ -432,6 +490,9 @@
     React.renderComponent(<App />, body);
 
     _renderComponentsInIframes();
+
+    // Put the title back, in case views changed it.
+    document.title = "Loop UI Components Showcase";
   });
 
 })();

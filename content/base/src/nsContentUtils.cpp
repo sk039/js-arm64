@@ -137,6 +137,7 @@
 #include "nsIParserService.h"
 #include "nsIPermissionManager.h"
 #include "nsIPluginHost.h"
+#include "nsIRequest.h"
 #include "nsIRunnable.h"
 #include "nsIScriptContext.h"
 #include "nsIScriptError.h"
@@ -2024,6 +2025,10 @@ nsContentUtils::GetCrossDocParentNode(nsINode* aChild)
   NS_PRECONDITION(aChild, "The child is null!");
 
   nsINode* parent = aChild->GetParentNode();
+  if (parent && parent->IsContent() && aChild->IsContent()) {
+    parent = aChild->AsContent()->GetFlattenedTreeParent();
+  }
+
   if (parent || !aChild->IsNodeOfType(nsINode::eDOCUMENT))
     return parent;
 
@@ -2081,12 +2086,6 @@ nsContentUtils::ContentIsCrossDocDescendantOf(nsINode* aPossibleDescendant,
   do {
     if (aPossibleDescendant == aPossibleAncestor)
       return true;
-
-    // Step over shadow root to the host node.
-    ShadowRoot* shadowRoot = ShadowRoot::FromNode(aPossibleDescendant);
-    if (shadowRoot) {
-      aPossibleDescendant = shadowRoot->GetHost();
-    }
 
     aPossibleDescendant = GetCrossDocParentNode(aPossibleDescendant);
   } while (aPossibleDescendant);
@@ -2454,7 +2453,8 @@ nsContentUtils::GenerateStateKey(nsIContent* aContent,
     return NS_OK;
   }
 
-  nsCOMPtr<nsIHTMLDocument> htmlDocument(do_QueryInterface(aContent->GetCurrentDoc()));
+  nsCOMPtr<nsIHTMLDocument> htmlDocument =
+    do_QueryInterface(aContent->GetUncomposedDoc());
 
   KeyAppendInt(partID, aKey);  // first append a partID
   bool generatedUniqueKey = false;
@@ -2464,7 +2464,7 @@ nsContentUtils::GenerateStateKey(nsIContent* aContent,
     // If this becomes unnecessary and the following line is removed,
     // please also remove the corresponding flush operation from
     // nsHtml5TreeBuilderCppSupplement.h. (Look for "See bug 497861." there.)
-    aContent->GetCurrentDoc()->FlushPendingNotifications(Flush_Content);
+    aContent->GetUncomposedDoc()->FlushPendingNotifications(Flush_Content);
 
     nsContentList *htmlForms = htmlDocument->GetForms();
     nsContentList *htmlFormControls = htmlDocument->GetFormControls();
@@ -2848,7 +2848,7 @@ nsContentUtils::SplitExpatName(const char16_t *aExpatName, nsIAtom **aPrefix,
 nsPresContext*
 nsContentUtils::GetContextForContent(const nsIContent* aContent)
 {
-  nsIDocument* doc = aContent->GetCurrentDoc();
+  nsIDocument* doc = aContent->GetComposedDoc();
   if (doc) {
     nsIPresShell *presShell = doc->GetShell();
     if (presShell) {
@@ -2923,11 +2923,13 @@ nsContentUtils::CanLoadImage(nsIURI* aURI, nsISupports* aContext,
   return NS_FAILED(rv) ? false : NS_CP_ACCEPTED(decision);
 }
 
-imgLoader*
-nsContentUtils::GetImgLoaderForDocument(nsIDocument* aDoc)
+// static
+bool
+nsContentUtils::IsInPrivateBrowsing(nsIDocument* aDoc)
 {
-  if (!aDoc)
-    return imgLoader::Singleton();
+  if (!aDoc) {
+    return false;
+  }
   bool isPrivate = false;
   nsCOMPtr<nsILoadGroup> loadGroup = aDoc->GetDocumentLoadGroup();
   nsCOMPtr<nsIInterfaceRequestor> callbacks;
@@ -2941,6 +2943,16 @@ nsContentUtils::GetImgLoaderForDocument(nsIDocument* aDoc)
     nsCOMPtr<nsIChannel> channel = aDoc->GetChannel();
     isPrivate = channel && NS_UsePrivateBrowsing(channel);
   }
+  return isPrivate;
+}
+
+imgLoader*
+nsContentUtils::GetImgLoaderForDocument(nsIDocument* aDoc)
+{
+  if (!aDoc) {
+    return imgLoader::Singleton();
+  }
+  bool isPrivate = IsInPrivateBrowsing(aDoc);
   return isPrivate ? imgLoader::PBSingleton() : imgLoader::Singleton();
 }
 
@@ -4393,7 +4405,7 @@ nsContentUtils::SetNodeTextContent(nsIContent* aContent,
 
   // Might as well stick a batch around this since we're performing several
   // mutations.
-  mozAutoDocUpdate updateBatch(aContent->GetCurrentDoc(),
+  mozAutoDocUpdate updateBatch(aContent->GetComposedDoc(),
     UPDATE_CONTENT_MODEL, true);
   nsAutoMutationBatch mb;
 
@@ -6093,7 +6105,9 @@ nsContentUtils::IsFocusedContent(const nsIContent* aContent)
 bool
 nsContentUtils::IsSubDocumentTabbable(nsIContent* aContent)
 {
-  nsIDocument* doc = aContent->GetCurrentDoc();
+  //XXXsmaug Shadow DOM spec issue!
+  //         We may need to change this to GetComposedDoc().
+  nsIDocument* doc = aContent->GetUncomposedDoc();
   if (!doc) {
     return false;
   }
@@ -6440,37 +6454,14 @@ nsContentUtils::URIInheritsSecurityContext(nsIURI *aURI, bool *aResult)
 
 // static
 bool
-nsContentUtils::SetUpChannelOwner(nsIPrincipal* aLoadingPrincipal,
-                                  nsIChannel* aChannel,
-                                  nsIURI* aURI,
-                                  bool aInheritForAboutBlank,
-                                  bool aIsSandboxed,
-                                  bool aForceInherit)
+nsContentUtils::ChannelShouldInheritPrincipal(nsIPrincipal* aLoadingPrincipal,
+                                              nsIURI* aURI,
+                                              bool aInheritForAboutBlank,
+                                              bool aForceInherit)
 {
-  nsCOMPtr<nsIPrincipal> loadingPrincipal = aLoadingPrincipal;
-  if (!loadingPrincipal) {
-    if (!aIsSandboxed) {
-      // Nothing to do here
-      return false;
-    }
+  MOZ_ASSERT(aLoadingPrincipal, "Can not check inheritance without a principal");
 
-    // Go ahead and create a nullprincipal to use as our loading principal,
-    // since we need to make sure to sandbox the load but we have no clue who's
-    // loading us.
-    loadingPrincipal = do_CreateInstance(NS_NULLPRINCIPAL_CONTRACTID);
-    if (!loadingPrincipal) {
-      NS_RUNTIMEABORT("Failed to create a principal?");
-    }
-  }
-
-  // If we're sandboxed, make sure to clear any owner the channel
-  // might already have.
-  if (aIsSandboxed) {
-    aChannel->SetOwner(nullptr);
-  }
-
-  // Set the loadInfo of the channel, but only tell the channel to
-  // inherit if it can't provide its own security context.
+  // Only tell the channel to inherit if it can't provide its own security context.
   //
   // XXX: If this is ever changed, check all callers for what owners
   //      they're passing in.  In particular, see the code and
@@ -6500,19 +6491,12 @@ nsContentUtils::SetUpChannelOwner(nsIPrincipal* aLoadingPrincipal,
       // based on its own codebase later.
       //
       (URIIsLocalFile(aURI) &&
-       NS_SUCCEEDED(loadingPrincipal->CheckMayLoad(aURI, false, false)) &&
+       NS_SUCCEEDED(aLoadingPrincipal->CheckMayLoad(aURI, false, false)) &&
        // One more check here.  CheckMayLoad will always return true for the
        // system principal, but we do NOT want to inherit in that case.
-       !IsSystemPrincipal(loadingPrincipal));
+       !IsSystemPrincipal(aLoadingPrincipal));
   }
-
-  nsCOMPtr<nsILoadInfo> loadInfo =
-    new LoadInfo(loadingPrincipal,
-                 inherit ?
-                   LoadInfo::eInheritPrincipal : LoadInfo::eDontInheritPrincipal,
-                 aIsSandboxed ? LoadInfo::eSandboxed : LoadInfo::eNotSandboxed);
-  aChannel->SetLoadInfo(loadInfo);
-  return inherit && !aIsSandboxed;
+  return inherit;
 }
 
 /* static */
@@ -6980,4 +6964,46 @@ nsContentUtils::IsJavascriptMIMEType(const nsAString& aMIMEType)
   }
 
   return false;
+}
+
+uint64_t
+nsContentUtils::GetInnerWindowID(nsIRequest* aRequest)
+{
+  // can't do anything if there's no nsIRequest!
+  if (!aRequest) {
+    return 0;
+  }
+
+  nsCOMPtr<nsILoadGroup> loadGroup;
+  nsresult rv = aRequest->GetLoadGroup(getter_AddRefs(loadGroup));
+
+  if (NS_FAILED(rv) || !loadGroup) {
+    return 0;
+  }
+
+  nsCOMPtr<nsIInterfaceRequestor> callbacks;
+  rv = loadGroup->GetNotificationCallbacks(getter_AddRefs(callbacks));
+  if (NS_FAILED(rv) || !callbacks) {
+    return 0;
+  }
+
+  nsCOMPtr<nsILoadContext> loadContext = do_GetInterface(callbacks);
+  if (!loadContext) {
+    return 0;
+  }
+
+  nsCOMPtr<nsIDOMWindow> window;
+  rv = loadContext->GetAssociatedWindow(getter_AddRefs(window));
+  if (NS_FAILED(rv) || !window) {
+    return 0;
+  }
+
+  nsCOMPtr<nsPIDOMWindow> pwindow = do_QueryInterface(window);
+  if (!pwindow) {
+    return 0;
+  }
+
+  nsPIDOMWindow* inner = pwindow->IsInnerWindow() ? pwindow.get() : pwindow->GetCurrentInnerWindow();
+
+  return inner ? inner->WindowID() : 0;
 }

@@ -78,7 +78,8 @@ nsAnimationManager::GetEventsForCurrentTime(AnimationPlayerCollection*
           TimeDuration elapsedTime =
             std::max(iterationStart, anim->InitialAdvance());
           AnimationEventInfo ei(aCollection->mElement, player->Name(), message,
-                                elapsedTime, aCollection->PseudoElement());
+                                StickyTimeDuration(elapsedTime),
+                                aCollection->PseudoElement());
           aEventsToDispatch.AppendElement(ei);
         }
         break;
@@ -91,8 +92,9 @@ nsAnimationManager::GetEventsForCurrentTime(AnimationPlayerCollection*
           // (This is overwritten below but we set it here to maintain
           // internal consistency.)
           anim->SetLastNotification(0);
-          TimeDuration elapsedTime =
-            std::min(anim->InitialAdvance(), computedTiming.mActiveDuration);
+          StickyTimeDuration elapsedTime =
+            std::min(StickyTimeDuration(anim->InitialAdvance()),
+                     computedTiming.mActiveDuration);
           AnimationEventInfo ei(aCollection->mElement,
                                 player->Name(), NS_ANIMATION_START,
                                 elapsedTime, aCollection->PseudoElement());
@@ -224,7 +226,8 @@ nsIStyleRule*
 nsAnimationManager::CheckAnimationRule(nsStyleContext* aStyleContext,
                                        mozilla::dom::Element* aElement)
 {
-  if (!mPresContext->IsProcessingAnimationStyleChange()) {
+  // FIXME (bug 960465): This test should go away.
+  if (!mPresContext->RestyleManager()->IsProcessingAnimationStyleChange()) {
     if (!mPresContext->IsDynamic()) {
       // For print or print preview, ignore animations.
       return nullptr;
@@ -247,7 +250,7 @@ nsAnimationManager::CheckAnimationRule(nsStyleContext* aStyleContext,
     // build the animations list
     dom::AnimationTimeline* timeline = aElement->OwnerDoc()->Timeline();
     AnimationPlayerPtrArray newPlayers;
-    BuildAnimations(aStyleContext, timeline, newPlayers);
+    BuildAnimations(aStyleContext, aElement, timeline, newPlayers);
 
     if (newPlayers.IsEmpty()) {
       if (collection) {
@@ -411,6 +414,7 @@ ResolvedStyleCache::Get(nsPresContext *aPresContext,
 
 void
 nsAnimationManager::BuildAnimations(nsStyleContext* aStyleContext,
+                                    dom::Element* aTarget,
                                     dom::AnimationTimeline* aTimeline,
                                     AnimationPlayerPtrArray& aPlayers)
 {
@@ -451,7 +455,8 @@ nsAnimationManager::BuildAnimations(nsStyleContext* aStyleContext,
     timing.mFillMode = src.GetFillMode();
 
     nsRefPtr<Animation> destAnim =
-      new Animation(mPresContext->Document(), timing, src.GetName());
+      new Animation(mPresContext->Document(), aTarget,
+                    aStyleContext->GetPseudoType(), timing, src.GetName());
     dest->SetSource(destAnim);
 
     dest->mStartTime = now;
@@ -663,12 +668,12 @@ nsAnimationManager::GetAnimationRule(mozilla::dom::Element* aElement,
     return nullptr;
   }
 
-  if (mPresContext->IsProcessingRestyles() &&
-      !mPresContext->IsProcessingAnimationStyleChange()) {
+  RestyleManager* restyleManager = mPresContext->RestyleManager();
+  if (restyleManager->SkipAnimationRules()) {
     // During the non-animation part of processing restyles, we don't
     // add the animation rule.
 
-    if (collection->mStyleRule) {
+    if (collection->mStyleRule && restyleManager->PostAnimationRestyles()) {
       collection->PostRestyleForAnimation(mPresContext);
     }
 

@@ -593,7 +593,7 @@ KeyboardMayHaveIME()
   HKL locales[10];
   int result = GetKeyboardLayoutList(10, locales);
   for (int i = 0; i < result; i++) {
-    int kb = (unsigned)locales[i] & 0xFFFF;
+    int kb = (uintptr_t)locales[i] & 0xFFFF;
     if (kb == 0x0411 ||  // japanese
         kb == 0x0412 ||  // korean
         kb == 0x0C04 ||  // HK Chinese
@@ -669,7 +669,9 @@ NS_IMETHODIMP
 nsXULAppInfo::GetVendor(nsACString& aResult)
 {
   if (XRE_GetProcessType() == GeckoProcessType_Content) {
-    return NS_ERROR_NOT_AVAILABLE;
+    ContentChild* cc = ContentChild::GetSingleton();
+    aResult = cc->GetAppInfo().vendor;
+    return NS_OK;
   }
   aResult.Assign(gAppData->vendor);
 
@@ -693,7 +695,9 @@ NS_IMETHODIMP
 nsXULAppInfo::GetID(nsACString& aResult)
 {
   if (XRE_GetProcessType() == GeckoProcessType_Content) {
-    return NS_ERROR_NOT_AVAILABLE;
+    ContentChild* cc = ContentChild::GetSingleton();
+    aResult = cc->GetAppInfo().ID;
+    return NS_OK;
   }
   aResult.Assign(gAppData->ID);
 
@@ -834,16 +838,6 @@ nsXULAppInfo::GetProcessID(uint32_t* aResult)
 #else
   *aResult = getpid();
 #endif
-  return NS_OK;
-}
-
-static bool gBrowserTabsRemote = false;
-static bool gBrowserTabsRemoteInitialized = false;
-
-NS_IMETHODIMP
-nsXULAppInfo::GetBrowserTabsRemote(bool* aResult)
-{
-  *aResult = BrowserTabsRemote();
   return NS_OK;
 }
 
@@ -1513,6 +1507,7 @@ DumpHelp()
   printf("  -h or -help        Print this message.\n"
          "  -v or -version     Print %s version.\n"
          "  -P <profile>       Start with <profile>.\n"
+         "  -profile <path>    Start with profile at <path>.\n"
          "  -migration         Start with migration wizard.\n"
          "  -ProfileManager    Start with ProfileManager.\n"
          "  -no-remote         Do not accept or send remote commands; implies -new-instance.\n"
@@ -2921,7 +2916,7 @@ class XREMain
 {
 public:
   XREMain() :
-    mScopedXPCom(nullptr)
+    mScopedXPCOM(nullptr)
     , mAppData(nullptr)
     , mStartOffline(false)
     , mShuttingDown(false)
@@ -2937,9 +2932,9 @@ public:
     if (mAppData) {
       delete mAppData;
     }
-    if (mScopedXPCom) {
+    if (mScopedXPCOM) {
       NS_WARNING("Scoped xpcom should have been deleted!");
-      delete mScopedXPCom;
+      delete mScopedXPCOM;
     }
   }
 
@@ -2957,7 +2952,7 @@ public:
   nsCOMPtr<nsIRemoteService> mRemoteService;
 #endif
 
-  ScopedXPCOMStartup* mScopedXPCom;
+  ScopedXPCOMStartup* mScopedXPCOM;
   ScopedAppData* mAppData;
   nsXREDirProvider mDirProvider;
   nsAutoCString mProfileName;
@@ -3912,7 +3907,7 @@ nsresult
 XREMain::XRE_mainRun()
 {
   nsresult rv = NS_OK;
-  NS_ASSERTION(mScopedXPCom, "Scoped xpcom not initialized.");
+  NS_ASSERTION(mScopedXPCOM, "Scoped xpcom not initialized.");
 
 #ifdef MOZ_B2G_LOADER
   mozilla::ipc::ProcLoaderClientGeckoInit();
@@ -3938,7 +3933,7 @@ XREMain::XRE_mainRun()
   }
 #endif
 
-  rv = mScopedXPCom->SetWindowCreator(mNativeApp);
+  rv = mScopedXPCOM->SetWindowCreator(mNativeApp);
   NS_ENSURE_SUCCESS(rv, NS_ERROR_FAILURE);
 
 #ifdef MOZ_CRASHREPORTER
@@ -4168,6 +4163,8 @@ XREMain::XRE_mainRun()
 
 /*
  * XRE_main - A class based main entry point used by most platforms.
+ *            Note that on OSX, aAppData->xreDirectory will point to
+ *            .app/Contents/Resources.
  */
 int
 XREMain::XRE_main(int argc, char* argv[], const nsXREAppData* aAppData)
@@ -4219,11 +4216,11 @@ XREMain::XRE_main(int argc, char* argv[], const nsXREAppData* aAppData)
   bool appInitiatedRestart = false;
 
   // Start the real application
-  mScopedXPCom = new ScopedXPCOMStartup();
-  if (!mScopedXPCom)
+  mScopedXPCOM = new ScopedXPCOMStartup();
+  if (!mScopedXPCOM)
     return 1;
 
-  rv = mScopedXPCom->Initialize();
+  rv = mScopedXPCOM->Initialize();
   NS_ENSURE_SUCCESS(rv, 1);
 
   // run!
@@ -4252,8 +4249,8 @@ XREMain::XRE_main(int argc, char* argv[], const nsXREAppData* aAppData)
 #endif /* MOZ_ENABLE_XREMOTE */
   }
 
-  delete mScopedXPCom;
-  mScopedXPCom = nullptr;
+  delete mScopedXPCOM;
+  mScopedXPCOM = nullptr;
 
   // unlock the profile after ScopedXPCOMStartup object (xpcom) 
   // has gone out of scope.  see bug #386739 for more details
@@ -4325,11 +4322,11 @@ XRE_metroStartup(bool runXREMain)
     return NS_ERROR_FAILURE;
 
   // Start the real application
-  xreMainPtr->mScopedXPCom = new ScopedXPCOMStartup();
-  if (!xreMainPtr->mScopedXPCom)
+  xreMainPtr->mScopedXPCOM = new ScopedXPCOMStartup();
+  if (!xreMainPtr->mScopedXPCOM)
     return NS_ERROR_FAILURE;
 
-  rv = xreMainPtr->mScopedXPCom->Initialize();
+  rv = xreMainPtr->mScopedXPCOM->Initialize();
   NS_ENSURE_SUCCESS(rv, rv);
 
   if (runXREMain) {
@@ -4342,8 +4339,8 @@ XRE_metroStartup(bool runXREMain)
 void
 XRE_metroShutdown()
 {
-  delete xreMainPtr->mScopedXPCom;
-  xreMainPtr->mScopedXPCom = nullptr;
+  delete xreMainPtr->mScopedXPCOM;
+  xreMainPtr->mScopedXPCOM = nullptr;
 
 #ifdef MOZ_INSTRUMENT_EVENT_LOOP
   mozilla::ShutdownEventTracing();
@@ -4423,7 +4420,7 @@ XRE_mainMetro(int argc, char* argv[], const nsXREAppData* aAppData)
 
   // XRE_metroShutdown should have already been called on the worker
   // thread that called XRE_metroStartup.
-  NS_ASSERTION(!xreMainPtr->mScopedXPCom,
+  NS_ASSERTION(!xreMainPtr->mScopedXPCOM,
                "XPCOM Shutdown hasn't occured, and we are exiting.");
   return 0;
 }
@@ -4560,26 +4557,52 @@ XRE_GetProcessType()
   return mozilla::startup::sChildProcessType;
 }
 
-bool
-mozilla::BrowserTabsRemote()
-{
-  if (!gBrowserTabsRemoteInitialized) {
-    gBrowserTabsRemote = Preferences::GetBool("browser.tabs.remote", false);
-    gBrowserTabsRemoteInitialized = true;
+static void
+LogE10sBlockedReason(const char *reason) {
+  nsAutoString msg(NS_LITERAL_STRING("==================\nE10s has been blocked from running because:\n"));
+  msg.Append(NS_ConvertASCIItoUTF16(reason));
+  msg.AppendLiteral("\n==================\n");
+  nsCOMPtr<nsIConsoleService> console(do_GetService("@mozilla.org/consoleservice;1"));
+  if (console) {
+    console->LogStringMessage(msg.get());
   }
-
-  return gBrowserTabsRemote;
 }
 
 bool
 mozilla::BrowserTabsRemoteAutostart()
 {
-  if (!gBrowserTabsRemoteAutostartInitialized) {
-    bool hasIME = KeyboardMayHaveIME();
-    bool prefEnabled = Preferences::GetBool("browser.tabs.remote.autostart", false) ||
-                       (Preferences::GetBool("browser.tabs.remote.autostart.1", false) && !hasIME);
-    bool disabledForA11y = Preferences::GetBool("browser.tabs.remote.autostart.disabled-because-using-a11y", false);
-    gBrowserTabsRemoteAutostart = !gSafeMode && !disabledForA11y && prefEnabled;
+  if (gBrowserTabsRemoteAutostartInitialized) {
+    return gBrowserTabsRemoteAutostart;
+  }
+  gBrowserTabsRemoteAutostartInitialized = true;
+  bool optInPref = Preferences::GetBool("browser.tabs.remote.autostart", false);
+  bool trialPref = Preferences::GetBool("browser.tabs.remote.autostart.1", false);
+  bool testPref = Preferences::GetBool("layers.offmainthreadcomposition.testing.enabled", false);
+#if !defined(NIGHTLY_BUILD)
+  // When running tests with 'layers.offmainthreadcomposition.testing.enabled' and autostart
+  // set to true, return enabled.  These tests must be allowed to run remotely.
+  if (testPref && optInPref) {
+    gBrowserTabsRemoteAutostart = true;
+  }
+#else
+  bool prefEnabled = optInPref || trialPref;
+
+  bool disabledForA11y = Preferences::GetBool("browser.tabs.remote.autostart.disabled-because-using-a11y", false);
+  // Only disable for IME for the automatic pref, not the opt-in one.
+  bool disabledForIME = trialPref && KeyboardMayHaveIME();
+
+  if (prefEnabled) {
+    if (gSafeMode) {
+      LogE10sBlockedReason("Firefox is in safe mode.");
+    } else if (disabledForA11y) {
+      LogE10sBlockedReason("An accessibility tool is active.");
+    } else if (disabledForIME) {
+      LogE10sBlockedReason("The keyboard being used has activated IME.");
+    } else {
+      gBrowserTabsRemoteAutostart = true;
+    }
+  }
+#endif
 
 #if defined(XP_WIN) || defined(XP_MACOSX)
   // If for any reason we suspect acceleration will be disabled, disabled
@@ -4588,13 +4611,6 @@ mozilla::BrowserTabsRemoteAutostart()
     // Check prefs
     bool accelDisabled = Preferences::GetBool("layers.acceleration.disabled", false) &&
                          !Preferences::GetBool("layers.acceleration.force-enabled", false);
-    // Check env flags
-    if (!accelDisabled) {
-      const char *acceleratedEnv = PR_GetEnv("MOZ_ACCELERATED");
-      if (acceleratedEnv && (*acceleratedEnv != '0')) {
-        accelDisabled = false;
-      }
-    }
 
 #if defined(XP_MACOSX)
     accelDisabled = !nsCocoaFeatures::AccelerateByDefault();
@@ -4627,25 +4643,31 @@ mozilla::BrowserTabsRemoteAutostart()
         }
       }
     }
+
+    // Check env flags
+    if (accelDisabled) {
+      const char *acceleratedEnv = PR_GetEnv("MOZ_ACCELERATED");
+      if (acceleratedEnv && (*acceleratedEnv != '0')) {
+        accelDisabled = false;
+      }
+    }
+
     if (accelDisabled) {
       gBrowserTabsRemoteAutostart = false;
+      LogE10sBlockedReason("Hardware acceleration is disabled.");
     }
   }
 #endif
 
-    gBrowserTabsRemoteAutostartInitialized = true;
-
-    mozilla::Telemetry::Accumulate(mozilla::Telemetry::E10S_AUTOSTART, gBrowserTabsRemoteAutostart);
-    if (Preferences::GetBool("browser.enabledE10SFromPrompt", false)) {
-      mozilla::Telemetry::Accumulate(mozilla::Telemetry::E10S_STILL_ACCEPTED_FROM_PROMPT,
-                                     gBrowserTabsRemoteAutostart);
-    }
-    if (prefEnabled) {
-      mozilla::Telemetry::Accumulate(mozilla::Telemetry::E10S_BLOCKED_FROM_RUNNING,
-                                     !gBrowserTabsRemoteAutostart);
-    }
+  mozilla::Telemetry::Accumulate(mozilla::Telemetry::E10S_AUTOSTART, gBrowserTabsRemoteAutostart);
+  if (Preferences::GetBool("browser.enabledE10SFromPrompt", false)) {
+    mozilla::Telemetry::Accumulate(mozilla::Telemetry::E10S_STILL_ACCEPTED_FROM_PROMPT,
+                                    gBrowserTabsRemoteAutostart);
   }
-
+  if (prefEnabled) {
+    mozilla::Telemetry::Accumulate(mozilla::Telemetry::E10S_BLOCKED_FROM_RUNNING,
+                                    !gBrowserTabsRemoteAutostart);
+  }
   return gBrowserTabsRemoteAutostart;
 }
 

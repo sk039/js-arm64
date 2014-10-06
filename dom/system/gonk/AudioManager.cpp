@@ -41,6 +41,8 @@
 #include "nsServiceManagerUtils.h"
 #include "nsComponentManagerUtils.h"
 #include "nsXULAppAPI.h"
+#include "mozilla/dom/BindingUtils.h"
+#include "mozilla/dom/SettingChangeNotificationBinding.h"
 
 using namespace mozilla::dom::gonk;
 using namespace android;
@@ -197,12 +199,12 @@ static void ProcessDelayedAudioRoute(SwitchState aState)
   sSwitchDone = true;
 }
 
-static void ProcessDelayedA2dpRoute(audio_policy_dev_state_t aState, const char *aAddress)
+static void ProcessDelayedA2dpRoute(audio_policy_dev_state_t aState, const nsCString aAddress)
 {
   if (sA2dpSwitchDone)
     return;
   AudioSystem::setDeviceConnectionState(AUDIO_DEVICE_OUT_BLUETOOTH_A2DP,
-                                        aState, aAddress);
+                                        aState, aAddress.get());
   String8 cmd("bluetooth_enabled=false");
   AudioSystem::setParameters(0, cmd);
   cmd.setTo("A2dpSuspended=true");
@@ -278,7 +280,7 @@ AudioManager::HandleBluetoothStatusChanged(nsISupports* aSubject,
   } else if (!strcmp(aTopic, BLUETOOTH_A2DP_STATUS_CHANGED_ID)) {
     if (audioState == AUDIO_POLICY_DEVICE_STATE_UNAVAILABLE && sA2dpSwitchDone) {
       MessageLoop::current()->PostDelayedTask(
-        FROM_HERE, NewRunnableFunction(&ProcessDelayedA2dpRoute, audioState, aAddress.get()), 1000);
+        FROM_HERE, NewRunnableFunction(&ProcessDelayedA2dpRoute, audioState, aAddress), 1000);
       sA2dpSwitchDone = false;
     } else {
       AudioSystem::setDeviceConnectionState(AUDIO_DEVICE_OUT_BLUETOOTH_A2DP,
@@ -350,36 +352,21 @@ AudioManager::Observe(nsISupports* aSubject,
   // To process the volume control on each audio channel according to
   // change of settings
   else if (!strcmp(aTopic, MOZ_SETTINGS_CHANGE_ID)) {
-    AutoSafeJSContext cx;
-    nsDependentString dataStr(aData);
-    JS::Rooted<JS::Value> val(cx);
-    if (!JS_ParseJSON(cx, dataStr.get(), dataStr.Length(), &val) ||
-        !val.isObject()) {
+    AutoJSAPI jsapi;
+    jsapi.Init();
+    JSContext* cx = jsapi.cx();
+    RootedDictionary<dom::SettingChangeNotification> setting(cx);
+    if (!WrappedJSToDictionary(cx, aSubject, setting)) {
+      return NS_OK;
+    }
+    if (!setting.mKey.EqualsASCII("audio.volume.bt_sco")) {
+      return NS_OK;
+    }
+    if (!setting.mValue.isNumber()) {
       return NS_OK;
     }
 
-    JS::Rooted<JSObject*> obj(cx, &val.toObject());
-    JS::Rooted<JS::Value> key(cx);
-    if (!JS_GetProperty(cx, obj, "key", &key) ||
-        !key.isString()) {
-      return NS_OK;
-    }
-
-    JS::Rooted<JSString*> jsKey(cx, JS::ToString(cx, key));
-    if (!jsKey) {
-      return NS_OK;
-    }
-    nsAutoJSString keyStr;
-    if (!keyStr.init(cx, jsKey) || !keyStr.EqualsLiteral("audio.volume.bt_sco")) {
-      return NS_OK;
-    }
-
-    JS::Rooted<JS::Value> value(cx);
-    if (!JS_GetProperty(cx, obj, "value", &value) || !value.isInt32()) {
-      return NS_OK;
-    }
-
-    int32_t index = value.toInt32();
+    int32_t index = setting.mValue.toNumber();
     SetStreamVolumeIndex(AUDIO_STREAM_BLUETOOTH_SCO, index);
 
     return NS_OK;

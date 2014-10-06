@@ -27,7 +27,6 @@ import org.mozilla.gecko.db.BrowserContract.Combined;
 import org.mozilla.gecko.db.BrowserContract.ReadingListItems;
 import org.mozilla.gecko.db.BrowserContract.SearchHistory;
 import org.mozilla.gecko.db.BrowserDB;
-import org.mozilla.gecko.db.DBUtils;
 import org.mozilla.gecko.db.SuggestedSites;
 import org.mozilla.gecko.distribution.Distribution;
 import org.mozilla.gecko.favicons.Favicons;
@@ -47,6 +46,7 @@ import org.mozilla.gecko.health.SessionInformation;
 import org.mozilla.gecko.home.BrowserSearch;
 import org.mozilla.gecko.home.HomeBanner;
 import org.mozilla.gecko.home.HomePager;
+import org.mozilla.gecko.home.HomePager.OnUrlOpenInBackgroundListener;
 import org.mozilla.gecko.home.HomePager.OnUrlOpenListener;
 import org.mozilla.gecko.home.HomePanelsManager;
 import org.mozilla.gecko.home.SearchEngine;
@@ -74,12 +74,13 @@ import org.mozilla.gecko.util.StringUtils;
 import org.mozilla.gecko.util.ThreadUtils;
 import org.mozilla.gecko.util.UIAsyncTask;
 import org.mozilla.gecko.widget.ButtonToast;
+import org.mozilla.gecko.widget.ButtonToast.ToastListener;
 import org.mozilla.gecko.widget.GeckoActionProvider;
 
 import android.app.Activity;
 import android.app.AlertDialog;
-import android.content.BroadcastReceiver;
 import android.app.KeyguardManager;
+import android.content.BroadcastReceiver;
 import android.content.ContentValues;
 import android.content.Context;
 import android.content.DialogInterface;
@@ -121,11 +122,14 @@ import android.view.ViewGroup;
 import android.view.ViewStub;
 import android.view.ViewTreeObserver;
 import android.view.Window;
+import android.view.WindowManager;
 import android.view.animation.Interpolator;
 import android.widget.ListView;
 import android.widget.RelativeLayout;
 import android.widget.Toast;
 import android.widget.ViewFlipper;
+
+import com.readystatesoftware.systembartint.SystemBarTintManager;
 
 public class BrowserApp extends GeckoApp
                         implements TabsPanel.TabsLayoutChangeListener,
@@ -136,6 +140,7 @@ public class BrowserApp extends GeckoApp
                                    BrowserSearch.OnEditSuggestionListener,
                                    HomePager.OnNewTabsListener,
                                    OnUrlOpenListener,
+                                   OnUrlOpenInBackgroundListener,
                                    ActionModeCompat.Presenter,
                                    LayoutInflater.Factory {
     private static final String LOGTAG = "GeckoBrowserApp";
@@ -518,14 +523,8 @@ public class BrowserApp extends GeckoApp
         final String args = intent.getStringExtra("args");
 
         if (GuestSession.shouldUse(this, args)) {
-            GuestSession.configureWindow(getWindow());
             mProfile = GeckoProfile.createGuestProfile(this);
         } else {
-            // We also allow non-guest sessions if the keyguard isn't a secure one.
-            final KeyguardManager manager = (KeyguardManager) getSystemService(Context.KEYGUARD_SERVICE);
-            if (Versions.feature16Plus && !manager.isKeyguardSecure()) {
-                GuestSession.configureWindow(getWindow());
-            }
             GeckoProfile.maybeCleanupGuestProfile(this);
         }
 
@@ -536,6 +535,8 @@ public class BrowserApp extends GeckoApp
         super.onCreate(savedInstanceState);
 
         final Context appContext = getApplicationContext();
+
+        setupSystemUITinting();
 
         mBrowserChrome = (ViewGroup) findViewById(R.id.browser_chrome);
         mActionBarFlipper = (ViewFlipper) findViewById(R.id.browser_actionbar);
@@ -681,6 +682,18 @@ public class BrowserApp extends GeckoApp
         }
     }
 
+    private void setupSystemUITinting() {
+        if (!Versions.feature19Plus) {
+            return;
+        }
+
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS);
+
+        SystemBarTintManager tintManager = new SystemBarTintManager(this);
+        tintManager.setTintColor(getResources().getColor(R.color.background_tabs));
+        tintManager.setStatusBarTintEnabled(true);
+    }
+
     private void registerOnboardingReceiver(Context context) {
         final LocalBroadcastManager lbm = LocalBroadcastManager.getInstance(this);
 
@@ -737,15 +750,29 @@ public class BrowserApp extends GeckoApp
     public void onResume() {
         super.onResume();
 
-        final String args = getIntent().getStringExtra("args");
+        final String args = StringUtils.getStringExtra(getIntent(), "args");
         // If an external intent tries to start Fennec in guest mode, and it's not already
         // in guest mode, this will change modes before opening the url.
+        // NOTE: OnResume is called twice sometimes when showing on the lock screen.
         final boolean enableGuestSession = GuestSession.shouldUse(this, args);
         final boolean inGuestSession = GeckoProfile.get(this).inGuestMode();
         if (enableGuestSession != inGuestSession) {
             doRestart(getIntent());
             GeckoAppShell.systemExit();
             return;
+        }
+
+        final KeyguardManager manager = (KeyguardManager) getSystemService(Context.KEYGUARD_SERVICE);
+        // The test machines return null for the KeyguardService, despite running Android 4.2.
+        if (Versions.feature11Plus && manager != null) {
+            // If the keyguard is showing AND we're either in guest mode or the keyguard is insecure,
+            // allow showing this window. We do this in onResume so that we can avoid setting these flags if the keyguard
+            // is not showing since it affects Android's layout of the window.
+            if (manager.isKeyguardLocked() && (GeckoProfile.get(this).inGuestMode() || !manager.isKeyguardSecure())) {
+                GuestSession.configureWindow(getWindow());
+            } else {
+                GuestSession.unconfigureWindow(getWindow());
+            }
         }
 
         EventDispatcher.getInstance().unregisterGeckoThreadListener((GeckoEventListener)this,
@@ -920,7 +947,7 @@ public class BrowserApp extends GeckoApp
         if (itemId == R.id.pasteandgo) {
             String text = Clipboard.getText();
             if (!TextUtils.isEmpty(text)) {
-                Tabs.getInstance().loadUrl(text);
+                loadUrlOrKeywordSearch(text);
                 Telemetry.sendUIEvent(TelemetryContract.Event.LOAD_URL, TelemetryContract.Method.CONTEXT_MENU);
                 Telemetry.sendUIEvent(TelemetryContract.Event.ACTION, TelemetryContract.Method.CONTEXT_MENU, "pasteandgo");
             }
@@ -1322,7 +1349,7 @@ public class BrowserApp extends GeckoApp
         if (mMainLayoutAnimator != null)
             mMainLayoutAnimator.stop();
 
-        boolean isSideBar = (HardwareUtils.isTablet() && getOrientation() == Configuration.ORIENTATION_LANDSCAPE);
+        boolean isSideBar = !NewTabletUI.isEnabled(this) && (HardwareUtils.isTablet() && getOrientation() == Configuration.ORIENTATION_LANDSCAPE);
         final int sidebarWidth = getResources().getDimensionPixelSize(R.dimen.tabs_sidebar_width);
 
         ViewGroup.MarginLayoutParams lp = (ViewGroup.MarginLayoutParams) mTabsPanel.getLayoutParams();
@@ -1471,7 +1498,10 @@ public class BrowserApp extends GeckoApp
                     BrowserDB.getCount(getContentResolver(), "favicons"));
             Telemetry.HistogramAdd("FENNEC_THUMBNAILS_COUNT",
                     BrowserDB.getCount(getContentResolver(), "thumbnails"));
-            Telemetry.HistogramAdd("BROWSER_IS_USER_DEFAULT", (isDefaultBrowser() ? 1 : 0));
+            Telemetry.HistogramAdd("BROWSER_IS_USER_DEFAULT", (isDefaultBrowser(Intent.ACTION_VIEW) ? 1 : 0));
+            if (Versions.feature16Plus) {
+                Telemetry.HistogramAdd("BROWSER_IS_ASSIST_DEFAULT", (isDefaultBrowser(Intent.ACTION_ASSIST) ? 1 : 0));
+            }
         } else if ("Updater:Launch".equals(event)) {
             handleUpdaterLaunch();
 
@@ -1488,8 +1518,8 @@ public class BrowserApp extends GeckoApp
      *
      * @return true if this package is the default browser on this device, false otherwise.
      */
-    private boolean isDefaultBrowser() {
-        final Intent viewIntent = new Intent(Intent.ACTION_VIEW, Uri.parse("http://www.mozilla.org"));
+    private boolean isDefaultBrowser(String action) {
+        final Intent viewIntent = new Intent(action, Uri.parse("http://www.mozilla.org"));
         final ResolveInfo info = getPackageManager().resolveActivity(viewIntent, PackageManager.MATCH_DEFAULT_ONLY);
         if (info == null) {
             // No default is set
@@ -1742,7 +1772,13 @@ public class BrowserApp extends GeckoApp
 
     /**
      * Attempts to switch to an open tab with the given URL.
+     * <p>
+     * If the tab exists, this method cancels any in-progress editing as well as
+     * calling {@link Tabs#selectTab(int)}.
      *
+     * @param url of tab to switch to.
+     * @param flags to obey: if {@link OnUrlOpenListener.Flags#ALLOW_SWITCH_TO_TAB}
+     *        is not present, return false.
      * @return true if we successfully switched to a tab, false otherwise.
      */
     private boolean maybeSwitchToTab(String url, EnumSet<OnUrlOpenListener.Flags> flags) {
@@ -1758,6 +1794,26 @@ public class BrowserApp extends GeckoApp
         } else {
             tab = tabs.getFirstTabForUrl(url, tabs.getSelectedTab().isPrivate());
         }
+
+        if (tab == null) {
+            return false;
+        }
+
+        return maybeSwitchToTab(tab.getId());
+    }
+
+    /**
+     * Attempts to switch to an open tab with the given unique tab ID.
+     * <p>
+     * If the tab exists, this method cancels any in-progress editing as well as
+     * calling {@link Tabs#selectTab(int)}.
+     *
+     * @param id of tab to switch to.
+     * @return true if we successfully switched to the tab, false otherwise.
+     */
+    private boolean maybeSwitchToTab(int id) {
+        final Tabs tabs = Tabs.getInstance();
+        final Tab tab = tabs.getTab(id);
 
         if (tab == null) {
             return false;
@@ -1909,7 +1965,10 @@ public class BrowserApp extends GeckoApp
         //
         // Expected to be fixed by bug 915825.
         hideHomePager(url);
+        loadUrlOrKeywordSearch(url);
+    }
 
+    private void loadUrlOrKeywordSearch(final String url) {
         // Don't do anything if the user entered an empty URL.
         if (TextUtils.isEmpty(url)) {
             return;
@@ -3054,6 +3113,53 @@ public class BrowserApp extends GeckoApp
         } else if (!maybeSwitchToTab(url, flags)) {
             openUrlAndStopEditing(url);
         }
+    }
+
+    // HomePager.OnUrlOpenInBackgroundListener
+    @Override
+    public void onUrlOpenInBackground(final String url, EnumSet<OnUrlOpenInBackgroundListener.Flags> flags) {
+        if (url == null) {
+            throw new IllegalArgumentException("url must not be null");
+        }
+        if (flags == null) {
+            throw new IllegalArgumentException("flags must not be null");
+        }
+
+        final boolean isPrivate = flags.contains(OnUrlOpenInBackgroundListener.Flags.PRIVATE);
+
+        int loadFlags = Tabs.LOADURL_NEW_TAB | Tabs.LOADURL_BACKGROUND;
+        if (isPrivate) {
+            loadFlags |= Tabs.LOADURL_PRIVATE;
+        }
+
+        final Tab newTab = Tabs.getInstance().loadUrl(url, loadFlags);
+
+        // We switch to the desired tab by unique ID, which closes any window
+        // for a race between opening the tab and closing it, and switching to
+        // it. We could also switch to the Tab explicitly, but we don't want to
+        // hold a reference to the Tab itself in the anonymous listener class.
+        final int newTabId = newTab.getId();
+
+        final ToastListener listener = new ButtonToast.ToastListener() {
+            @Override
+            public void onButtonClicked() {
+                maybeSwitchToTab(newTabId);
+            }
+
+            @Override
+            public void onToastHidden(ButtonToast.ReasonHidden reason) { }
+        };
+
+        final String message = isPrivate ?
+                getResources().getString(R.string.new_private_tab_opened) :
+                getResources().getString(R.string.new_tab_opened);
+        final String buttonMessage = getResources().getString(R.string.switch_button_message);
+        getButtonToast().show(false,
+                              message,
+                              ButtonToast.LENGTH_SHORT,
+                              buttonMessage,
+                              R.drawable.switch_button_icon,
+                              listener);
     }
 
     // BrowserSearch.OnSearchListener

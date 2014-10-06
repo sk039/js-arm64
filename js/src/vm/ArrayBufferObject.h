@@ -63,7 +63,7 @@ uint32_t AnyArrayBufferByteLength(const ArrayBufferObjectMaybeShared *buf);
 uint8_t *AnyArrayBufferDataPointer(const ArrayBufferObjectMaybeShared *buf);
 ArrayBufferObjectMaybeShared &AsAnyArrayBuffer(HandleValue val);
 
-class ArrayBufferObjectMaybeShared : public JSObject
+class ArrayBufferObjectMaybeShared : public NativeObject
 {
   public:
     uint32_t byteLength() {
@@ -224,7 +224,7 @@ class ArrayBufferObject : public ArrayBufferObjectMaybeShared
     // and non-incrementalized sweep time.
     ArrayBufferViewObject *firstView();
 
-    bool addView(JSContext *cx, ArrayBufferViewObject *view);
+    bool addView(JSContext *cx, JSObject *view);
 
     void setNewOwnedData(FreeOp* fop, BufferContents newContents);
     void changeContents(JSContext *cx, BufferContents newContents);
@@ -247,11 +247,16 @@ class ArrayBufferObject : public ArrayBufferObjectMaybeShared
                             uint8_t *oldDataPointer, BufferContents newContents);
     void setFirstView(ArrayBufferViewObject *view);
 
+    uint8_t *inlineDataPointer() const;
+
   public:
     uint8_t *dataPointer() const;
     size_t byteLength() const;
     BufferContents contents() const {
         return BufferContents(dataPointer(), bufferKind());
+    }
+    bool hasInlineData() const {
+        return dataPointer() == inlineDataPointer();
     }
 
     void releaseData(FreeOp *fop);
@@ -320,29 +325,19 @@ class ArrayBufferObject : public ArrayBufferObjectMaybeShared
 /*
  * ArrayBufferViewObject
  *
- * Common definitions shared by all ArrayBufferViews.
+ * Common definitions shared by all array buffer views.
  */
 
 class ArrayBufferViewObject : public JSObject
 {
-  protected:
-    /* Offset of view in underlying ArrayBufferObject */
-    static const size_t BYTEOFFSET_SLOT  = JS_BUFVIEW_SLOT_BYTEOFFSET;
-
-    /* Byte length of view */
-    static const size_t LENGTH_SLOT      = JS_BUFVIEW_SLOT_LENGTH;
-
-    /* Underlying ArrayBufferObject */
-    static const size_t BUFFER_SLOT      = JS_BUFVIEW_SLOT_OWNER;
-
   public:
     static ArrayBufferObject *bufferObject(JSContext *cx, Handle<ArrayBufferViewObject *> obj);
 
     void neuter(void *newData);
 
-    uint8_t *dataPointer() {
-        return static_cast<uint8_t *>(getPrivate());
-    }
+    uint8_t *dataPointer();
+
+    static void trace(JSTracer *trc, JSObject *obj);
 };
 
 bool
@@ -352,7 +347,7 @@ inline void
 PostBarrierTypedArrayObject(JSObject *obj)
 {
 #ifdef JSGC_GENERATIONAL
-    JS_ASSERT(obj);
+    MOZ_ASSERT(obj);
     JSRuntime *rt = obj->runtimeFromMainThread();
     if (!rt->isHeapBusy() && !IsInsideNursery(JS::AsCell(obj)))
         rt->gc.storeBuffer.putWholeCellFromMainThread(obj);
@@ -360,7 +355,7 @@ PostBarrierTypedArrayObject(JSObject *obj)
 }
 
 inline void
-InitArrayBufferViewDataPointer(ArrayBufferViewObject *obj, ArrayBufferObject *buffer, size_t byteOffset)
+InitArrayBufferViewDataPointer(JSObject *obj, ArrayBufferObject *buffer, size_t byteOffset)
 {
     /*
      * N.B. The base of the array's data is stored in the object's
@@ -368,7 +363,7 @@ InitArrayBufferViewDataPointer(ArrayBufferViewObject *obj, ArrayBufferObject *bu
      * private Values that are pointers must have the low bits clear.
      */
     MOZ_ASSERT(buffer->dataPointer() != nullptr);
-    obj->initPrivate(buffer->dataPointer() + byteOffset);
+    obj->as<NativeObject>().initPrivate(buffer->dataPointer() + byteOffset);
 
     PostBarrierTypedArrayObject(obj);
 }

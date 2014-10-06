@@ -93,7 +93,7 @@ struct CrossCompartmentKey
 struct WrapperHasher : public DefaultHasher<CrossCompartmentKey>
 {
     static HashNumber hash(const CrossCompartmentKey &key) {
-        JS_ASSERT(!IsPoisonedPtr(key.wrapped));
+        MOZ_ASSERT(!IsPoisonedPtr(key.wrapped));
         return uint32_t(uintptr_t(key.wrapped)) | uint32_t(key.kind);
     }
 
@@ -160,7 +160,7 @@ struct JSCompartment
     const JS::CompartmentOptions &options() const { return options_; }
 
     JSRuntime *runtimeFromMainThread() {
-        JS_ASSERT(CurrentThreadCanAccessRuntime(runtime_));
+        MOZ_ASSERT(CurrentThreadCanAccessRuntime(runtime_));
         return runtime_;
     }
 
@@ -295,6 +295,9 @@ struct JSCompartment
     js::WeakMapBase              *gcWeakMapList;
 
   private:
+    /* Whether to preserve JIT code on non-shrinking GCs. */
+    bool                         gcPreserveJitCode;
+
     enum {
         DebugMode = 1 << 0,
         DebugNeedDelazification = 1 << 1
@@ -314,12 +317,9 @@ struct JSCompartment
     inline bool wrap(JSContext *cx, JS::MutableHandleValue vp,
                      JS::HandleObject existing = js::NullPtr());
 
-    bool wrap(JSContext *cx, JSString **strp);
-    bool wrap(JSContext *cx, js::HeapPtrString *strp);
+    bool wrap(JSContext *cx, js::MutableHandleString strp);
     bool wrap(JSContext *cx, JS::MutableHandleObject obj,
               JS::HandleObject existingArg = js::NullPtr());
-    bool wrap(JSContext *cx, js::PropertyOp *op);
-    bool wrap(JSContext *cx, js::StrictPropertyOp *op);
     bool wrap(JSContext *cx, JS::MutableHandle<js::PropertyDescriptor> desc);
     bool wrap(JSContext *cx, JS::MutableHandle<js::PropDesc> desc);
 
@@ -347,16 +347,26 @@ struct JSCompartment
 
     void trace(JSTracer *trc);
     void markRoots(JSTracer *trc);
-    bool isDiscardingJitCode(JSTracer *trc);
-    void sweep(js::FreeOp *fop, bool releaseTypes);
+    bool preserveJitCode() { return gcPreserveJitCode; }
+
+    void sweepInnerViews();
     void sweepCrossCompartmentWrappers();
+    void sweepTypeObjectTables();
+    void sweepSavedStacks();
+    void sweepGlobalObject(js::FreeOp *fop);
+    void sweepSelfHostingScriptSource();
+    void sweepJitCompartment(js::FreeOp *fop);
+    void sweepRegExps();
+    void sweepDebugScopes();
+    void sweepWeakMaps();
+    void sweepNativeIterators();
+
     void purge();
     void clearTables();
 
 #ifdef JSGC_COMPACTING
     void fixupInitialShapeTable();
     void fixupNewTypeObjectTable(js::types::TypeObjectWithNewScriptSet &table);
-    void fixupCrossCompartmentWrappers(JSTracer *trc);
     void fixupAfterMovingGC();
     void fixupGlobal();
 #endif
@@ -540,7 +550,7 @@ class AssertCompartmentUnchanged
     }
 
     ~AssertCompartmentUnchanged() {
-        JS_ASSERT(cx->compartment() == oldCompartment);
+        MOZ_ASSERT(cx->compartment() == oldCompartment);
     }
 
   protected:

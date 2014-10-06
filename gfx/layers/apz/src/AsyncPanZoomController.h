@@ -166,18 +166,17 @@ public:
   /**
    * Query the transforms that should be applied to the layer corresponding
    * to this APZC due to asynchronous panning and zooming.
-   * This function returns two transforms via out parameters:
-   *   |aOutTransform| is the transform due to regular panning and zooming
-   *   |aOverscrollTransform| is the transform due to overscrolling
-   * The two are separated because some clients want to ignore the overscroll
-   * transform for some purposes (and for convenience to these clients, the
-   * overscroll transform parameter may be nullptr). Clients who do not want
-   * to ignore the overscroll transform should multiply the two transforms
-   * together.
+   * This function returns the async transform via the |aOutTransform|
+   * out parameter.
    */
   void SampleContentTransformForFrame(ViewTransform* aOutTransform,
-                                      ScreenPoint& aScrollOffset,
-                                      Matrix4x4* aOutOverscrollTransform);
+                                      ScreenPoint& aScrollOffset);
+
+  /**
+   * Return a visual effect that reflects this apzc's
+   * overscrolled state, if any.
+   */
+  Matrix4x4 GetOverscrollTransform() const;
 
   /**
    * A shadow layer update has arrived. |aLayerMetrics| is the new FrameMetrics
@@ -545,9 +544,12 @@ protected:
 
   /**
    * Tell the paint throttler to request a content repaint with the given
-   * metrics.  (Helper function used by RequestContentRepaint.)
+   * metrics.  (Helper function used by RequestContentRepaint.) If aThrottled
+   * is set to false, the repaint request is sent directly without going through
+   * the paint throttler. In particular, the GeckoContentController::RequestContentRepaint
+   * function will be invoked before this function returns.
    */
-  void RequestContentRepaint(FrameMetrics& aFrameMetrics);
+  void RequestContentRepaint(FrameMetrics& aFrameMetrics, bool aThrottled = true);
 
   /**
    * Actually send the next pending paint request to gecko.
@@ -591,12 +593,6 @@ private:
    * document before sending over IPC.
    */
   bool ConvertToGecko(const ScreenPoint& aPoint, CSSPoint* aOut);
-
-  /**
-   * Return in |aTransform| a visual effect that reflects this apzc's
-   * overscrolled state, if any.
-   */
-  void GetOverscrollTransform(Matrix4x4* aTransform) const;
 
   enum AxisLockMode {
     FREE,     /* No locking at all */
@@ -795,6 +791,12 @@ public:
    * touch session.
    */
   void SetAllowedTouchBehavior(const nsTArray<TouchBehaviorFlags>& aBehaviors);
+
+  /**
+   * Flush a repaint request if one is needed, without throttling it with the
+   * paint throttler.
+   */
+  void FlushRepaintForNewInputBlock();
 
 private:
   void ScheduleContentResponseTimeout();
@@ -1010,8 +1012,7 @@ public:
    * an overscrolled state itself if it can.
    */
   bool AttemptScroll(const ScreenPoint& aStartPoint, const ScreenPoint& aEndPoint,
-                     const OverscrollHandoffChain& aOverscrollHandoffChain,
-                     uint32_t aOverscrollHandoffChainIndex = 0);
+                     OverscrollHandoffState& aOverscrollHandoffState);
 
   void FlushRepaintForOverscrollHandoff();
 
@@ -1029,8 +1030,15 @@ private:
    */
   bool CallDispatchScroll(const ScreenPoint& aStartPoint,
                           const ScreenPoint& aEndPoint,
-                          const OverscrollHandoffChain& aOverscrollHandoffChain,
-                          uint32_t aOverscrollHandoffChainIndex);
+                          OverscrollHandoffState& aOverscrollHandoffState);
+
+  /**
+   * A helper function for overscrolling during panning. This is a wrapper
+   * around OverscrollBy() that also implements restrictions on entering
+   * overscroll based on the pan angle.
+   */
+  bool OverscrollForPanning(ScreenPoint aOverscroll,
+                            const ScreenPoint& aPanDistance);
 
   /**
    * Try to overscroll by 'aOverscroll'.

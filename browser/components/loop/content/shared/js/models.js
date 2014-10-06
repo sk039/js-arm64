@@ -29,8 +29,8 @@ loop.shared.models = (function(l10n) {
                                    // requires.
       callType:     undefined,     // The type of incoming call selected by
                                    // other peer ("audio" or "audio-video")
-      selectedCallType: undefined, // The selected type for the call that was
-                                   // initiated ("audio" or "audio-video")
+      selectedCallType: "audio-video", // The selected type for the call that was
+                                       // initiated ("audio" or "audio-video")
       callToken:    undefined,     // Incoming call token.
                                    // Used for blocking a call url
       subscribedStream: false,     // Used to indicate that a stream has been
@@ -77,17 +77,22 @@ loop.shared.models = (function(l10n) {
     },
 
     /**
-     * Starts an incoming conversation.
+     * Indicates an incoming conversation has been accepted.
      */
-    incoming: function() {
-      this.trigger("call:incoming");
+    accepted: function() {
+      this.trigger("call:accepted");
     },
 
     /**
      * Used to indicate that an outgoing call should start any necessary
      * set-up.
+     *
+     * @param {String} selectedCallType Call type ("audio" or "audio-video")
      */
-    setupOutgoingCall: function() {
+    setupOutgoingCall: function(selectedCallType) {
+      if (selectedCallType) {
+        this.set("selectedCallType", selectedCallType);
+      }
       this.trigger("call:outgoing:setup");
     },
 
@@ -327,6 +332,8 @@ loop.shared.models = (function(l10n) {
    */
   var NotificationModel = Backbone.Model.extend({
     defaults: {
+      details: "",
+      detailsButtonLabel: "",
       level: "info",
       message: ""
     }
@@ -366,12 +373,15 @@ loop.shared.models = (function(l10n) {
     },
 
     /**
-     * Adds a l10n rror notification to the stack and renders it.
+     * Adds a l10n error notification to the stack and renders it.
      *
      * @param  {String} messageId L10n message id
+     * @param  {Object} [l10nProps] An object with variables to be interpolated
+     *                  into the translation. All members' values must be
+     *                  strings or numbers.
      */
-    errorL10n: function(messageId) {
-      this.error(l10n.get(messageId));
+    errorL10n: function(messageId, l10nProps) {
+      this.error(l10n.get(messageId, l10nProps));
     }
   });
 

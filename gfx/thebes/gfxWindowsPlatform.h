@@ -186,7 +186,7 @@ public:
 
     nsresult UpdateFontList();
 
-    virtual void GetCommonFallbackFonts(const uint32_t aCh,
+    virtual void GetCommonFallbackFonts(uint32_t aCh, uint32_t aNextCh,
                                         int32_t aRunScript,
                                         nsTArray<const char*>& aFontList);
 
@@ -218,6 +218,8 @@ public:
      * Check whether format is supported on a platform or not (if unclear, returns true)
      */
     virtual bool IsFontFormatSupported(nsIURI *aFontURI, uint32_t aFormatFlags);
+
+    virtual bool DidRenderingDeviceReset();
 
     /* Find a FontFamily/FontEntry object that represents a font on your system given a name */
     gfxFontFamily *FindFontFamily(const nsAString& aName);

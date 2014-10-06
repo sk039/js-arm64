@@ -294,7 +294,7 @@ class Redirection
     AutoLockSimulatorRuntime alsr(srt);
 
     // TODO: Store srt_ in the simulator for this assertion.
-    // JS_ASSERT_IF(pt->simulator(), pt->simulator()->srt_ == srt);
+    // MOZ_ASSERT_IF(pt->simulator(), pt->simulator()->srt_ == srt);
 
     Redirection *current = srt->redirection();
     for (; current != nullptr; current = current->next_) {
@@ -2737,7 +2737,7 @@ void Simulator::VisitCallRedirection(Instruction *instr) {
 
   // Stack must be aligned prior to the call.
   // FIXME: It's actually our job to perform the alignment...
-  //JS_ASSERT((xreg(31, Reg31IsStackPointer) & (StackAlignment - 1)) == 0);
+  //MOZ_ASSERT((xreg(31, Reg31IsStackPointer) & (StackAlignment - 1)) == 0);
 
   int64_t savedLR = xreg(30);
 
@@ -2855,7 +2855,7 @@ void Simulator::VisitCallRedirection(Instruction *instr) {
     }
 
     default:
-      MOZ_ASSUME_UNREACHABLE("Unknown function type.");
+      MOZ_CRASH("Unknown function type.");
   }
 
   // TODO: Nuke the volatile registers.

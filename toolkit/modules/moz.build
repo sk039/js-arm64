@@ -20,12 +20,12 @@ EXTRA_JS_MODULES += [
     'DeferredTask.jsm',
     'Deprecated.jsm',
     'Dict.jsm',
-    'DirectoryLinksProvider.jsm',
     'FileUtils.jsm',
     'Finder.jsm',
     'Geometry.jsm',
     'Http.jsm',
     'InlineSpellChecker.jsm',
+    'InlineSpellCheckerContent.jsm',
     'LoadContextInfo.jsm',
     'Log.jsm',
     'NewTabUtils.jsm',
@@ -61,6 +61,8 @@ EXTRA_JS_MODULES += [
 EXTRA_PP_JS_MODULES += [
     'CertUtils.jsm',
     'ResetProfile.jsm',
+    'secondscreen/RokuApp.jsm',
+    'secondscreen/SimpleServiceDiscovery.jsm',
     'Services.jsm',
     'Troubleshoot.jsm',
     'UpdateChannel.jsm',
@@ -73,6 +75,8 @@ if 'Android' != CONFIG['OS_TARGET']:
         'GMPInstallManager.jsm',
         'LightweightThemeConsumer.jsm',
     ]
+else:
+    DEFINES['ANDROID'] = True
 
 
 if CONFIG['MOZ_WIDGET_TOOLKIT'] == 'windows':

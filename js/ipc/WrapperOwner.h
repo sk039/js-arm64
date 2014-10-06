@@ -11,6 +11,7 @@
 #include "JavaScriptShared.h"
 #include "mozilla/ipc/ProtocolUtils.h"
 #include "js/Class.h"
+#include "jsproxy.h"
 
 #ifdef XP_WIN
 #undef GetClassName
@@ -55,13 +56,14 @@ class WrapperOwner : public virtual JavaScriptShared
 
     // SpiderMonkey Extensions.
     bool isExtensible(JSContext *cx, JS::HandleObject proxy, bool *extensible);
+    bool regexp_toShared(JSContext *cx, JS::HandleObject proxy, js::RegExpGuard *g);
     bool callOrConstruct(JSContext *cx, JS::HandleObject proxy, const JS::CallArgs &args,
                          bool construct);
     bool hasInstance(JSContext *cx, JS::HandleObject proxy, JS::MutableHandleValue v, bool *bp);
     bool objectClassIs(JSContext *cx, JS::HandleObject obj, js::ESClassValue classValue);
     const char* className(JSContext *cx, JS::HandleObject proxy);
     bool isCallable(JSObject *obj);
-    // isConstructable is implemented here as isCallable.
+    bool isConstructor(JSObject *obj);
 
     nsresult instanceOf(JSObject *obj, const nsID *id, bool *bp);
 
@@ -76,6 +78,7 @@ class WrapperOwner : public virtual JavaScriptShared
     bool active() { return !inactive_; }
 
     void drop(JSObject *obj);
+    void updatePointer(JSObject *obj, const JSObject *old);
 
     virtual void ActorDestroy(ActorDestroyReason why);
 
@@ -88,6 +91,8 @@ class WrapperOwner : public virtual JavaScriptShared
     ObjectId idOf(JSObject *obj);
 
   private:
+    ObjectId idOfUnchecked(JSObject *obj);
+
     bool getPropertyNames(JSContext *cx, JS::HandleObject proxy, uint32_t flags,
                           JS::AutoIdVector &props);
 
@@ -137,6 +142,8 @@ class WrapperOwner : public virtual JavaScriptShared
     virtual bool CallObjectClassIs(const ObjectId &objId, const uint32_t &classValue,
                                    bool *result) = 0;
     virtual bool CallClassName(const ObjectId &objId, nsString *result) = 0;
+    virtual bool CallRegExpToShared(const ObjectId &objId, ReturnStatus *rs, nsString *source,
+                                    uint32_t *flags) = 0;
 
     virtual bool CallGetPropertyNames(const ObjectId &objId, const uint32_t &flags,
                                       ReturnStatus *rs, nsTArray<nsString> *names) = 0;
@@ -144,6 +151,9 @@ class WrapperOwner : public virtual JavaScriptShared
                                 ReturnStatus *rs, bool *instanceof) = 0;
     virtual bool CallDOMInstanceOf(const ObjectId &objId, const int &prototypeID, const int &depth,
                                    ReturnStatus *rs, bool *instanceof) = 0;
+
+    virtual bool CallIsCallable(const ObjectId &objId, bool *result) = 0;
+    virtual bool CallIsConstructor(const ObjectId &objId, bool *result) = 0;
 };
 
 bool

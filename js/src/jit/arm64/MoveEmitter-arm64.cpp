@@ -25,9 +25,9 @@ MoveEmitterARM64::emit(const MoveResolver &moves)
 void
 MoveEmitterARM64::finish()
 {
-    JS_ASSERT(!inCycle_);
+    MOZ_ASSERT(!inCycle_);
     masm.freeStack(masm.framePushed() - pushedAtStart_);
-    JS_ASSERT(masm.framePushed() == pushedAtStart_);
+    MOZ_ASSERT(masm.framePushed() == pushedAtStart_);
 }
 
 void
@@ -37,7 +37,7 @@ MoveEmitterARM64::emitMove(const MoveOp &move)
     const MoveOperand &to = move.to();
 
     if (move.isCycleEnd()) {
-        JS_ASSERT(inCycle_);
+        MOZ_ASSERT(inCycle_);
         completeCycle(from, to, move.type());
         inCycle_ = false;
         return;
@@ -45,7 +45,7 @@ MoveEmitterARM64::emitMove(const MoveOp &move)
 
     // TODO: MoveEmitterX86 has logic to attempt to avoid using the stack.
     if (move.isCycleBegin()) {
-        JS_ASSERT(!inCycle_);
+        MOZ_ASSERT(!inCycle_);
         breakCycle(from, to, move.endCycleType());
         inCycle_ = true;
     }
@@ -64,7 +64,7 @@ MoveEmitterARM64::emitMove(const MoveOp &move)
         emitGeneralMove(from, to);
         break;
       default:
-        MOZ_ASSUME_UNREACHABLE("Unexpected move type");
+        MOZ_CRASH("Unexpected move type");
     }
 }
 
@@ -127,7 +127,7 @@ MoveEmitterARM64::emitGeneralMove(const MoveOperand &from, const MoveOperand &to
 {
 
     if (from.isGeneralReg()) {
-        JS_ASSERT(to.isGeneralReg() || to.isMemory());
+        MOZ_ASSERT(to.isGeneralReg() || to.isMemory());
 
         if (to.isGeneralReg())
             masm.mov(toARMReg64(to), toARMReg64(from));
@@ -138,7 +138,7 @@ MoveEmitterARM64::emitGeneralMove(const MoveOperand &from, const MoveOperand &to
 
     // {Memory OR EffectiveAddress} -> Register move.
     if (to.isGeneralReg()) {
-        JS_ASSERT(from.isMemoryOrEffectiveAddress());
+        MOZ_ASSERT(from.isMemoryOrEffectiveAddress());
 
         if (from.isMemory())
             masm.Ldr(toARMReg64(to), toMemOperand(from));
@@ -149,15 +149,15 @@ MoveEmitterARM64::emitGeneralMove(const MoveOperand &from, const MoveOperand &to
 
     // Memory -> Memory move.
     if (from.isMemory()) {
-        JS_ASSERT(to.isMemory());
+        MOZ_ASSERT(to.isMemory());
         masm.Ldr(ScratchReg2_64, toMemOperand(from));
         masm.Str(ScratchReg2_64, toMemOperand(to));
         return;
     }
 
     // EffectiveAddress -> Memory move.
-    JS_ASSERT(from.isEffectiveAddress());
-    JS_ASSERT(to.isMemory());
+    MOZ_ASSERT(from.isEffectiveAddress());
+    MOZ_ASSERT(to.isMemory());
     masm.Add(ScratchReg2_64, ARMRegister(from.base(), 64), Operand(from.disp()));
     masm.Str(ScratchReg2_64, toMemOperand(to));
 }
@@ -166,10 +166,10 @@ MemOperand
 MoveEmitterARM64::cycleSlot()
 {
     // Using SP as stack pointer requires alignment preservation below.
-    JS_ASSERT(!masm.GetStackPointer().Is(sp));
+    MOZ_ASSERT(!masm.GetStackPointer().Is(sp));
 
     // emit() already allocated a slot for resolving the cycle.
-    JS_ASSERT(pushedAtCycle_ != -1);
+    MOZ_ASSERT(pushedAtCycle_ != -1);
 
     return MemOperand(masm.GetStackPointer(), masm.framePushed() - pushedAtCycle_);
 }
@@ -213,7 +213,7 @@ MoveEmitterARM64::breakCycle(const MoveOperand &from, const MoveOperand &to, Mov
         }
         break;
       default:
-        MOZ_ASSUME_UNREACHABLE("Unexpected move type");
+        MOZ_CRASH("Unexpected move type");
     }
 }
 

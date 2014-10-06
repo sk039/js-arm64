@@ -37,7 +37,7 @@ class MoveEmitterARM64
     FloatRegister spilledFloatReg_;
 
     void assertDone() {
-        JS_ASSERT(!inCycle_);
+        MOZ_ASSERT(!inCycle_);
     }
 
     Register tempReg() {

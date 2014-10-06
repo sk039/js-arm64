@@ -23,6 +23,7 @@
 #include "vm/SavedStacks.h"
 
 #include "vm/Debugger-inl.h"
+#include "vm/ObjectImpl-inl.h"
 
 using namespace js;
 
@@ -38,8 +39,8 @@ DebuggerMemory::create(JSContext *cx, Debugger *dbg)
 {
 
     Value memoryProto = dbg->object->getReservedSlot(Debugger::JSSLOT_DEBUG_MEMORY_PROTO);
-    RootedObject memory(cx, NewObjectWithGivenProto(cx, &class_,
-                                                    &memoryProto.toObject(), nullptr));
+    RootedNativeObject memory(cx, NewNativeObjectWithGivenProto(cx, &class_,
+                                                                &memoryProto.toObject(), nullptr));
     if (!memory)
         return nullptr;
 
@@ -99,7 +100,7 @@ DebuggerMemory::checkThis(JSContext *cx, CallArgs &args, const char *fnName)
     // Debugger.Memory instances, however doesn't actually represent an instance
     // of Debugger.Memory. It is the only object that is<DebuggerMemory>() but
     // doesn't have a Debugger instance.
-    if (thisObject.getReservedSlot(JSSLOT_DEBUGGER).isUndefined()) {
+    if (thisObject.as<DebuggerMemory>().getReservedSlot(JSSLOT_DEBUGGER).isUndefined()) {
         JS_ReportErrorNumber(cx, js_GetErrorMessage, nullptr, JSMSG_INCOMPATIBLE_PROTO,
                              class_.name, fnName, "prototype object");
         return nullptr;
@@ -192,7 +193,7 @@ DebuggerMemory::drainAllocationsLog(JSContext *cx, unsigned argc, Value *vp)
 
     size_t length = dbg->allocationsLogLength;
 
-    RootedObject result(cx, NewDenseFullyAllocatedArray(cx, length));
+    RootedArrayObject result(cx, NewDenseFullyAllocatedArray(cx, length));
     if (!result)
         return false;
     result->ensureDenseInitializedLength(cx, 0, length);
@@ -246,6 +247,36 @@ DebuggerMemory::setMaxAllocationsLogLength(JSContext *cx, unsigned argc, Value *
     return true;
 }
 
+/* static */ bool
+DebuggerMemory::getAllocationSamplingProbability(JSContext *cx, unsigned argc, Value *vp)
+{
+    THIS_DEBUGGER_MEMORY(cx, argc, vp, "(get allocationSamplingProbability)", args, memory);
+    args.rval().setDouble(memory->getDebugger()->allocationSamplingProbability);
+    return true;
+}
+
+/* static */ bool
+DebuggerMemory::setAllocationSamplingProbability(JSContext *cx, unsigned argc, Value *vp)
+{
+    THIS_DEBUGGER_MEMORY(cx, argc, vp, "(set allocationSamplingProbability)", args, memory);
+    if (!args.requireAtLeast(cx, "(set allocationSamplingProbability)", 1))
+        return false;
+
+    double probability;
+    if (!ToNumber(cx, args[0], &probability))
+        return false;
+
+    if (probability < 0.0 || probability > 1.0) {
+        JS_ReportErrorNumber(cx, js_GetErrorMessage, nullptr, JSMSG_UNEXPECTED_TYPE,
+                             "(set allocationSamplingProbability)'s parameter",
+                             "not a number between 0 and 1");
+        return false;
+    }
+
+    memory->getDebugger()->allocationSamplingProbability = probability;
+    args.rval().setUndefined();
+    return true;
+}
 
 
 /* Debugger.Memory.prototype.takeCensus */
@@ -751,6 +782,7 @@ DebuggerMemory::takeCensus(JSContext *cx, unsigned argc, Value *vp)
 /* static */ const JSPropertySpec DebuggerMemory::properties[] = {
     JS_PSGS("trackingAllocationSites", getTrackingAllocationSites, setTrackingAllocationSites, 0),
     JS_PSGS("maxAllocationsLogLength", getMaxAllocationsLogLength, setMaxAllocationsLogLength, 0),
+    JS_PSGS("allocationSamplingProbability", getAllocationSamplingProbability, setAllocationSamplingProbability, 0),
     JS_PS_END
 };
 

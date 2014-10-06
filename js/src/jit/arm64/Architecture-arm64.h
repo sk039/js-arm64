@@ -255,7 +255,7 @@ class FloatRegisters
     }
 
     static const char *GetName(uint32_t i) {
-        JS_ASSERT(i < Total);
+        MOZ_ASSERT(i < Total);
         return GetName(Code(i));
     }
 
@@ -325,12 +325,12 @@ struct FloatRegister {
     Code code_;
 
     static FloatRegister FromCode(uint32_t i) {
-        JS_ASSERT(i < FloatRegisters::Total);
+        MOZ_ASSERT(i < FloatRegisters::Total);
         FloatRegister r = { (FloatRegisters::Code)i };
         return r;
     }
     Code code() const {
-        JS_ASSERT((uint32_t)code_ < FloatRegisters::Total);
+        MOZ_ASSERT((uint32_t)code_ < FloatRegisters::Total);
         return code_;
     }
     const char *name() const {
@@ -352,7 +352,7 @@ struct FloatRegister {
         return 1;
     }
     void aliased(uint32_t aliasIdx, FloatRegister *ret) {
-        JS_ASSERT(aliasIdx == 0);
+        MOZ_ASSERT(aliasIdx == 0);
         *ret = *this;
     }
     // This function mostly exists for the ARM backend.  It is to ensure that two
@@ -370,7 +370,7 @@ struct FloatRegister {
         return 1;
     }
     void alignedAliased(uint32_t aliasIdx, FloatRegister *ret) {
-        JS_ASSERT(aliasIdx == 0);
+        MOZ_ASSERT(aliasIdx == 0);
         *ret = *this;
     }
     static TypedRegisterSet<FloatRegister> ReduceSetForPush(const TypedRegisterSet<FloatRegister> &s);

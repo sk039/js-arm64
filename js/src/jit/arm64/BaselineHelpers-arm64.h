@@ -42,7 +42,7 @@ EmitCallIC(CodeOffsetLabel *patchOffset, MacroAssembler &masm)
 
     // Load stubcode pointer from BaselineStubEntry.
     // R2 won't be active when we call ICs, so we can use r0.
-    JS_ASSERT(R2 == ValueOperand(r0));
+    MOZ_ASSERT(R2 == ValueOperand(r0));
     masm.loadPtr(Address(BaselineStubReg, ICStub::offsetOfStubCode()), r0);
 
     // Call the stubcode via a direct branch-and-link.
@@ -59,7 +59,7 @@ EmitEnterTypeMonitorIC(MacroAssembler &masm,
 
     // Load stubcode pointer from BaselineStubEntry.
     // R2 won't be active when we call ICs, so we can use r0.
-    JS_ASSERT(R2 == ValueOperand(r0));
+    MOZ_ASSERT(R2 == ValueOperand(r0));
     masm.loadPtr(Address(BaselineStubReg, ICStub::offsetOfStubCode()), r0);
 
     // Jump to the stubcode.
@@ -82,7 +82,7 @@ inline void
 EmitTailCallVM(JitCode *target, MacroAssembler &masm, uint32_t argSize)
 {
     // We assume that R0 and R1 have been pushed, and R2 is unused.
-    JS_ASSERT(R2 == ValueOperand(r0));
+    MOZ_ASSERT(R2 == ValueOperand(r0));
 
     // Compute frame size.
     masm.Sub(ScratchReg64, ARMRegister(BaselineFrameReg, 64), masm.GetStackPointer());
@@ -93,7 +93,7 @@ EmitTailCallVM(JitCode *target, MacroAssembler &masm, uint32_t argSize)
     masm.store32(r0, Address(BaselineFrameReg, BaselineFrame::reverseOffsetOfFrameSize()));
 
     // Push frame descriptor (minus the return address) and perform the tail call.
-    JS_ASSERT(BaselineTailCallReg == lr);
+    MOZ_ASSERT(BaselineTailCallReg == lr);
     masm.makeFrameDescriptor(ScratchReg, JitFrame_BaselineJS);
     masm.MacroAssemblerVIXL::Push(ScratchReg64);
 
@@ -133,7 +133,7 @@ static const uint32_t STUB_FRAME_SAVED_STUB_OFFSET = sizeof(void *);
 inline void
 EmitEnterStubFrame(MacroAssembler &masm, Register scratch)
 {
-    JS_ASSERT(scratch != BaselineTailCallReg);
+    MOZ_ASSERT(scratch != BaselineTailCallReg);
 
     // Compute frame size.
     masm.movePtr(BaselineFrameReg, scratch);
@@ -200,7 +200,7 @@ EmitUnstowICValues(MacroAssembler &masm, int values, bool discard = false)
 inline void
 EmitCallTypeUpdateIC(MacroAssembler &masm, JitCode *code, uint32_t objectOffset)
 {
-    JS_ASSERT(R2 == ValueOperand(r0));
+    MOZ_ASSERT(R2 == ValueOperand(r0));
     masm.breakpoint();
 }
 

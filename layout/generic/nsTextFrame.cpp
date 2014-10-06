@@ -12,6 +12,7 @@
 #include "mozilla/Likely.h"
 #include "mozilla/MathAlgorithms.h"
 #include "mozilla/TextEvents.h"
+#include "mozilla/BinarySearch.h"
 
 #include "nsCOMPtr.h"
 #include "nsBlockFrame.h"
@@ -120,39 +121,33 @@ struct TabWidthStore {
   nsTArray<TabWidth> mWidths;
 };
 
+namespace {
+
+struct TabwidthAdaptor
+{
+  const nsTArray<TabWidth>& mWidths;
+  TabwidthAdaptor(const nsTArray<TabWidth>& aWidths)
+    : mWidths(aWidths) {}
+  uint32_t operator[](size_t aIdx) const {
+    return mWidths[aIdx].mOffset;
+  }
+};
+
+} // namespace
+
 void
 TabWidthStore::ApplySpacing(gfxTextRun::PropertyProvider::Spacing *aSpacing,
                             uint32_t aOffset, uint32_t aLength)
 {
-  uint32_t i = 0, len = mWidths.Length();
+  size_t i = 0;
+  const size_t len = mWidths.Length();
 
   // If aOffset is non-zero, do a binary search to find where to start
   // processing the tab widths, in case the list is really long. (See bug
   // 953247.)
   // We need to start from the first entry where mOffset >= aOffset.
   if (aOffset > 0) {
-    uint32_t lo = 0, hi = len;
-    while (lo < hi) {
-      i = (lo + hi) / 2;
-      const TabWidth& tw = mWidths[i];
-      if (tw.mOffset < aOffset) {
-        // mWidths[i] precedes the target range; new search range
-        // will be [i+1, hi)
-        lo = ++i;
-        continue;
-      }
-      if (tw.mOffset > aOffset) {
-        // mWidths[i] is within (or beyond) the target range;
-        // new search range is [lo, i). If it turns out that
-        // mWidths[i] was the first entry within the range,
-        // we'll never move hi any further, and end up exiting
-        // when i == lo == this value of hi.
-        hi = i;
-        continue;
-      }
-      // Found an exact match for aOffset, so end search now
-      break;
-    }
+    mozilla::BinarySearch(TabwidthAdaptor(mWidths), 0, len, aOffset, &i);
   }
 
   uint32_t limit = aOffset + aLength;
@@ -1800,10 +1795,10 @@ GetFirstFontMetrics(gfxFontGroup* aFontGroup)
 {
   if (!aFontGroup)
     return gfxFont::Metrics();
-  gfxFont* font = aFontGroup->GetFontAt(0);
+  gfxFont* font = aFontGroup->GetFirstValidFont();
   if (!font)
     return gfxFont::Metrics();
-  return font->GetMetrics();
+  return font->GetMetrics(gfxFont::eHorizontal); // XXX vertical
 }
 
 PR_STATIC_ASSERT(NS_STYLE_WHITESPACE_NORMAL == 0);
@@ -1941,6 +1936,15 @@ BuildTextRunsScanner::BuildTextRunForFrames(void* aTextBuffer)
       if (!(parent && parent->GetContent() &&
           parent->GetContent()->Tag() == nsGkAtoms::mtext_)) {
         textFlags |= gfxTextRunFactory::TEXT_USE_MATH_SCRIPT;
+      }
+      nsIMathMLFrame* mathFrame = do_QueryFrame(parent);
+      if (mathFrame) {
+        nsPresentationData presData;
+        mathFrame->GetPresentationData(presData);
+        if (NS_MATHML_IS_DTLS_SET(presData.flags)) {
+          mathFlags |= MathMLTextRunFactory::MATH_FONT_FEATURE_DTLS;
+          anyMathMLStyling = true;
+        }
       }
     }
     nsIFrame* child = mLineContainer;
@@ -2676,16 +2680,10 @@ nsTextFrame::GetTrimmedOffsets(const nsTextFragment* aFrag,
   return offsets;
 }
 
-/*
- * Currently only Unicode characters below 0x10000 have their spacing modified
- * by justification. If characters above 0x10000 turn out to need
- * justification spacing, that will require extra work. Currently,
- * this function must not include 0xd800 to 0xdbff because these characters
- * are surrogates.
- */
 static bool IsJustifiableCharacter(const nsTextFragment* aFrag, int32_t aPos,
-                                     bool aLangIsCJ)
+                                   bool aLangIsCJ)
 {
+  NS_ASSERTION(aPos >= 0, "negative position?!");
   char16_t ch = aFrag->CharAt(aPos);
   if (ch == '\n' || ch == '\t' || ch == '\r')
     return true;
@@ -2698,24 +2696,37 @@ static bool IsJustifiableCharacter(const nsTextFragment* aFrag, int32_t aPos,
   }
   if (ch < 0x2150u)
     return false;
-  if (aLangIsCJ && (
-       (0x2150u <= ch && ch <= 0x22ffu) || // Number Forms, Arrows, Mathematical Operators
-       (0x2460u <= ch && ch <= 0x24ffu) || // Enclosed Alphanumerics
-       (0x2580u <= ch && ch <= 0x27bfu) || // Block Elements, Geometric Shapes, Miscellaneous Symbols, Dingbats
-       (0x27f0u <= ch && ch <= 0x2bffu) || // Supplemental Arrows-A, Braille Patterns, Supplemental Arrows-B,
-                                           // Miscellaneous Mathematical Symbols-B, Supplemental Mathematical Operators,
-                                           // Miscellaneous Symbols and Arrows
-       (0x2e80u <= ch && ch <= 0x312fu) || // CJK Radicals Supplement, CJK Radicals Supplement,
-                                           // Ideographic Description Characters, CJK Symbols and Punctuation,
-                                           // Hiragana, Katakana, Bopomofo
-       (0x3190u <= ch && ch <= 0xabffu) || // Kanbun, Bopomofo Extended, Katakana Phonetic Extensions,
-                                           // Enclosed CJK Letters and Months, CJK Compatibility,
-                                           // CJK Unified Ideographs Extension A, Yijing Hexagram Symbols,
-                                           // CJK Unified Ideographs, Yi Syllables, Yi Radicals
-       (0xf900u <= ch && ch <= 0xfaffu) || // CJK Compatibility Ideographs
-       (0xff5eu <= ch && ch <= 0xff9fu)    // Halfwidth and Fullwidth Forms(a part)
-     ))
-    return true;
+  if (aLangIsCJ) {
+    if ((0x2150u <= ch && ch <= 0x22ffu) || // Number Forms, Arrows, Mathematical Operators
+        (0x2460u <= ch && ch <= 0x24ffu) || // Enclosed Alphanumerics
+        (0x2580u <= ch && ch <= 0x27bfu) || // Block Elements, Geometric Shapes, Miscellaneous Symbols, Dingbats
+        (0x27f0u <= ch && ch <= 0x2bffu) || // Supplemental Arrows-A, Braille Patterns, Supplemental Arrows-B,
+                                            // Miscellaneous Mathematical Symbols-B, Supplemental Mathematical Operators,
+                                            // Miscellaneous Symbols and Arrows
+        (0x2e80u <= ch && ch <= 0x312fu) || // CJK Radicals Supplement, CJK Radicals Supplement,
+                                            // Ideographic Description Characters, CJK Symbols and Punctuation,
+                                            // Hiragana, Katakana, Bopomofo
+        (0x3190u <= ch && ch <= 0xabffu) || // Kanbun, Bopomofo Extended, Katakana Phonetic Extensions,
+                                            // Enclosed CJK Letters and Months, CJK Compatibility,
+                                            // CJK Unified Ideographs Extension A, Yijing Hexagram Symbols,
+                                            // CJK Unified Ideographs, Yi Syllables, Yi Radicals
+        (0xf900u <= ch && ch <= 0xfaffu) || // CJK Compatibility Ideographs
+        (0xff5eu <= ch && ch <= 0xff9fu)    // Halfwidth and Fullwidth Forms(a part)
+       ) {
+      return true;
+    }
+    char16_t ch2;
+    if (NS_IS_HIGH_SURROGATE(ch) && aFrag->GetLength() > uint32_t(aPos) + 1 &&
+        NS_IS_LOW_SURROGATE(ch2 = aFrag->CharAt(aPos + 1))) {
+      uint32_t u = SURROGATE_TO_UCS4(ch, ch2);
+      if (0x20000u <= u && u <= 0x2ffffu) { // CJK Unified Ideographs Extension B,
+                                            // CJK Unified Ideographs Extension C,
+                                            // CJK Unified Ideographs Extension D,
+                                            // CJK Compatibility Ideographs Supplement
+        return true;
+      }
+    }
+  }
   return false;
 }
 
@@ -4206,9 +4217,10 @@ nsresult
 nsTextFrame::GetCursor(const nsPoint& aPoint,
                        nsIFrame::Cursor& aCursor)
 {
-  FillCursorInformationFromStyle(StyleUserInterface(), aCursor);  
+  FillCursorInformationFromStyle(StyleUserInterface(), aCursor);
   if (NS_STYLE_CURSOR_AUTO == aCursor.mCursor) {
-    aCursor.mCursor = NS_STYLE_CURSOR_TEXT;
+    aCursor.mCursor = GetWritingMode().IsVertical()
+                      ? NS_STYLE_CURSOR_VERTICAL_TEXT : NS_STYLE_CURSOR_TEXT;
     // If this is editable, we should ignore tabindex value.
     if (mContent->IsEditable()) {
       return NS_OK;
@@ -5540,16 +5552,18 @@ nsTextFrame::PaintTextWithSelectionColors(gfxContext* aCtx,
     return false;
   }
 
-  const gfxFloat startXOffset = aTextBaselinePt.x - aFramePt.x;
-  gfxFloat xOffset, hyphenWidth;
+  bool vertical = mTextRun->IsVertical();
+  const gfxFloat startIOffset = vertical ?
+    aTextBaselinePt.y - aFramePt.y : aTextBaselinePt.x - aFramePt.x;
+  gfxFloat iOffset, hyphenWidth;
   uint32_t offset, length; // in transformed string
   SelectionType type;
   TextRangeStyle rangeStyle;
   // Draw background colors
   if (anyBackgrounds) {
     SelectionIterator iterator(prevailingSelections, aContentOffset, aContentLength,
-                               aProvider, mTextRun, startXOffset);
-    while (iterator.GetNextSegment(&xOffset, &offset, &length, &hyphenWidth,
+                               aProvider, mTextRun, startIOffset);
+    while (iterator.GetNextSegment(&iOffset, &offset, &length, &hyphenWidth,
                                    &type, &rangeStyle)) {
       nscolor foreground, background;
       GetSelectionTextColors(type, aTextPaintStyle, rangeStyle,
@@ -5558,11 +5572,18 @@ nsTextFrame::PaintTextWithSelectionColors(gfxContext* aCtx,
       gfxFloat advance = hyphenWidth +
         mTextRun->GetAdvanceWidth(offset, length, &aProvider);
       if (NS_GET_A(background) > 0) {
-        gfxFloat x = xOffset - (mTextRun->IsRightToLeft() ? advance : 0);
+        gfxRect bgRect;
+        gfxFloat offs = iOffset - (mTextRun->IsRightToLeft() ? advance : 0);
+        if (vertical) {
+          bgRect = gfxRect(aFramePt.x, aFramePt.y + offs,
+                           GetSize().width, advance);
+        } else {
+          bgRect = gfxRect(aFramePt.x + offs, aFramePt.y,
+                           advance, GetSize().height);
+        }
         PaintSelectionBackground(aCtx, aTextPaintStyle.PresContext(),
                                  background, aDirtyRect,
-                                 gfxRect(aFramePt.x + x, aFramePt.y, advance,
-                                 GetSize().height), aCallbacks);
+                                 bgRect, aCallbacks);
       }
       iterator.UpdateWithAdvance(advance);
     }
@@ -5573,13 +5594,15 @@ nsTextFrame::PaintTextWithSelectionColors(gfxContext* aCtx,
   nsRect dirtyRect(aDirtyRect.x, aDirtyRect.y,
                    aDirtyRect.width, aDirtyRect.height);
   SelectionIterator iterator(prevailingSelections, aContentOffset, aContentLength,
-                             aProvider, mTextRun, startXOffset);
-  while (iterator.GetNextSegment(&xOffset, &offset, &length, &hyphenWidth,
+                             aProvider, mTextRun, startIOffset);
+  while (iterator.GetNextSegment(&iOffset, &offset, &length, &hyphenWidth,
                                  &type, &rangeStyle)) {
     nscolor foreground, background;
     GetSelectionTextColors(type, aTextPaintStyle, rangeStyle,
                            &foreground, &background);
-    gfxPoint textBaselinePt(aFramePt.x + xOffset, aTextBaselinePt.y);
+    gfxPoint textBaselinePt = vertical ?
+      gfxPoint(aTextBaselinePt.x, aFramePt.y + iOffset) :
+      gfxPoint(aFramePt.x + iOffset, aTextBaselinePt.y);
 
     // Determine what shadow, if any, to draw - either from textStyle
     // or from the ::-moz-selection pseudo-class if specified there
@@ -5600,7 +5623,7 @@ nsTextFrame::PaintTextWithSelectionColors(gfxContext* aCtx,
                        shadow->ShadowAt(i - 1), &aProvider,
                        dirtyRect, aFramePt, textBaselinePt, aCtx,
                        foreground, aClipEdges, 
-                       xOffset - (mTextRun->IsRightToLeft() ?
+                       iOffset - (mTextRun->IsRightToLeft() ?
                                   shadowMetrics.mBoundingBox.width : 0),
                        shadowMetrics.mBoundingBox);
       }
@@ -5658,10 +5681,11 @@ nsTextFrame::PaintTextSelectionDecorations(gfxContext* aCtx,
     sdptr = sdptr->mNext;
   }
 
-  gfxFont* firstFont = aProvider.GetFontGroup()->GetFontAt(0);
+  gfxFont* firstFont = aProvider.GetFontGroup()->GetFirstValidFont();
   if (!firstFont)
     return; // OOM
-  gfxFont::Metrics decorationMetrics(firstFont->GetMetrics());
+  gfxFont::Metrics
+    decorationMetrics(firstFont->GetMetrics(gfxFont::eHorizontal)); // XXX vertical?
   decorationMetrics.underlineOffset =
     aProvider.GetFontGroup()->GetUnderlineOffset();
 
@@ -5933,10 +5957,17 @@ nsTextFrame::PaintText(nsRenderingContext* aRenderingContext, nsPoint aPt,
 
   gfxContext* ctx = aRenderingContext->ThebesContext();
   const bool rtl = mTextRun->IsRightToLeft();
+  const bool vertical = mTextRun->IsVertical();
   const nscoord frameWidth = GetSize().width;
   gfxPoint framePt(aPt.x, aPt.y);
-  gfxPoint textBaselinePt(rtl ? gfxFloat(aPt.x + frameWidth) : framePt.x,
+  gfxPoint textBaselinePt;
+  if (vertical) {
+    textBaselinePt = gfxPoint(aPt.x + mAscent,
+             rtl ? gfxFloat(aPt.y + GetSize().height) : aPt.y);
+  } else {
+    textBaselinePt = gfxPoint(rtl ? gfxFloat(aPt.x + frameWidth) : framePt.x,
              nsLayoutUtils::GetSnappedBaselineY(this, ctx, aPt.y, mAscent));
+  }
   uint32_t startOffset = provider.GetStart().GetSkippedOffset();
   uint32_t maxLength = ComputeTransformedLength(provider);
   nscoord snappedLeftEdge, snappedRightEdge;
@@ -5944,7 +5975,11 @@ nsTextFrame::PaintText(nsRenderingContext* aRenderingContext, nsPoint aPt,
          &startOffset, &maxLength, &snappedLeftEdge, &snappedRightEdge)) {
     return;
   }
-  textBaselinePt.x += rtl ? -snappedRightEdge : snappedLeftEdge;
+  if (vertical) {
+    textBaselinePt.y += rtl ? -snappedRightEdge : snappedLeftEdge;
+  } else {
+    textBaselinePt.x += rtl ? -snappedRightEdge : snappedLeftEdge;
+  }
   nsCharClipDisplayItem::ClipEdges clipEdges(aItem, snappedLeftEdge,
                                              snappedRightEdge);
   nsTextPaintStyle textPaintStyle(this);
@@ -6270,15 +6305,17 @@ nsTextFrame::GetCharacterOffsetAtFramePointInternal(nsPoint aPoint,
                                                     bool aForInsertionPoint)
 {
   ContentOffsets offsets;
-  
+
   gfxSkipCharsIterator iter = EnsureTextRun(nsTextFrame::eInflated);
   if (!mTextRun)
     return offsets;
-  
+
   PropertyProvider provider(this, iter, nsTextFrame::eInflated);
   // Trim leading but not trailing whitespace if possible
   provider.InitializeForDisplay(false);
-  gfxFloat width = mTextRun->IsRightToLeft() ? mRect.width - aPoint.x : aPoint.x;
+  gfxFloat width = mTextRun->IsVertical() ?
+    (mTextRun->IsRightToLeft() ? mRect.height - aPoint.y : aPoint.y) :
+    (mTextRun->IsRightToLeft() ? mRect.width - aPoint.x : aPoint.x);
   gfxFloat fitWidth;
   uint32_t skippedLength = ComputeTransformedLength(provider);
 
@@ -6339,10 +6376,11 @@ nsTextFrame::CombineSelectionUnderlineRect(nsPresContext* aPresContext,
   nsLayoutUtils::GetFontMetricsForFrame(this, getter_AddRefs(fm),
                                         GetFontSizeInflation());
   gfxFontGroup* fontGroup = fm->GetThebesFontGroup();
-  gfxFont* firstFont = fontGroup->GetFontAt(0);
+  gfxFont* firstFont = fontGroup->GetFirstValidFont();
   if (!firstFont)
     return false; // OOM
-  const gfxFont::Metrics& metrics = firstFont->GetMetrics();
+  const gfxFont::Metrics& metrics =
+    firstFont->GetMetrics(gfxFont::eHorizontal); // XXX vertical?
   gfxFloat underlineOffset = fontGroup->GetUnderlineOffset();
   gfxFloat ascent = aPresContext->AppUnitsToGfxUnits(mAscent);
   gfxFloat descentLimit =
@@ -6492,18 +6530,25 @@ nsTextFrame::GetPointFromOffset(int32_t inOffset,
     FindClusterStart(mTextRun, trimmedOffset, &iter);
   }
 
-  gfxFloat advanceWidth =
+  gfxFloat advance =
     mTextRun->GetAdvanceWidth(properties.GetStart().GetSkippedOffset(),
                               GetSkippedDistance(properties.GetStart(), iter),
                               &properties);
-  nscoord width = NSToCoordCeilClamped(advanceWidth);
+  nscoord iSize = NSToCoordCeilClamped(advance);
 
-  if (mTextRun->IsRightToLeft()) {
-    outPoint->x = mRect.width - width;
+  if (mTextRun->IsVertical()) {
+    if (mTextRun->IsRightToLeft()) {
+      outPoint->y = mRect.height - iSize;
+    } else {
+      outPoint->y = iSize;
+    }
   } else {
-    outPoint->x = width;
+    if (mTextRun->IsRightToLeft()) {
+      outPoint->x = mRect.width - iSize;
+    } else {
+      outPoint->x = iSize;
+    }
   }
-  outPoint->y = 0;
 
   return NS_OK;
 }

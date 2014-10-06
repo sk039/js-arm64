@@ -532,8 +532,8 @@ obj_lookupSetter(JSContext *cx, unsigned argc, Value *vp)
 #endif /* JS_OLD_GETTER_SETTER_METHODS */
 
 /* ES5 15.2.3.2. */
-static bool
-obj_getPrototypeOf(JSContext *cx, unsigned argc, Value *vp)
+bool
+js::obj_getPrototypeOf(JSContext *cx, unsigned argc, Value *vp)
 {
     CallArgs args = CallArgsFromVp(argc, vp);
 
@@ -703,8 +703,8 @@ obj_unwatch(JSContext *cx, unsigned argc, Value *vp)
 #endif /* JS_HAS_OBJ_WATCHPOINT */
 
 /* ECMA 15.2.4.5. */
-static bool
-obj_hasOwnProperty(JSContext *cx, unsigned argc, Value *vp)
+bool
+js::obj_hasOwnProperty(JSContext *cx, unsigned argc, Value *vp)
 {
     CallArgs args = CallArgsFromVp(argc, vp);
 
@@ -778,8 +778,8 @@ obj_isPrototypeOf(JSContext *cx, unsigned argc, Value *vp)
 }
 
 /* ES5 15.2.3.5: Object.create(O [, Properties]) */
-static bool
-obj_create(JSContext *cx, unsigned argc, Value *vp)
+bool
+js::obj_create(JSContext *cx, unsigned argc, Value *vp)
 {
     CallArgs args = CallArgsFromVp(argc, vp);
     if (args.length() == 0) {
@@ -826,8 +826,8 @@ obj_create(JSContext *cx, unsigned argc, Value *vp)
     return true;
 }
 
-static bool
-obj_getOwnPropertyDescriptor(JSContext *cx, unsigned argc, Value *vp)
+bool
+js::obj_getOwnPropertyDescriptor(JSContext *cx, unsigned argc, Value *vp)
 {
     CallArgs args = CallArgsFromVp(argc, vp);
     RootedObject obj(cx);
@@ -839,48 +839,12 @@ obj_getOwnPropertyDescriptor(JSContext *cx, unsigned argc, Value *vp)
     return GetOwnPropertyDescriptor(cx, obj, id, args.rval());
 }
 
-// ES6 draft rev25 (2014/05/22) 19.1.2.14 Object.keys(O)
+// ES6 draft rev27 (2014/08/24) 19.1.2.14 Object.keys(O)
 static bool
 obj_keys(JSContext *cx, unsigned argc, Value *vp)
 {
     CallArgs args = CallArgsFromVp(argc, vp);
-
-    // steps 1-2
-    RootedObject obj(cx);
-    if (!GetFirstArgumentAsObject(cx, args, "Object.keys", &obj))
-        return false;
-
-    // Steps 3-10. Since JSITER_SYMBOLS and JSITER_HIDDEN are not passed,
-    // GetPropertyNames performs the type check in step 10.c. and the
-    // [[Enumerable]] check specified in step 10.c.iii.
-    AutoIdVector props(cx);
-    if (!GetPropertyNames(cx, obj, JSITER_OWNONLY, &props))
-        return false;
-
-    AutoValueVector namelist(cx);
-    if (!namelist.reserve(props.length()))
-        return false;
-    for (size_t i = 0, len = props.length(); i < len; i++) {
-        jsid id = props[i];
-        JSString *str;
-        if (JSID_IS_STRING(id)) {
-            str = JSID_TO_STRING(id);
-        } else {
-            str = Int32ToString<CanGC>(cx, JSID_TO_INT(id));
-            if (!str)
-                return false;
-        }
-        namelist.infallibleAppend(StringValue(str));
-    }
-
-    // step 11
-    JS_ASSERT(props.length() <= UINT32_MAX);
-    JSObject *aobj = NewDenseCopiedArray(cx, uint32_t(namelist.length()), namelist.begin());
-    if (!aobj)
-        return false;
-
-    args.rval().setObject(*aobj);
-    return true;
+    return GetOwnPropertyKeys(cx, args, JSITER_OWNONLY);
 }
 
 /* ES6 draft 15.2.3.16 */
@@ -919,17 +883,17 @@ namespace js {
 bool
 GetOwnPropertyKeys(JSContext *cx, const JS::CallArgs &args, unsigned flags)
 {
-    // steps 1-2
+    // Steps 1-2.
     RootedObject obj(cx, ToObject(cx, args.get(0)));
     if (!obj)
         return false;
 
-    // steps 3-10
+    // Steps 3-10.
     AutoIdVector keys(cx);
     if (!GetPropertyNames(cx, obj, flags, &keys))
         return false;
 
-    // step 11
+    // Step 11.
     AutoValueVector vals(cx);
     if (!vals.resize(keys.length()))
         return false;
@@ -951,8 +915,8 @@ GetOwnPropertyKeys(JSContext *cx, const JS::CallArgs &args, unsigned flags)
 
 } // namespace js
 
-static bool
-obj_getOwnPropertyNames(JSContext *cx, unsigned argc, Value *vp)
+bool
+js::obj_getOwnPropertyNames(JSContext *cx, unsigned argc, Value *vp)
 {
     CallArgs args = CallArgsFromVp(argc, vp);
     return GetOwnPropertyKeys(cx, args, JSITER_OWNONLY | JSITER_HIDDEN);
@@ -1021,10 +985,10 @@ obj_isExtensible(JSContext *cx, unsigned argc, Value *vp)
 {
     CallArgs args = CallArgsFromVp(argc, vp);
 
-    // step 1
+    // Step 1.
     bool extensible = false;
 
-    // step 2
+    // Step 2.
     if (args.get(0).isObject()) {
         RootedObject obj(cx, &args.get(0).toObject());
         if (!JSObject::isExtensible(cx, obj, &extensible))
@@ -1034,63 +998,71 @@ obj_isExtensible(JSContext *cx, unsigned argc, Value *vp)
     return true;
 }
 
+// ES6 draft rev27 (2014/08/24) 19.1.2.15 Object.preventExtensions(O)
 static bool
 obj_preventExtensions(JSContext *cx, unsigned argc, Value *vp)
 {
     CallArgs args = CallArgsFromVp(argc, vp);
-    RootedObject obj(cx);
-    if (!GetFirstArgumentAsObject(cx, args, "Object.preventExtensions", &obj))
-        return false;
+    args.rval().set(args.get(0));
 
-    args.rval().setObject(*obj);
-
-    bool extensible;
-    if (!JSObject::isExtensible(cx, obj, &extensible))
-        return false;
-    if (!extensible)
+    // Step 1.
+    if (!args.get(0).isObject())
         return true;
+
+    // Steps 2-5.
+    RootedObject obj(cx, &args.get(0).toObject());
 
     return JSObject::preventExtensions(cx, obj);
 }
 
+// ES6 draft rev27 (2014/08/24) 19.1.2.5 Object.freeze(O)
 static bool
 obj_freeze(JSContext *cx, unsigned argc, Value *vp)
 {
     CallArgs args = CallArgsFromVp(argc, vp);
-    RootedObject obj(cx);
-    if (!GetFirstArgumentAsObject(cx, args, "Object.freeze", &obj))
-        return false;
+    args.rval().set(args.get(0));
 
-    args.rval().setObject(*obj);
+    // Step 1.
+    if (!args.get(0).isObject())
+        return true;
 
+    // Steps 2-5.
+    RootedObject obj(cx, &args.get(0).toObject());
     return JSObject::freeze(cx, obj);
 }
 
+// ES6 draft rev27 (2014/08/24) 19.1.2.12 Object.isFrozen(O)
 static bool
 obj_isFrozen(JSContext *cx, unsigned argc, Value *vp)
 {
     CallArgs args = CallArgsFromVp(argc, vp);
-    RootedObject obj(cx);
-    if (!GetFirstArgumentAsObject(cx, args, "Object.preventExtensions", &obj))
-        return false;
 
-    bool frozen;
-    if (!JSObject::isFrozen(cx, obj, &frozen))
-        return false;
+    // Step 1.
+    bool frozen = true;
+
+    // Step 2.
+    if (args.get(0).isObject()) {
+        RootedObject obj(cx, &args.get(0).toObject());
+        if (!JSObject::isFrozen(cx, obj, &frozen))
+            return false;
+    }
     args.rval().setBoolean(frozen);
     return true;
 }
 
+// ES6 draft rev27 (2014/08/24) 19.1.2.17 Object.seal(O)
 static bool
 obj_seal(JSContext *cx, unsigned argc, Value *vp)
 {
     CallArgs args = CallArgsFromVp(argc, vp);
-    RootedObject obj(cx);
-    if (!GetFirstArgumentAsObject(cx, args, "Object.seal", &obj))
-        return false;
+    args.rval().set(args.get(0));
 
-    args.rval().setObject(*obj);
+    // Step 1.
+    if (!args.get(0).isObject())
+        return true;
 
+    // Steps 2-5.
+    RootedObject obj(cx, &args.get(0).toObject());
     return JSObject::seal(cx, obj);
 }
 
@@ -1100,10 +1072,10 @@ obj_isSealed(JSContext *cx, unsigned argc, Value *vp)
 {
     CallArgs args = CallArgsFromVp(argc, vp);
 
-    // step 1
+    // Step 1.
     bool sealed = true;
 
-    // step 2
+    // Step 2.
     if (args.get(0).isObject()) {
         RootedObject obj(cx, &args.get(0).toObject());
         if (!JSObject::isSealed(cx, obj, &sealed))

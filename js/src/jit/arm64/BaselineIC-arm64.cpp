@@ -231,7 +231,7 @@ ICBinaryArith_Int32::Compiler::generateStubCode(MacroAssembler &masm)
 bool
 ICUnaryArith_Int32::Compiler::generateStubCode(MacroAssembler &masm)
 {
-    MOZ_ASSUME_UNREACHABLE("ICUnaryArith_Int32 generateStubCode");
+    MOZ_CRASH("ICUnaryArith_Int32 generateStubCode");
 }
 
 #ifdef JS_ARM64_SIMULATOR

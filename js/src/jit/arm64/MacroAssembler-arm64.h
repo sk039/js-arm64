@@ -159,7 +159,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     // FIXME: Should be in assembler, or IonMacroAssembler shouldn't use.
     template <typename T>
     void push(const T t) {
-        JS_ASSERT(0 && "push");
+        MOZ_ASSERT(0 && "push");
     }
 #endif
     void push(FloatRegister f) {
@@ -195,7 +195,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
 #if 0
     template <typename T>
     void pop(const T t) {
-        JS_ASSERT(0 && "pop");
+        MOZ_ASSERT(0 && "pop");
     }
 #endif
     void pop(const ValueOperand &v) {
@@ -210,7 +210,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
 
     void implicitPop(uint32_t args) {
-        JS_ASSERT(args % sizeof(intptr_t) == 0);
+        MOZ_ASSERT(args % sizeof(intptr_t) == 0);
         adjustFrame(-args);
     }
 
@@ -278,7 +278,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     void storeUnboxedValue(ConstantOrRegister value, MIRType valueType, const T &dest,
                            MIRType slotType)
     {
-        JS_ASSERT(0 && "storeUnboxedValue");
+        MOZ_ASSERT(0 && "storeUnboxedValue");
     }
     void loadValue(Address src, Register val) {
         Ldr(ARMRegister(val, 64), MemOperand(src));
@@ -352,7 +352,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
 
     void boxValue(JSValueType type, Register src, Register dest) {
-        JS_ASSERT(0 && "boxValue");
+        MOZ_ASSERT(0 && "boxValue");
     }
     void splitTag(Register src, Register dest) {
         sbfx(ARMRegister(dest, 64), ARMRegister(src, 64), 64 - JSVAL_TAG_SHIFT, JSVAL_TAG_SHIFT);
@@ -388,7 +388,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     // If source is int32, convert to double and store in dest.
     // Else, branch to failure.
     void ensureDouble(const ValueOperand &source, FloatRegister dest, Label *failure) {
-        JS_ASSERT(0 && "ensureDouble()");
+        MOZ_ASSERT(0 && "ensureDouble()");
     }
     void emitSet(Assembler::Condition cond, Register dest) {
         Cset(ARMRegister(dest, 64), cond);
@@ -422,72 +422,72 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         Uxtb(ARMRegister(dest, 64), ARMRegister(source, 64));
     }
     void convertInt32ToDouble(Register src, FloatRegister dest) {
-        JS_ASSERT(0 && "convertInt32ToDouble");
+        MOZ_ASSERT(0 && "convertInt32ToDouble");
     }
     void convertInt32ToDouble(const Address &src, FloatRegister dest) {
-        JS_ASSERT(0 && "convertInt32ToDouble");
+        MOZ_ASSERT(0 && "convertInt32ToDouble");
     }
     void convertInt32ToFloat32(Register src, FloatRegister dest) {
-        JS_ASSERT(0 && "convertInt32ToFloat32");
+        MOZ_ASSERT(0 && "convertInt32ToFloat32");
     }
     void convertInt32ToFloat32(const Address &src, FloatRegister dest) {
-        JS_ASSERT(0 && "convertInt32ToFloat32");
+        MOZ_ASSERT(0 && "convertInt32ToFloat32");
     }
 
     void convertUInt32ToDouble(const Address &src, FloatRegister dest) {
-        JS_ASSERT(0 && "convertUInt32ToDouble");
+        MOZ_ASSERT(0 && "convertUInt32ToDouble");
     }
     void convertUInt32ToDouble(const Register &src, FloatRegister dest) {
-        JS_ASSERT(0 && "convertUInt32ToDouble");
+        MOZ_ASSERT(0 && "convertUInt32ToDouble");
     }
     void convertUInt32ToFloat32(Register src, FloatRegister dest) {
-        JS_ASSERT(0 && "convertUInt32ToFloat32");
+        MOZ_ASSERT(0 && "convertUInt32ToFloat32");
     }
     void convertUInt32ToFloat32(const Address &src, FloatRegister dest) {
-        JS_ASSERT(0 && "convertUInt32ToFloat32");
+        MOZ_ASSERT(0 && "convertUInt32ToFloat32");
     }
     void convertUInt32ToFloat32(const Register &src, FloatRegister dest) {
-        JS_ASSERT(0 && "convertUInt32ToFloat32");
+        MOZ_ASSERT(0 && "convertUInt32ToFloat32");
     }
 
     void convertFloat32ToDouble(FloatRegister src, FloatRegister dest) {
-        JS_ASSERT(0 && "convertFloat32ToDouble");
+        MOZ_ASSERT(0 && "convertFloat32ToDouble");
     }
     void convertDoubleToFloat32(FloatRegister src, FloatRegister dest) {
-        JS_ASSERT(0 && "convertDoubleToFloat32");
+        MOZ_ASSERT(0 && "convertDoubleToFloat32");
     }
     void branchTruncateDouble(FloatRegister src, Register dest, Label *fail) {
-        JS_ASSERT(0 && "branchTruncateDouble");
+        MOZ_ASSERT(0 && "branchTruncateDouble");
     }
     void convertDoubleToInt32(FloatRegister src, Register dest, Label *fail,
                               bool negativeZeroCheck = true)
     {
-        JS_ASSERT(0 && "convertDoubleToInt32");
+        MOZ_ASSERT(0 && "convertDoubleToInt32");
     }
     void convertFloat32ToInt32(FloatRegister src, Register dest, Label *fail,
                                bool negativeZeroCheck = true)
     {
-        JS_ASSERT(0 && "convertFloat32ToInt32");
+        MOZ_ASSERT(0 && "convertFloat32ToInt32");
     }
 
     void branchTruncateFloat32(FloatRegister src, Register dest, Label *fail) {
-        JS_ASSERT(0 && "branchTruncateFloat32");
+        MOZ_ASSERT(0 && "branchTruncateFloat32");
     }
     void jump(Label *label) {
         B(label);
     }
     void jump(RepatchLabel *label) {
-        JS_ASSERT(0 && "jump (repatchlabel)");
+        MOZ_ASSERT(0 && "jump (repatchlabel)");
     }
     void jump(Register reg) {
         Br(ARMRegister(reg, 64));
     }
     void jump(const Address &addr) {
-        JS_ASSERT(0 && "jump (address)");
+        MOZ_ASSERT(0 && "jump (address)");
     }
 
     void align(int alignment) {
-        JS_ASSERT(0 && "align");
+        MOZ_ASSERT(0 && "align");
     }
 
     void movePtr(Register src, Register dest) {
@@ -500,7 +500,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         Mov(ARMRegister(dest, 64), (int64_t)imm.value);
     }
     void movePtr(AsmJSImmPtr imm, Register dest) {
-        JS_ASSERT(0 && "movePtr");
+        MOZ_ASSERT(0 && "movePtr");
     }
     void movePtr(ImmGCPtr imm, Register dest) {
         writeDataRelocation(imm);
@@ -548,44 +548,44 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         Ldr(dest64, MemOperand(base64, index64, LSL, scale));
     }
     void loadPrivate(const Address &src, Register dest) {
-        JS_ASSERT(0 && "loadPrivate");
+        MOZ_ASSERT(0 && "loadPrivate");
     }
 
     void store8(Register src, const Address &address) {
-        JS_ASSERT(0 && "store8");
+        MOZ_ASSERT(0 && "store8");
     }
     void store8(Imm32 imm, const Address &address) {
-        JS_ASSERT(0 && "store8");
+        MOZ_ASSERT(0 && "store8");
     }
     void store8(Register src, const BaseIndex &address) {
-        JS_ASSERT(0 && "store8");
+        MOZ_ASSERT(0 && "store8");
     }
     void store8(Imm32 imm, const BaseIndex &address) {
-        JS_ASSERT(0 && "store8");
+        MOZ_ASSERT(0 && "store8");
     }
 
     void store16(Register src, const Address &address) {
-        JS_ASSERT(0 && "store16");
+        MOZ_ASSERT(0 && "store16");
     }
     void store16(Imm32 imm, const Address &address) {
-        JS_ASSERT(0 && "store16");
+        MOZ_ASSERT(0 && "store16");
     }
     void store16(Register src, const BaseIndex &address) {
-        JS_ASSERT(0 && "store16");
+        MOZ_ASSERT(0 && "store16");
     }
     void store16(Imm32 imm, const BaseIndex &address) {
-        JS_ASSERT(0 && "store16");
+        MOZ_ASSERT(0 && "store16");
     }
 
     void storePtr(ImmWord imm, const Address &address) {
-        JS_ASSERT(0 && "storePtr");
+        MOZ_ASSERT(0 && "storePtr");
     }
     void storePtr(ImmPtr imm, const Address &address) {
         Mov(ScratchReg2_64, uint64_t(imm.value));
         Str(ScratchReg2_64, MemOperand(ARMRegister(address.base, 64), address.offset));
     }
     void storePtr(ImmGCPtr imm, const Address &address) {
-        JS_ASSERT(0 && "storePtr");
+        MOZ_ASSERT(0 && "storePtr");
     }
     void storePtr(Register src, const Address &address) {
         Str(ARMRegister(src, 64), MemOperand(ARMRegister(address.base, 64), address.offset));
@@ -714,10 +714,10 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         Cmp(ARMRegister(a, 32), Operand(ARMRegister(b, 32)));
     }
     void cmp32(const Operand &lhs, Imm32 rhs) {
-        JS_ASSERT(0 && "cmp32");
+        MOZ_ASSERT(0 && "cmp32");
     }
     void cmp32(const Operand &lhs, Register rhs) {
-        JS_ASSERT(0 && "cmp32");
+        MOZ_ASSERT(0 && "cmp32");
     }
 
     void cmpPtr(Register lhs, ImmWord rhs) {
@@ -730,7 +730,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         Cmp(ARMRegister(lhs, 64), ARMRegister(rhs, 64));
     }
     void cmpPtr(Register lhs, ImmGCPtr rhs) {
-        JS_ASSERT(0 && "cmpPtr");
+        MOZ_ASSERT(0 && "cmpPtr");
     }
 
     void cmpPtr(const Address &lhs, Register rhs) {
@@ -834,7 +834,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         fmov(ARMFPRegister(dest, 32), ARMFPRegister(src, 32));
     }
     void moveFloatAsDouble(Register src, FloatRegister dest) {
-        JS_ASSERT(0 && "moveFloatAsDouble");
+        MOZ_ASSERT(0 && "moveFloatAsDouble");
     }
 
 #if 0
@@ -851,16 +851,16 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         splitTag(dest, dest);
     }
     void splitTag(const BaseIndex &operand, Register dest) {
-        JS_ASSERT(0 && "splitTag");
+        MOZ_ASSERT(0 && "splitTag");
     }
 
     // Extracts the tag of a value and places it in ScratchReg.
     Register splitTagForTest(const ValueOperand &value) {
-        JS_ASSERT(0 && "splitTagForTest");
+        MOZ_ASSERT(0 && "splitTagForTest");
         return Register::FromCode(Registers::x0);
     }
     void cmpTag(const ValueOperand &operand, ImmTag tag) {
-        JS_ASSERT(0 && "cmpTag");
+        MOZ_ASSERT(0 && "cmpTag");
     }
 
     void load32(const Address &address, Register dest) {
@@ -904,7 +904,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
 #if 0
     template <typename S, typename T>
     void store32(const S &src, const T &dest) {
-        JS_ASSERT(0 && "store32");
+        MOZ_ASSERT(0 && "store32");
     }
 #endif
     void add32(Register src, Register dest) {
@@ -1000,14 +1000,14 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
 
     void branch16(Condition cond, Register lhs, Register rhs, Label *label) {
-        JS_ASSERT(0 && "branch16");
+        MOZ_ASSERT(0 && "branch16");
     }
 
     void branch32(Condition cond, const Operand &lhs, Register rhs, Label *label) {
-        JS_ASSERT(0 && "branch32");
+        MOZ_ASSERT(0 && "branch32");
     }
     void branch32(Condition cond, const Operand &lhs, Imm32 rhs, Label *label) {
-        JS_ASSERT(0 && "branch32");
+        MOZ_ASSERT(0 && "branch32");
     }
     void branch32(Condition cond, Register lhs, Register rhs, Label *label) {
         cmp32(lhs, rhs);
@@ -1033,31 +1033,34 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         movePtr(ImmPtr(lhs.addr), ScratchReg2);
         branch32(cond, Address(ScratchReg2, 0), rhs, label);
     }
+    void branch32(Condition cond, BaseIndex lhs, Imm32 rhs, Label *label) {
+        MOZ_ASSERT(0 && "branch32 BaseIndex");
+    }
 
     void branchSub32(Condition cond, const Address &lhs, Register rhs, Label *label) {
-        JS_ASSERT(0 && "branchSub32");
+        MOZ_ASSERT(0 && "branchSub32");
     }
     void branchSub32(Condition cond, const Address &lhs, Imm32 imm, Label *label) {
-        JS_ASSERT(0 && "branchSub32");
+        MOZ_ASSERT(0 && "branchSub32");
     }
     void branchSub32(Condition cond, Register lhs, Imm32 imm, Label *label) {
-        JS_ASSERT(0 && "branchSub32");
+        MOZ_ASSERT(0 && "branchSub32");
     }
     void branchSub32(Condition cond, Register lhs, Register rhs, Label *label) {
-        JS_ASSERT(0 && "branchSub32");
+        MOZ_ASSERT(0 && "branchSub32");
     }
     void branchSub32(Condition cond, AbsoluteAddress lhs, Imm32 rhs, Label *label) {
-        JS_ASSERT(0 && "branchSub32");
+        MOZ_ASSERT(0 && "branchSub32");
     }
     void branchSub32(Condition cond, AbsoluteAddress lhs, Register rhs, Label *label) {
-        JS_ASSERT(0 && "branchSub32");
+        MOZ_ASSERT(0 && "branchSub32");
     }
 
     void branchTest16(Condition cond, Register lhs, Register rhs, Label *label) {
-        JS_ASSERT(0 && "branchTest16");
+        MOZ_ASSERT(0 && "branchTest16");
     }
     void branchTest32(Condition cond, Register lhs, Register rhs, Label *label) {
-        JS_ASSERT(cond == Zero || cond == NonZero || cond == Signed || cond == NotSigned);
+        MOZ_ASSERT(cond == Zero || cond == NonZero || cond == Signed || cond == NotSigned);
         // x86 prefers |test foo, foo| to |cmp foo, #0|.
         // Convert the former to the latter for ARM.
         if (lhs == rhs && (cond == Zero || cond == NonZero))
@@ -1067,7 +1070,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         B(label, cond);
     }
     void branchTest32(Condition cond, Register lhs, Imm32 imm, Label *label) {
-        JS_ASSERT(cond == Zero || cond == NonZero || cond == Signed || cond == NotSigned);
+        MOZ_ASSERT(cond == Zero || cond == NonZero || cond == Signed || cond == NotSigned);
         test32(lhs, imm);
         B(label, cond);
     }
@@ -1076,25 +1079,25 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         branchTest32(cond, ScratchReg, imm, label);
     }
     void branchTest32(Condition cond, AbsoluteAddress &address, Imm32 imm, Label *label) {
-        JS_ASSERT(0 && "branchTest32");
+        MOZ_ASSERT(0 && "branchTest32");
     }
     CodeOffsetJump jumpWithPatch(RepatchLabel *label, Condition cond = Always) {
-        JS_ASSERT(0 && "jumpWithPatch");
+        MOZ_ASSERT(0 && "jumpWithPatch");
     }
     CodeOffsetJump backedgeJump(RepatchLabel *label) {
         return jumpWithPatch(label);
     }
     template <typename T>
     CodeOffsetJump branchPtrWithPatch(Condition cond, Register reg, T ptr, RepatchLabel *label) {
-        JS_ASSERT(0 && "branchPtrWithPatch");
+        MOZ_ASSERT(0 && "branchPtrWithPatch");
     }
     template <typename T>
     CodeOffsetJump branchPtrWithPatch(Condition cond, Address addr, T ptr, RepatchLabel *label) {
-        JS_ASSERT(0 && "branchPtrWithPatch");
+        MOZ_ASSERT(0 && "branchPtrWithPatch");
     }
 
     void branchPtr(Condition cond, AsmJSAbsoluteAddress lhs, Register rhs, Label *label) {
-        JS_ASSERT(0 && "branchPtr");
+        MOZ_ASSERT(0 && "branchPtr");
     }
     void branchPtr(Condition cond, Address lhs, ImmWord ptr, Label *label) {
         loadPtr(lhs, ScratchReg2);
@@ -1117,10 +1120,10 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         branch(cond, label);
     }
     void branchPtr(Condition cond, Register lhs, ImmGCPtr ptr, Label *label) {
-        JS_ASSERT(0 && "branchPtr");
+        MOZ_ASSERT(0 && "branchPtr");
     }
     void branchPtr(Condition cond, Address lhs, ImmGCPtr ptr, Label *label) {
-        JS_ASSERT(0 && "branchPtr");
+        MOZ_ASSERT(0 && "branchPtr");
     }
     void branchPtr(Condition cond, Register lhs, Register rhs, Label *label) {
         Cmp(ARMRegister(lhs, 64), ARMRegister(rhs, 64));
@@ -1129,6 +1132,10 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     void branchPtr(Condition cond, AbsoluteAddress lhs, Register rhs, Label *label) {
         loadPtr(lhs, ScratchReg2);
         branchPtr(cond, ScratchReg2, rhs, label);
+    }
+    void branchPtr(Condition cond, AbsoluteAddress lhs, ImmWord ptr, Label *label) {
+        loadPtr(lhs, ScratchReg2);
+        branchPtr(cond, ScratchReg2, ptr, label);
     }
 
     void branchTestPtr(Condition cond, Register lhs, Register rhs, Label *label) {
@@ -1156,7 +1163,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
 
     void decBranchPtr(Condition cond, Register lhs, Imm32 imm, Label *label) {
-        JS_ASSERT(0 && "decBranchPtr");
+        MOZ_ASSERT(0 && "decBranchPtr");
     }
 
     void branchTestUndefined(Condition cond, Register tag, Label *label) {
@@ -1197,13 +1204,13 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
 
     void branchTestUndefined(Condition cond, const Address &address, Label *label) {
-        JS_ASSERT(0 && "branchTestUndefined");
+        MOZ_ASSERT(0 && "branchTestUndefined");
     }
     void branchTestInt32(Condition cond, const Address &address, Label *label) {
-        JS_ASSERT(0 && "branchTestInt32");
+        MOZ_ASSERT(0 && "branchTestInt32");
     }
     void branchTestDouble(Condition cond, const Address &address, Label *label) {
-        JS_ASSERT(0 && "branchTestDouble");
+        MOZ_ASSERT(0 && "branchTestDouble");
     }
 
     // Perform a type-test on a full Value loaded into a register.
@@ -1295,7 +1302,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         B(label, c);
     }
     void branchTestMagicValue(Condition cond, const ValueOperand &val, JSWhyMagic why, Label *label) {
-        JS_ASSERT(cond == Equal || cond == NotEqual);
+        MOZ_ASSERT(cond == Equal || cond == NotEqual);
         branchTestValue(cond, val, MagicValue(why), label);
     }
     Condition testMagic(Condition cond, const ValueOperand &src) {
@@ -1307,40 +1314,40 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         return testMagic(cond, src);
     }
     void branchTestValue(Condition cond, const ValueOperand &value, const Value &v, Label *label) {
-        JS_ASSERT(0 && "branchTestValue");
+        MOZ_ASSERT(0 && "branchTestValue");
     }
     void branchTestValue(Condition cond, const Address &valaddr, const ValueOperand &value,
                          Label *label)
     {
-        JS_ASSERT(0 && "branchTestValue");
+        MOZ_ASSERT(0 && "branchTestValue");
     }
 
     void compareDouble(DoubleCondition cond, FloatRegister lhs, FloatRegister rhs) {
         Fcmp(ARMFPRegister(lhs, 64), ARMFPRegister(rhs, 64));
     }
     void branchDouble(DoubleCondition cond, FloatRegister lhs, FloatRegister rhs, Label *label) {
-        JS_ASSERT(0 && "branchDouble");
+        MOZ_ASSERT(0 && "branchDouble");
     }
 
     void compareFloat(DoubleCondition cond, FloatRegister lhs, FloatRegister rhs) {
-        JS_ASSERT(0 && "compareFloat");
+        MOZ_ASSERT(0 && "compareFloat");
     }
     void branchFloat(DoubleCondition cond, FloatRegister lhs, FloatRegister rhs, Label *label) {
-        JS_ASSERT(0 && "branchFloat");
+        MOZ_ASSERT(0 && "branchFloat");
     }
 
     void branchNegativeZero(FloatRegister reg, Register scratch, Label *label) {
-        JS_ASSERT(0 && "branchNegativeZero");
+        MOZ_ASSERT(0 && "branchNegativeZero");
     }
     void branchNegativeZeroFloat32(FloatRegister reg, Register scratch, Label *label) {
-        JS_ASSERT(0 && "branchNegativeZeroFloat32");
+        MOZ_ASSERT(0 && "branchNegativeZeroFloat32");
     }
 
     void boxDouble(FloatRegister src, const ValueOperand &dest) {
-        JS_ASSERT(0 && "boxDouble");
+        MOZ_ASSERT(0 && "boxDouble");
     }
     void boxNonDouble(JSValueType type, Register src, const ValueOperand &dest) {
-        JS_ASSERT(0 && "boxNonDouble");
+        MOZ_ASSERT(0 && "boxNonDouble");
     }
 
     // Note that the |dest| register here may be ScratchReg, so we shouldn't use it.
@@ -1351,17 +1358,17 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         load32(src, dest);
     }
     void unboxDouble(const Address &src, FloatRegister dest) {
-        JS_ASSERT(0 && "unboxDouble");
+        MOZ_ASSERT(0 && "unboxDouble");
     }
     void unboxDouble(const ValueOperand &src, FloatRegister dest) {
-        JS_ASSERT(0 && "unboxDouble");
+        MOZ_ASSERT(0 && "unboxDouble");
     }
 
     void unboxArgObjMagic(const ValueOperand &src, Register dest) {
-        JS_ASSERT(0 && "unboxArgObjMagic");
+        MOZ_ASSERT(0 && "unboxArgObjMagic");
     }
     void unboxArgObjMagic(const Address &src, Register dest) {
-        JS_ASSERT(0 && "unboxArgObjMagic");
+        MOZ_ASSERT(0 && "unboxArgObjMagic");
     }
 
     void unboxBoolean(const ValueOperand &src, Register dest) {
@@ -1409,7 +1416,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
 
 
     void unboxValue(const ValueOperand &src, AnyRegister dest) {
-        JS_ASSERT(0 && "unboxValue");
+        MOZ_ASSERT(0 && "unboxValue");
     }
     void unboxString(const ValueOperand &operand, Register dest) {
         unboxNonDouble(operand, dest);
@@ -1434,70 +1441,70 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
 
     void loadConstantDouble(double d, FloatRegister dest) {
-        JS_ASSERT(0 && "loadConstantDouble");
+        MOZ_ASSERT(0 && "loadConstantDouble");
     }
     void loadConstantFloat32(float f, FloatRegister dest) {
-        JS_ASSERT(0 && "loadConstantFloat32");
+        MOZ_ASSERT(0 && "loadConstantFloat32");
     }
 
     // Register-based tests.
     Condition testUndefined(Condition cond, Register tag) {
-        JS_ASSERT(cond == Equal || cond == NotEqual);
+        MOZ_ASSERT(cond == Equal || cond == NotEqual);
         cmp32(tag, ImmTag(JSVAL_TAG_UNDEFINED));
         return cond;
     }
     Condition testInt32(Condition cond, Register tag) {
-        JS_ASSERT(cond == Equal || cond == NotEqual);
+        MOZ_ASSERT(cond == Equal || cond == NotEqual);
         cmp32(tag, ImmTag(JSVAL_TAG_INT32));
         return cond;
     }
     Condition testBoolean(Condition cond, Register tag) {
-        JS_ASSERT(cond == Equal || cond == NotEqual);
+        MOZ_ASSERT(cond == Equal || cond == NotEqual);
         cmp32(tag, ImmTag(JSVAL_TAG_BOOLEAN));
         return cond;
     }
     Condition testNull(Condition cond, Register tag) {
-        JS_ASSERT(cond == Equal || cond == NotEqual);
+        MOZ_ASSERT(cond == Equal || cond == NotEqual);
         cmp32(tag, ImmTag(JSVAL_TAG_NULL));
         return cond;
     }
     Condition testString(Condition cond, Register tag) {
-        JS_ASSERT(cond == Equal || cond == NotEqual);
+        MOZ_ASSERT(cond == Equal || cond == NotEqual);
         cmp32(tag, ImmTag(JSVAL_TAG_STRING));
         return cond;
     }
     Condition testSymbol(Condition cond, Register tag) {
-        JS_ASSERT(cond == Equal || cond == NotEqual);
+        MOZ_ASSERT(cond == Equal || cond == NotEqual);
         cmp32(tag, ImmTag(JSVAL_TAG_SYMBOL));
         return cond;
     }
     Condition testObject(Condition cond, Register tag) {
-        JS_ASSERT(cond == Equal || cond == NotEqual);
+        MOZ_ASSERT(cond == Equal || cond == NotEqual);
         cmp32(tag, ImmTag(JSVAL_TAG_OBJECT));
         return cond;
     }
     Condition testDouble(Condition cond, Register tag) {
-        JS_ASSERT(cond == Equal || cond == NotEqual);
+        MOZ_ASSERT(cond == Equal || cond == NotEqual);
         cmp32(tag, Imm32(JSVAL_TAG_MAX_DOUBLE));
         return (cond == Equal) ? BelowOrEqual : Above;
     }
     Condition testNumber(Condition cond, Register tag) {
-        JS_ASSERT(cond == Equal || cond == NotEqual);
+        MOZ_ASSERT(cond == Equal || cond == NotEqual);
         cmp32(tag, Imm32(JSVAL_UPPER_INCL_TAG_OF_NUMBER_SET));
         return (cond == Equal) ? BelowOrEqual : Above;
     }
     Condition testGCThing(Condition cond, Register tag) {
-        JS_ASSERT(cond == Equal || cond == NotEqual);
+        MOZ_ASSERT(cond == Equal || cond == NotEqual);
         cmp32(tag, Imm32(JSVAL_LOWER_INCL_TAG_OF_GCTHING_SET));
         return (cond == Equal) ? AboveOrEqual : Below;
     }
     Condition testMagic(Condition cond, Register tag) {
-        JS_ASSERT(cond == Equal || cond == NotEqual);
+        MOZ_ASSERT(cond == Equal || cond == NotEqual);
         cmp32(tag, ImmTag(JSVAL_TAG_MAGIC));
         return cond;
     }
     Condition testPrimitive(Condition cond, Register tag) {
-        JS_ASSERT(cond == Equal || cond == NotEqual);
+        MOZ_ASSERT(cond == Equal || cond == NotEqual);
         cmp32(tag, Imm32(JSVAL_UPPER_EXCL_TAG_OF_PRIMITIVE_SET));
         return (cond == Equal) ? Below : AboveOrEqual;
     }
@@ -1677,11 +1684,11 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
     template <typename T>
     void loadUnboxedValue(const T &src, MIRType type, AnyRegister dest) {
-        JS_ASSERT(0 && "loadUnboxedValue");
+        MOZ_ASSERT(0 && "loadUnboxedValue");
     }
 
     void loadInstructionPointerAfterCall(Register dest) {
-        JS_ASSERT(0 && "loadInstructionPointerAfterCall");
+        MOZ_ASSERT(0 && "loadInstructionPointerAfterCall");
     }
 
     // Emit a B that can be toggled to a CMP. See ToggleToJmp(), ToggleToCmp().
@@ -1692,14 +1699,14 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
 
     void writeDataRelocation(const Value &val) {
-        JS_ASSERT(0 && "writeDataRelocation");
+        MOZ_ASSERT(0 && "writeDataRelocation");
     }
     void writeDataRelocation(ImmGCPtr ptr) {
         if (ptr.value)
             tmpDataRelocations_.append(nextOffset());
     }
     void writePrebarrierOffset(CodeOffsetLabel label) {
-        JS_ASSERT(0 && "writePrebarrierOffset");
+        MOZ_ASSERT(0 && "writePrebarrierOffset");
     }
 
     void computeEffectiveAddress(const Address &address, Register dest) {
@@ -1727,7 +1734,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     // manually, however, if the stack alignment were to change, the macro
     // assembler should be notified before starting a call.
     void setupAlignedABICall(uint32_t args) {
-        JS_ASSERT(0 && "setupAlignedABICall");
+        MOZ_ASSERT(0 && "setupAlignedABICall");
     }
 
     // Sets up an ABI call for when the alignment is not known. This may need a
@@ -1752,11 +1759,12 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
   public:
     // Emits a call to a C/C++ function, resolving all argument moves.
     void callWithABI(void *fun, MoveOp::Type result = MoveOp::GENERAL);
+    void callWithABI(Register fun, MoveOp::Type result = MoveOp::GENERAL);
     void callWithABI(AsmJSImmPtr imm, MoveOp::Type result = MoveOp::GENERAL);
     void callWithABI(Address fun, MoveOp::Type result = MoveOp::GENERAL);
 
     CodeOffsetLabel labelForPatch() {
-        JS_ASSERT(0 && "labelForPatch");
+        MOZ_ASSERT(0 && "labelForPatch");
     }
 
     void handleFailureWithHandler(void *handler);
@@ -1769,59 +1777,59 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
 
     void callWithExitFrame(JitCode *target, Register dynStack) {
-        JS_ASSERT(0 && "callWithExitFrame");
+        MOZ_ASSERT(0 && "callWithExitFrame");
     }
 
     // FIXME: See CodeGeneratorX64 calls to noteAsmJSGlobalAccess.
     void patchAsmJSGlobalAccess(CodeOffsetLabel patchAt, uint8_t *code,
                                 uint8_t *globalData, unsigned globalDataOffset)
     {
-        JS_ASSERT(0 && "patchAsmJSGlobalAccess");
+        MOZ_ASSERT(0 && "patchAsmJSGlobalAccess");
     }
 
     void memIntToValue(Address Source, Address Dest) {
-        JS_ASSERT(0 && "memIntToValue");
+        MOZ_ASSERT(0 && "memIntToValue");
     }
 
 #ifdef JSGC_GENERATIONAL
     void branchPtrInNurseryRange(Condition cond, Register ptr, Register temp, Label *label) {
-        JS_ASSERT(0 && "branchPtrInNurseryRange");
+        MOZ_ASSERT(0 && "branchPtrInNurseryRange");
     }
     void branchValueIsNurseryObject(Condition cond, ValueOperand value, Register temp, Label *label) {
-        JS_ASSERT(0 && "branchValueIsNurseryObject");
+        MOZ_ASSERT(0 && "branchValueIsNurseryObject");
     }
 #endif
 
     // Builds an exit frame on the stack, with a return address to an internal
     // non-function. Returns offset to be passed to markSafepointAt().
     bool buildFakeExitFrame(Register scratch, uint32_t *offset) {
-        JS_ASSERT(0 && "buildFakeExitFrame");
+        MOZ_ASSERT(0 && "buildFakeExitFrame");
         return false;
     }
     void callWithExitFrame(JitCode *target) {
-        JS_ASSERT(0 && "callWithExitFrame");
+        MOZ_ASSERT(0 && "callWithExitFrame");
     }
 
     void callIon(Register callee) {
-        JS_ASSERT(0 && "callIon");
+        MOZ_ASSERT(0 && "callIon");
     }
 
     void appendCallSite(const CallSiteDesc &desc) {
-        JS_ASSERT(0 && "appendCallSite");
+        MOZ_ASSERT(0 && "appendCallSite");
     }
 
     void call(const CallSiteDesc &desc, Label *label) {
-        JS_ASSERT(0 && "call");
+        MOZ_ASSERT(0 && "call");
     }
     void call(const CallSiteDesc &desc, Register reg) {
-        JS_ASSERT(0 && "call");
+        MOZ_ASSERT(0 && "call");
     }
     void call(const CallSiteDesc &desc, AsmJSImmPtr imm) {
-        JS_ASSERT(0 && "call");
+        MOZ_ASSERT(0 && "call");
     }
 
     void call(AsmJSImmPtr imm) {
-        JS_ASSERT(0 && "call(AsmJSImmPtr)");
+        MOZ_ASSERT(0 && "call(AsmJSImmPtr)");
     }
 
     void call(Register target) {
@@ -1836,21 +1844,21 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         Bl(target);
     }
     void callExit(AsmJSImmPtr imm, uint32_t stackArgBytes) {
-        JS_ASSERT(0 && "callExit");
+        MOZ_ASSERT(0 && "callExit");
     }
 
     void callIonFromAsmJS(Register reg) {
-        JS_ASSERT(0 && "callIonFromAsmJS");
+        MOZ_ASSERT(0 && "callIonFromAsmJS");
     }
 
     // Emit a BLR or NOP instruction. ToggleCall can be used to patch
     // this instruction.
     CodeOffsetLabel toggledCall(JitCode *target, bool enabled) {
-        MOZ_ASSUME_UNREACHABLE("toggledCall()");
+        MOZ_CRASH("toggledCall()");
     }
 
     static size_t ToggledCallSize(uint8_t *code) {
-        JS_ASSERT(0 && "ToggledCallSize");
+        MOZ_ASSERT(0 && "ToggledCallSize");
     }
 
     void checkARMRegAlignment(const ARMRegister &reg) {
@@ -1876,7 +1884,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
 
     void abiret() {
-        JS_ASSERT(0 && "abiret");
+        MOZ_ASSERT(0 && "abiret");
     }
 
     void mulBy3(Register src, Register dest) {
@@ -1897,32 +1905,32 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         branch(cond, label);
     }
     void clampCheck(Register r, Label *handleNotAnInt) {
-        JS_ASSERT(0 && "clampCheck");
+        MOZ_ASSERT(0 && "clampCheck");
     }
 
     void memMove32(Address Source, Address Dest) {
-        JS_ASSERT(0 && "memMove32");
+        MOZ_ASSERT(0 && "memMove32");
     }
     void memMove64(Address Source, Address Dest) {
-        JS_ASSERT(0 && "memMove64");
+        MOZ_ASSERT(0 && "memMove64");
     }
 
     void lea(Operand addr, Register dest) {
-        JS_ASSERT(0 && "lea");
+        MOZ_ASSERT(0 && "lea");
     }
 
     void stackCheck(ImmWord limitAddr, Label *label) {
-        JS_ASSERT(0 && "stackCheck");
+        MOZ_ASSERT(0 && "stackCheck");
     }
     void clampIntToUint8(Register reg) {
-        JS_ASSERT(0 && "clampIntToUint8");
+        MOZ_ASSERT(0 && "clampIntToUint8");
     }
 
     void incrementInt32Value(const Address &addr) {
-        JS_ASSERT(0 && "IncrementInt32Value");
+        MOZ_ASSERT(0 && "IncrementInt32Value");
     }
     void inc64(AbsoluteAddress dest) {
-        JS_ASSERT(0 && "inc64");
+        MOZ_ASSERT(0 && "inc64");
     }
 
     void breakpoint();
@@ -1947,7 +1955,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
 
   protected:
     bool buildOOLFakeExitFrame(void *fakeReturnAddr) {
-        JS_ASSERT(0 && "buildOOLFakeExitFrame");
+        MOZ_ASSERT(0 && "buildOOLFakeExitFrame");
     }
 };
 

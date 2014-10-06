@@ -33,10 +33,38 @@ function log(msg) {
 function formatStackFrame(aFrame) {
   let functionName = aFrame.functionName || '<anonymous>';
   return '    at ' + functionName +
-         ' (' + aFrame.filename + ':' + aFrame.lineNumber + ')';
+         ' (' + aFrame.filename + ':' + aFrame.lineNumber +
+         ':' + aFrame.columnNumber + ')';
 }
 
-const gFactoryResetFile = "/persist/__post_reset_cmd__";
+function ConsoleMessage(aMsg, aLevel) {
+  this.timeStamp = Date.now();
+  this.msg = aMsg;
+
+  switch (aLevel) {
+    case 'error':
+    case 'assert':
+      this.logLevel = Ci.nsIConsoleMessage.error;
+      break;
+    case 'warn':
+      this.logLevel = Ci.nsIConsoleMessage.warn;
+      break;
+    case 'log':
+    case 'info':
+      this.logLevel = Ci.nsIConsoleMessage.info;
+      break;
+    default:
+      this.logLevel = Ci.nsIConsoleMessage.debug;
+      break;
+  }
+}
+
+ConsoleMessage.prototype = {
+  QueryInterface: XPCOMUtils.generateQI([Ci.nsIConsoleMessage]),
+  toString: function() { return this.msg; }
+};
+
+const gFactoryResetFile = "__post_reset_cmd__";
 
 function ProcessGlobal() {}
 ProcessGlobal.prototype = {
@@ -76,20 +104,28 @@ ProcessGlobal.prototype = {
   cleanupAfterFactoryReset: function() {
     log("cleanupAfterWipe start");
 
+    Cu.import("resource://gre/modules/osfile.jsm");
+    let dir = Cc["@mozilla.org/file/local;1"].createInstance(Ci.nsIFile);
+    dir.initWithPath("/persist");
+    var postResetFile = dir.exists() ?
+                        OS.Path.join("/persist", gFactoryResetFile):
+                        OS.Path.join("/cache", gFactoryResetFile);
     let file = Cc["@mozilla.org/file/local;1"].createInstance(Ci.nsIFile);
-    file.initWithPath(gFactoryResetFile);
+    file.initWithPath(postResetFile);
     if (!file.exists()) {
       debug("Nothing to wipe.")
       return;
     }
 
-    Cu.import("resource://gre/modules/osfile.jsm");
-    let promise = OS.File.read(gFactoryResetFile);
+    let promise = OS.File.read(postResetFile);
     promise.then(
       (array) => {
         file.remove(false);
         let decoder = new TextDecoder();
         this.processWipeFile(decoder.decode(array));
+      },
+      function onError(error) {
+        debug("Error: " + error);
       }
     );
 
@@ -131,8 +167,8 @@ ProcessGlobal.prototype = {
         args.push('\n' + stackTrace);
       }
 
-      let prefix = 'Content JS ' + message.level.toUpperCase() + ': ';
-      Services.console.logStringMessage(prefix + Array.join(args, ' '));
+      let msg = 'Content JS ' + message.level.toUpperCase() + ': ' + Array.join(args, ' ');
+      Services.console.logMessage(new ConsoleMessage(msg, message.level));
       break;
     }
     }

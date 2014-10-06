@@ -20,7 +20,6 @@
 #include "mozilla/layers/PLayerChild.h"  // for PLayerChild
 #include "mozilla/layers/LayerTransactionChild.h"
 #include "mozilla/layers/TextureClientPool.h" // for TextureClientPool
-#include "mozilla/layers/SimpleTextureClientPool.h" // for SimpleTextureClientPool
 #include "ClientReadbackLayer.h"        // for ClientReadbackLayer
 #include "nsAString.h"
 #include "nsIWidget.h"                  // for nsIWidget
@@ -29,6 +28,7 @@
 #include "nsXULAppAPI.h"                // for XRE_GetProcessType, etc
 #include "TiledLayerBuffer.h"
 #include "mozilla/dom/WindowBinding.h"  // for Overfill Callback
+#include "FrameLayerBuilder.h"          // for FrameLayerbuilder
 #include "gfxPrefs.h"
 #ifdef MOZ_WIDGET_ANDROID
 #include "AndroidBridge.h"
@@ -203,7 +203,7 @@ ClientLayerManager::BeginTransactionWithTarget(gfxContext* aTarget)
   mForwarder->BeginTransaction(targetBounds, mTargetRotation, orientation);
 
   // If we're drawing on behalf of a context with async pan/zoom
-  // enabled, then the entire buffer of thebes layers might be
+  // enabled, then the entire buffer of painted layers might be
   // composited (including resampling) asynchronously before we get
   // a chance to repaint, so we have to ensure that it's all valid
   // and not rotated.
@@ -233,7 +233,7 @@ ClientLayerManager::BeginTransaction()
 }
 
 bool
-ClientLayerManager::EndTransactionInternal(DrawThebesLayerCallback aCallback,
+ClientLayerManager::EndTransactionInternal(DrawPaintedLayerCallback aCallback,
                                            void* aCallbackData,
                                            EndTransactionFlags)
 {
@@ -257,8 +257,8 @@ ClientLayerManager::EndTransactionInternal(DrawThebesLayerCallback aCallback,
   // properties.
   GetRoot()->ApplyPendingUpdatesToSubtree();
     
-  mThebesLayerCallback = aCallback;
-  mThebesLayerCallbackData = aCallbackData;
+  mPaintedLayerCallback = aCallback;
+  mPaintedLayerCallbackData = aCallbackData;
 
   GetRoot()->ComputeEffectiveTransforms(Matrix4x4());
 
@@ -267,8 +267,8 @@ ClientLayerManager::EndTransactionInternal(DrawThebesLayerCallback aCallback,
     GetRoot()->Mutated();
   }
   
-  mThebesLayerCallback = nullptr;
-  mThebesLayerCallbackData = nullptr;
+  mPaintedLayerCallback = nullptr;
+  mPaintedLayerCallbackData = nullptr;
 
   // Go back to the construction phase if the transaction isn't complete.
   // Layout will update the layer tree and call EndTransaction().
@@ -277,11 +277,15 @@ ClientLayerManager::EndTransactionInternal(DrawThebesLayerCallback aCallback,
   NS_ASSERTION(!aCallback || !mTransactionIncomplete,
                "If callback is not null, transaction must be complete");
 
+  if (gfxPlatform::GetPlatform()->DidRenderingDeviceReset()) {
+    FrameLayerBuilder::InvalidateAllLayers(this);
+  }
+
   return !mTransactionIncomplete;
 }
 
 void
-ClientLayerManager::EndTransaction(DrawThebesLayerCallback aCallback,
+ClientLayerManager::EndTransaction(DrawPaintedLayerCallback aCallback,
                                    void* aCallbackData,
                                    EndTransactionFlags aFlags)
 {
@@ -439,7 +443,17 @@ ClientLayerManager::MakeSnapshotIfRequired()
   }
   if (mWidget) {
     if (CompositorChild* remoteRenderer = GetRemoteRenderer()) {
+      // The compositor doesn't draw to a different sized surface
+      // when there's a rotation. Instead we rotate the result
+      // when drawing into dt
+      nsIntRect outerBounds;
+      mWidget->GetBounds(outerBounds);
+
       nsIntRect bounds = ToOutsideIntRect(mShadowTarget->GetClipExtents());
+      if (mTargetRotation) {
+        bounds = RotateRect(bounds, outerBounds, mTargetRotation);
+      }
+
       SurfaceDescriptor inSnapshot;
       if (!bounds.IsEmpty() &&
           mForwarder->AllocSurfaceDescriptor(bounds.Size().ToIntSize(),
@@ -448,11 +462,18 @@ ClientLayerManager::MakeSnapshotIfRequired()
           remoteRenderer->SendMakeSnapshot(inSnapshot, bounds)) {
         RefPtr<DataSourceSurface> surf = GetSurfaceForDescriptor(inSnapshot);
         DrawTarget* dt = mShadowTarget->GetDrawTarget();
+
         Rect dstRect(bounds.x, bounds.y, bounds.width, bounds.height);
         Rect srcRect(0, 0, bounds.width, bounds.height);
+
+        gfx::Matrix rotate = ComputeTransformForUnRotation(outerBounds, mTargetRotation);
+
+        gfx::Matrix oldMatrix = dt->GetTransform();
+        dt->SetTransform(oldMatrix * rotate);
         dt->DrawSurface(surf, dstRect, srcRect,
                         DrawSurfaceOptions(),
                         DrawOptions(1.0f, CompositionOp::OP_OVER));
+        dt->SetTransform(oldMatrix);
       }
       mForwarder->DestroySharedSurface(&inSnapshot);
     }
@@ -645,23 +666,6 @@ ClientLayerManager::GetTexturePool(SurfaceFormat aFormat)
                             mForwarder));
 
   return mTexturePools.LastElement();
-}
-
-SimpleTextureClientPool*
-ClientLayerManager::GetSimpleTileTexturePool(SurfaceFormat aFormat)
-{
-  int index = (int) aFormat;
-  mSimpleTilePools.EnsureLengthAtLeast(index+1);
-
-  if (mSimpleTilePools[index].get() == nullptr) {
-    mSimpleTilePools[index] = new SimpleTextureClientPool(aFormat, IntSize(gfxPrefs::LayersTileWidth(),
-                                                                           gfxPrefs::LayersTileHeight()),
-                                                          gfxPrefs::LayersTileMaxPoolSize(),
-                                                          gfxPrefs::LayersTileShrinkPoolTimeout(),
-                                                          mForwarder);
-  }
-
-  return mSimpleTilePools[index];
 }
 
 void

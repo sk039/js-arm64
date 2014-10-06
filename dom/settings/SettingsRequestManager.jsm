@@ -666,12 +666,13 @@ let SettingsRequestManager = {
   sendSettingsChange: function(aKey, aValue, aIsServiceLock) {
     this.broadcastMessage("Settings:Change:Return:OK",
       { key: aKey, value: aValue });
-    Services.obs.notifyObservers(this, kMozSettingsChangedObserverTopic,
-      JSON.stringify({
-        key: aKey,
-        value: aValue,
-        isInternalChange: aIsServiceLock
-      }));
+    var setting = {
+      key: aKey,
+      value: aValue,
+      isInternalChange: aIsServiceLock
+    };
+    setting.wrappedJSObject = setting;
+    Services.obs.notifyObservers(setting, kMozSettingsChangedObserverTopic, "");
   },
 
   broadcastMessage: function broadcastMessage(aMsgName, aContent) {
@@ -682,7 +683,11 @@ let SettingsRequestManager = {
         if (DEBUG) debug("Cannot find principal for message manager to check permissions");
       }
       else if (SettingsPermissions.hasReadPermission(principal, aContent.key)) {
-        msgMgr.sendAsyncMessage(aMsgName, aContent);
+        try {
+          msgMgr.sendAsyncMessage(aMsgName, aContent);
+        } catch (e) {
+          if (DEBUG) debug("Failed sending message: " + aMsgName);
+        }
       }
     }.bind(this));
     if (DEBUG) debug("Finished Broadcasting");

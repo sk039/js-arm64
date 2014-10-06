@@ -36,7 +36,7 @@ EXPORTS.mozilla.dom.workers.bindings += [
     'XMLHttpRequestUpload.h',
 ]
 
-SOURCES += [
+UNIFIED_SOURCES += [
     'ChromeWorkerScope.cpp',
     'DataStore.cpp',
     'DataStoreCursor.cpp',
@@ -86,6 +86,7 @@ TEST_DIRS += [
 ]
 
 MOCHITEST_MANIFESTS += [
+    'test/fetch/mochitest.ini',
     'test/mochitest.ini',
     'test/serviceworkers/mochitest.ini',
 ]
