@@ -40,28 +40,33 @@ CodeGeneratorARM64::CodeGeneratorARM64(MIRGenerator *gen, LIRGraph *graph, Macro
 bool
 CodeGeneratorARM64::generatePrologue()
 {
-    JS_ASSERT(0 && "CodeGeneratorARM64::generatePrologue");
+    masm.push(lr);
     return false;
 }
 
 bool
 CodeGeneratorARM64::generateAsmJSPrologue(Label *stackOverflowLabel)
 {
-    JS_ASSERT(0 && "CodeGeneratorARM64::generateAsmJSPrologue");
+    masm.push(lr);
     return false;
 }
 
 bool
 CodeGeneratorARM64::generateEpilogue()
 {
-    JS_ASSERT(0 && "CodeGeneratorARM64::generateEpilogue");
+    masm.pop(lr);
     return false;
 }
 
 void
 CodeGeneratorARM64::emitBranch(Assembler::Condition cond, MBasicBlock *mirTrue, MBasicBlock *mirFalse)
 {
-    JS_ASSERT(0 && "CodeGeneratorARM64::emitBranch");
+    if (isNextBlock(mirFalse->lir())) {
+        jumpToBlock(mirTrue, cond);
+    } else {
+        jumpToBlock(mirFalse, Assembler::InvertCondition(cond));
+        jumpToBlock(mirTrue);
+    }
 }
 
 
@@ -75,21 +80,50 @@ OutOfLineBailout::accept(CodeGeneratorARM64 *codegen)
 bool
 CodeGeneratorARM64::visitTestIAndBranch(LTestIAndBranch *test)
 {
-    JS_ASSERT(0 && "CodeGeneratorARM64::visitTestIAndBranch");
-    return false;
+    const LAllocation *opd = test->getOperand(0);
+    MBasicBlock *ifTrue = test->ifTrue();
+    MBasicBlock *ifFalse = test->ifFalse();
+
+    // Test the operand
+    masm.cmp32(ToRegister(opd), Imm32(0));
+
+    if (isNextBlock(ifFalse->lir())) {
+        jumpToBlock(ifTrue, Assembler::NonZero);
+    } else if (isNextBlock(ifTrue->lir())) {
+        jumpToBlock(ifFalse, Assembler::Zero);
+    } else {
+        jumpToBlock(ifFalse, Assembler::Zero);
+        jumpToBlock(ifTrue);
+    }
+    return true;
 }
 
 bool
 CodeGeneratorARM64::visitCompare(LCompare *comp)
 {
-    JS_ASSERT(0 && "CodeGeneratorARM64::visitCompare");
-    return false;
+    Assembler::Condition cond = JSOpToCondition(comp->mir()->compareType(), comp->jsop());
+    const LAllocation *left = comp->getOperand(0);
+    const LAllocation *right = comp->getOperand(1);
+    const LDefinition *def = comp->getDef(0);
+
+    if (right->isConstant())
+        masm.cmp32(ToRegister(left), Imm32(ToInt32(right)));
+    else
+        masm.cmp32(ToRegister(left), ToRegister(right));
+    masm.emitSet(cond, ToRegister(def));
+    return true;
 }
 
 bool
 CodeGeneratorARM64::visitCompareAndBranch(LCompareAndBranch *comp)
 {
-    JS_ASSERT(0 && "CodeGeneratorARM64::visitCompareAndBranch");
+    Assembler::Condition cond = JSOpToCondition(comp->cmpMir()->compareType(), comp->jsop());
+    if (comp->right()->isConstant())
+        masm.cmp32(ToRegister(comp->left()), Imm32(ToInt32(comp->right())));
+    else
+        masm.cmp32(ToRegister(comp->left()), ToRegister(comp->right()));
+    emitBranch(cond, comp->ifTrue(), comp->ifFalse());
+
     return false;
 }
 
@@ -138,50 +172,119 @@ CodeGeneratorARM64::visitMinMaxD(LMinMaxD *ins)
 bool
 CodeGeneratorARM64::visitAbsD(LAbsD *ins)
 {
-    JS_ASSERT(0 && "CodeGeneratorARM64::visitAbsD");
-    return false;
+    ARMFPRegister input(ToFloatRegister(ins->input()), 64);
+    masm.Fabs(input, input);
+    return true;
 }
 
 bool
 CodeGeneratorARM64::visitAbsF(LAbsF *ins)
 {
-    JS_ASSERT(0 && "CodeGeneratorARM64::visitAbsF");
-    return false;
+    ARMFPRegister input(ToFloatRegister(ins->input()), 32);
+    masm.Fabs(input, input);
+    return true;
 }
 
 bool
 CodeGeneratorARM64::visitSqrtD(LSqrtD *ins)
 {
-    JS_ASSERT(0 && "CodeGeneratorARM64::visitSqrtD");
-    return false;
+    ARMFPRegister input(ToFloatRegister(ins->input()), 64);
+    ARMFPRegister output(ToFloatRegister(ins->output()), 64);
+    masm.Fsqrt(output, input);
+    return true;
 }
 
 bool
 CodeGeneratorARM64::visitSqrtF(LSqrtF *ins)
 {
-    JS_ASSERT(0 && "CodeGeneratorARM64::visitSqrtF");
-    return false;
+    ARMFPRegister input(ToFloatRegister(ins->input()), 32);
+    ARMFPRegister output(ToFloatRegister(ins->output()), 32);
+    masm.Fsqrt(output, input);
+    return true;
 }
 
+template<typename T>
+ARMRegister toWRegister(const T *a) {
+    return ARMRegister(ToRegister(a), 32);
+}
+template<typename T>
+ARMRegister toXRegister(const T *a) {
+    return ARMRegister(ToRegister(a), 64);
+}
+
+js::jit::Operand toWOperand(const LAllocation *a)
+{
+    if (a->isConstant())
+        return js::jit::Operand(ToInt32(a));
+    return js::jit::Operand(toWRegister(a));
+}
 bool
 CodeGeneratorARM64::visitAddI(LAddI *ins)
 {
-    JS_ASSERT(0 && "CodeGeneratorARM64::visitAddI");
-    return false;
+    const LAllocation *lhs = ins->getOperand(0);
+    const LAllocation *rhs = ins->getOperand(1);
+    const LDefinition *dest = ins->getDef(0);
+    if (ins->snapshot()) {
+        masm.Adds(toWRegister(dest), toWRegister(lhs), toWOperand(rhs));
+        if (!bailoutIf(Assembler::Overflow, ins->snapshot()))
+            return false;
+
+    } else {
+        masm.Add(toWRegister(dest), toWRegister(lhs), toWOperand(rhs));
+    }
+    return true;
 }
 
 bool
 CodeGeneratorARM64::visitSubI(LSubI *ins)
 {
-    JS_ASSERT(0 && "CodeGeneratorARM64::visitSubI");
-    return false;
+    const LAllocation *lhs = ins->getOperand(0);
+    const LAllocation *rhs = ins->getOperand(1);
+    const LDefinition *dest = ins->getDef(0);
+    if (ins->snapshot()) {
+        masm.Subs(toWRegister(dest), toWRegister(lhs), toWOperand(rhs));
+        if (!bailoutIf(Assembler::Overflow, ins->snapshot()))
+            return false;
+
+    } else {
+        masm.Sub(toWRegister(dest), toWRegister(lhs), toWOperand(rhs));
+    }
+    return true;
 }
 
 bool
 CodeGeneratorARM64::visitMulI(LMulI *ins)
 {
-    JS_ASSERT(0 && "CodeGeneratorARM64::visitMulI");
-    return false;
+    const LAllocation *lhs = ins->getOperand(0);
+    const LAllocation *rhs = ins->getOperand(1);
+    const LDefinition *dest = ins->getDef(0);
+    Register rhs_reg;
+    MMul *mul = ins->mir();
+    if (rhs->isConstant()) {
+        int32_t constant = ToInt32(rhs);
+        if (mul->canBeNegativeZero() && constant <= 0) {
+            Assembler::Condition bailoutCond = (constant == 0) ? Assembler::LessThan : Assembler::Equal;
+            // N.B. A cbz/cbnz can be used here , if we're ok ith an OOL bailout. I think this is fine.
+            masm.Cmp(toWRegister(lhs), Operand(0));
+            if (!bailoutIf(bailoutCond, ins->snapshot()))
+                return false;
+            masm.move32(Imm32(constant), ScratchReg);
+            rhs_reg = ScratchReg;
+        }
+
+    } else {
+        rhs_reg = ToRegister(rhs);
+    }
+    if (mul->canOverflow()) {
+        MOZ_ASSERT(0 && "TODO: Handle overflow");
+        // I should /really/ be able to just bail-out directly from the macro assembler.
+        // this song-and-dance with condition codes seems unweildy in this case.
+        masm.mul32(ToRegister(lhs), rhs_reg, ToRegister(dest), nullptr, nullptr);
+    } else {
+        masm.mul32(ToRegister(lhs), rhs_reg, ToRegister(dest), nullptr, nullptr);
+    }
+    return true;
+
 }
 
 bool
@@ -196,13 +299,6 @@ bool
 CodeGeneratorARM64::visitDivI(LDivI *ins)
 {
     JS_ASSERT(0 && "CodeGeneratorARM64::visitDivI");
-    return false;
-}
-
-bool
-CodeGeneratorARM64::visitSoftDivI(LSoftDivI *ins)
-{
-    JS_ASSERT(0 && "CodeGeneratorARM64::visitSoftDivI");
     return false;
 }
 
@@ -229,13 +325,6 @@ CodeGeneratorARM64::visitModI(LModI *ins)
 }
 
 bool
-CodeGeneratorARM64::visitSoftModI(LSoftModI *ins)
-{
-    JS_ASSERT(0 && "CodeGeneratorARM64::visitSoftModI");
-    return false;
-}
-
-bool
 CodeGeneratorARM64::visitModPowTwoI(LModPowTwoI *ins)
 {
     JS_ASSERT(0 && "CodeGeneratorARM64::visitModPowTwoI");
@@ -252,15 +341,36 @@ CodeGeneratorARM64::visitModMaskI(LModMaskI *ins)
 bool
 CodeGeneratorARM64::visitBitNotI(LBitNotI *ins)
 {
-    JS_ASSERT(0 && "CodeGeneratorARM64::visitBitNotI");
-    return false;
+    const LAllocation *input = ins->getOperand(0);
+    const LDefinition *output = ins->getDef(0);
+    masm.Mvn(toWRegister(output), toWOperand(input));
+    return true;
 }
 
 bool
 CodeGeneratorARM64::visitBitOpI(LBitOpI *ins)
 {
-    JS_ASSERT(0 && "CodeGeneratorARM64::visitBitOpI");
-    return false;
+    const LAllocation *lhs = ins->getOperand(0);
+    const LAllocation *rhs = ins->getOperand(1);
+    const LDefinition *dest = ins->getDef(0);
+    const ARMRegister lhsreg = toWRegister(lhs);
+    const js::jit::Operand rhsop = toWOperand(rhs);
+    const ARMRegister destreg = toWRegister(dest);
+    switch (ins->bitop()) {
+      case JSOP_BITOR:
+        masm.Orr(destreg, lhsreg, rhsop);
+        break;
+      case JSOP_BITXOR:
+        masm.Eor(destreg, lhsreg, rhsop);
+        break;
+      case JSOP_BITAND:
+        masm.And(destreg, lhsreg, rhsop);
+        break;
+      default:
+        MOZ_CRASH("unexpected binary opcode");
+    }
+
+    return true;
 }
 
 bool

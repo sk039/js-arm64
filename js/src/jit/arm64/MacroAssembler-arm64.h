@@ -1316,7 +1316,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
 
     void compareDouble(DoubleCondition cond, FloatRegister lhs, FloatRegister rhs) {
-        JS_ASSERT(0 && "compareDouble");
+        Fcmp(ARMFPRegister(lhs, 64), ARMFPRegister(rhs, 64));
     }
     void branchDouble(DoubleCondition cond, FloatRegister lhs, FloatRegister rhs, Label *label) {
         JS_ASSERT(0 && "branchDouble");
