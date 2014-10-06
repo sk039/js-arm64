@@ -425,6 +425,40 @@ MacroAssemblerCompat::callWithABI(Address fun, MoveOp::Type result)
     callWithABIPost(stackAdjust, result);
 }
 
+#ifdef JSGC_GENERATIONAL
+void MacroAssemblerCompat::branchPtrInNurseryRange(Condition cond, Register ptr, Register temp,
+                                                   Label *label)
+{
+    MOZ_ASSERT(cond == Assembler::Equal || cond == Assembler::NotEqual);
+    MOZ_ASSERT(ptr != temp);
+    MOZ_ASSERT(ptr != ScratchReg);
+
+    const Nursery &nursery = GetIonContext()->runtime->gcNursery();
+    movePtr(ImmWord(-ptrdiff_t(nursery.start())), ScratchReg);
+    addPtr(ptr, ScratchReg);
+    branchPtr(cond == Assembler::Equal ? Assembler::Below : Assembler::AboveOrEqual,
+              ScratchReg, ImmWord(nursery.nurserySize()), label);
+}
+#endif // JSGC_GENERATIONAL
+
+#ifdef JSGC_GENERATIONAL
+void
+MacroAssemblerCompat::branchValueIsNurseryObject(Condition cond, ValueOperand value, Register temp,
+                                                 Label *label)
+{
+    MOZ_ASSERT(cond == Assembler::Equal || cond == Assembler::NotEqual);
+
+    // 'Value' representing the start of the nursery tagged as a JSObject
+    const Nursery &nursery = GetIonContext()->runtime->gcNursery();
+    Value start = ObjectValue(*reinterpret_cast<JSObject *>(nursery.start()));
+
+    movePtr(ImmWord(-ptrdiff_t(start.asRawBits())), ScratchReg);
+    addPtr(value.valueReg(), ScratchReg);
+    branchPtr(cond == Assembler::Equal ? Assembler::Below : Assembler::AboveOrEqual,
+              ScratchReg, ImmWord(nursery.nurserySize()), label);
+}
+#endif // JSGC_GENERATIONAL
+
 // FIXME: Probably just call Brk() in the header.
 void
 MacroAssemblerCompat::breakpoint()

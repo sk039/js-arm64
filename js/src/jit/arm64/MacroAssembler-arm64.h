@@ -1792,12 +1792,8 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
 
 #ifdef JSGC_GENERATIONAL
-    void branchPtrInNurseryRange(Condition cond, Register ptr, Register temp, Label *label) {
-        MOZ_ASSERT(0 && "branchPtrInNurseryRange");
-    }
-    void branchValueIsNurseryObject(Condition cond, ValueOperand value, Register temp, Label *label) {
-        MOZ_ASSERT(0 && "branchValueIsNurseryObject");
-    }
+    void branchPtrInNurseryRange(Condition cond, Register ptr, Register temp, Label *label);
+    void branchValueIsNurseryObject(Condition cond, ValueOperand value, Register temp, Label *label);
 #endif
 
     // Builds an exit frame on the stack, with a return address to an internal
