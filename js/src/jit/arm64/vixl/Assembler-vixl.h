@@ -525,6 +525,12 @@ class Operand
         return reg_;
     }
 
+    CPURegister maybeReg() const {
+        if (IsShiftedRegister() || IsExtendedRegister())
+            return reg_;
+        return NoCPUReg;
+    }
+
     Shift shift() const {
         VIXL_ASSERT(IsShiftedRegister());
         return shift_;

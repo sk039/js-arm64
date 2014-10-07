@@ -180,6 +180,10 @@ MacroAssemblerVIXL::LogicalMacro(const ARMRegister& rd, const ARMRegister& rn,
             ARMRegister temp = temps.AcquireSameSizeAs(rn);
             Operand imm_operand = MoveImmediateForShiftedOp(temp, immediate);
 
+            // VIXL can acquire temp registers. Assert that the caller is aware.
+            VIXL_ASSERT(!temp.Is(rd) && !temp.Is(rn));
+            VIXL_ASSERT(!temp.Is(operand.maybeReg()));
+
             if (rd.Is(sp)) {
                 // If rd is the stack pointer we cannot use it as the destination
                 // register so we use the temp register as an intermediate again.
@@ -200,6 +204,11 @@ MacroAssemblerVIXL::LogicalMacro(const ARMRegister& rd, const ARMRegister& rn,
  
         temps.Exclude(operand.reg());
         ARMRegister temp = temps.AcquireSameSizeAs(rn);
+
+        // VIXL can acquire temp registers. Assert that the caller is aware.
+        VIXL_ASSERT(!temp.Is(rd) && !temp.Is(rn));
+        VIXL_ASSERT(!temp.Is(operand.maybeReg()));
+
         EmitExtendShift(temp, operand.reg(), operand.extend(),
                         operand.shift_amount());
         Logical(rd, rn, Operand(temp), op);
@@ -253,6 +262,10 @@ MacroAssemblerVIXL::Mvn(const ARMRegister& rd, const Operand& operand)
         // Emit two instructions for the extend case. This differs from Mov, as
         // the extend and invert can't be achieved in one instruction.
         ARMRegister temp = temps.AcquireSameSizeAs(rd);
+
+        // VIXL can acquire temp registers. Assert that the caller is aware.
+        VIXL_ASSERT(!temp.Is(rd) && !temp.Is(operand.maybeReg()));
+
         EmitExtendShift(temp, operand.reg(), operand.extend(), operand.shift_amount());
         mvn(rd, Operand(temp));
     } else {
@@ -401,6 +414,8 @@ MacroAssemblerVIXL::ConditionalCompareMacro(const ARMRegister& rn, const Operand
         // The operand isn't directly supported by the instruction: perform the
         // operation on a temporary register.
         ARMRegister temp = temps.AcquireSameSizeAs(rn);
+        VIXL_ASSERT(!temp.Is(rn) && !temp.Is(operand.maybeReg()));
+
         Mov(temp, operand);
         ConditionalCompare(rn, temp, nzcv, cond, op);
     }
@@ -427,6 +442,9 @@ MacroAssemblerVIXL::Csel(const ARMRegister& rd, const ARMRegister& rn,
         } else {
             UseScratchRegisterScope temps(this);
             ARMRegister temp = temps.AcquireSameSizeAs(rn);
+            VIXL_ASSERT(!temp.Is(rd) && !temp.Is(rn));
+            VIXL_ASSERT(!temp.Is(operand.maybeReg()));
+
             Mov(temp, operand.immediate());
             csel(rd, rn, temp, cond);
         }
@@ -437,6 +455,9 @@ MacroAssemblerVIXL::Csel(const ARMRegister& rd, const ARMRegister& rn,
         // All other arguments.
         UseScratchRegisterScope temps(this);
         ARMRegister temp = temps.AcquireSameSizeAs(rn);
+        VIXL_ASSERT(!temp.Is(rd) && !temp.Is(rn));
+        VIXL_ASSERT(!temp.Is(operand.maybeReg()));
+
         Mov(temp, operand);
         csel(rd, rn, temp, cond);
     }
@@ -495,9 +516,11 @@ MacroAssemblerVIXL::Fcmp(const ARMFPRegister& fn, double value)
 {
     if (value != 0.0) {
         UseScratchRegisterScope temps(this);
-        ARMFPRegister tmp = temps.AcquireSameSizeAs(fn);
-        Fmov(tmp, value);
-        fcmp(fn, tmp);
+        ARMFPRegister temp = temps.AcquireSameSizeAs(fn);
+        VIXL_ASSERT(!temp.Is(fn));
+
+        Fmov(temp, value);
+        fcmp(fn, temp);
     } else {
         fcmp(fn, value);
     }
@@ -631,6 +654,11 @@ MacroAssemblerVIXL::AddSubMacro(const ARMRegister& rd, const ARMRegister& rn,
     {
         UseScratchRegisterScope temps(this);
         ARMRegister temp = temps.AcquireSameSizeAs(rn);
+
+        // VIXL can acquire temp registers. Assert that the caller is aware.
+        VIXL_ASSERT(!temp.Is(rd) && !temp.Is(rn));
+        VIXL_ASSERT(!temp.Is(operand.maybeReg()));
+
         if (operand.IsImmediate()) {
             Operand imm_operand = MoveImmediateForShiftedOp(temp, operand.immediate());
             AddSub(rd, rn, imm_operand, S, op);
@@ -691,6 +719,8 @@ MacroAssemblerVIXL::AddSubWithCarryMacro(const ARMRegister& rd, const ARMRegiste
     if (operand.IsImmediate() || (operand.IsShiftedRegister() && (operand.shift() == ROR))) {
         // Add/sub with carry (immediate or ROR shifted register.)
         ARMRegister temp = temps.AcquireSameSizeAs(rn);
+        VIXL_ASSERT(!temp.Is(rd) && !temp.Is(rn) && !temp.Is(operand.maybeReg()));
+
         Mov(temp, operand);
         AddSubWithCarry(rd, rn, Operand(temp), S, op);
     } else if (operand.IsShiftedRegister() && (operand.shift_amount() != 0)) {
@@ -699,8 +729,11 @@ MacroAssemblerVIXL::AddSubWithCarryMacro(const ARMRegister& rd, const ARMRegiste
         VIXL_ASSERT(operand.shift() != ROR);
         VIXL_ASSERT(is_uintn(rd.size() == kXRegSize ? kXRegSizeLog2 : kWRegSizeLog2,
                         operand.shift_amount()));
+
         temps.Exclude(operand.reg());
         ARMRegister temp = temps.AcquireSameSizeAs(rn);
+        VIXL_ASSERT(!temp.Is(rd) && !temp.Is(rn) && !temp.Is(operand.maybeReg()));
+
         EmitShift(temp, operand.reg(), operand.shift(), operand.shift_amount());
         AddSubWithCarry(rd, rn, Operand(temp), S, op);
     } else if (operand.IsExtendedRegister()) {
@@ -711,8 +744,11 @@ MacroAssemblerVIXL::AddSubWithCarryMacro(const ARMRegister& rd, const ARMRegiste
         VIXL_ASSERT(operand.shift_amount() <= 4);
         VIXL_ASSERT(operand.reg().Is64Bits() ||
             ((operand.extend() != UXTX) && (operand.extend() != SXTX)));
+
         temps.Exclude(operand.reg());
         ARMRegister temp = temps.AcquireSameSizeAs(rn);
+        VIXL_ASSERT(!temp.Is(rd) && !temp.Is(rn) && !temp.Is(operand.maybeReg()));
+
         EmitExtendShift(temp, operand.reg(), operand.extend(), operand.shift_amount());
         AddSubWithCarry(rd, rn, Operand(temp), S, op);
     } else {
@@ -742,6 +778,9 @@ MacroAssemblerVIXL::LoadStoreMacro(const CPURegister& rt, const MemOperand& addr
         // addressing modes.
         UseScratchRegisterScope temps(this);
         ARMRegister temp = temps.AcquireSameSizeAs(addr.base());
+        VIXL_ASSERT(!temp.Is(rt));
+        VIXL_ASSERT(!temp.Is(addr.base()) && !temp.Is(addr.regoffset()));
+
         Mov(temp, addr.offset());
         LoadStore(rt, MemOperand(addr.base(), temp), op);
     } else if (addr.IsPostIndex() && !IsImmLSUnscaled(offset)) {
