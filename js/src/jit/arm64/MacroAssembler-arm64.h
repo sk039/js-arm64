@@ -1514,90 +1514,90 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
 
     // ValueOperand-based tests.
     Condition testInt32(Condition cond, const ValueOperand &value) {
-        splitTag(value, ScratchReg);
-        return testInt32(cond, ScratchReg);
+        splitTag(value, ScratchReg2);
+        return testInt32(cond, ScratchReg2);
     }
     Condition testBoolean(Condition cond, const ValueOperand &value) {
-        splitTag(value, ScratchReg);
-        return testBoolean(cond, ScratchReg);
+        splitTag(value, ScratchReg2);
+        return testBoolean(cond, ScratchReg2);
     }
     Condition testDouble(Condition cond, const ValueOperand &value) {
-        splitTag(value, ScratchReg);
-        return testDouble(cond, ScratchReg);
+        splitTag(value, ScratchReg2);
+        return testDouble(cond, ScratchReg2);
     }
     Condition testNull(Condition cond, const ValueOperand &value) {
-        splitTag(value, ScratchReg);
-        return testNull(cond, ScratchReg);
+        splitTag(value, ScratchReg2);
+        return testNull(cond, ScratchReg2);
     }
     Condition testUndefined(Condition cond, const ValueOperand &value) {
-        splitTag(value, ScratchReg);
-        return testUndefined(cond, ScratchReg);
+        splitTag(value, ScratchReg2);
+        return testUndefined(cond, ScratchReg2);
     }
     Condition testString(Condition cond, const ValueOperand &value) {
-        splitTag(value, ScratchReg);
-        return testString(cond, ScratchReg);
+        splitTag(value, ScratchReg2);
+        return testString(cond, ScratchReg2);
     }
     Condition testSymbol(Condition cond, const ValueOperand &value) {
-        splitTag(value, ScratchReg);
-        return testSymbol(cond, ScratchReg);
+        splitTag(value, ScratchReg2);
+        return testSymbol(cond, ScratchReg2);
     }
     Condition testObject(Condition cond, const ValueOperand &value) {
-        splitTag(value, ScratchReg);
-        return testObject(cond, ScratchReg);
+        splitTag(value, ScratchReg2);
+        return testObject(cond, ScratchReg2);
     }
     Condition testNumber(Condition cond, const ValueOperand &value) {
-        splitTag(value, ScratchReg);
-        return testNumber(cond, ScratchReg);
+        splitTag(value, ScratchReg2);
+        return testNumber(cond, ScratchReg2);
     }
     Condition testPrimitive(Condition cond, const ValueOperand &value) {
-        splitTag(value, ScratchReg);
-        return testPrimitive(cond, ScratchReg);
+        splitTag(value, ScratchReg2);
+        return testPrimitive(cond, ScratchReg2);
     }
 
     // Address-based tests.
     Condition testGCThing(Condition cond, const Address &address) {
-        splitTag(address, ScratchReg);
-        return testGCThing(cond, ScratchReg);
+        splitTag(address, ScratchReg2);
+        return testGCThing(cond, ScratchReg2);
     }
     Condition testMagic(Condition cond, const Address &address) {
-        splitTag(address, ScratchReg);
-        return testMagic(cond, ScratchReg);
+        splitTag(address, ScratchReg2);
+        return testMagic(cond, ScratchReg2);
     }
     Condition testInt32(Condition cond, const Address &address) {
-        splitTag(address, ScratchReg);
-        return testInt32(cond, ScratchReg);
+        splitTag(address, ScratchReg2);
+        return testInt32(cond, ScratchReg2);
     }
     Condition testDouble(Condition cond, const Address &address) {
-        splitTag(address, ScratchReg);
-        return testDouble(cond, ScratchReg);
+        splitTag(address, ScratchReg2);
+        return testDouble(cond, ScratchReg2);
     }
     Condition testBoolean(Condition cond, const Address &address) {
-        splitTag(address, ScratchReg);
-        return testBoolean(cond, ScratchReg);
+        splitTag(address, ScratchReg2);
+        return testBoolean(cond, ScratchReg2);
     }
     Condition testNull(Condition cond, const Address &address) {
-        splitTag(address, ScratchReg);
-        return testNull(cond, ScratchReg);
+        splitTag(address, ScratchReg2);
+        return testNull(cond, ScratchReg2);
     }
     Condition testUndefined(Condition cond, const Address &address) {
-        splitTag(address, ScratchReg);
-        return testUndefined(cond, ScratchReg);
+        splitTag(address, ScratchReg2);
+        return testUndefined(cond, ScratchReg2);
     }
     Condition testString(Condition cond, const Address &address) {
-        splitTag(address, ScratchReg);
-        return testString(cond, ScratchReg);
+        splitTag(address, ScratchReg2);
+        return testString(cond, ScratchReg2);
     }
     Condition testSymbol(Condition cond, const Address &address) {
-        splitTag(address, ScratchReg);
-        return testSymbol(cond, ScratchReg);
+        splitTag(address, ScratchReg2);
+        return testSymbol(cond, ScratchReg2);
     }
     Condition testObject(Condition cond, const Address &address) {
-        splitTag(address, ScratchReg);
-        return testObject(cond, ScratchReg);
+        splitTag(address, ScratchReg2);
+        return testObject(cond, ScratchReg2);
     }
     Condition testNumber(Condition cond, const Address &address) {
-        splitTag(address, ScratchReg);
-        return testNumber(cond, ScratchReg);
+        splitTag(address, ScratchReg2);
+        return testNumber(cond, ScratchReg2);
     }
 
     // BaseIndex-based tests.
