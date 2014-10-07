@@ -355,7 +355,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         MOZ_ASSERT(0 && "boxValue");
     }
     void splitTag(Register src, Register dest) {
-        sbfx(ARMRegister(dest, 64), ARMRegister(src, 64), 64 - JSVAL_TAG_SHIFT, JSVAL_TAG_SHIFT);
+        ubfx(ARMRegister(dest, 64), ARMRegister(src, 64), JSVAL_TAG_SHIFT, (64 - JSVAL_TAG_SHIFT));
     }
     Register extractTag(const Address &address, Register scratch) {
         loadPtr(address, scratch);
