@@ -1698,15 +1698,12 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         return ret;
     }
 
-    void writeDataRelocation(const Value &val) {
-        MOZ_ASSERT(0 && "writeDataRelocation");
-    }
     void writeDataRelocation(ImmGCPtr ptr) {
         if (ptr.value)
             tmpDataRelocations_.append(nextOffset());
     }
     void writePrebarrierOffset(CodeOffsetLabel label) {
-        MOZ_ASSERT(0 && "writePrebarrierOffset");
+        tmpPreBarriers_.append(BufferOffset(label.offset()));
     }
 
     void computeEffectiveAddress(const Address &address, Register dest) {
