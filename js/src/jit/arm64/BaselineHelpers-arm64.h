@@ -228,8 +228,55 @@ EmitUnstowICValues(MacroAssembler &masm, int values, bool discard = false)
 inline void
 EmitCallTypeUpdateIC(MacroAssembler &masm, JitCode *code, uint32_t objectOffset)
 {
+    // R0 contains the value that needs to be typechecked.
+    // The object we're updating is a boxed Value on the stack, at offset
+    // objectOffset from stack top, excluding the return address.
     MOZ_ASSERT(R2 == ValueOperand(r0));
-    masm.breakpoint();
+
+    // Save the current BaselineStubReg to stack, as well as the TailCallReg,
+    // since on AArch64, the LR is live.
+    masm.MacroAssemblerVIXL::Push(ARMRegister(BaselineStubReg, 64),
+                                  ARMRegister(BaselineTailCallReg, 64));
+
+    // This is expected to be called from within an IC, when BaselineStubReg
+    // is properly initialized to point to the stub.
+    masm.loadPtr(Address(BaselineStubReg, (int32_t)ICUpdatedStub::offsetOfFirstUpdateStub()),
+                 BaselineStubReg);
+
+    // Load stubcode pointer from BaselineStubReg into BaselineTailCallReg.
+    masm.loadPtr(Address(BaselineStubReg, ICStub::offsetOfStubCode()), BaselineTailCallReg);
+
+    // Call the stubcode.
+    masm.Blr(ARMRegister(BaselineTailCallReg, 64));
+
+    // Restore the old stub reg and tailcall reg.
+    masm.MacroAssemblerVIXL::Pop(ARMRegister(BaselineTailCallReg, 64),
+                                 ARMRegister(BaselineStubReg, 64));
+
+    // The update IC will store 0 or 1 in R1.scratchReg() reflecting if the
+    // value in R0 type-checked properly or not.
+    Label success;
+    masm.cmp32(R1.scratchReg(), Imm32(1));
+    masm.j(Assembler::Equal, &success);
+
+    // If the IC failed, then call the update fallback function.
+    EmitEnterStubFrame(masm, R1.scratchReg());
+
+    masm.loadValue(Address(BaselineStackReg, STUB_FRAME_SIZE + objectOffset), R1);
+
+    masm.pushValue(R0);
+    masm.pushValue(R1);
+    masm.push(BaselineStubReg); // TODO: Use MacroAssemblerVIXL::Push().
+
+    // Load previous frame pointer, push BaselineFrame*.
+    masm.loadPtr(Address(BaselineFrameReg, 0), R0.scratchReg());
+    masm.pushBaselineFramePtr(R0.scratchReg(), R0.scratchReg());
+
+    EmitCallVM(code, masm);
+    EmitLeaveStubFrame(masm);
+
+    // Success at end.
+    masm.bind(&success);
 }
 
 template <typename AddrType>
