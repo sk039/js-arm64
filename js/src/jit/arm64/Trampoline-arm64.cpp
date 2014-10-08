@@ -61,6 +61,13 @@ JitRuntime::generateEnterJIT(JSContext *cx, EnterJitType type)
     masm.MacroAssemblerVIXL::Push(d8,  d9,  d10, d11);
     masm.MacroAssemblerVIXL::Push(d12, d13, d14, d15);
 
+#ifdef DEBUG
+    // Emit stack canaries.
+    masm.movePtr(ImmWord(0xdeadd00d), r23);
+    masm.movePtr(ImmWord(0xdeadd11d), r24);
+    masm.MacroAssemblerVIXL::Push(x23, x24);
+#endif
+
     // Common code below attempts to push single registers at a time,
     // which breaks the stack pointer's 16-byte alignment requirement.
     // Note that movePtr() is invalid because StackPointer is treated as xzr.
@@ -166,6 +173,21 @@ JitRuntime::generateEnterJIT(JSContext *cx, EnterJitType type)
     masm.spsUnmarkJit(&cx->runtime()->spsProfiler, r20);
     masm.SetStackPointer(sp);
     masm.Add(sp, PseudoStackPointer64, Operand(0));
+
+#ifdef DEBUG
+    // Check that canaries placed on function entry are still present.
+    // TODO: Once this patch is ready, we can probably remove the canaries.
+    masm.MacroAssemblerVIXL::Pop(x24, x23);
+    Label x23OK, x24OK;
+
+    masm.branchPtr(Assembler::Equal, r23, ImmWord(0xdeadd00d), &x23OK);
+    masm.breakpoint();
+    masm.bind(&x23OK);
+
+    masm.branchPtr(Assembler::Equal, r24, ImmWord(0xdeadd11d), &x24OK);
+    masm.breakpoint();
+    masm.bind(&x24OK);
+#endif
     
     // Restore callee-save floating-point registers.
     masm.MacroAssemblerVIXL::Pop(d15, d14, d13, d12);
