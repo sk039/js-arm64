@@ -181,7 +181,7 @@ JitRuntime::generateEnterJIT(JSContext *cx, EnterJitType type)
     masm.storeValue(JSReturnOperand, Address(reg_vp, 0));
 
     // Return using the value popped into x30.
-    masm.MacroAssemblerVIXL::Ret();
+    masm.ret();
 
     Linker linker(masm);
     JitCode *code = linker.newCode<NoGC>(cx, OTHER_CODE);

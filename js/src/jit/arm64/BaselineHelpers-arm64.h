@@ -69,7 +69,7 @@ EmitEnterTypeMonitorIC(MacroAssembler &masm,
 inline void
 EmitReturnFromIC(MacroAssembler &masm)
 {
-    masm.Ret(); // Defaults to lr.
+    masm.ret(); // Defaults to lr.
 }
 
 inline void
