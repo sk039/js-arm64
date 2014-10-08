@@ -188,13 +188,41 @@ EmitLeaveStubFrame(MacroAssembler &masm, bool calledIntoIon = false)
 inline void
 EmitStowICValues(MacroAssembler &masm, int values)
 {
-    masm.breakpoint();
+    MOZ_ASSERT(values >= 0 && values <= 2);
+    switch (values) {
+      case 1:
+        // Stow R0.
+        masm.pushValue(R0);
+        break;
+      case 2:
+        // Stow R0 and R1.
+        masm.pushValue(R0);
+        masm.pushValue(R1); // TODO: Use MacroAssemblerVIXL::Push().
+        break;
+    }
 }
 
 inline void
 EmitUnstowICValues(MacroAssembler &masm, int values, bool discard = false)
 {
-    masm.breakpoint();
+    MOZ_ASSERT(values >= 0 && values <= 2);
+    switch (values) {
+      case 1:
+        // Unstow R0.
+        if (discard)
+            masm.addPtr(Imm32(sizeof(Value)), BaselineStackReg);
+        else
+            masm.popValue(R0);
+        break;
+      case 2:
+        // Unstow R0 and R1.
+        if (discard) {
+            masm.addPtr(Imm32(sizeof(Value) * 2), BaselineStackReg);
+        } else {
+            masm.popValue(R1);
+            masm.popValue(R0); // TODO: Use MacroAssemblerVIXL::Pop().
+        }
+    }
 }
 
 inline void
