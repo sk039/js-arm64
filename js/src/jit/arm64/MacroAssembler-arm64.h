@@ -487,7 +487,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
 
     void align(int alignment) {
-        MOZ_ASSERT(0 && "align");
+        armbuffer_.align(alignment);
     }
 
     void movePtr(Register src, Register dest) {
