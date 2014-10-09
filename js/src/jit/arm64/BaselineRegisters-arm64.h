@@ -12,7 +12,8 @@
 namespace js {
 namespace jit {
 
-static MOZ_CONSTEXPR_VAR Register BaselineFrameReg {Registers::x11};
+// Must be a callee-saved register for preservation around generateEnterJIT().
+static MOZ_CONSTEXPR_VAR Register BaselineFrameReg {Registers::x23};
 
 // The BaselineStackReg cannot be sp, because that register is treated
 // as xzr/wzr during load/store operations.
