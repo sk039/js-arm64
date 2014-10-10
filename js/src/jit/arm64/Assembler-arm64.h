@@ -162,10 +162,11 @@ class Assembler : public AssemblerVIXL {
     }
 
     int actualOffset(int curOffset) {
-        return curOffset;
+        return curOffset + armbuffer_.poolSizeBefore(curOffset);
     }
     int actualIndex(int curOffset) {
-        return curOffset;
+        ARMBuffer::PoolEntry pe(curOffset);
+        return armbuffer_.poolEntryOffset(pe);
     }
     int labelOffsetToPatchOffset(int labelOff) {
         return labelOff;
