@@ -976,10 +976,8 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
 
     void retn(Imm32 n) {
-        // pc <- [sp]; sp += n
-        // TODO: Can this be done in one instruction with PostIndex?
-        Ldr(ip0_64, MemOperand(GetStackPointer()));
-        Add(GetStackPointer(), GetStackPointer(), Operand(n.value));
+        // ip0 <- [sp]; sp += n; ret ip0
+        Ldr(ip0_64, MemOperand(GetStackPointer(), ptrdiff_t(n.value), PostIndex));
         Ret(ip0_64);
     }
 
