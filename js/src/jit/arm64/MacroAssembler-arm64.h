@@ -1929,6 +1929,9 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     void loadAsmJSActivation(Register dest) {
         loadPtr(Address(GlobalReg, AsmJSActivationGlobalDataOffset), dest);
     }
+    void loadAsmJSHeapRegisterFromGlobalData() {
+        MOZ_ASSERT(0 && "loadAsmJSHeapRegisterFromGlobalData");
+    }
     // This moves an un-tagged value from src into a
     // dest that already has the correct tag, and /anything/ in the lower bits
     void monoTagMove(Register dest, Register src) {

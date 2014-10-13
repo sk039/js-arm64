@@ -212,6 +212,12 @@ MoveEmitterARM64::breakCycle(const MoveOperand &from, const MoveOperand &to, Mov
             masm.Str(toARMReg64(to), cycleSlot());
         }
         break;
+      case MoveOp::INT32X4: // TODO
+        MOZ_CRASH("TODO");
+        break;
+      case MoveOp::FLOAT32X4: // TODO
+        MOZ_CRASH("TODO");
+        break;
       default:
         MOZ_CRASH("Unexpected move type");
     }
@@ -254,6 +260,12 @@ MoveEmitterARM64::completeCycle(const MoveOperand &from, const MoveOperand &to, 
         } else {
             masm.Ldr(ARMRegister(to.reg(), 64), cycleSlot());
         }
+        break;
+      case MoveOp::INT32X4: // TODO
+        MOZ_CRASH("TODO");
+        break;
+      case MoveOp::FLOAT32X4: // TODO
+        MOZ_CRASH("TODO");
         break;
     }
 }
