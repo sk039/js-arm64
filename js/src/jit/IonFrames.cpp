@@ -1366,6 +1366,7 @@ GetPcScript(JSContext *cx, JSScript **scriptRes, jsbytecode **pcRes)
     JSRuntime *rt = cx->runtime();
 
     // Recover the return address.
+    MOZ_ASSERT(rt->mainThread.jitTop);
     JitFrameIterator it(rt->mainThread.jitTop, SequentialExecution);
 
     // If the previous frame is a rectifier frame (maybe unwound),
