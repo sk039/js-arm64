@@ -661,8 +661,12 @@ CreateOffscreen(GLContext* gl,
     baseCaps.alpha = options.alpha;
     baseCaps.antialias = options.antialias;
     baseCaps.depth = options.depth;
+    baseCaps.premultAlpha = options.premultipliedAlpha;
     baseCaps.preserve = options.preserveDrawingBuffer;
     baseCaps.stencil = options.stencil;
+
+    if (!baseCaps.alpha)
+        baseCaps.premultAlpha = true;
 
     // we should really have this behind a
     // |gfxPlatform::GetPlatform()->GetScreenDepth() == 16| check, but
@@ -1421,10 +1425,14 @@ WebGLContext::PresentScreenBuffer()
     if (!mShouldPresent) {
         return false;
     }
+    MOZ_ASSERT(!mBackbufferNeedsClear);
 
     gl->MakeCurrent();
-    MOZ_ASSERT(!mBackbufferNeedsClear);
-    if (!gl->PublishFrame()) {
+
+    GLScreenBuffer* screen = gl->Screen();
+    MOZ_ASSERT(screen);
+
+    if (!screen->PublishFrame(screen->Size())) {
         ForceLoseContext();
         return false;
     }
@@ -1760,6 +1768,13 @@ bool WebGLContext::TexImageFromVideoElement(const TexImageTarget texImageTarget,
                               GLenum internalformat, GLenum format, GLenum type,
                               mozilla::dom::Element& elt)
 {
+    if (type == LOCAL_GL_HALF_FLOAT_OES) {
+        type = LOCAL_GL_HALF_FLOAT;
+    }
+
+    if (!ValidateTexImageFormatAndType(format, type, WebGLTexImageFunc::TexImage))
+        return false;
+
     HTMLVideoElement* video = HTMLVideoElement::FromContentOrNull(&elt);
     if (!video) {
         return false;
@@ -1807,8 +1822,11 @@ bool WebGLContext::TexImageFromVideoElement(const TexImageTarget texImageTarget,
     }
     bool ok = gl->BlitHelper()->BlitImageToTexture(srcImage.get(), srcImage->GetSize(), tex->GLName(), texImageTarget.get(), mPixelStoreFlipY);
     if (ok) {
-        tex->SetImageInfo(texImageTarget, level, srcImage->GetSize().width, srcImage->GetSize().height, internalformat, type,
-                          WebGLImageDataStatus::InitializedImageData);
+        TexInternalFormat effectiveinternalformat =
+            EffectiveInternalFormatFromInternalFormatAndType(internalformat, type);
+        MOZ_ASSERT(effectiveinternalformat != LOCAL_GL_NONE);
+        tex->SetImageInfo(texImageTarget, level, srcImage->GetSize().width, srcImage->GetSize().height,
+                          effectiveinternalformat, WebGLImageDataStatus::InitializedImageData);
         tex->Bind(TexImageTargetToTexTarget(texImageTarget));
     }
     srcImage = nullptr;

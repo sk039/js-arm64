@@ -24,7 +24,6 @@
 #include "prlink.h"
 #include "ScopedGLHelpers.h"
 #include "SharedSurfaceGL.h"
-#include "SurfaceStream.h"
 #include "GfxTexturesReporter.h"
 #include "TextureGarbageBin.h"
 #include "gfx2DGlue.h"
@@ -191,6 +190,8 @@ ParseGLVersion(GLContext* gl, unsigned int* version)
 
         // If it's not an OpenGL (ES) 3.0 context, we will have an error
         error = gl->fGetError();
+        while (gl->fGetError() != LOCAL_GL_NO_ERROR);
+
         if (error == LOCAL_GL_NO_ERROR &&
             majorVersion > 0 &&
             minorVersion >= 0)
@@ -1990,25 +1991,6 @@ GLContext::AssembleOffscreenFBs(const GLuint colorMSRB,
 }
 
 
-
-bool
-GLContext::PublishFrame()
-{
-    MOZ_ASSERT(mScreen);
-
-    return mScreen->PublishFrame(OffscreenSize());
-}
-
-SharedSurface*
-GLContext::RequestFrame()
-{
-    MOZ_ASSERT(mScreen);
-
-    return mScreen->Stream()->SwapConsumer();
-}
-
-
-
 void
 GLContext::ClearSafely()
 {
@@ -2364,7 +2346,6 @@ GLContext::ResizeScreenBuffer(const IntSize& size)
 
     return mScreen->Resize(size);
 }
-
 
 void
 GLContext::DestroyScreenBuffer()

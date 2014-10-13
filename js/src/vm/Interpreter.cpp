@@ -34,7 +34,6 @@
 #include "jit/BaselineJIT.h"
 #include "jit/Ion.h"
 #include "jit/IonAnalysis.h"
-#include "js/OldDebugAPI.h"
 #include "vm/Debugger.h"
 #include "vm/Opcodes.h"
 #include "vm/Shape.h"
@@ -48,7 +47,7 @@
 
 #include "jit/IonFrames-inl.h"
 #include "vm/Debugger-inl.h"
-#include "vm/ObjectImpl-inl.h"
+#include "vm/NativeObject-inl.h"
 #include "vm/Probes-inl.h"
 #include "vm/ScopeObject-inl.h"
 #include "vm/Stack-inl.h"

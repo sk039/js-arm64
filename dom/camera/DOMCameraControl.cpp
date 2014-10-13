@@ -10,6 +10,7 @@
 #include "nsThread.h"
 #include "DeviceStorage.h"
 #include "DeviceStorageFileDescriptor.h"
+#include "mozilla/dom/File.h"
 #include "mozilla/dom/TabChild.h"
 #include "mozilla/ipc/FileDescriptorUtils.h"
 #include "mozilla/MediaManager.h"
@@ -20,7 +21,6 @@
 #include "nsIDOMDeviceStorage.h"
 #include "nsIDOMEventListener.h"
 #include "nsIScriptSecurityManager.h"
-#include "nsDOMFile.h"
 #include "Navigator.h"
 #include "nsXULAppAPI.h"
 #include "DOMCameraManager.h"
@@ -218,7 +218,8 @@ nsDOMCameraControl::nsDOMCameraControl(uint32_t aCameraId,
   mCurrentConfiguration = initialConfig.forget();
 
   // Attach our DOM-facing media stream to our viewfinder stream.
-  mStream = mInput;
+  SetHintContents(HINT_CONTENTS_VIDEO);
+  InitStreamCommon(mInput);
   MOZ_ASSERT(mWindow, "Shouldn't be created with a null window!");
   if (mWindow->GetExtantDoc()) {
     CombineWithPrincipal(mWindow->GetExtantDoc()->NodePrincipal());
@@ -1437,7 +1438,7 @@ void
 nsDOMCameraControl::OnTakePictureComplete(nsIDOMBlob* aPicture)
 {
   MOZ_ASSERT(NS_IsMainThread());
-  MOZ_ASSERT(aPicture != nullptr);
+  MOZ_ASSERT(aPicture);
 
   nsRefPtr<Promise> promise = mTakePicturePromise.forget();
   if (promise) {
@@ -1445,15 +1446,17 @@ nsDOMCameraControl::OnTakePictureComplete(nsIDOMBlob* aPicture)
     promise->MaybeResolve(picture);
   }
 
+  nsRefPtr<File> blob = static_cast<File*>(aPicture);
+
   nsRefPtr<CameraTakePictureCallback> cb = mTakePictureOnSuccessCb.forget();
   mTakePictureOnErrorCb = nullptr;
   if (cb) {
     ErrorResult ignored;
-    cb->Call(aPicture, ignored);
+    cb->Call(*blob, ignored);
   }
 
   BlobEventInit eventInit;
-  eventInit.mData = aPicture;
+  eventInit.mData = blob;
 
   nsRefPtr<BlobEvent> event = BlobEvent::Constructor(this,
                                                      NS_LITERAL_STRING("picture"),

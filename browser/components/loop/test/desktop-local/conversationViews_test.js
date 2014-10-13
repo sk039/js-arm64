@@ -4,7 +4,7 @@
 var expect = chai.expect;
 
 describe("loop.conversationViews", function () {
-  var sandbox, oldTitle, view, dispatcher;
+  var sandbox, oldTitle, view, dispatcher, contact;
 
   var CALL_STATES = loop.store.CALL_STATES;
 
@@ -18,12 +18,82 @@ describe("loop.conversationViews", function () {
 
     dispatcher = new loop.Dispatcher();
     sandbox.stub(dispatcher, "dispatch");
+
+    contact = {
+      name: [ "mrsmith" ],
+      email: [{
+        type: "home",
+        value: "fakeEmail",
+        pref: true
+      }]
+    };
   });
 
   afterEach(function() {
     document.title = oldTitle;
     view = undefined;
     sandbox.restore();
+  });
+
+  describe("CallIdentifierView", function() {
+    function mountTestComponent(props) {
+      return TestUtils.renderIntoDocument(
+        loop.conversationViews.CallIdentifierView(props));
+    }
+
+    it("should set display the peer identifer", function() {
+      view = mountTestComponent({
+        showIcons: false,
+        peerIdentifier: "mrssmith"
+      });
+
+      expect(TestUtils.findRenderedDOMComponentWithClass(
+        view, "fx-embedded-call-identifier-text").props.children).eql("mrssmith");
+    });
+
+    it("should not display the icons if showIcons is false", function() {
+      view = mountTestComponent({
+        showIcons: false,
+        peerIdentifier: "mrssmith"
+      });
+
+      expect(TestUtils.findRenderedDOMComponentWithClass(
+        view, "fx-embedded-call-detail").props.className).to.contain("hide");
+    });
+
+    it("should display the icons if showIcons is true", function() {
+      view = mountTestComponent({
+        showIcons: true,
+        peerIdentifier: "mrssmith"
+      });
+
+      expect(TestUtils.findRenderedDOMComponentWithClass(
+        view, "fx-embedded-call-detail").props.className).to.not.contain("hide");
+    });
+
+    it("should display the url timestamp", function() {
+      sandbox.stub(loop.shared.utils, "formatDate").returns(("October 9, 2014"));
+
+      view = mountTestComponent({
+        showIcons: true,
+        peerIdentifier: "mrssmith",
+        urlCreationDate: (new Date() / 1000).toString()
+      });
+
+      expect(TestUtils.findRenderedDOMComponentWithClass(
+        view, "fx-embedded-conversation-timestamp").props.children).eql("(October 9, 2014)");
+    });
+
+    it("should show video as muted if video is false", function() {
+      view = mountTestComponent({
+        showIcons: true,
+        peerIdentifier: "mrssmith",
+        video: false
+      });
+
+      expect(TestUtils.findRenderedDOMComponentWithClass(
+        view, "fx-embedded-tiny-video-icon").props.className).to.contain("muted");
+    });
   });
 
   describe("ConversationDetailView", function() {
@@ -33,17 +103,19 @@ describe("loop.conversationViews", function () {
     }
 
     it("should set the document title to the calledId", function() {
-      mountTestComponent({calleeId: "mrsmith"});
+      mountTestComponent({contact: contact});
 
       expect(document.title).eql("mrsmith");
     });
 
-    it("should set display the calledId", function() {
-      view = mountTestComponent({calleeId: "mrsmith"});
+    it("should fallback to the email if the contact name is not defined",
+      function() {
+        delete contact.name;
 
-      expect(TestUtils.findRenderedDOMComponentWithTag(
-        view, "h2").props.children).eql("mrsmith");
-    });
+        mountTestComponent({contact: contact});
+
+        expect(document.title).eql("fakeEmail");
+      });
   });
 
   describe("PendingConversationView", function() {
@@ -56,7 +128,7 @@ describe("loop.conversationViews", function () {
       function() {
         view = mountTestComponent({
           callState: CALL_STATES.CONNECTING,
-          calleeId: "mrsmith",
+          contact: contact,
           dispatcher: dispatcher
         });
 
@@ -70,7 +142,7 @@ describe("loop.conversationViews", function () {
       function() {
         view = mountTestComponent({
           callState: CALL_STATES.ALERTING,
-          calleeId: "mrsmith",
+          contact: contact,
           dispatcher: dispatcher
         });
 
@@ -84,7 +156,7 @@ describe("loop.conversationViews", function () {
       function() {
         view = mountTestComponent({
           callState: CALL_STATES.CONNECTING,
-          calleeId: "mrsmith",
+          contact: contact,
           dispatcher: dispatcher,
           enableCancelButton: false
         });
@@ -98,7 +170,7 @@ describe("loop.conversationViews", function () {
       function() {
         view = mountTestComponent({
           callState: CALL_STATES.CONNECTING,
-          calleeId: "mrsmith",
+          contact: contact,
           dispatcher: dispatcher,
           enableCancelButton: true
         });
@@ -112,7 +184,7 @@ describe("loop.conversationViews", function () {
       function() {
         view = mountTestComponent({
           callState: CALL_STATES.CONNECTING,
-          calleeId: "mrsmith",
+          contact: contact,
           dispatcher: dispatcher
         });
 
@@ -293,7 +365,10 @@ describe("loop.conversationViews", function () {
 
     it("should render the PendingConversationView when the call state is 'init'",
       function() {
-        store.set({callState: CALL_STATES.INIT});
+        store.set({
+          callState: CALL_STATES.INIT,
+          contact: contact
+        });
 
         view = mountTestComponent();
 
@@ -323,7 +398,10 @@ describe("loop.conversationViews", function () {
 
     it("should update the rendered views when the state is changed.",
       function() {
-        store.set({callState: CALL_STATES.INIT});
+        store.set({
+          callState: CALL_STATES.INIT,
+          contact: contact
+        });
 
         view = mountTestComponent();
 
