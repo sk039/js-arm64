@@ -576,10 +576,20 @@ AssemblerVIXL::cbz(const ARMRegister& rt, int imm19)
 }
 
 void
+AssemblerVIXL::cbz(Instruction *at, const ARMRegister& rt, int imm19)
+{
+    EmitBranch(at, SF(rt) | CBZ | ImmCmpBranch(imm19) | Rt(rt));
+}
+
+void
 AssemblerVIXL::cbz(const ARMRegister& rt, Label* label)
 {
-    MOZ_ASSERT(0 && "cbz()");
-    //cbz(rt, LinkAndGetInstructionOffsetTo(label));
+    // Flush the instruction buffer before calculating relative offset.
+    BufferOffset branch = b(0);
+    Instruction *ins = getInstructionAt(branch);
+
+    // Encode the relative offset.
+    cbz(ins, rt, LinkAndGetInstructionOffsetTo(branch, label));
 }
 
 void
@@ -589,10 +599,20 @@ AssemblerVIXL::cbnz(const ARMRegister& rt, int imm19)
 }
 
 void
+AssemblerVIXL::cbnz(Instruction *at, const ARMRegister& rt, int imm19)
+{
+    EmitBranch(at, SF(rt) | CBNZ | ImmCmpBranch(imm19) | Rt(rt));
+}
+
+void
 AssemblerVIXL::cbnz(const ARMRegister& rt, Label* label)
 {
-    MOZ_ASSERT(0 && "cbnz()");
-    //cbnz(rt, LinkAndGetInstructionOffsetTo(label));
+    // Flush the instruction buffer before calculating relative offset.
+    BufferOffset branch = b(0);
+    Instruction *ins = getInstructionAt(branch);
+
+    // Encode the relative offset.
+    cbnz(ins, rt, LinkAndGetInstructionOffsetTo(branch, label));
 }
 
 void
@@ -603,10 +623,21 @@ AssemblerVIXL::tbz(const ARMRegister& rt, unsigned bit_pos, int imm14)
 }
 
 void
+AssemblerVIXL::tbz(Instruction *at, const ARMRegister& rt, unsigned bit_pos, int imm14)
+{
+    VIXL_ASSERT(rt.Is64Bits() || (rt.Is32Bits() && (bit_pos < kWRegSize)));
+    EmitBranch(at, TBZ | ImmTestBranchBit(bit_pos) | ImmTestBranch(imm14) | Rt(rt));
+}
+
+void
 AssemblerVIXL::tbz(const ARMRegister& rt, unsigned bit_pos, Label* label)
 {
-    MOZ_ASSERT(0 && "tbz()");
-    //tbz(rt, bit_pos, LinkAndGetInstructionOffsetTo(label));
+    // Flush the instruction buffer before calculating relative offset.
+    BufferOffset branch = b(0);
+    Instruction *ins = getInstructionAt(branch);
+
+    // Encode the relative offset.
+    tbz(ins, rt, bit_pos, LinkAndGetInstructionOffsetTo(branch, label));
 }
 
 void
@@ -617,10 +648,21 @@ AssemblerVIXL::tbnz(const ARMRegister& rt, unsigned bit_pos, int imm14)
 }
 
 void
+AssemblerVIXL::tbnz(Instruction *at, const ARMRegister& rt, unsigned bit_pos, int imm14)
+{
+    VIXL_ASSERT(rt.Is64Bits() || (rt.Is32Bits() && (bit_pos < kWRegSize)));
+    EmitBranch(at, TBNZ | ImmTestBranchBit(bit_pos) | ImmTestBranch(imm14) | Rt(rt));
+}
+
+void
 AssemblerVIXL::tbnz(const ARMRegister& rt, unsigned bit_pos, Label* label)
 {
-    MOZ_ASSERT(0 && "tbnz()");
-    //tbnz(rt, bit_pos, LinkAndGetInstructionOffsetTo(label));
+    // Flush the instruction buffer before calculating relative offset.
+    BufferOffset branch = b(0);
+    Instruction *ins = getInstructionAt(branch);
+
+    // Encode the relative offset.
+    tbnz(ins, rt, bit_pos, LinkAndGetInstructionOffsetTo(branch, label));
 }
 
 void

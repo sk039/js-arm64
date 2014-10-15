@@ -822,29 +822,32 @@ class AssemblerVIXL : public AssemblerShared
     static void bl(Instruction *at, int imm26);
 
     // Compare and branch to label if zero.
-
     void cbz(const ARMRegister& rt, Label* label);
 
     // Compare and branch to PC offset if zero.
     void cbz(const ARMRegister& rt, int imm19);
+    static void cbz(Instruction *at, const ARMRegister& rt, int imm19);
 
     // Compare and branch to label if not zero.
     void cbnz(const ARMRegister& rt, Label* label);
 
     // Compare and branch to PC offset if not zero.
     void cbnz(const ARMRegister& rt, int imm19);
+    static void cbnz(Instruction *at, const ARMRegister& rt, int imm19);
 
     // Test bit and branch to label if zero.
     void tbz(const ARMRegister& rt, unsigned bit_pos, Label* label);
 
     // Test bit and branch to PC offset if zero.
     void tbz(const ARMRegister& rt, unsigned bit_pos, int imm14);
+    static void tbz(Instruction *at, const ARMRegister& rt, unsigned bit_pos, int imm14);
 
     // Test bit and branch to label if not zero.
     void tbnz(const ARMRegister& rt, unsigned bit_pos, Label* label);
 
     // Test bit and branch to PC offset if not zero.
     void tbnz(const ARMRegister& rt, unsigned bit_pos, int imm14);
+    static void tbnz(Instruction *at, const ARMRegister& rt, unsigned bit_pos, int imm14);
 
     // Address calculation instructions.
     // Calculate a PC-relative address. Unlike for branches the offset in adr is
