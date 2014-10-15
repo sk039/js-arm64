@@ -83,7 +83,7 @@ ICBinaryArith_Int32::Compiler::generateStubCode(MacroAssembler &masm)
     // Add R0 and R1. Don't need to explicitly unbox, just use R2.
     Register Rscratch = R2_;
     ARMRegister Xscratch = ARMRegister(R2_, 64);
-    ARMRegister Wscratch = ARMRegister(R2_, 64);
+    ARMRegister Wscratch = ARMRegister(R2_, 32);
     // DIV and MOD need an extra non-volatile ValueOperand to hold R0.
     GeneralRegisterSet savedRegs = availableGeneralRegs(2);
     savedRegs = GeneralRegisterSet::Intersect(GeneralRegisterSet::NonVolatile(), savedRegs);
