@@ -260,6 +260,29 @@ class Instruction {
            (Mask(MoveWideImmediateMask) == MOVN_w);
   }
 
+  // Conditional branch helpers.
+  inline bool IsCondB() const {
+    return Mask(ConditionalBranchMask) == (ConditionalBranchFixed | B_cond);
+  }
+
+  // Unconditional branch helpers.
+  inline bool IsUncondB() const {
+    return Mask(UnconditionalBranchMask) == (UnconditionalBranchFixed | B);
+  }
+
+  inline bool IsBL() const {
+    return Mask(UnconditionalBranchMask) == (UnconditionalBranchFixed | BL);
+  }
+
+  // Test branch helpers.
+  inline bool IsTBZ() const {
+    return Mask(TestBranchMask) == (TestBranchFixed | TBZ);
+  }
+
+  inline bool IsTBNZ() const {
+    return Mask(TestBranchMask) == (TestBranchFixed | TBNZ);
+  }
+
   // Indicate whether Rd can be the stack pointer or the zero register. This
   // does not check that the instruction actually has an Rd field.
   inline Reg31Mode RdMode() const {

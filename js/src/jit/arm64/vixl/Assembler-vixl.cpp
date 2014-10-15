@@ -2729,47 +2729,65 @@ AssemblerVIXL::GetBranchOffset(const Instruction *ins)
 void
 AssemblerVIXL::RetargetNearBranch(Instruction *i, int offset, Condition cond, bool final)
 {
-    switch (i->BranchType()) {
-      case CondBranchType:
-        b(i, offset, cond); // FIXME: Is this right? What about BL()?
-        break;
-      case UnknownBranchType:
-        MOZ_ASSERT(i->IsBranchLinkImm());
-        bl(i, offset); // FIXME: Is this right? What about BL()?
-        break;
-      case UncondBranchType:
-        b(i, offset); // FIXME: Is this right? What about BL()?
-        break;
-      case CompareBranchType:
-      case TestBranchType:
-
-      default:
-        MOZ_CRASH("Unsupported branch type");
+    if (i->IsCondBranchImm()) {
+        MOZ_ASSERT(i->IsCondB());
+        b(i, offset, cond);
+        return;
     }
+
+    MOZ_CRASH("Unsupported branch type");
 }
 
 void
 AssemblerVIXL::RetargetNearBranch(Instruction *i, int offset, bool final)
 {
-    switch (i->BranchType()) {
-      case UncondBranchType:
-        b(i, offset); // FIXME: Is this right? What about BL()?
-        break;
-
-      case CondBranchType: {
-          Condition cond = static_cast<Condition>(i->ConditionBranch());
-          b(i, offset, cond);
-          break;
-      }
-      case UnknownBranchType:
-        MOZ_ASSERT(i->IsBranchLinkImm());
-        bl(i, offset); // FIXME: Is this right? What about BL()?
-        break;
-      case CompareBranchType:
-      case TestBranchType:
-      default:
-        MOZ_CRASH("Unsupported branch type");
+    // The only valid conditional instruction is B.
+    if (i->IsCondBranchImm()) {
+        MOZ_ASSERT(i->IsCondB());
+        Condition cond = static_cast<Condition>(i->ConditionBranch());
+        b(i, offset, cond);
+        return;
     }
+
+    // Valid unconditional branches are B and BL.
+    if (i->IsUncondBranchImm()) {
+        if (i->IsUncondB()) {
+            b(i, offset);
+        } else {
+            MOZ_ASSERT(i->IsBL());
+            bl(i, offset);
+        }
+        return;
+    }
+
+    if (i->IsCompareBranch()) {
+        MOZ_CRASH("TODO: Retarget compare branches");
+        return;
+    }
+
+    // Valid test branches are TBZ and TBNZ.
+    if (i->IsTestBranch()) {
+        // TODO: This could just be implemented as a mask and OR.
+        int imm14 = i->ImmTestBranch();
+
+        // Opposite of ImmTestBranchBit(): MSB in bit 5, 0:5 at bit 40.
+        unsigned bit_pos = (i->ImmTestBranchBit5() << 5) | (i->ImmTestBranchBit40());
+        MOZ_ASSERT(is_uint6(bit_pos));
+
+        // Register size doesn't matter for the encoding.
+        ARMRegister rt = ARMRegister::XRegFromCode(i->Rt());
+
+        //unsigned bit_pos = i->ImmTestBranchBit();
+        if (i->IsTBZ()) {
+            tbz(i, rt, bit_pos, imm14);
+        } else {
+            MOZ_ASSERT(i->IsTBNZ());
+            tbnz(i, rt, bit_pos, imm14);
+        }
+        return;
+    }
+
+    MOZ_CRASH("Unsupported branch type");
 }
 
 void
