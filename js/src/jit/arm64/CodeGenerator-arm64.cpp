@@ -970,8 +970,8 @@ CodeGeneratorARM64::visitNegI(LNegI *ins)
 bool
 CodeGeneratorARM64::visitNegD(LNegD *ins)
 {
-    ARMFPRegister input(ToFloatRegister(ins->input()), 32);
-    ARMFPRegister output(ToFloatRegister(ins->output()), 32);
+    ARMFPRegister input(ToFloatRegister(ins->input()), 64);
+    ARMFPRegister output(ToFloatRegister(ins->output()), 64);
     masm.Fneg(output, input);
     return false;
 }
