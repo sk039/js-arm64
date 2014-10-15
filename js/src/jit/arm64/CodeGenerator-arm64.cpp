@@ -165,8 +165,14 @@ CodeGeneratorARM64::visitOutOfLineBailout(OutOfLineBailout *ool)
 bool
 CodeGeneratorARM64::visitMinMaxD(LMinMaxD *ins)
 {
-    MOZ_ASSERT(0 && "CodeGeneratorARM64::visitMinMaxD");
-    return false;
+    ARMFPRegister lhs(ToFloatRegister(ins->first()), 64);
+    ARMFPRegister rhs(ToFloatRegister(ins->second()), 64);
+    ARMFPRegister output(ToFloatRegister(ins->output()), 64);
+    if (ins->mir()->isMax())
+        masm.Fmax(output, lhs, rhs);
+    else
+        masm.Fmin(output, lhs, rhs);
+    return true;
 }
 
 bool
@@ -376,8 +382,42 @@ CodeGeneratorARM64::visitBitOpI(LBitOpI *ins)
 bool
 CodeGeneratorARM64::visitShiftI(LShiftI *ins)
 {
-    MOZ_ASSERT(0 && "CodeGeneratorARM64::visitShiftI");
-    return false;
+    ARMRegister lhs = toWRegister(ins->lhs());
+    ARMRegister dest = toWRegister(ins->rhs());
+    if (ins->rhs()->isConstant()) {
+        ARMRegister rhs = toWRegister(ins->rhs());
+        switch (ins->bitop()) {
+          case JSOP_LSH:
+            masm.Lsl(dest, lhs, rhs);
+            break;
+          case JSOP_RSH:
+            masm.Asr(dest, lhs, rhs);
+            break;
+          case JSOP_URSH:
+            masm.Lsr(dest, lhs, rhs);
+            // TODO: bail if the result is negative
+            break;
+          default:
+            MOZ_CRASH("Unexpected shift opcode");
+        }
+    } else {
+        int32_t rhs = ToInt32(ins->rhs()) & 0x1F;
+        switch (ins->bitop()) {
+          case JSOP_LSH:
+            masm.Lsl(dest, lhs, rhs);
+            break;
+          case JSOP_RSH:
+            masm.Asr(dest, lhs, rhs);
+            break;
+          case JSOP_URSH:
+            masm.Lsr(dest, lhs, rhs);
+            // TODO: bail if the result is negative.
+            break;
+          default:
+            MOZ_CRASH("Unexpected shift opcode");
+        }
+    }
+    return true;
 }
 
 bool
@@ -397,7 +437,13 @@ CodeGeneratorARM64::visitPowHalfD(LPowHalfD *ins)
 MoveOperand
 CodeGeneratorARM64::toMoveOperand(const LAllocation *a) const
 {
-    MOZ_CRASH("CodeGeneratorARM64::toMoveOperand");
+    if (a->isGeneralReg())
+        return MoveOperand(ToRegister(a));
+    if (a->isFloatReg())
+        return MoveOperand(ToFloatRegister(a));
+    int32_t offset = ToStackOffset(a);
+    MOZ_ASSERT((offset & 7) == 0);
+    return MoveOperand(StackPointer, offset);
 }
 
 class js::jit::OutOfLineTableSwitch : public OutOfLineCodeBase<CodeGeneratorARM64>
@@ -691,22 +737,42 @@ CodeGeneratorARM64::visitAsmJSUInt32ToFloat32(LAsmJSUInt32ToFloat32 *lir)
 bool
 CodeGeneratorARM64::visitNotI(LNotI *ins)
 {
-    MOZ_ASSERT(0 && "CodeGeneratorARM64::visitNotI");
+    ARMRegister input = toWRegister(ins->input());
+    ARMRegister output = toWRegister(ins->output());
+    masm.Cmp(input, ZeroRegister32);
+    masm.Cset(output, Assembler::NonZero);
     return false;
 }
 
+//        NZCV
+// NAN -> 0011
+// ==  -> 0110
+// <   -> 1000
+// >   -> 0010
 bool
 CodeGeneratorARM64::visitNotD(LNotD *ins)
 {
-    MOZ_ASSERT(0 && "CodeGeneratorARM64::visitNotD");
-    return false;
+    ARMFPRegister input(ToFloatRegister(ins->input()), 64);
+    ARMRegister output = toWRegister(ins->output());
+    masm.Fcmp(input, 0.0);
+    masm.Cset(output, Assembler::Equal);
+    // dest is 1 iff input == 0, 0 otherwise
+    // make it 1 if overflow was set.
+    masm.Csneg(output, output, ZeroRegister32, Assembler::Overflow);
+    return true;
 }
 
 bool
 CodeGeneratorARM64::visitNotF(LNotF *ins)
 {
-    MOZ_ASSERT(0 && "CodeGeneratorARM64::visitNotF");
-    return false;
+    ARMFPRegister input(ToFloatRegister(ins->input()), 32);
+    ARMRegister output = toWRegister(ins->output());
+    masm.Fcmp(input, 0.0);
+    masm.Cset(output, Assembler::Equal);
+    // dest is 1 iff input == 0, 0 otherwise
+    // make it 1 if overflow was set.
+    masm.Csneg(output, output, ZeroRegister32, Assembler::Overflow);
+    return true;
 }
 
 bool
@@ -855,8 +921,13 @@ CodeGeneratorARM64::visitSoftUDivOrMod(LSoftUDivOrMod *ins)
 bool
 CodeGeneratorARM64::visitEffectiveAddress(LEffectiveAddress *ins)
 {
-    MOZ_ASSERT(0 && "CodeGeneratorARM64::visitEffectiveAddress");
-    return false;
+    const MEffectiveAddress *mir = ins->mir();
+    ARMRegister base = toXRegister(ins->base());
+    ARMRegister index = toXRegister(ins->index());
+    ARMRegister output = toXRegister(ins->output());
+    masm.Add(output, base, Operand(index, LSL, mir->scale()));
+    masm.Add(output, output, Operand(mir->displacement()));
+    return true;
 }
 
 bool
@@ -890,22 +961,28 @@ CodeGeneratorARM64::visitAsmJSLoadFFIFunc(LAsmJSLoadFFIFunc *ins)
 bool
 CodeGeneratorARM64::visitNegI(LNegI *ins)
 {
-    MOZ_ASSERT(0 && "CodeGeneratorARM64::visitNegI");
-    return false;
+    ARMRegister input = toWRegister(ins->input());
+    ARMRegister output = toWRegister(ins->output());
+    masm.Neg(output, input);
+    return true;
 }
 
 bool
 CodeGeneratorARM64::visitNegD(LNegD *ins)
 {
-    MOZ_ASSERT(0 && "CodeGeneratorARM64::visitNegD");
+    ARMFPRegister input(ToFloatRegister(ins->input()), 32);
+    ARMFPRegister output(ToFloatRegister(ins->output()), 32);
+    masm.Fneg(output, input);
     return false;
 }
 
 bool
 CodeGeneratorARM64::visitNegF(LNegF *ins)
 {
-    MOZ_ASSERT(0 && "CodeGeneratorARM64::visitNegF");
-    return false;
+    ARMFPRegister input(ToFloatRegister(ins->input()), 32);
+    ARMFPRegister output(ToFloatRegister(ins->output()), 32);
+    masm.Fneg(output, input);
+    return true;
 }
 
 bool
