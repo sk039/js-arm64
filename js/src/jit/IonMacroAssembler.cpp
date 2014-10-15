@@ -993,7 +993,7 @@ void
 MacroAssembler::linkExitFrame()
 {
     AbsoluteAddress jitTop(GetIonContext()->runtime->addressOfJitTop());
-#ifdef JS_ARM64_CODEGEN
+#ifdef JS_CODEGEN_ARM64
     MOZ_ASSERT(GetStackPointer().Is(x28));
     storePtr(r28, jitTop);
 #else
@@ -1007,7 +1007,7 @@ void
 MacroAssembler::linkParallelExitFrame(Register pt)
 {
     Address jitTop(pt, offsetof(PerThreadData, jitTop));
-#ifdef JS_ARM64_CODEGEN
+#ifdef JS_CODEGEN_ARM64
     MOZ_ASSERT(GetStackPointer().Is(x28));
     storePtr(r28, jitTop);
 #else
