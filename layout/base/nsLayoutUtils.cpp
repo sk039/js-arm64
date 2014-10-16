@@ -88,6 +88,7 @@
 #include "mozilla/Preferences.h"
 #include "nsFrameSelection.h"
 #include "FrameLayerBuilder.h"
+#include "mozilla/layers/APZCTreeManager.h"
 
 #ifdef MOZ_XUL
 #include "nsXULPopupManager.h"
@@ -98,10 +99,6 @@
 #include "nsTransitionManager.h"
 #include "RestyleManager.h"
 
-// Additional includes used on B2G by code in GetOrMaybeCreateDisplayPort().
-#ifdef MOZ_WIDGET_GONK
-#include "mozilla/layers/AsyncPanZoomController.h"
-#endif
 
 using namespace mozilla;
 using namespace mozilla::dom;
@@ -2734,9 +2731,6 @@ nsLayoutUtils::GetFramesForArea(nsIFrame* aFrame, const nsRect& aRect,
   return NS_OK;
 }
 
-// This function is only used on B2G, and some compilers complain about
-// unused static functions, so we need to #ifdef it.
-#ifdef MOZ_WIDGET_GONK
 // aScrollFrame and aScrollFrameAsScrollable must be non-nullptr
 static FrameMetrics
 CalculateFrameMetricsForDisplayPort(nsIFrame* aScrollFrame,
@@ -2784,7 +2778,6 @@ CalculateFrameMetricsForDisplayPort(nsIFrame* aScrollFrame,
 
   return metrics;
 }
-#endif
 
 bool
 nsLayoutUtils::GetOrMaybeCreateDisplayPort(nsDisplayListBuilder& aBuilder,
@@ -2804,8 +2797,7 @@ nsLayoutUtils::GetOrMaybeCreateDisplayPort(nsDisplayListBuilder& aBuilder,
 
   bool haveDisplayPort = GetDisplayPort(content, aOutDisplayport);
 
-#ifdef MOZ_WIDGET_GONK
-  // On B2G, we perform an optimization where we ensure that at least one
+  // We perform an optimization where we ensure that at least one
   // async-scrollable frame (i.e. one that WantsAsyncScroll()) has a displayport.
   // If that's not the case yet, and we are async-scrollable, we will get a
   // displayport.
@@ -2818,7 +2810,7 @@ nsLayoutUtils::GetOrMaybeCreateDisplayPort(nsDisplayListBuilder& aBuilder,
     // If we don't already have a displayport, calculate and set one.
     if (!haveDisplayPort) {
       FrameMetrics metrics = CalculateFrameMetricsForDisplayPort(aScrollFrame, scrollableFrame);
-      LayerMargin displayportMargins = AsyncPanZoomController::CalculatePendingDisplayPort(
+      LayerMargin displayportMargins = APZCTreeManager::CalculatePendingDisplayPort(
           metrics, ScreenPoint(0.0f, 0.0f), 0.0);
       nsIPresShell* presShell = aScrollFrame->PresContext()->GetPresShell();
       gfx::IntSize alignment = gfxPlatform::GetPlatform()->UseTiling()
@@ -2834,7 +2826,6 @@ nsLayoutUtils::GetOrMaybeCreateDisplayPort(nsDisplayListBuilder& aBuilder,
     // Record that the we now have a scrollable display port.
     aBuilder.SetHaveScrollableDisplayPort();
   }
-#endif
 
   return haveDisplayPort;
 }

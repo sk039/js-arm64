@@ -1011,9 +1011,10 @@ Chunk::releaseArena(ArenaHeader *aheader)
     MOZ_ASSERT(!aheader->hasDelayedMarking);
     Zone *zone = aheader->zone;
     JSRuntime *rt = zone->runtimeFromAnyThread();
-    AutoLockGC maybeLock;
+
+    Maybe<AutoLockGC> maybeLock;
     if (rt->gc.isBackgroundSweeping())
-        maybeLock.lock(rt);
+        maybeLock.emplace(rt);
 
     if (rt->gc.isBackgroundSweeping())
         zone->threshold.updateForRemovedArena(rt->gc.tunables);
@@ -1345,15 +1346,6 @@ GCRuntime::init(uint32_t maxbytes, uint32_t maxNurseryBytes)
         return false;
 
     return true;
-}
-
-void
-GCRuntime::recordNativeStackTop()
-{
-    /* Record the stack top here only if we are called from a request. */
-    if (!rt->requestDepth)
-        return;
-    conservativeGC.recordStackTop();
 }
 
 void
@@ -1933,11 +1925,11 @@ ArenaLists::allocateFromArena(JS::Zone *zone, AllocKind thingKind,
                               AutoMaybeStartBackgroundAllocation &maybeStartBGAlloc)
 {
     JSRuntime *rt = zone->runtimeFromAnyThread();
-    AutoLockGC maybeLock;
+    Maybe<AutoLockGC> maybeLock;
 
     // See if we can proceed without taking the GC lock.
     if (backgroundFinalizeState[thingKind] != BFS_DONE)
-        maybeLock.lock(rt);
+        maybeLock.emplace(rt);
 
     ArenaList &al = arenaLists[thingKind];
     ArenaHeader *aheader = al.takeNextArena();
@@ -1950,8 +1942,8 @@ ArenaLists::allocateFromArena(JS::Zone *zone, AllocKind thingKind,
 
     // Parallel threads have their own ArenaLists, but chunks are shared;
     // if we haven't already, take the GC lock now to avoid racing.
-    if (!maybeLock.locked())
-        maybeLock.lock(rt);
+    if (maybeLock.isNothing())
+        maybeLock.emplace(rt);
 
     Chunk *chunk = rt->gc.pickChunk(zone, maybeStartBGAlloc);
     if (!chunk)
@@ -2157,7 +2149,7 @@ RelocateCell(Zone *zone, TenuredCell *src, AllocKind thingKind, size_t thingSize
     MOZ_ASSERT(zone == src->zone());
     void *dstAlloc = zone->allocator.arenas.allocateFromFreeList(thingKind, thingSize);
     if (!dstAlloc)
-        dstAlloc = js::gc::ArenaLists::refillFreeListInGC(zone, thingKind);
+        dstAlloc = GCRuntime::refillFreeListInGC(zone, thingKind);
     if (!dstAlloc)
         return false;
     TenuredCell *dst = TenuredCell::fromPointer(dstAlloc);
@@ -2572,14 +2564,22 @@ ArenaLists::backgroundFinalize(FreeOp *fop, ArenaHeader *listHead)
     // Flatten |finalizedSorted| into a regular ArenaList.
     ArenaList finalized = finalizedSorted.toArenaList();
 
-    AutoLockGC lock(fop->runtime());
-    MOZ_ASSERT(lists->backgroundFinalizeState[thingKind] == BFS_RUN);
+    // We must take the GC lock to be able to safely modify the ArenaList;
+    // however, this does not by itself make the changes visible to all threads,
+    // as not all threads take the GC lock to read the ArenaLists.
+    // That safety is provided by the ReleaseAcquire memory ordering of the
+    // background finalize state, which we explicitly set as the final step.
+    {
+        AutoLockGC lock(fop->runtime());
+        MOZ_ASSERT(lists->backgroundFinalizeState[thingKind] == BFS_RUN);
 
-    // Join |al| and |finalized| into a single list.
-    *al = finalized.insertListWithCursorAtEnd(*al);
+        // Join |al| and |finalized| into a single list.
+        *al = finalized.insertListWithCursorAtEnd(*al);
+
+        lists->arenaListsToSweep[thingKind] = nullptr;
+    }
 
     lists->backgroundFinalizeState[thingKind] = BFS_DONE;
-    lists->arenaListsToSweep[thingKind] = nullptr;
 }
 
 void
@@ -5803,8 +5803,6 @@ GCRuntime::collect(bool incremental, int64_t budget, JSGCInvocationKind gckind,
     AutoStopVerifyingBarriers av(rt, reason == JS::gcreason::SHUTDOWN_CC ||
                                      reason == JS::gcreason::DESTROY_RUNTIME);
 
-    recordNativeStackTop();
-
     gcstats::AutoGCSlice agc(stats, scanZonesBeforeGC(), reason);
 
     cleanUpEverything = ShouldCleanUpEverything(reason, gckind);
@@ -6055,7 +6053,6 @@ AutoPrepareForTracing::AutoPrepareForTracing(JSRuntime *rt, ZoneSelector selecto
     session(rt),
     copy(rt, selector)
 {
-    rt->gc.recordNativeStackTop();
 }
 
 JSCompartment *

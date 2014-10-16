@@ -168,7 +168,6 @@
 #endif
 
 #include "nsContentUtils.h"
-#include "nsIChannelPolicy.h"
 #include "nsIContentSecurityPolicy.h"
 #include "nsILoadInfo.h"
 #include "nsSandboxFlags.h"
@@ -2858,6 +2857,11 @@ nsDocShell::PopProfileTimelineMarkers(JSContext* aCx,
 
   nsTArray<mozilla::dom::ProfileTimelineMarker> profileTimelineMarkers;
 
+  // If we see an unpaired START, we keep it around for the next call
+  // to PopProfileTimelineMarkers.  We store the kept START objects in
+  // this array.
+  decltype(mProfileTimelineMarkers) keptMarkers;
+
   for (uint32_t i = 0; i < mProfileTimelineMarkers.Length(); ++i) {
     ProfilerMarkerTracing* startPayload = static_cast<ProfilerMarkerTracing*>(
       mProfileTimelineMarkers[i]->mPayload);
@@ -2866,6 +2870,8 @@ nsDocShell::PopProfileTimelineMarkers(JSContext* aCx,
     bool hasSeenPaintedLayer = false;
 
     if (startPayload->GetMetaData() == TRACING_INTERVAL_START) {
+      bool hasSeenEnd = false;
+
       // The assumption is that the devtools timeline flushes markers frequently
       // enough for the amount of markers to always be small enough that the
       // nested for loop isn't going to be a performance problem.
@@ -2893,8 +2899,18 @@ nsDocShell::PopProfileTimelineMarkers(JSContext* aCx,
             profileTimelineMarkers.AppendElement(marker);
           }
 
+          // We want the start to be dropped either way.
+          hasSeenEnd = true;
+
           break;
         }
+      }
+
+      // If we did not see the corresponding END, keep the START.
+      if (!hasSeenEnd) {
+        keptMarkers.AppendElement(mProfileTimelineMarkers[i]);
+        mProfileTimelineMarkers.RemoveElementAt(i);
+        --i;
       }
     }
   }
@@ -2902,6 +2918,7 @@ nsDocShell::PopProfileTimelineMarkers(JSContext* aCx,
   ToJSValue(aCx, profileTimelineMarkers, aProfileTimelineMarkers);
 
   ClearProfileTimelineMarkers();
+  mProfileTimelineMarkers.SwapElements(keptMarkers);
 
   return NS_OK;
 #else
@@ -2952,8 +2969,7 @@ nsDocShell::ClearProfileTimelineMarkers()
 {
 #ifdef MOZ_ENABLE_PROFILER_SPS
   for (uint32_t i = 0; i < mProfileTimelineMarkers.Length(); ++i) {
-    delete mProfileTimelineMarkers[i]->mPayload;
-    mProfileTimelineMarkers[i]->mPayload = nullptr;
+    delete mProfileTimelineMarkers[i];
   }
   mProfileTimelineMarkers.Clear();
 #endif
@@ -4178,7 +4194,7 @@ nsDocShell::AddChildSHEntry(nsISHEntry * aCloneRef, nsISHEntry * aNewEntry,
 {
     nsresult rv;
 
-    if (mLSHE && loadType != LOAD_PUSHSTATE) {
+    if (mLSHE && loadType != LOAD_PUSHSTATE && !aCloneRef) {
         /* You get here if you are currently building a 
          * hierarchy ie.,you just visited a frameset page
          */
@@ -10141,27 +10157,7 @@ nsDocShell::DoURILoad(nsIURI * aURI,
         loadFlags |= nsIChannel::LOAD_BACKGROUND;
     }
 
-    // check for Content Security Policy to pass along with the
-    // new channel we are creating
-    nsCOMPtr<nsIChannelPolicy> channelPolicy;
     if (IsFrame()) {
-        // check the parent docshell for a CSP
-        nsCOMPtr<nsIContentSecurityPolicy> csp;
-        nsCOMPtr<nsIDocShellTreeItem> parentItem;
-        GetSameTypeParent(getter_AddRefs(parentItem));
-        if (parentItem) {
-          nsCOMPtr<nsIDocument> doc = parentItem->GetDocument();
-          if (doc) {
-            rv = doc->NodePrincipal()->GetCsp(getter_AddRefs(csp));
-            NS_ENSURE_SUCCESS(rv, rv);
-            if (csp) {
-              channelPolicy = do_CreateInstance("@mozilla.org/nschannelpolicy;1");
-              channelPolicy->SetContentSecurityPolicy(csp);
-              channelPolicy->SetLoadType(nsIContentPolicy::TYPE_SUBDOCUMENT);
-            }
-          }
-        }
-
         // Only allow view-source scheme in top-level docshells. view-source is
         // the only scheme to which this applies at the moment due to potential
         // timing attacks to read data from cross-origin iframes. If this widens
@@ -10230,7 +10226,6 @@ nsDocShell::DoURILoad(nsIURI * aURI,
                                    requestingPrincipal,
                                    securityFlags,
                                    aContentPolicyType,
-                                   channelPolicy,
                                    nullptr,   // loadGroup
                                    static_cast<nsIInterfaceRequestor*>(this),
                                    loadFlags);

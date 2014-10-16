@@ -196,6 +196,7 @@ JSRuntime::JSRuntime(JSRuntime *parentRuntime)
     structuredCloneCallbacks(nullptr),
     telemetryCallback(nullptr),
     errorReporter(nullptr),
+    linkedAsmJSModules(nullptr),
     propertyRemovals(0),
 #if !EXPOSE_INTL_API
     thousandsSeparator(0),
