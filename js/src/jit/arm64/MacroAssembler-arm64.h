@@ -155,13 +155,6 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         adjustFrame(-1 * (int32_t)(sizeof(T)));
     }
 
-#if 0
-    // FIXME: Should be in assembler, or IonMacroAssembler shouldn't use.
-    template <typename T>
-    void push(const T t) {
-        MOZ_ASSERT(0 && "push");
-    }
-#endif
     void push(FloatRegister f) {
         MacroAssemblerVIXL::Push(ARMFPRegister(f, 64));
     }
@@ -191,20 +184,13 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         loadPtr(a, ScratchReg);
         MacroAssemblerVIXL::Push(ScratchReg64);
     }
-    // FIXME: Should be in assembler, or IonMacroAssembler shouldn't use.
-#if 0
-    template <typename T>
-    void pop(const T t) {
-        MOZ_ASSERT(0 && "pop");
-    }
-#endif
+
     void pop(const ValueOperand &v) {
         pop(v.valueReg());
     }
     void pop(const FloatRegister &f) {
         MacroAssemblerVIXL::Pop(ARMRegister(f.code(), 64));
     }
-
     void pop(Register reg) {
         MacroAssemblerVIXL::Pop(ARMRegister(reg, 64));
     }
