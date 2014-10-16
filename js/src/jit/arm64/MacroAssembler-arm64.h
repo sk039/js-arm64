@@ -834,12 +834,6 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         MOZ_ASSERT(0 && "moveFloatAsDouble");
     }
 
-#if 0
-    void splitTag(Register src, Register dest) {
-        // FIXME: Could this be done in a better way?
-        Asr(ARMRegister(dest, 64), ARMRegister(src, 64), JSVAL_TAG_SHIFT);
-    }
-#endif
     void splitTag(const ValueOperand &operand, Register dest) {
         splitTag(operand.valueReg(), dest);
     }
