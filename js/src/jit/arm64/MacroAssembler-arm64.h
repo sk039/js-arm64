@@ -1880,10 +1880,6 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         MOZ_ASSERT(0 && "memMove64");
     }
 
-    void lea(Operand addr, Register dest) {
-        MOZ_ASSERT(0 && "lea");
-    }
-
     void stackCheck(ImmWord limitAddr, Label *label) {
         MOZ_ASSERT(0 && "stackCheck");
     }
