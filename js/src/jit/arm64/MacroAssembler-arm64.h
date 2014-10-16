@@ -446,9 +446,6 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     void convertUInt32ToFloat32(const Address &src, FloatRegister dest) {
         MOZ_ASSERT(0 && "convertUInt32ToFloat32");
     }
-    void convertUInt32ToFloat32(const Register &src, FloatRegister dest) {
-        MOZ_ASSERT(0 && "convertUInt32ToFloat32");
-    }
 
     void convertFloat32ToDouble(FloatRegister src, FloatRegister dest) {
         MOZ_ASSERT(0 && "convertFloat32ToDouble");
@@ -1391,7 +1388,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         And(ARMRegister(dest, 64), ARMRegister(src, 64), Operand((1ULL << JSVAL_TAG_SHIFT) - 1ULL));
     }
 
-    void unboxPrivate(const ValueOperand &src, const Register dest) {
+    void unboxPrivate(const ValueOperand &src, Register dest) {
         ubfx(ARMRegister(dest, 64), ARMRegister(src.valueReg(), 64), 1, JSVAL_TAG_SHIFT - 1);
     }
 
@@ -1409,7 +1406,6 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         loadPtr(src, dest);
         unboxNonDouble(dest, dest);
     }
-
 
     void unboxValue(const ValueOperand &src, AnyRegister dest) {
         MOZ_ASSERT(0 && "unboxValue");
