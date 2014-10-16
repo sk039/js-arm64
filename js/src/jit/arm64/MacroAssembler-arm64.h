@@ -901,12 +901,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     void load16ZeroExtend(const BaseIndex &src, Register dest) {
         doBaseIndex(ARMRegister(dest, 32), src, LDRH_w);
     }
-#if 0
-    template <typename S, typename T>
-    void store32(const S &src, const T &dest) {
-        MOZ_ASSERT(0 && "store32");
-    }
-#endif
+
     void add32(Register src, Register dest) {
         Add(ARMRegister(dest, 32), ARMRegister(src, 32), Operand(ARMRegister(src, 32)));
     }
@@ -1202,13 +1197,16 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
 
     void branchTestUndefined(Condition cond, const Address &address, Label *label) {
-        MOZ_ASSERT(0 && "branchTestUndefined");
+        Condition c = testUndefined(cond, address);
+        B(label, c);
     }
     void branchTestInt32(Condition cond, const Address &address, Label *label) {
-        MOZ_ASSERT(0 && "branchTestInt32");
+        Condition c = testInt32(cond, address);
+        B(label, c);
     }
     void branchTestDouble(Condition cond, const Address &address, Label *label) {
-        MOZ_ASSERT(0 && "branchTestDouble");
+        Condition c = testDouble(cond, address);
+        B(label, c);
     }
 
     // Perform a type-test on a full Value loaded into a register.
