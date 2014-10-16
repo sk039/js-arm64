@@ -422,13 +422,13 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         Uxtb(ARMRegister(dest, 64), ARMRegister(source, 64));
     }
     void convertInt32ToDouble(Register src, FloatRegister dest) {
-        MOZ_ASSERT(0 && "convertInt32ToDouble");
+        Scvtf(ARMFPRegister(dest, 64), ARMRegister(src, 32)); // Uses FPCR rounding mode.
     }
     void convertInt32ToDouble(const Address &src, FloatRegister dest) {
         MOZ_ASSERT(0 && "convertInt32ToDouble");
     }
     void convertInt32ToFloat32(Register src, FloatRegister dest) {
-        MOZ_ASSERT(0 && "convertInt32ToFloat32");
+        Scvtf(ARMFPRegister(dest, 32), ARMRegister(src, 32)); // Uses FPCR rounding mode.
     }
     void convertInt32ToFloat32(const Address &src, FloatRegister dest) {
         MOZ_ASSERT(0 && "convertInt32ToFloat32");
@@ -437,11 +437,11 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     void convertUInt32ToDouble(const Address &src, FloatRegister dest) {
         MOZ_ASSERT(0 && "convertUInt32ToDouble");
     }
-    void convertUInt32ToDouble(const Register &src, FloatRegister dest) {
-        MOZ_ASSERT(0 && "convertUInt32ToDouble");
+    void convertUInt32ToDouble(Register src, FloatRegister dest) {
+        Ucvtf(ARMFPRegister(dest, 64), ARMRegister(src, 32)); // Uses FPCR rounding mode.
     }
     void convertUInt32ToFloat32(Register src, FloatRegister dest) {
-        MOZ_ASSERT(0 && "convertUInt32ToFloat32");
+        Ucvtf(ARMFPRegister(dest, 32), ARMRegister(src, 32)); // Uses FPCR rounding mode.
     }
     void convertUInt32ToFloat32(const Address &src, FloatRegister dest) {
         MOZ_ASSERT(0 && "convertUInt32ToFloat32");
