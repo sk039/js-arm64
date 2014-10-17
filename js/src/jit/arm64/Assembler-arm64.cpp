@@ -196,7 +196,7 @@ Assembler::TraceDataRelocations(JSTracer *trc, JitCode *code, CompactBufferReade
     MOZ_CRASH("TraceDataRelocations()");
 }
 
-void
+int32_t
 Assembler::ExtractCodeLabelOffset(uint8_t *code)
 {
     MOZ_CRASH("ExtractCodeLabelOffset()");
