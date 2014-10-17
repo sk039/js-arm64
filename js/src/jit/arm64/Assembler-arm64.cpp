@@ -152,7 +152,23 @@ Assembler::ToggleToJmp(CodeLocationLabel inst_)
 void
 Assembler::ToggleToCmp(CodeLocationLabel inst_)
 {
-    MOZ_CRASH("ToggleToCmp()");
+    Instruction *i = (Instruction *)inst_.raw();
+    MOZ_ASSERT(i->IsCondB());
+
+    int imm19 = i->ImmCondBranch();
+    MOZ_ASSERT(is_int19(imm19));
+
+    // 31 - 64-bit if set, 32-bit if unset. (OK!)
+    // 30 - sub if set, add if unset. (OK!)
+    // 29 - SetFlagsBit. Must be set.
+    // 22:23 - ShiftAddSub. (OK!)
+    // 10:21 - ImmAddSub. (OK!)
+    // 5:9 - First source register (Rn). (OK!)
+    // 0:4 - Destination Register. Must be xzr.
+
+    // From the above, there is a safe 19-bit contiguous region from 5:23.
+    Emit(i, ThirtyTwoBits | AddSubImmediateFixed | SUB | Flags(SetFlags) |
+            Rd(xzr) | (imm19 << Rn_offset));
 }
 
 void
