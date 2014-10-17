@@ -146,7 +146,14 @@ Assembler::PatchDataWithValueCheck(CodeLocationLabel label, ImmPtr newValue, Imm
 void
 Assembler::ToggleToJmp(CodeLocationLabel inst_)
 {
-    MOZ_CRASH("ToggleToJmp()");
+    Instruction *i = (Instruction *)inst_.raw();
+    MOZ_ASSERT(i->IsAddSubImmediate());
+
+    // Refer to instruction layout in ToggleToCmp().
+    int imm19 = (int)i->Bits(23, 5);
+    MOZ_ASSERT(is_int19(imm19));
+
+    b(i, imm19, Always);
 }
 
 void
