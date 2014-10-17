@@ -143,5 +143,23 @@ Assembler::PatchDataWithValueCheck(CodeLocationLabel label, ImmPtr newValue, Imm
     PatchDataWithValueCheck(label, PatchedImmPtr(newValue.value), PatchedImmPtr(expected.value));
 }
 
+void
+Assembler::ToggleToJmp(CodeLocationLabel inst_)
+{
+    MOZ_CRASH("ToggleToJmp()");
+}
+
+void
+Assembler::ToggleToCmp(CodeLocationLabel inst_)
+{
+    MOZ_CRASH("ToggleToCmp()");
+}
+
+void
+Assembler::ToggleCall(CodeLocationLabel inst_, bool enabled)
+{
+    MOZ_CRASH("ToggleCall()");
+}
+
 } // namespace jit
 } // namespace js

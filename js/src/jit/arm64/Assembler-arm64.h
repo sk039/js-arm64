@@ -238,16 +238,9 @@ class Assembler : public AssemblerVIXL {
     }
 
     // Toggle a jmp or cmp emitted by toggledJump().
-    static void ToggleToJmp(CodeLocationLabel inst_) {
-        MOZ_ASSERT(0 && "ToggleToJmp()");
-    }
-    static void ToggleToCmp(CodeLocationLabel inst_) {
-        MOZ_ASSERT(0 && "ToggleToCmp()");
-    }
-
-    static void ToggleCall(CodeLocationLabel inst_, bool enabled) {
-        MOZ_ASSERT(0 && "ToggleCall()");
-    }
+    static void ToggleToJmp(CodeLocationLabel inst_);
+    static void ToggleToCmp(CodeLocationLabel inst_);
+    static void ToggleCall(CodeLocationLabel inst_, bool enabled);
 
     static void updateBoundsCheck(uint32_t logHeapSize, Instruction *inst) {
         MOZ_ASSERT(0 && "updateBoundsCheck()");
