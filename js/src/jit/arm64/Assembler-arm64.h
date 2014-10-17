@@ -39,11 +39,13 @@ namespace jit {
 
 static MOZ_CONSTEXPR_VAR bool SupportsSimd = false;
 
-class Assembler : public AssemblerVIXL {
+class Assembler : public AssemblerVIXL
+{
   public:
     Assembler()
       : AssemblerVIXL()
     { }
+
     BufferOffset immPool(ARMRegister dest, uint8_t *value, LoadLiteralOp op);
     BufferOffset immPool64(ARMRegister dest, uint64_t value);
     void bind(Label *label) { bind(label, nextOffset()); }
@@ -54,24 +56,23 @@ class Assembler : public AssemblerVIXL {
         armbuffer_.flushPool();
         AssemblerVIXL::FinalizeCode();
 
-    for (unsigned int i = 0; i < tmpDataRelocations_.length(); i++) {
-        int offset = tmpDataRelocations_[i].getOffset();
-        int real_offset = offset + armbuffer_.poolSizeBefore(offset);
-        dataRelocations_.writeUnsigned(real_offset);
-    }
+        for (unsigned int i = 0; i < tmpDataRelocations_.length(); i++) {
+            int offset = tmpDataRelocations_[i].getOffset();
+            int real_offset = offset + armbuffer_.poolSizeBefore(offset);
+            dataRelocations_.writeUnsigned(real_offset);
+        }
 
-    for (unsigned int i = 0; i < tmpJumpRelocations_.length(); i++) {
-        int offset = tmpJumpRelocations_[i].getOffset();
-        int real_offset = offset + armbuffer_.poolSizeBefore(offset);
-        jumpRelocations_.writeUnsigned(real_offset);
-    }
+        for (unsigned int i = 0; i < tmpJumpRelocations_.length(); i++) {
+            int offset = tmpJumpRelocations_[i].getOffset();
+            int real_offset = offset + armbuffer_.poolSizeBefore(offset);
+            jumpRelocations_.writeUnsigned(real_offset);
+        }
 
-    for (unsigned int i = 0; i < tmpPreBarriers_.length(); i++) {
-        int offset = tmpPreBarriers_[i].getOffset();
-        int real_offset = offset + armbuffer_.poolSizeBefore(offset);
-        preBarriers_.writeUnsigned(real_offset);
-    }
-
+        for (unsigned int i = 0; i < tmpPreBarriers_.length(); i++) {
+            int offset = tmpPreBarriers_[i].getOffset();
+            int real_offset = offset + armbuffer_.poolSizeBefore(offset);
+            preBarriers_.writeUnsigned(real_offset);
+        }
     }
 
     bool oom() const {
@@ -183,13 +184,6 @@ class Assembler : public AssemblerVIXL {
         MOZ_ASSERT(0 && "setPrinter()");
     }
 
-    static void TraceJumpRelocations(JSTracer *trc, JitCode *code, CompactBufferReader &reader) {
-        MOZ_ASSERT(0 && "TraceJumpRelocations()");
-    }
-    static void TraceDataRelocations(JSTracer *trc, JitCode *code, CompactBufferReader &reader) {
-        MOZ_ASSERT(0 && "TraceDataRelocations()");
-    }
-
     static bool SupportsFloatingPoint() { return true; }
     static bool SupportsSimd() { return js::jit::SupportsSimd; }
 
@@ -242,17 +236,11 @@ class Assembler : public AssemblerVIXL {
     static void ToggleToCmp(CodeLocationLabel inst_);
     static void ToggleCall(CodeLocationLabel inst_, bool enabled);
 
-    static void updateBoundsCheck(uint32_t logHeapSize, Instruction *inst) {
-        MOZ_ASSERT(0 && "updateBoundsCheck()");
-    }
+    static void TraceJumpRelocations(JSTracer *trc, JitCode *code, CompactBufferReader &reader);
+    static void TraceDataRelocations(JSTracer *trc, JitCode *code, CompactBufferReader &reader);
 
-    static int32_t ExtractCodeLabelOffset(uint8_t *code) {
-        MOZ_ASSERT(0 && "ExtractCodeLabelOffset");
-        return 0;
-    }
-    static void PatchInstructionImmediate(uint8_t *code, PatchedImmPtr imm) {
-        MOZ_ASSERT(0 && "PatchInstructionImmediate");
-    }
+    static int32_t ExtractCodeLabelOffset(uint8_t *code);
+    static void PatchInstructionImmediate(uint8_t *code, PatchedImmPtr imm);
 
   protected:
     // Structure for fixing up pc-relative loads/jumps when the machine
@@ -351,7 +339,8 @@ GetTempRegForIntArg(uint32_t usedIntArgs, uint32_t usedFloatArgs, Register *out)
 }
 
 // FIXME: Should be shared with ARM's Assembler.
-class AutoForbidPools {
+class AutoForbidPools
+{
     Assembler *asm_;
 
   public:

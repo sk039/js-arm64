@@ -184,5 +184,29 @@ Assembler::ToggleCall(CodeLocationLabel inst_, bool enabled)
     MOZ_CRASH("ToggleCall()");
 }
 
+void
+Assembler::TraceJumpRelocations(JSTracer *trc, JitCode *code, CompactBufferReader &reader)
+{
+    MOZ_CRASH("TraceJumpRelocations()");
+}
+
+void
+Assembler::TraceDataRelocations(JSTracer *trc, JitCode *code, CompactBufferReader &reader)
+{
+    MOZ_CRASH("TraceDataRelocations()");
+}
+
+void
+Assembler::ExtractCodeLabelOffset(uint8_t *code)
+{
+    MOZ_CRASH("ExtractCodeLabelOffset()");
+}
+
+void
+Assembler::PatchInstructionImmediate(uint8_t *code, PatchedImmPtr imm)
+{
+    MOZ_CRASH("PatchInstructionImmediate()");
+}
+
 } // namespace jit
 } // namespace js
