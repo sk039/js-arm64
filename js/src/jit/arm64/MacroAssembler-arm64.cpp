@@ -209,8 +209,49 @@ MacroAssemblerCompat::handleFailureWithHandler(void *handler)
 void
 MacroAssemblerCompat::handleFailureWithHandlerTail()
 {
-    // TODO: Implement me.
-    breakpoint();
+    Label entryFrame;
+    Label catch_;
+    Label finally;
+    Label return_;
+    Label bailout;
+
+    MOZ_ASSERT(GetStackPointer().Is(x28)); // Lets the code below be a little cleaner.
+
+    loadPtr(Address(r28, offsetof(ResumeFromException, kind)), r0);
+    branch32(Assembler::Equal, r0, Imm32(ResumeFromException::RESUME_ENTRY_FRAME), &entryFrame);
+    branch32(Assembler::Equal, r0, Imm32(ResumeFromException::RESUME_CATCH), &catch_);
+    branch32(Assembler::Equal, r0, Imm32(ResumeFromException::RESUME_FINALLY), &finally);
+    branch32(Assembler::Equal, r0, Imm32(ResumeFromException::RESUME_FORCED_RETURN), &return_);
+    branch32(Assembler::Equal, r0, Imm32(ResumeFromException::RESUME_BAILOUT), &bailout);
+
+    breakpoint(); // Invalid kind.
+
+    // No exception handler. Load the error value, load the new stack pointer,
+    // and return from the entry frame.
+    bind(&entryFrame);
+    moveValue(MagicValue(JS_ION_ERROR), JSReturnOperand);
+    loadPtr(Address(r28, offsetof(ResumeFromException, stackPointer)), r28);
+    syncStackPtr();
+    // TODO: Note that retn() un-syncs the stack register due to the pop.
+    retn(Imm32(1 * sizeof(void *))); // Pop from stack and return.
+
+    // If we found a catch handler, this must be a baseline frame. Restore state
+    // and jump to the catch block.
+    bind(&catch_);
+    loadPtr(Address(r28, offsetof(ResumeFromException, target)), r0);
+    loadPtr(Address(r28, offsetof(ResumeFromException, framePointer)), BaselineFrameReg);
+    loadPtr(Address(r28, offsetof(ResumeFromException, stackPointer)), r28);
+    syncStackPtr();
+    Br(x0);
+
+    bind(&finally);
+    breakpoint(); // TODO: Unimplemented
+
+    bind(&return_);
+    breakpoint(); // TODO: Unimplemented
+
+    bind(&bailout);
+    breakpoint(); // TODO: Unimplemented
 }
 
 void
