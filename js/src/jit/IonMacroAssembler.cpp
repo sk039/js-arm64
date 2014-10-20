@@ -1073,6 +1073,7 @@ MacroAssembler::generateBailoutTail(Register scratch, Register bailoutInfo)
             branchPtr(Assembler::BelowOrEqual, copyCur, copyEnd, &endOfCopy);
             subPtr(Imm32(4), copyCur);
             subPtr(Imm32(4), BaselineStackReg);
+            syncStackPtr(); // TODO: Better to just disallow this behavior..
             load32(Address(copyCur, 0), temp);
             store32(temp, Address(BaselineStackReg, 0));
             jump(&copyLoop);

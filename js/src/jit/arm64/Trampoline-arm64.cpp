@@ -480,16 +480,32 @@ JitCode *
 JitRuntime::generateExceptionTailStub(JSContext *cx)
 {
     MacroAssembler masm(cx);
-    masm.breakpoint();
+
+    masm.handleFailureWithHandlerTail();
+
     Linker linker(masm);
-    return linker.newCode<NoGC>(cx, OTHER_CODE);
+    JitCode *code = linker.newCode<NoGC>(cx, OTHER_CODE);
+
+#ifdef JS_ION_PERF
+    writePerfSpewerJitCodeProfile(code, "ExceptionTailStub");
+#endif
+
+    return code;
 }
 
 JitCode *
 JitRuntime::generateBailoutTailStub(JSContext *cx)
 {
     MacroAssembler masm(cx);
-    masm.breakpoint();
+
+    masm.generateBailoutTail(r1, r2);
+
     Linker linker(masm);
-    return linker.newCode<NoGC>(cx, OTHER_CODE);
+    JitCode *code = linker.newCode<NoGC>(cx, OTHER_CODE);
+
+#ifdef JS_ION_PERF
+    writePerfSpewerJitCodeProfile(code, "BailoutTailStub");
+#endif
+
+    return code;
 }

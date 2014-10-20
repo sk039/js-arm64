@@ -189,8 +189,21 @@ MacroAssembler::clampDoubleToUint8(FloatRegister input, Register output)
 void
 MacroAssemblerCompat::handleFailureWithHandler(void *handler)
 {
-    // TODO: Implement me.
-    breakpoint();
+    // Reserve space for exception information.
+    int64_t size = (sizeof(ResumeFromException) + 7) & ~7;
+    Sub(GetStackPointer(), GetStackPointer(), Operand(size));
+    if (!GetStackPointer().Is(sp))
+        Add(sp, GetStackPointer(), Operand(0));
+
+    Add(x0, GetStackPointer(), Operand(0));
+
+    // Ask for an exception handler.
+    setupUnalignedABICall(1, r1);
+    passABIArg(r0);
+    callWithABI(handler);
+
+    JitCode *excTail = GetIonContext()->runtime->jitRuntime()->getExceptionTail();
+    branch(excTail);
 }
 
 void
