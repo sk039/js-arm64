@@ -466,7 +466,8 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         Br(ARMRegister(reg, 64));
     }
     void jump(const Address &addr) {
-        MOZ_ASSERT(0 && "jump (address)");
+        loadPtr(addr, ip0);
+        Br(ip0_64);
     }
 
     void align(int alignment) {
