@@ -138,10 +138,6 @@ class Assembler : public AssemblerVIXL
 
     void trace(JSTracer *trc);
 
-    void writeRelocation(BufferOffset src) {
-        tmpJumpRelocations_.append(src);
-    }
-
     // Move our entire pool into the instruction stream. This is to force an
     // opportunistic dump of the pool, preferrably when it is more convenient
     // to do a dump.
@@ -187,12 +183,10 @@ class Assembler : public AssemblerVIXL
     static bool SupportsFloatingPoint() { return true; }
     static bool SupportsSimd() { return js::jit::SupportsSimd; }
 
+    void writeRelocation(BufferOffset src, Relocation::Kind reloc);
+
   protected:
-    void addPendingJump(BufferOffset src, ImmPtr target, Relocation::Kind kind) {
-        enoughMemory_ &= jumps_.append(RelativePatch(target.value, kind));
-        if (kind == Relocation::JITCODE)
-            writeRelocation(src);
-    }
+    void addPendingJump(BufferOffset src, ImmPtr target, Relocation::Kind kind);
 
   public:
     static uint32_t PatchWrite_NearCallSize() {
@@ -201,9 +195,9 @@ class Assembler : public AssemblerVIXL
     }
 
     static uint32_t NopSize() {
-        MOZ_ASSERT(0 && "NopSize()");
         return 4;
     }
+
     static void PatchWrite_NearCall(CodeLocationLabel start, CodeLocationLabel toCall) {
         MOZ_ASSERT(0 && "PatchWrite_NearCall()");
     }
@@ -257,10 +251,15 @@ class Assembler : public AssemblerVIXL
 
     js::Vector<CodeLabel, 0, SystemAllocPolicy> codeLabels_;
     js::Vector<RelativePatch, 8, SystemAllocPolicy> jumps_;
+
+    // Because ARM and A64 use a code buffer that allows for constant pool insertion,
+    // the actual offset of each jump cannot be known until finalization.
+    // These vectors store the WIP offsets.
     js::Vector<BufferOffset, 0, SystemAllocPolicy> tmpJumpRelocations_;
     js::Vector<BufferOffset, 0, SystemAllocPolicy> tmpDataRelocations_;
     js::Vector<BufferOffset, 0, SystemAllocPolicy> tmpPreBarriers_;
 
+    // Final output formatters.
     CompactBufferWriter jumpRelocations_;
     CompactBufferWriter dataRelocations_;
     CompactBufferWriter relocations_;

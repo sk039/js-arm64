@@ -121,6 +121,25 @@ Assembler::trace(JSTracer *trc)
 #endif
 }
 
+void
+Assembler::writeRelocation(BufferOffset src, Relocation::Kind reloc)
+{
+    if (reloc == Relocation::JITCODE)
+        tmpJumpRelocations_.append(src);
+}
+
+void
+Assembler::addPendingJump(BufferOffset src, ImmPtr target, Relocation::Kind reloc)
+{
+    MOZ_ASSERT(target.value != nullptr);
+
+    if (reloc == Relocation::JITCODE)
+        writeRelocation(src, reloc);
+
+    // This jump is not patchable at runtime.
+    enoughMemory_ &= jumps_.append(RelativePatch(target.value, reloc));
+}
+
 // FIXME: Shouldn't this be a static method of Assembler?
 void
 PatchJump(CodeLocationJump &jump_, CodeLocationLabel label) {

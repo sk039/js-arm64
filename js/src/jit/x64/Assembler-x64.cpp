@@ -141,6 +141,7 @@ Assembler::addPatchableJump(JmpSrc src, Relocation::Kind reloc)
     // This jump is patchable at runtime so we always need to make sure the
     // jump table is emitted.
     writeRelocation(src, reloc);
+    MOZ_ASSERT(jumpRelocations_.length() > 0);
 
     size_t index = jumps_.length();
     enoughMemory_ &= jumps_.append(RelativePatch(src.offset(), nullptr, reloc));
