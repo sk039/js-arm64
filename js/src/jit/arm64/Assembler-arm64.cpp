@@ -43,6 +43,31 @@ const Register ABIArgGenerator::NonReturn_VolatileReg1 = r3;
 namespace js {
 namespace jit {
 
+void
+Assembler::finish()
+{
+    armbuffer_.flushPool();
+    AssemblerVIXL::FinalizeCode();
+
+    for (unsigned int i = 0; i < tmpDataRelocations_.length(); i++) {
+        int offset = tmpDataRelocations_[i].getOffset();
+        int real_offset = offset + armbuffer_.poolSizeBefore(offset);
+        dataRelocations_.writeUnsigned(real_offset);
+    }
+
+    for (unsigned int i = 0; i < tmpJumpRelocations_.length(); i++) {
+        int offset = tmpJumpRelocations_[i].getOffset();
+        int real_offset = offset + armbuffer_.poolSizeBefore(offset);
+        jumpRelocations_.writeUnsigned(real_offset);
+    }
+
+    for (unsigned int i = 0; i < tmpPreBarriers_.length(); i++) {
+        int offset = tmpPreBarriers_[i].getOffset();
+        int real_offset = offset + armbuffer_.poolSizeBefore(offset);
+        preBarriers_.writeUnsigned(real_offset);
+    }
+}
+
 BufferOffset
 Assembler::immPool(ARMRegister dest, uint8_t *value, LoadLiteralOp op)
 {

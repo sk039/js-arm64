@@ -46,51 +46,47 @@ class Assembler : public AssemblerVIXL
       : AssemblerVIXL()
     { }
 
+    void finish();
+    void trace(JSTracer *trc);
+
     BufferOffset immPool(ARMRegister dest, uint8_t *value, LoadLiteralOp op);
     BufferOffset immPool64(ARMRegister dest, uint64_t value);
     void bind(Label *label) { bind(label, nextOffset()); }
     void bind(Label *label, BufferOffset boff);
     void bind(RepatchLabel* label);
 
-    void finish() {
-        armbuffer_.flushPool();
-        AssemblerVIXL::FinalizeCode();
-
-        for (unsigned int i = 0; i < tmpDataRelocations_.length(); i++) {
-            int offset = tmpDataRelocations_[i].getOffset();
-            int real_offset = offset + armbuffer_.poolSizeBefore(offset);
-            dataRelocations_.writeUnsigned(real_offset);
-        }
-
-        for (unsigned int i = 0; i < tmpJumpRelocations_.length(); i++) {
-            int offset = tmpJumpRelocations_[i].getOffset();
-            int real_offset = offset + armbuffer_.poolSizeBefore(offset);
-            jumpRelocations_.writeUnsigned(real_offset);
-        }
-
-        for (unsigned int i = 0; i < tmpPreBarriers_.length(); i++) {
-            int offset = tmpPreBarriers_[i].getOffset();
-            int real_offset = offset + armbuffer_.poolSizeBefore(offset);
-            preBarriers_.writeUnsigned(real_offset);
-        }
-    }
-
     bool oom() const {
         // FIXME: Currently not possible to OOM.
         return false;
     }
 
-    void copyJumpRelocationTable(uint8_t *dest) {
+    void copyJumpRelocationTable(uint8_t *dest) const {
         if (jumpRelocations_.length())
             memcpy(dest, jumpRelocations_.buffer(), jumpRelocations_.length());
     }
-    void copyDataRelocationTable(uint8_t *dest) {
+    void copyDataRelocationTable(uint8_t *dest) const {
         if (dataRelocations_.length())
             memcpy(dest, dataRelocations_.buffer(), dataRelocations_.length());
     }
-    void copyPreBarrierTable(uint8_t *dest) {
+    void copyPreBarrierTable(uint8_t *dest) const {
         if (preBarriers_.length())
             memcpy(dest, preBarriers_.buffer(), preBarriers_.length());
+    }
+
+    size_t jumpRelocationTableBytes() const {
+        return jumpRelocations_.length();
+    }
+    size_t dataRelocationTableBytes() const {
+        return dataRelocations_.length();
+    }
+    size_t preBarrierTableBytes() const {
+        return preBarriers_.length();
+    }
+    size_t bytesNeeded() const {
+        return SizeOfCodeGenerated() +
+            jumpRelocationTableBytes() +
+            dataRelocationTableBytes() +
+            preBarrierTableBytes();
     }
 
     BufferOffset nextOffset() {
@@ -118,25 +114,6 @@ class Assembler : public AssemblerVIXL
         uint32_t off = actualOffset(label->offset());
         *reinterpret_cast<const void **>(rawCode + off) = address;
     }
-
-    // Size of the jump relocation table, in bytes.
-    size_t jumpRelocationTableBytes() const {
-        return jumpRelocations_.length();
-    }
-    size_t dataRelocationTableBytes() const {
-        return dataRelocations_.length();
-    }
-    size_t preBarrierTableBytes() const {
-        return preBarriers_.length();
-    }
-    unsigned int bytesNeeded() {
-        return SizeOfCodeGenerated() +
-            jumpRelocationTableBytes() +
-            dataRelocationTableBytes() +
-            preBarrierTableBytes();
-    }
-
-    void trace(JSTracer *trc);
 
     // Move our entire pool into the instruction stream. This is to force an
     // opportunistic dump of the pool, preferrably when it is more convenient
