@@ -1799,7 +1799,8 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
 
     void callIon(Register callee) {
-        MOZ_ASSERT(0 && "callIon");
+        // AArch64 cannot read from the PC, so pushing must be handled callee-side.
+        call(callee);
     }
 
     void appendCallSite(const CallSiteDesc &desc) {
