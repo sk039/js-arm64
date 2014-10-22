@@ -174,6 +174,9 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         movePtr(imm, ScratchReg);
         MacroAssemblerVIXL::Push(ScratchReg64);
     }
+    void push(ImmMaybeNurseryPtr imm) {
+        push(noteMaybeNurseryPtr(imm));
+    }
     void push(Register reg) {
         MacroAssemblerVIXL::Push(ARMRegister(reg, 64));
     }
@@ -301,8 +304,12 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         MacroAssemblerVIXL::Pop(ARMRegister(val.valueReg(), 64));
     }
     void pushValue(const Value &val) {
-        moveValue(val, ScratchReg2);
-        push(ScratchReg2);
+        if (val.isMarkable()) {
+            push(ImmMaybeNurseryPtr(reinterpret_cast<gc::Cell *>(val.toGCThing())));
+        } else {
+            moveValue(val, ScratchReg2);
+            push(ScratchReg2);
+        }
     }
     void pushValue(JSValueType type, Register reg) {
         tagValue(type, reg, ValueOperand(ScratchReg2));
@@ -490,6 +497,9 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     void movePtr(ImmGCPtr imm, Register dest) {
         writeDataRelocation(imm);
         movePatchablePtr(ImmPtr(imm.value), dest);
+    }
+    void movePtr(ImmMaybeNurseryPtr imm, Register dest) {
+        movePtr(noteMaybeNurseryPtr(imm), dest);
     }
     void move32(Imm32 imm, Register dest) {
         Mov(ARMRegister(dest, 32), (int64_t)imm.value);
@@ -720,6 +730,9 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
     void cmpPtr(Register lhs, ImmGCPtr rhs) {
         MOZ_ASSERT(0 && "cmpPtr");
+    }
+    void cmpPtr(Register lhs, ImmMaybeNurseryPtr rhs) {
+        cmpPtr(lhs, noteMaybeNurseryPtr(rhs));
     }
 
     void cmpPtr(const Address &lhs, Register rhs) {
@@ -1101,6 +1114,9 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
     void branchPtr(Condition cond, Address lhs, ImmGCPtr ptr, Label *label) {
         MOZ_ASSERT(0 && "branchPtr");
+    }
+    void branchPtr(Condition cond, Address lhs, ImmMaybeNurseryPtr ptr, Label *label) {
+        branchPtr(cond, lhs, noteMaybeNurseryPtr(ptr), label);
     }
     void branchPtr(Condition cond, Register lhs, Register rhs, Label *label) {
         Cmp(ARMRegister(lhs, 64), ARMRegister(rhs, 64));
