@@ -206,15 +206,33 @@ LIRGeneratorARM64::lowerDivI(MDiv *div)
 bool
 LIRGeneratorARM64::lowerMulI(MMul *mul, MDefinition *lhs, MDefinition *rhs)
 {
-    MOZ_ASSERT(0 && "lowerMulI");
-    return false;
+    LMulI *lir = new(alloc()) LMulI;
+    if (mul->fallible() && !assignSnapshot(lir, Bailout_DoubleOutput))
+        return false;
+    return lowerForALU(lir, mul, lhs, rhs);
 }
 
 bool
 LIRGeneratorARM64::lowerModI(MMod *mod)
 {
-    MOZ_ASSERT(0 && "lowerModI");
-    return false;
+    if (mod->isUnsigned())
+        return lowerUMod(mod);
+
+    if (mod->rhs()->isConstant()) {
+        int32_t rhs = mod->rhs()->toConstant()->value().toInt32();
+        int32_t shift = FloorLog2(rhs);
+        if (rhs > 0 && 1 << shift == rhs) {
+            LModPowTwoI *lir = new(alloc()) LModPowTwoI(useRegister(mod->lhs()), shift);
+            if (mod->fallible() && !assignSnapshot(lir, Bailout_DoubleOutput))
+                return false;
+            return define(lir, mod);
+        }
+    }
+
+    LModI *lir = new(alloc()) LModI(useRegister(mod->lhs()), useRegister(mod->rhs()), temp());
+    if (mod->fallible() && !assignSnapshot(lir, Bailout_DoubleOutput))
+        return false;
+    return define(lir, mod);
 }
 
 bool

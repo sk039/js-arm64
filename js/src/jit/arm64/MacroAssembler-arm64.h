@@ -484,7 +484,8 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         Mov(ARMRegister(dest, 64), (int64_t)imm.value);
     }
     void movePtr(AsmJSImmPtr imm, Register dest) {
-        MOZ_ASSERT(0 && "movePtr");
+        append(AsmJSAbsoluteLink(CodeOffsetLabel(currentOffset()), imm.kind()));
+        movePatchablePtr(ImmPtr(-1), ARMRegister(dest, 64));
     }
     void movePtr(ImmGCPtr imm, Register dest) {
         writeDataRelocation(imm);
@@ -509,6 +510,10 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         Neg(ARMRegister(reg, 32), Operand(ARMRegister(reg, 32)));
     }
 
+    void loadPtr(AsmJSAbsoluteAddress address, Register dest) {
+        movePtr(AsmJSImmPtr(address.kind()), ScratchReg);
+        ldr(ARMRegister(dest, 64), MemOperand(ScratchReg64));
+    }
     void loadPtr(AbsoluteAddress address, Register dest) {
         movePtr(ImmWord((uintptr_t)address.addr), ScratchReg);
         ldr(ARMRegister(dest, 64), MemOperand(ScratchReg64));
@@ -1068,7 +1073,8 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
 
     void branchPtr(Condition cond, AsmJSAbsoluteAddress lhs, Register rhs, Label *label) {
-        MOZ_ASSERT(0 && "branchPtr");
+        loadPtr(lhs, ScratchReg);
+        branchPtr(cond, ScratchReg, rhs, label);
     }
     void branchPtr(Condition cond, Address lhs, ImmWord ptr, Label *label) {
         loadPtr(lhs, ScratchReg2);

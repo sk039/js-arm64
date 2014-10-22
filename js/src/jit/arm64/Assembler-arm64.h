@@ -119,13 +119,13 @@ class Assembler : public AssemblerVIXL
     // opportunistic dump of the pool, preferrably when it is more convenient
     // to do a dump.
     void flushBuffer() {
-        MOZ_ASSERT(0 && "flushBuffer()");
+        armbuffer_.flushPool();
     }
     void enterNoPool(size_t maxInst) {
-        MOZ_ASSERT(0 && "enterNoPool()");
+        armbuffer_.enterNoPool(maxInst);
     }
     void leaveNoPool() {
-        MOZ_ASSERT(0 && "leaveNoPool()");
+        armbuffer_.leaveNoPool();
     }
 
     // The buffer is about to be linked. Ensure any constant pools or
@@ -245,6 +245,8 @@ class Assembler : public AssemblerVIXL
 
 class ABIArgGenerator
 {
+    static const int numIntArgRegs = 8;
+    static const int numFloatArgRegs = 8;
   public:
     ABIArgGenerator()
       : intRegIndex_(0),

@@ -123,9 +123,9 @@ static const unsigned PushedRetAddr = 4;
 static const unsigned PushedFP = 16;
 static const unsigned StoredFP = 20;
 #elif defined(JS_CODEGEN_ARM64)
-static const unsigned PushedRetAddr = 999; // FIXME: read from assertion
-static const unsigned PushedFP = 999; // FIXME: read from assertion
-static const unsigned StoredFP = 999; // FIXME: read from assertion
+static const unsigned PushedRetAddr = 8; // Maybe FIXME: read from assertion
+static const unsigned PushedFP = 24; // FIXME: read from assertion
+static const unsigned StoredFP = 28; // FIXME: read from assertion
 #elif defined(JS_CODEGEN_MIPS)
 static const unsigned PushedRetAddr = 8;
 static const unsigned PushedFP = 24;
@@ -173,8 +173,10 @@ GenerateProfilingPrologue(MacroAssembler &masm, unsigned framePushed, AsmJSExit:
     // this requires AutoForbidPools to prevent a constant pool from being
     // randomly inserted between two instructions.
     {
-#if defined(JS_CODEGEN_ARM) || defined(JS_CODEGEN_ARM64)
+#if defined(JS_CODEGEN_ARM)
         AutoForbidPools afp(&masm, /* number of instructions in scope = */ 5);
+#elif defined(JS_CODEGEN_ARM64)
+        AutoForbidPools afp(&masm, /* number of instructions in scope = */ 7);
 #endif
         DebugOnly<uint32_t> offsetAtBegin = masm.currentOffset();
         masm.bind(begin);

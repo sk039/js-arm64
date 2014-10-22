@@ -29,7 +29,30 @@ using mozilla::CountLeadingZeroes32;
 ABIArg
 ABIArgGenerator::next(MIRType type)
 {
-    MOZ_ASSERT(0 && "ABIArgGenerator::next");
+    switch (type) {
+      case MIRType_Int32:
+      case MIRType_Pointer:
+        if (intRegIndex_ == numIntArgRegs) {
+            current_ = ABIArg(stackOffset_);
+            stackOffset_ += sizeof(uintptr_t);
+            break;
+        }
+        current_ = ABIArg(Register::FromCode(intRegIndex_));
+        intRegIndex_++;
+        break;
+      case MIRType_Float32:
+      case MIRType_Double:
+        if (floatRegIndex_ == NumFloatArgRegs) {
+            current_ = ABIArg(stackOffset_);
+            stackOffset_ += sizeof(double);
+            break;
+        }
+        current_ = ABIArg(FloatRegister::FromCode(floatRegIndex_));
+        floatRegIndex_++;
+        break;
+      default:
+        MOZ_CRASH("Unexpected argument type");
+    }
     return current_;
 }
 
