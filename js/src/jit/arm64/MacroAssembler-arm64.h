@@ -485,7 +485,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
     void movePtr(AsmJSImmPtr imm, Register dest) {
         append(AsmJSAbsoluteLink(CodeOffsetLabel(currentOffset()), imm.kind()));
-        movePatchablePtr(ImmPtr(-1), ARMRegister(dest, 64));
+        movePatchablePtr(ImmPtr((void*)0xffffffffffffffffULL), dest);
     }
     void movePtr(ImmGCPtr imm, Register dest) {
         writeDataRelocation(imm);
