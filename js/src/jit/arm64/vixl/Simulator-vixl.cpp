@@ -32,6 +32,7 @@
 // TODO: Remove use of stdlib.
 #include <math.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "jit/arm64/vixl/Debugger-vixl.h"
 #include "jit/arm64/vixl/VIXL-Platform-vixl.h"
@@ -92,7 +93,9 @@ Simulator::init(Decoder* decoder, FILE* stream) {
   // Ensure that shift operations act as the simulator expects.
   VIXL_ASSERT((static_cast<int32_t>(-1) >> 1) == -1);
   VIXL_ASSERT((static_cast<uint32_t>(-1) >> 1) == 0x7FFFFFFF);
-
+#ifdef DEBUG
+  pipe(fds);
+#endif
   // Set up the decoder.
   decoder_ = decoder;
   decoder_->AppendVisitor(this);

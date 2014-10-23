@@ -145,6 +145,9 @@ class DebuggerARM64 : public Simulator {
 
     update_pending_request();
   }
+  virtual void enable_debugger() {
+    set_debug_parameters(DBG_ACTIVE);
+  }
 
   // Numbers of instructions to execute before the debugger shell is given
   // back control.
