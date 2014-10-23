@@ -107,6 +107,8 @@ class LIRGeneratorARM64 : public LIRGeneratorShared
     bool visitSimdTernaryBitwise(MSimdTernaryBitwise *ins);
     bool visitSimdSplatX4(MSimdSplatX4 *ins);
     bool visitSimdValueX4(MSimdValueX4 *ins);
+    bool visitAtomicTypedArrayElementBinop(MAtomicTypedArrayElementBinop *ins);
+    bool visitCompareExchangeTypedArrayElement(MCompareExchangeTypedArrayElement *ins);
 
     static bool allowFloat32Optimizations() {
         return true;

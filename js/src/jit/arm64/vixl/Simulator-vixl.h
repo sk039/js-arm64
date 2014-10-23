@@ -663,9 +663,9 @@ class Simulator : public DecoderVisitor {
     return reinterpret_cast<T>(bits & ~kAddressTagMask);
   }
   bool safememcpy(void *dest, const void* src, size_t n) {
-    if (write(fds[1], src, n) != n)
+    if (write(fds[1], src, n) != (ssize_t)n)
       return false;
-    if (read(fds[1], dest, n) != n)
+    if (read(fds[1], dest, n) != (ssize_t)n)
       return false;
     return true;
   }

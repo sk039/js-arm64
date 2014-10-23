@@ -405,3 +405,15 @@ LIRGeneratorARM64::visitSimdValueX4(MSimdValueX4 *ins)
 {
     MOZ_CRASH("NYI");
 }
+
+bool
+LIRGeneratorARM64::visitAtomicTypedArrayElementBinop(MAtomicTypedArrayElementBinop *ins)
+{
+    MOZ_CRASH("NYI");
+}
+
+bool
+LIRGeneratorARM64::visitCompareExchangeTypedArrayElement(MCompareExchangeTypedArrayElement *ins)
+{
+    MOZ_CRASH("NYI");
+}
