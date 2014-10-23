@@ -1797,7 +1797,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
 
     void callWithExitFrame(Label *target) {
-        MOZ_CRASH("callWithExitFrame(Label *)");
+        breakpoint();
     }
 
     void callWithExitFrame(JitCode *target) {
