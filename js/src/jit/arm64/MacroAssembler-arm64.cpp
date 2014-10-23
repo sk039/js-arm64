@@ -49,21 +49,25 @@ MacroAssembler::PushRegsInMask(RegisterSet set, FloatRegisterSet simdSet)
         CPURegister src3 = NoCPUReg;
 
         src0 = ARMRegister(*iter, 64);
+        adjustFrame(8);
         ++iter;
 
         if (iter.more()) {
             src1 = ARMRegister(*iter, 64);
             ++iter;
+            adjustFrame(8);
         }
 
         if (iter.more()) {
             src2 = ARMRegister(*iter, 64);
             ++iter;
+            adjustFrame(8);
         }
 
         if (iter.more()) {
             src3 = ARMRegister(*iter, 64);
             ++iter;
+            adjustFrame(8);
         }
 
         MacroAssemblerVIXL::Push(src0, src1, src2, src3);
@@ -77,20 +81,24 @@ MacroAssembler::PushRegsInMask(RegisterSet set, FloatRegisterSet simdSet)
 
         src0 = ARMFPRegister(*iter, 64);
         ++iter;
+        adjustFrame(8);
 
         if (iter.more()) {
             src1 = ARMFPRegister(*iter, 64);
             ++iter;
+            adjustFrame(8);
         }
 
         if (iter.more()) {
             src2 = ARMFPRegister(*iter, 64);
             ++iter;
+            adjustFrame(8);
         }
 
         if (iter.more()) {
             src3 = ARMFPRegister(*iter, 64);
             ++iter;
+            adjustFrame(8);
         }
 
         MacroAssemblerVIXL::Push(src0, src1, src2, src3);
