@@ -130,8 +130,20 @@ CodeGeneratorARM64::visitCompareAndBranch(LCompareAndBranch *comp)
 bool
 CodeGeneratorARM64::generateOutOfLineCode()
 {
-    MOZ_ASSERT(0 && "CodeGeneratorARM64::generateOutOfLineCode");
-    return false;
+    if (!CodeGeneratorShared::generateOutOfLineCode())
+        return false;
+
+    if (deoptLabel_.used()) {
+        // All non-table-based bailouts will go here.
+        masm.bind(&deoptLabel_);
+
+        // Push the frame size, so the handler can recover the IonScript.
+        masm.Mov(w30, frameSize());
+
+        JitCode *handler = gen->jitRuntime()->getGenericBailoutHandler(gen->info().executionMode());
+        masm.branch(handler);
+    }
+    return true;
 }
 
 bool
