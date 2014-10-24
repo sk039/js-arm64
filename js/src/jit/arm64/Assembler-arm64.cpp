@@ -267,6 +267,36 @@ Assembler::ToggleCall(CodeLocationLabel inst_, bool enabled)
     MOZ_CRASH("ToggleCall()");
 }
 
+class RelocationIterator
+{
+    CompactBufferReader reader_;
+    uint32_t tableStart_;
+    uint32_t offset_;
+    uint32_t extOffset_;
+
+  public:
+    explicit RelocationIterator(CompactBufferReader &reader)
+      : reader_(reader)
+    {
+        tableStart_ = reader_.readFixedUint32_t();
+    }
+
+    bool read() {
+        if (!reader_.more())
+            return false;
+        offset_ = reader_.readUnsigned();
+        extOffset_ = reader_.readUnsigned();
+        return true;
+    }
+
+    uint32_t offset() const {
+        return offset_;
+    }
+    uint32_t extendedOffset() const {
+        return extOffset_;
+    }
+};
+
 void
 Assembler::TraceJumpRelocations(JSTracer *trc, JitCode *code, CompactBufferReader &reader)
 {
