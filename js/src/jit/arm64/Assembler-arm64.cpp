@@ -79,7 +79,7 @@ Assembler::finish()
     }
 
     for (unsigned int i = 0; i < tmpJumpRelocations_.length(); i++) {
-        int offset = tmpJumpRelocations_[i].getOffset();
+        int offset = tmpJumpRelocations_[i].jump.getOffset();
         int real_offset = offset + armbuffer_.poolSizeBefore(offset);
         jumpRelocations_.writeUnsigned(real_offset);
     }
@@ -153,8 +153,8 @@ Assembler::bind(RepatchLabel *label)
 void
 Assembler::trace(JSTracer *trc)
 {
-    for (size_t i = 0; i < jumps_.length(); i++) {
-        RelativePatch &rp = jumps_[i];
+    for (size_t i = 0; i < pendingJumps_.length(); i++) {
+        RelativePatch &rp = pendingJumps_[i];
         if (rp.kind == Relocation::JITCODE) {
             JitCode *code = JitCode::FromExecutable((uint8_t *)rp.target);
             MarkJitCodeUnbarriered(trc, &code, "masmrel32");
@@ -170,10 +170,13 @@ Assembler::trace(JSTracer *trc)
 }
 
 void
-Assembler::writeRelocation(BufferOffset src, Relocation::Kind reloc)
+Assembler::addJumpRelocation(BufferOffset src, Relocation::Kind reloc)
 {
-    if (reloc == Relocation::JITCODE)
-        tmpJumpRelocations_.append(src);
+    // Only JITCODE relocations are patchable at runtime.
+    MOZ_ASSERT(reloc == Relocation::JITCODE);
+
+    // Each relocation requires an entry in the extended jump table.
+    tmpJumpRelocations_.append(JumpRelocation(src, pendingJumps_.length()));
 }
 
 void
@@ -182,10 +185,23 @@ Assembler::addPendingJump(BufferOffset src, ImmPtr target, Relocation::Kind relo
     MOZ_ASSERT(target.value != nullptr);
 
     if (reloc == Relocation::JITCODE)
-        writeRelocation(src, reloc);
+        addJumpRelocation(src, reloc);
 
-    // This jump is not patchable at runtime.
-    enoughMemory_ &= jumps_.append(RelativePatch(target.value, reloc));
+    // This jump is not patchable at runtime. Extended jump table entry requirements
+    // cannot be known until finalization, so to be safe, give each jump and entry.
+    // This also causes GC tracing of the target.
+    enoughMemory_ &= pendingJumps_.append(RelativePatch(src, target.value, reloc));
+}
+
+size_t
+Assembler::addPatchableJump(BufferOffset src, Relocation::Kind reloc)
+{
+    if (reloc == Relocation::JITCODE)
+        addJumpRelocation(src, reloc);
+
+    size_t extendedTableIndex = pendingJumps_.length();
+    enoughMemory_ &= pendingJumps_.append(RelativePatch(src, nullptr, reloc));
+    return extendedTableIndex;
 }
 
 // FIXME: Shouldn't this be a static method of Assembler?

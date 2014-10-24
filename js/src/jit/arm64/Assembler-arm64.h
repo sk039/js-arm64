@@ -160,10 +160,17 @@ class Assembler : public AssemblerVIXL
     static bool SupportsFloatingPoint() { return true; }
     static bool SupportsSimd() { return js::jit::SupportsSimd; }
 
-    void writeRelocation(BufferOffset src, Relocation::Kind reloc);
+    // Tracks a jump that is patchable after finalization.
+    void addJumpRelocation(BufferOffset src, Relocation::Kind reloc);
 
   protected:
+    // Add a jump whose target is unknown until finalization.
+    // The jump may not be patched at runtime.
     void addPendingJump(BufferOffset src, ImmPtr target, Relocation::Kind kind);
+
+    // Add a jump whose target is unknown until finalization, and may change
+    // thereafter. The jump is patchable at runtime.
+    size_t addPatchableJump(BufferOffset src, Relocation::Kind kind);
 
   public:
     static uint32_t PatchWrite_NearCallSize() {
@@ -214,32 +221,49 @@ class Assembler : public AssemblerVIXL
     static void PatchInstructionImmediate(uint8_t *code, PatchedImmPtr imm);
 
   protected:
-    // Structure for fixing up pc-relative loads/jumps when the machine
-    // code gets moved (executable copy, gc, etc.).
-    struct RelativePatch
+    // Because jumps may be relocated to a target inaccessible by a short jump,
+    // each relocatable jump must have a unique entry in the extended jump table.
+    // Valid relocatable targets are of type Relocation::JITCODE.
+    struct JumpRelocation
     {
-        void *target;
-        Relocation::Kind kind;
+        BufferOffset jump; // Offset to the short jump, from the start of the code buffer.
+        uint32_t extendedTableIndex; // Unique index within the extended jump table.
 
-        RelativePatch(void *target, Relocation::Kind kind)
-          : target(target), kind(kind)
+        JumpRelocation(BufferOffset jump, uint32_t extendedTableIndex)
+          : jump(jump), extendedTableIndex(extendedTableIndex)
         { }
     };
-
-    js::Vector<CodeLabel, 0, SystemAllocPolicy> codeLabels_;
-    js::Vector<RelativePatch, 8, SystemAllocPolicy> jumps_;
 
     // Because ARM and A64 use a code buffer that allows for constant pool insertion,
     // the actual offset of each jump cannot be known until finalization.
     // These vectors store the WIP offsets.
-    js::Vector<BufferOffset, 0, SystemAllocPolicy> tmpJumpRelocations_;
     js::Vector<BufferOffset, 0, SystemAllocPolicy> tmpDataRelocations_;
     js::Vector<BufferOffset, 0, SystemAllocPolicy> tmpPreBarriers_;
+    js::Vector<JumpRelocation, 0, SystemAllocPolicy> tmpJumpRelocations_;
+
+    // Structure for fixing up pc-relative loads/jumps when the machine
+    // code gets moved (executable copy, gc, etc.).
+    struct RelativePatch
+    {
+        BufferOffset offset;
+        void *target;
+        Relocation::Kind kind;
+
+        RelativePatch(BufferOffset offset, void *target, Relocation::Kind kind)
+          : offset(offset), target(target), kind(kind)
+        { }
+    };
+
+    js::Vector<CodeLabel, 0, SystemAllocPolicy> codeLabels_;
+
+    // List of jumps for which the target is either unknown until finalization,
+    // or cannot be known due to GC. Each entry here requires a unique entry
+    // in the extended jump table, and is patched at finalization.
+    js::Vector<RelativePatch, 8, SystemAllocPolicy> pendingJumps_;
 
     // Final output formatters.
     CompactBufferWriter jumpRelocations_;
     CompactBufferWriter dataRelocations_;
-    CompactBufferWriter relocations_;
     CompactBufferWriter preBarriers_;
 };
 
