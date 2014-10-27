@@ -52,6 +52,8 @@ class Assembler : public AssemblerVIXL
     // Emit the jump table, returning the BufferOffset to the first entry in the table.
     BufferOffset emitExtendedJumpTable();
 
+    void executableCopy(uint8_t *buffer);
+
     BufferOffset immPool(ARMRegister dest, uint8_t *value, LoadLiteralOp op);
     BufferOffset immPool64(ARMRegister dest, uint64_t value);
     void bind(Label *label) { bind(label, nextOffset()); }
@@ -150,11 +152,6 @@ class Assembler : public AssemblerVIXL
     }
     static uint8_t *PatchableJumpAddress(JitCode *code, uint32_t index) {
         MOZ_ASSERT(0 && "patchableJumpAddress");
-    }
-    void executableCopy(uint8_t *buffer){
-        // TODO: MOZ_ASSERT(isFinished);
-        armbuffer_.executableCopy(buffer);
-        // TODO: AutoFlushICache
     }
     void setPrinter(Sprinter *sp) {
         MOZ_ASSERT(0 && "setPrinter()");

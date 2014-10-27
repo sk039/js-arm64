@@ -83,10 +83,25 @@ Assembler::finish()
         dataRelocations_.writeUnsigned(real_offset);
     }
 
-    for (unsigned int i = 0; i < tmpJumpRelocations_.length(); i++) {
-        int offset = tmpJumpRelocations_[i].jump.getOffset();
+    // The jump relocation table starts with a fixed-width integer pointing
+    // to the start of the extended jump table.
+    if (tmpJumpRelocations_.length()) {
+        int offset = extendedJumpTable.getOffset();
         int real_offset = offset + armbuffer_.poolSizeBefore(offset);
+        jumpRelocations_.writeFixedUint32_t(real_offset);
+    }
+
+    for (unsigned int i = 0; i < tmpJumpRelocations_.length(); i++) {
+        JumpRelocation &reloc = tmpJumpRelocations_[i];
+
+        int offset = reloc.jump.getOffset();
+        int real_offset = offset + armbuffer_.poolSizeBefore(offset);
+
+        uint32_t extTableIndex = reloc.extendedTableIndex;
+
+        // Each entry in the relocations table is an (offset, extendedTableIndex) pair.
         jumpRelocations_.writeUnsigned(real_offset);
+        jumpRelocations_.writeUnsigned(extTableIndex);
     }
 
     for (unsigned int i = 0; i < tmpPreBarriers_.length(); i++) {
@@ -124,6 +139,19 @@ Assembler::emitExtendedJumpTable()
     }
 
     return tableOffset;
+}
+
+void
+Assembler::executableCopy(uint8_t *buffer)
+{
+    // Copy the code and all constant pools into the output buffer.
+    armbuffer_.executableCopy(buffer);
+
+    // Patch any relative jumps that target code outside the buffer.
+    // The extended jump table may be used for distant jumps.
+    for (size_t i = 0; i < pendingJumps_.length(); i++) {
+
+    }
 }
 
 BufferOffset
