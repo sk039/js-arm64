@@ -97,11 +97,9 @@ Assembler::finish()
         int offset = reloc.jump.getOffset();
         int real_offset = offset + armbuffer_.poolSizeBefore(offset);
 
-        uint32_t extTableIndex = reloc.extendedTableIndex;
-
         // Each entry in the relocations table is an (offset, extendedTableIndex) pair.
         jumpRelocations_.writeUnsigned(real_offset);
-        jumpRelocations_.writeUnsigned(extTableIndex);
+        jumpRelocations_.writeUnsigned(reloc.extendedTableIndex);
     }
 
     for (unsigned int i = 0; i < tmpPreBarriers_.length(); i++) {
