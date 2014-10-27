@@ -205,14 +205,14 @@ CPURegister::X() const
 const ARMFPRegister&
 CPURegister::S() const
 {
-    VIXL_ASSERT(IsValidARMFPRegister());
+    VIXL_ASSERT(IsValidFPRegister());
     return ARMFPRegister::SRegFromCode(code_);
 }
 
 const ARMFPRegister&
 CPURegister::D() const
 {
-    VIXL_ASSERT(IsValidARMFPRegister());
+    VIXL_ASSERT(IsValidFPRegister());
     return ARMFPRegister::DRegFromCode(code_);
 
 }
@@ -1354,23 +1354,16 @@ AssemblerVIXL::ldursw(const ARMRegister& rt, const MemOperand& src, LoadStoreSca
 }
 
 void
-AssemblerVIXL::ldr(const ARMRegister& rt, uint64_t imm)
+AssemblerVIXL::ldr(const CPURegister &rt, int imm19)
 {
-    LoadLiteral(rt, imm, rt.Is64Bits() ? LDR_x_lit : LDR_w_lit);
+    LoadLiteralOp op = LoadLiteralOpFor(rt);
+    Emit(op | ImmLLiteral(imm19) | Rt(rt));
 }
 
 void
-AssemblerVIXL::ldr(const ARMFPRegister& ft, double imm)
+AssemblerVIXL::ldrsw(const ARMRegister &rt, int imm19)
 {
-    VIXL_ASSERT(ft.Is64Bits());
-    LoadLiteral(ft, double_to_rawbits(imm), LDR_d_lit);
-}
-
-void
-AssemblerVIXL::ldr(const ARMFPRegister& ft, float imm)
-{
-    VIXL_ASSERT(ft.Is32Bits());
-    LoadLiteral(ft, float_to_rawbits(imm), LDR_s_lit);
+    Emit(LDRSW_x_lit | ImmLLiteral(imm19) | Rt(rt));
 }
 
 // Exclusive-access instructions.
@@ -2306,6 +2299,15 @@ AssemblerVIXL::LoadLiteral(const CPURegister& rt, uint64_t imm, LoadLiteralOp op
     Emit(op | ImmLLiteral(0) | Rt(rt));
 }
 
+void
+AssemblerVIXL::LoadPCLiteral(const CPURegister &rt, ptrdiff_t pcInsOffset, LoadLiteralOp op)
+{
+    VIXL_ASSERT(is_int19(pcInsOffset));
+
+    // The PCInsOffset is in units of Instruction.
+    Emit(op | ImmLLiteral(pcInsOffset) | Rt(rt));
+}
+
 // Test if a given value can be encoded in the immediate field of a logical
 // instruction.
 // If it can be encoded, the function returns true, and values pointed to by n,
@@ -2568,7 +2570,7 @@ AssemblerVIXL::LoadOpFor(const CPURegister& rt)
     if (rt.IsRegister())
         return rt.Is64Bits() ? LDR_x : LDR_w;
 
-    VIXL_ASSERT(rt.IsARMFPRegister());
+    VIXL_ASSERT(rt.IsFPRegister());
     return rt.Is64Bits() ? LDR_d : LDR_s;
 }
 
@@ -2580,7 +2582,7 @@ AssemblerVIXL::LoadPairOpFor(const CPURegister& rt, const CPURegister& rt2)
     if (rt.IsRegister())
         return rt.Is64Bits() ? LDP_x : LDP_w;
 
-    VIXL_ASSERT(rt.IsARMFPRegister());
+    VIXL_ASSERT(rt.IsFPRegister());
     return rt.Is64Bits() ? LDP_d : LDP_s;
 }
 
@@ -2591,7 +2593,7 @@ AssemblerVIXL::StoreOpFor(const CPURegister& rt)
     if (rt.IsRegister())
         return rt.Is64Bits() ? STR_x : STR_w;
 
-    VIXL_ASSERT(rt.IsARMFPRegister());
+    VIXL_ASSERT(rt.IsFPRegister());
     return rt.Is64Bits() ? STR_d : STR_s;
 }
 
@@ -2603,7 +2605,7 @@ AssemblerVIXL::StorePairOpFor(const CPURegister& rt, const CPURegister& rt2)
     if (rt.IsRegister())
         return rt.Is64Bits() ? STP_x : STP_w;
 
-    VIXL_ASSERT(rt.IsARMFPRegister());
+    VIXL_ASSERT(rt.IsFPRegister());
     return rt.Is64Bits() ? STP_d : STP_s;
 }
 
@@ -2615,7 +2617,7 @@ AssemblerVIXL::LoadPairNonTemporalOpFor(const CPURegister& rt, const CPURegister
     if (rt.IsRegister())
         return rt.Is64Bits() ? LDNP_x : LDNP_w;
 
-    VIXL_ASSERT(rt.IsARMFPRegister());
+    VIXL_ASSERT(rt.IsFPRegister());
     return rt.Is64Bits() ? LDNP_d : LDNP_s;
 }
 
@@ -2627,8 +2629,18 @@ AssemblerVIXL::StorePairNonTemporalOpFor(const CPURegister& rt, const CPURegiste
     if (rt.IsRegister())
         return rt.Is64Bits() ? STNP_x : STNP_w;
 
-    VIXL_ASSERT(rt.IsARMFPRegister());
+    VIXL_ASSERT(rt.IsFPRegister());
     return rt.Is64Bits() ? STNP_d : STNP_s;
+}
+
+LoadLiteralOp
+AssemblerVIXL::LoadLiteralOpFor(const CPURegister &rt)
+{
+    if (rt.IsRegister())
+        return rt.Is64Bits() ? LDR_x_lit : LDR_w_lit;
+
+    VIXL_ASSERT(rt.IsFPRegister());
+    return rt.Is64Bits() ? LDR_d_lit : LDR_s_lit;
 }
 
 // FIXME: Share with arm/Assembler-arm.cpp
@@ -2821,7 +2833,7 @@ AreAliased(const CPURegister& reg1, const CPURegister& reg2,
         if (regs[i].IsRegister()) {
             number_of_valid_regs++;
             unique_regs |= regs[i].Bit();
-        } else if (regs[i].IsARMFPRegister()) {
+        } else if (regs[i].IsFPRegister()) {
             number_of_valid_fpregs++;
             unique_fpregs |= regs[i].Bit();
         } else {
