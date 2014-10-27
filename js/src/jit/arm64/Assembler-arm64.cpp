@@ -22,6 +22,7 @@ using namespace js;
 using namespace js::jit;
 
 using mozilla::CountLeadingZeroes32;
+using mozilla::DebugOnly;
 
 // Note this is used for inter-AsmJS calls and may pass arguments and results
 // in floating point registers even if the system ABI does not.
@@ -109,10 +110,14 @@ Assembler::emitExtendedJumpTable()
         //   BR ip0
         //   [Patchable 8-byte constant low bits]
         //   [Patchable 8-byte constant high bits]
+        DebugOnly<size_t> preOffset = size_t(armbuffer_.nextOffset().getOffset());
         ldr(ip0_64, ptrdiff_t(2 * sizeof(Instruction)));
         br(ip0_64);
         brk(0x0);
         brk(0x0);
+        DebugOnly<size_t> postOffset = size_t(armbuffer_.nextOffset().getOffset());
+
+        MOZ_ASSERT(postOffset - preOffset == SizeOfJumpTableEntry);
     }
 }
 
