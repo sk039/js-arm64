@@ -74,14 +74,7 @@ Assembler::finish()
 
     // The extended jump table is part of the code buffer.
     BufferOffset extendedJumpTable = emitExtendedJumpTable();
-
     AssemblerVIXL::FinalizeCode();
-
-    for (unsigned int i = 0; i < tmpDataRelocations_.length(); i++) {
-        int offset = tmpDataRelocations_[i].getOffset();
-        int real_offset = offset + armbuffer_.poolSizeBefore(offset);
-        dataRelocations_.writeUnsigned(real_offset);
-    }
 
     // The jump relocation table starts with a fixed-width integer pointing
     // to the start of the extended jump table.
@@ -100,6 +93,12 @@ Assembler::finish()
         // Each entry in the relocations table is an (offset, extendedTableIndex) pair.
         jumpRelocations_.writeUnsigned(real_offset);
         jumpRelocations_.writeUnsigned(reloc.extendedTableIndex);
+    }
+
+    for (unsigned int i = 0; i < tmpDataRelocations_.length(); i++) {
+        int offset = tmpDataRelocations_[i].getOffset();
+        int real_offset = offset + armbuffer_.poolSizeBefore(offset);
+        dataRelocations_.writeUnsigned(real_offset);
     }
 
     for (unsigned int i = 0; i < tmpPreBarriers_.length(); i++) {
