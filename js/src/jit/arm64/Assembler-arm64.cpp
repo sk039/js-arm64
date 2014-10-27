@@ -70,6 +70,10 @@ void
 Assembler::finish()
 {
     armbuffer_.flushPool();
+
+    // The extended jump table is part of the code buffer.
+    emitExtendedJumpTable();
+
     AssemblerVIXL::FinalizeCode();
 
     for (unsigned int i = 0; i < tmpDataRelocations_.length(); i++) {
@@ -88,6 +92,27 @@ Assembler::finish()
         int offset = tmpPreBarriers_[i].getOffset();
         int real_offset = offset + armbuffer_.poolSizeBefore(offset);
         preBarriers_.writeUnsigned(real_offset);
+    }
+}
+
+void
+Assembler::emitExtendedJumpTable()
+{
+    if (!pendingJumps_.length() || oom())
+        return;
+
+    armbuffer_.align(SizeOfJumpTableEntry);
+
+    for (size_t i = 0; i < pendingJumps_.length(); i++) {
+        // Each jump entry is of the form:
+        //   LDR ip0 [PC, 8]
+        //   BR ip0
+        //   [Patchable 8-byte constant low bits]
+        //   [Patchable 8-byte constant high bits]
+        ldr(ip0_64, ptrdiff_t(2 * sizeof(Instruction)));
+        br(ip0_64);
+        brk(0x0);
+        brk(0x0);
     }
 }
 

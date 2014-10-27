@@ -573,6 +573,7 @@ class MemOperand
     explicit MemOperand(ARMRegister base,
                         const Operand& offset,
                         AddrMode addrmode = Offset);
+    explicit MemOperand(ptrdiff_t PCoffset);
 
     // Adapter constructors using C++11 delegating.
     explicit MemOperand(Address addr)
@@ -1243,14 +1244,11 @@ class AssemblerVIXL : public AssemblerShared
     // Store integer or FP register pair, non-temporal.
     void stnp(const CPURegister& rt, const CPURegister& rt2, const MemOperand& dst);
 
-    // Load literal to register.
-    void ldr(const ARMRegister& rt, uint64_t imm);
+    // Load integer or FP register from pc + imm19 << 2.
+    void ldr(const CPURegister& rt, int imm19);
 
-    // Load double precision floating point literal to FP register.
-    void ldr(const ARMFPRegister& ft, double imm);
-
-    // Load single precision floating point literal to FP register.
-    void ldr(const ARMFPRegister& ft, float imm);
+    // Load word with sign extension from pc + imm19 << 2.
+    void ldrsw(const ARMRegister &rt, int imm19);
 
     // Store exclusive byte.
     void stxrb(const ARMRegister& rs, const ARMRegister& rt, const MemOperand& dst);
@@ -1880,6 +1878,8 @@ class AssemblerVIXL : public AssemblerShared
     static LoadStorePairNonTemporalOp StorePairNonTemporalOpFor(
       const CPURegister& rt, const CPURegister& rt2);
 
+    static LoadLiteralOp LoadLiteralOpFor(const CPURegister& rt);
+
 
   private:
     // Instruction helpers.
@@ -1893,6 +1893,7 @@ class AssemblerVIXL : public AssemblerShared
     void LoadStorePairNonTemporal(const CPURegister& rt, const CPURegister& rt2,
                                   const MemOperand& addr, LoadStorePairNonTemporalOp op);
     void LoadLiteral(const CPURegister& rt, uint64_t imm, LoadLiteralOp op);
+    void LoadPCLiteral(const CPURegister& rt, ptrdiff_t PCInsOffset, LoadLiteralOp op);
     void ConditionalSelect(const ARMRegister& rd, const ARMRegister& rn,
                            const ARMRegister& rm, Condition cond, ConditionalSelectOp op);
     void DataProcessing1Source(const ARMRegister& rd, const ARMRegister& rn,

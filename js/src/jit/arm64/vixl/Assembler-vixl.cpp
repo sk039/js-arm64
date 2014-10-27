@@ -1354,23 +1354,16 @@ AssemblerVIXL::ldursw(const ARMRegister& rt, const MemOperand& src, LoadStoreSca
 }
 
 void
-AssemblerVIXL::ldr(const ARMRegister& rt, uint64_t imm)
+AssemblerVIXL::ldr(const CPURegister &rt, int imm19)
 {
-    LoadLiteral(rt, imm, rt.Is64Bits() ? LDR_x_lit : LDR_w_lit);
+    LoadLiteralOp op = LoadLiteralOpFor(rt);
+    Emit(op | ImmLLiteral(imm19) | Rt(rt));
 }
 
 void
-AssemblerVIXL::ldr(const ARMFPRegister& ft, double imm)
+AssemblerVIXL::ldrsw(const ARMRegister &rt, int imm19)
 {
-    VIXL_ASSERT(ft.Is64Bits());
-    LoadLiteral(ft, double_to_rawbits(imm), LDR_d_lit);
-}
-
-void
-AssemblerVIXL::ldr(const ARMFPRegister& ft, float imm)
-{
-    VIXL_ASSERT(ft.Is32Bits());
-    LoadLiteral(ft, float_to_rawbits(imm), LDR_s_lit);
+    Emit(LDRSW_x_lit | ImmLLiteral(imm19) | Rt(rt));
 }
 
 // Exclusive-access instructions.
@@ -2306,6 +2299,15 @@ AssemblerVIXL::LoadLiteral(const CPURegister& rt, uint64_t imm, LoadLiteralOp op
     Emit(op | ImmLLiteral(0) | Rt(rt));
 }
 
+void
+AssemblerVIXL::LoadPCLiteral(const CPURegister &rt, ptrdiff_t pcInsOffset, LoadLiteralOp op)
+{
+    VIXL_ASSERT(is_int19(pcInsOffset));
+
+    // The PCInsOffset is in units of Instruction.
+    Emit(op | ImmLLiteral(pcInsOffset) | Rt(rt));
+}
+
 // Test if a given value can be encoded in the immediate field of a logical
 // instruction.
 // If it can be encoded, the function returns true, and values pointed to by n,
@@ -2629,6 +2631,16 @@ AssemblerVIXL::StorePairNonTemporalOpFor(const CPURegister& rt, const CPURegiste
 
     VIXL_ASSERT(rt.IsARMFPRegister());
     return rt.Is64Bits() ? STNP_d : STNP_s;
+}
+
+LoadLiteralOp
+AssemblerVIXL::LoadLiteralOpFor(const CPURegister &rt)
+{
+    if (rt.IsRegister())
+        return rt.Is64Bits() ? LDR_x_lit : LDR_w_lit;
+
+    VIXL_ASSERT(rt.IsARMFPRegister());
+    return rt.Is64Bits() ? LDR_d_lit : LDR_s_lit;
 }
 
 // FIXME: Share with arm/Assembler-arm.cpp

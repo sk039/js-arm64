@@ -49,6 +49,8 @@ class Assembler : public AssemblerVIXL
     void finish();
     void trace(JSTracer *trc);
 
+    void emitExtendedJumpTable();
+
     BufferOffset immPool(ARMRegister dest, uint8_t *value, LoadLiteralOp op);
     BufferOffset immPool64(ARMRegister dest, uint64_t value);
     void bind(Label *label) { bind(label, nextOffset()); }
@@ -221,6 +223,9 @@ class Assembler : public AssemblerVIXL
     static void PatchInstructionImmediate(uint8_t *code, PatchedImmPtr imm);
 
   protected:
+    // TODO: Informative comment goes here.
+    static const size_t SizeOfJumpTableEntry = 16;
+
     // Because jumps may be relocated to a target inaccessible by a short jump,
     // each relocatable jump must have a unique entry in the extended jump table.
     // Valid relocatable targets are of type Relocation::JITCODE.
