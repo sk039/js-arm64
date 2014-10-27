@@ -49,7 +49,8 @@ class Assembler : public AssemblerVIXL
     void finish();
     void trace(JSTracer *trc);
 
-    void emitExtendedJumpTable();
+    // Emit the jump table, returning the BufferOffset to the first entry in the table.
+    BufferOffset emitExtendedJumpTable();
 
     BufferOffset immPool(ARMRegister dest, uint8_t *value, LoadLiteralOp op);
     BufferOffset immPool64(ARMRegister dest, uint64_t value);

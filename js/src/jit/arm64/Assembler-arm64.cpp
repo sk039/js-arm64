@@ -73,7 +73,7 @@ Assembler::finish()
     armbuffer_.flushPool();
 
     // The extended jump table is part of the code buffer.
-    emitExtendedJumpTable();
+    BufferOffset extendedJumpTable = emitExtendedJumpTable();
 
     AssemblerVIXL::FinalizeCode();
 
@@ -96,13 +96,16 @@ Assembler::finish()
     }
 }
 
-void
+BufferOffset
 Assembler::emitExtendedJumpTable()
 {
     if (!pendingJumps_.length() || oom())
-        return;
+        return BufferOffset();
 
+    armbuffer_.flushPool();
     armbuffer_.align(SizeOfJumpTableEntry);
+
+    BufferOffset tableOffset = armbuffer_.nextOffset();
 
     for (size_t i = 0; i < pendingJumps_.length(); i++) {
         // Each jump entry is of the form:
@@ -119,6 +122,8 @@ Assembler::emitExtendedJumpTable()
 
         MOZ_ASSERT(postOffset - preOffset == SizeOfJumpTableEntry);
     }
+
+    return tableOffset;
 }
 
 BufferOffset
