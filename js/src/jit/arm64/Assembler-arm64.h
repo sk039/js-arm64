@@ -220,6 +220,11 @@ class Assembler : public AssemblerVIXL
     static int32_t ExtractCodeLabelOffset(uint8_t *code);
     static void PatchInstructionImmediate(uint8_t *code, PatchedImmPtr imm);
 
+    // Convert a BufferOffset to a final byte offset from the start of the code buffer.
+    size_t toFinalOffset(BufferOffset offset) {
+        return size_t(offset.getOffset() + armbuffer_.poolSizeBefore(offset.getOffset()));
+    }
+
   protected:
     // TODO: Informative comment goes here.
     static const size_t SizeOfJumpTableEntry = 16;

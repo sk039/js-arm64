@@ -78,34 +78,22 @@ Assembler::finish()
 
     // The jump relocation table starts with a fixed-width integer pointing
     // to the start of the extended jump table.
-    if (tmpJumpRelocations_.length()) {
-        int offset = extendedJumpTable.getOffset();
-        int real_offset = offset + armbuffer_.poolSizeBefore(offset);
-        jumpRelocations_.writeFixedUint32_t(real_offset);
-    }
+    if (tmpJumpRelocations_.length())
+        jumpRelocations_.writeFixedUint32_t(toFinalOffset(extendedJumpTable));
 
     for (unsigned int i = 0; i < tmpJumpRelocations_.length(); i++) {
         JumpRelocation &reloc = tmpJumpRelocations_[i];
 
-        int offset = reloc.jump.getOffset();
-        int real_offset = offset + armbuffer_.poolSizeBefore(offset);
-
         // Each entry in the relocations table is an (offset, extendedTableIndex) pair.
-        jumpRelocations_.writeUnsigned(real_offset);
+        jumpRelocations_.writeUnsigned(toFinalOffset(reloc.jump));
         jumpRelocations_.writeUnsigned(reloc.extendedTableIndex);
     }
 
-    for (unsigned int i = 0; i < tmpDataRelocations_.length(); i++) {
-        int offset = tmpDataRelocations_[i].getOffset();
-        int real_offset = offset + armbuffer_.poolSizeBefore(offset);
-        dataRelocations_.writeUnsigned(real_offset);
-    }
+    for (unsigned int i = 0; i < tmpDataRelocations_.length(); i++)
+        dataRelocations_.writeUnsigned(toFinalOffset(tmpDataRelocations_[i]));
 
-    for (unsigned int i = 0; i < tmpPreBarriers_.length(); i++) {
-        int offset = tmpPreBarriers_[i].getOffset();
-        int real_offset = offset + armbuffer_.poolSizeBefore(offset);
-        preBarriers_.writeUnsigned(real_offset);
-    }
+    for (unsigned int i = 0; i < tmpPreBarriers_.length(); i++)
+        preBarriers_.writeUnsigned(toFinalOffset(tmpPreBarriers_[i]));
 }
 
 BufferOffset
@@ -147,7 +135,18 @@ Assembler::executableCopy(uint8_t *buffer)
     // Patch any relative jumps that target code outside the buffer.
     // The extended jump table may be used for distant jumps.
     for (size_t i = 0; i < pendingJumps_.length(); i++) {
+        RelativePatch &rp = pendingJumps_[i];
 
+        if (!rp.target) {
+            // The patch target is nullptr for jumps that have been linked to
+            // a label within the same code block, but may be repatched later
+            // to jump to a different code block.
+            continue;
+        }
+
+        // TODO: This instruction is actually a fairly complicated move,
+        // for the moment. So that's not good.
+        Instruction *branch = (Instruction *)(buffer + toFinalOffset(rp.offset));
     }
 }
 
