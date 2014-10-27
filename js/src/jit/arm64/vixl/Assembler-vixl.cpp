@@ -205,14 +205,14 @@ CPURegister::X() const
 const ARMFPRegister&
 CPURegister::S() const
 {
-    VIXL_ASSERT(IsValidARMFPRegister());
+    VIXL_ASSERT(IsValidFPRegister());
     return ARMFPRegister::SRegFromCode(code_);
 }
 
 const ARMFPRegister&
 CPURegister::D() const
 {
-    VIXL_ASSERT(IsValidARMFPRegister());
+    VIXL_ASSERT(IsValidFPRegister());
     return ARMFPRegister::DRegFromCode(code_);
 
 }
@@ -2570,7 +2570,7 @@ AssemblerVIXL::LoadOpFor(const CPURegister& rt)
     if (rt.IsRegister())
         return rt.Is64Bits() ? LDR_x : LDR_w;
 
-    VIXL_ASSERT(rt.IsARMFPRegister());
+    VIXL_ASSERT(rt.IsFPRegister());
     return rt.Is64Bits() ? LDR_d : LDR_s;
 }
 
@@ -2582,7 +2582,7 @@ AssemblerVIXL::LoadPairOpFor(const CPURegister& rt, const CPURegister& rt2)
     if (rt.IsRegister())
         return rt.Is64Bits() ? LDP_x : LDP_w;
 
-    VIXL_ASSERT(rt.IsARMFPRegister());
+    VIXL_ASSERT(rt.IsFPRegister());
     return rt.Is64Bits() ? LDP_d : LDP_s;
 }
 
@@ -2593,7 +2593,7 @@ AssemblerVIXL::StoreOpFor(const CPURegister& rt)
     if (rt.IsRegister())
         return rt.Is64Bits() ? STR_x : STR_w;
 
-    VIXL_ASSERT(rt.IsARMFPRegister());
+    VIXL_ASSERT(rt.IsFPRegister());
     return rt.Is64Bits() ? STR_d : STR_s;
 }
 
@@ -2605,7 +2605,7 @@ AssemblerVIXL::StorePairOpFor(const CPURegister& rt, const CPURegister& rt2)
     if (rt.IsRegister())
         return rt.Is64Bits() ? STP_x : STP_w;
 
-    VIXL_ASSERT(rt.IsARMFPRegister());
+    VIXL_ASSERT(rt.IsFPRegister());
     return rt.Is64Bits() ? STP_d : STP_s;
 }
 
@@ -2617,7 +2617,7 @@ AssemblerVIXL::LoadPairNonTemporalOpFor(const CPURegister& rt, const CPURegister
     if (rt.IsRegister())
         return rt.Is64Bits() ? LDNP_x : LDNP_w;
 
-    VIXL_ASSERT(rt.IsARMFPRegister());
+    VIXL_ASSERT(rt.IsFPRegister());
     return rt.Is64Bits() ? LDNP_d : LDNP_s;
 }
 
@@ -2629,7 +2629,7 @@ AssemblerVIXL::StorePairNonTemporalOpFor(const CPURegister& rt, const CPURegiste
     if (rt.IsRegister())
         return rt.Is64Bits() ? STNP_x : STNP_w;
 
-    VIXL_ASSERT(rt.IsARMFPRegister());
+    VIXL_ASSERT(rt.IsFPRegister());
     return rt.Is64Bits() ? STNP_d : STNP_s;
 }
 
@@ -2639,7 +2639,7 @@ AssemblerVIXL::LoadLiteralOpFor(const CPURegister &rt)
     if (rt.IsRegister())
         return rt.Is64Bits() ? LDR_x_lit : LDR_w_lit;
 
-    VIXL_ASSERT(rt.IsARMFPRegister());
+    VIXL_ASSERT(rt.IsFPRegister());
     return rt.Is64Bits() ? LDR_d_lit : LDR_s_lit;
 }
 
@@ -2833,7 +2833,7 @@ AreAliased(const CPURegister& reg1, const CPURegister& reg2,
         if (regs[i].IsRegister()) {
             number_of_valid_regs++;
             unique_regs |= regs[i].Bit();
-        } else if (regs[i].IsARMFPRegister()) {
+        } else if (regs[i].IsFPRegister()) {
             number_of_valid_fpregs++;
             unique_fpregs |= regs[i].Bit();
         } else {

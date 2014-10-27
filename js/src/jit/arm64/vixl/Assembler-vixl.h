@@ -118,7 +118,7 @@ class CPURegister
     }
 
     bool IsValid() const {
-        if (IsValidRegister() || IsValidARMFPRegister()) {
+        if (IsValidRegister() || IsValidFPRegister()) {
             VIXL_ASSERT(!IsNone());
             return true;
         }
@@ -133,8 +133,8 @@ class CPURegister
                ((code_ < kNumberOfRegisters) || (code_ == kSPRegInternalCode));
     }
 
-    bool IsValidARMFPRegister() const {
-        return IsARMFPRegister() &&
+    bool IsValidFPRegister() const {
+        return IsFPRegister() &&
                ((size_ == kSRegSize) || (size_ == kDRegSize)) &&
                (code_ < kNumberOfFloatRegisters);
     }
@@ -171,7 +171,7 @@ class CPURegister
         return type_ == kARMRegister;
     }
 
-    inline bool IsARMFPRegister() const {
+    inline bool IsFPRegister() const {
         return type_ == kARMFPRegister;
     }
 
@@ -240,7 +240,7 @@ class ARMFPRegister : public CPURegister
     inline explicit ARMFPRegister(const CPURegister& other)
       : CPURegister(other.code(), other.size(), other.type())
     {
-      VIXL_ASSERT(IsValidARMFPRegister());
+      VIXL_ASSERT(IsValidFPRegister());
     }
     MOZ_CONSTEXPR inline ARMFPRegister(FloatRegister r, unsigned size)
         : CPURegister(r.code_, size, kARMFPRegister)
@@ -250,8 +250,8 @@ class ARMFPRegister : public CPURegister
     { }
 
     bool IsValid() const {
-        VIXL_ASSERT(IsARMFPRegister() || IsNone());
-        return IsValidARMFPRegister();
+        VIXL_ASSERT(IsFPRegister() || IsNone());
+        return IsValidFPRegister();
     }
 
     static const ARMFPRegister& SRegFromCode(unsigned code);

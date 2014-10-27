@@ -1191,7 +1191,7 @@ MacroAssemblerVIXL::PrintfNoPreserve(const char * format, const CPURegister& arg
             // argument so we can properly encode it for the simulator call.
             if (args[i].Is32Bits())
                 pcs[i] = pcs[i].W();
-        } else if (args[i].IsARMFPRegister()) {
+        } else if (args[i].IsFPRegister()) {
             // In C, floats are always cast to doubles for varargs calls.
             pcs[i] = pcs_varargs_fp.PopLowestIndex().D();
         } else {
@@ -1228,7 +1228,7 @@ MacroAssemblerVIXL::PrintfNoPreserve(const char * format, const CPURegister& arg
         if (pcs[i].IsRegister()) {
             Mov(ARMRegister(pcs[i]), ARMRegister(args[i]), kDiscardForSameWReg);
         } else {
-            VIXL_ASSERT(pcs[i].IsARMFPRegister());
+            VIXL_ASSERT(pcs[i].IsFPRegister());
             if (pcs[i].size() == args[i].size())
                 Fmov(ARMFPRegister(pcs[i]), ARMFPRegister(args[i]));
             else
@@ -1516,7 +1516,7 @@ UseScratchRegisterScope::Release(const CPURegister& reg)
 {
     if (reg.IsRegister())
         ReleaseByCode(available_, reg.code());
-    else if (reg.IsARMFPRegister())
+    else if (reg.IsFPRegister())
         ReleaseByCode(availablefp_, reg.code());
     else
         VIXL_ASSERT(reg.IsNone());
@@ -1592,7 +1592,7 @@ UseScratchRegisterScope::Exclude(const CPURegister& reg1, const CPURegister& reg
     for (unsigned i = 0; i < (sizeof(regs) / sizeof(regs[0])); i++) {
         if (regs[i].IsRegister())
             exclude |= regs[i].Bit();
-        else if (regs[i].IsARMFPRegister())
+        else if (regs[i].IsFPRegister())
             excludefp |= regs[i].Bit();
         else
             VIXL_ASSERT(regs[i].IsNone());
