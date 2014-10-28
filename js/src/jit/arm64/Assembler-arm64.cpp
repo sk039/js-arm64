@@ -144,9 +144,15 @@ Assembler::executableCopy(uint8_t *buffer)
             continue;
         }
 
-        // TODO: This instruction is actually a fairly complicated move,
-        // for the moment. So that's not good.
+        Instruction *target = (Instruction *)rp.target;
         Instruction *branch = (Instruction *)(buffer + toFinalOffset(rp.offset));
+        MOZ_ASSERT(branch->BranchType() != UnknownBranchType);
+
+        if (branch->IsTargetReachable(target)) {
+            branch->SetImmPCOffsetTarget(target);
+        } else {
+            MOZ_CRASH("Implement extended jump table patching");
+        }
     }
 }
 

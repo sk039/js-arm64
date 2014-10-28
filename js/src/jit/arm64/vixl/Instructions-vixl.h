@@ -394,6 +394,8 @@ class Instruction {
     return reinterpret_cast<Instruction*>(src);
   }
 
+  bool IsTargetReachable(Instruction* target);
+
  private:
   inline int ImmBranch() const;
 

@@ -222,6 +222,24 @@ void Instruction::SetPCRelImmTarget(Instruction* target) {
 }
 
 
+bool Instruction::IsTargetReachable(Instruction* target) {
+  VIXL_ASSERT(((target - this) & 3) == 0);
+  int offset = (target - this) >> kInstructionSizeLog2;
+  switch (BranchType()) {
+    case CondBranchType:
+      return is_int19(offset);
+    case UncondBranchType:
+      return is_int26(offset);
+    case CompareBranchType:
+      return is_int19(offset);
+    case TestBranchType:
+      return is_int14(offset);
+    default:
+      VIXL_UNREACHABLE();
+  }
+}
+
+
 void Instruction::SetBranchImmTarget(Instruction* target) {
   VIXL_ASSERT(((target - this) & 3) == 0);
   Instr branch_imm = 0;

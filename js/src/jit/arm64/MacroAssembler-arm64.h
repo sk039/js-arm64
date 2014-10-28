@@ -985,8 +985,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
     void branch(JitCode *target) {
         addPendingJump(nextOffset(), ImmPtr(target->raw()), Relocation::JITCODE);
-        movePatchablePtr(ImmPtr(target->raw()), ip0);
-        Br(ip0_64);
+        b(-1); // The jump target will be patched by executableCopy().
     }
 
     void branch16(Condition cond, Register lhs, Register rhs, Label *label) {
@@ -1832,8 +1831,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
     void call(JitCode *target) {
         addPendingJump(nextOffset(), ImmPtr(target->raw()), Relocation::JITCODE);
-        movePatchablePtr(ImmPtr(target->raw()), ip0);
-        call(ip0); // FIXME: Push something?
+        bl(-1);
     }
     void call(Label *target) {
         Bl(target);
