@@ -114,10 +114,16 @@ Assembler::emitExtendedJumpTable()
         //   [Patchable 8-byte constant low bits]
         //   [Patchable 8-byte constant high bits]
         DebugOnly<size_t> preOffset = size_t(armbuffer_.nextOffset().getOffset());
+
         ldr(ip0_64, ptrdiff_t(2 * sizeof(Instruction)));
         br(ip0_64);
+
+        DebugOnly<size_t> prePointer = size_t(armbuffer_.nextOffset().getOffset());
+        MOZ_ASSERT(prePointer - preOffset == OffsetOfJumpTableEntryPointer);
+
         brk(0x0);
         brk(0x0);
+
         DebugOnly<size_t> postOffset = size_t(armbuffer_.nextOffset().getOffset());
 
         MOZ_ASSERT(postOffset - preOffset == SizeOfJumpTableEntry);
@@ -343,6 +349,7 @@ class RelocationIterator
     explicit RelocationIterator(CompactBufferReader &reader)
       : reader_(reader)
     {
+        // The first uint32_t stores the extended table offset.
         tableStart_ = reader_.readFixedUint32_t();
     }
 
@@ -362,10 +369,32 @@ class RelocationIterator
     }
 };
 
+static JitCode *
+CodeFromJump(JitCode *code, uint8_t *jump)
+{
+    Instruction *branch = (Instruction *)jump;
+    uint8_t *target = (uint8_t *)branch->ImmPCOffsetTarget();
+
+    // If the jump is within the code buffer, it uses the extended jump table.
+    if (target >= code->raw() && target < code->raw() + code->instructionsSize()) {
+        MOZ_ASSERT(target + Assembler::SizeOfJumpTableEntry <= code->raw() + code->instructionsSize());
+
+        uint8_t **patchablePtr = (uint8_t **)(target + Assembler::OffsetOfJumpTableEntryPointer);
+        target = *patchablePtr;
+    }
+
+    return JitCode::FromExecutable(target);
+}
+
 void
 Assembler::TraceJumpRelocations(JSTracer *trc, JitCode *code, CompactBufferReader &reader)
 {
-    MOZ_CRASH("TraceJumpRelocations()");
+    RelocationIterator iter(reader);
+    while (iter.read()) {
+        JitCode *child = CodeFromJump(code, code->raw() + iter.offset());
+        MarkJitCodeUnbarriered(trc, &child, "rel32");
+        MOZ_ASSERT(child == CodeFromJump(code, code->raw() + iter.offset()));
+    }
 }
 
 void

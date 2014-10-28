@@ -225,10 +225,14 @@ class Assembler : public AssemblerVIXL
         return size_t(offset.getOffset() + armbuffer_.poolSizeBefore(offset.getOffset()));
     }
 
-  protected:
+  public:
     // TODO: Informative comment goes here.
     static const size_t SizeOfJumpTableEntry = 16;
 
+    // Offset of the patchable target for the given entry.
+    static const size_t OffsetOfJumpTableEntryPointer = 8;
+
+  protected:
     // Because jumps may be relocated to a target inaccessible by a short jump,
     // each relocatable jump must have a unique entry in the extended jump table.
     // Valid relocatable targets are of type Relocation::JITCODE.
