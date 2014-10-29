@@ -665,7 +665,7 @@ class Simulator : public DecoderVisitor {
   bool safememcpy(void *dest, const void* src, size_t n) {
     if (write(fds[1], src, n) != (ssize_t)n)
       return false;
-    if (read(fds[1], dest, n) != (ssize_t)n)
+    if (read(fds[0], dest, n) != (ssize_t)n)
       return false;
     return true;
   }
@@ -676,8 +676,10 @@ class Simulator : public DecoderVisitor {
     VIXL_ASSERT((sizeof(value) == 1) || (sizeof(value) == 2) ||
                 (sizeof(value) == 4) || (sizeof(value) == 8));
 #ifdef DEBUG
-    if (!safememcpy(&value, reinterpret_cast<const char *>(address), sizeof(value)))
+    if (!safememcpy(&value, reinterpret_cast<const char *>(address), sizeof(value))) {
+      perror("Memory Read failed");
       enable_debugger();
+    }
 #else
     memcpy(&value, reinterpret_cast<const char *>(address), sizeof(value));
 #endif
