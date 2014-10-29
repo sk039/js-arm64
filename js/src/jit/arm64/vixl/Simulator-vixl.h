@@ -249,9 +249,11 @@ class Simulator : public DecoderVisitor {
   explicit Simulator(SimulatorRuntime *srt);
   explicit Simulator(Decoder* decoder, FILE* stream = stdout);
   ~Simulator();
+
 #ifdef DEBUG
   int fds[2];
 #endif
+
   void ResetState();
 
   void init(Decoder* decoder, FILE* stream = stdout);
@@ -662,6 +664,9 @@ class Simulator : public DecoderVisitor {
     uint64_t bits = reinterpret_cast<uint64_t>(address);
     return reinterpret_cast<T>(bits & ~kAddressTagMask);
   }
+
+  // TODO: Remove before committing.
+#ifdef DEBUG
   bool safememcpy(void *dest, const void* src, size_t n) {
     if (write(fds[1], src, n) != (ssize_t)n)
       return false;
@@ -669,13 +674,15 @@ class Simulator : public DecoderVisitor {
       return false;
     return true;
   }
+#endif
+
   template <typename T, typename A>
   T MemoryRead(A address) {
     T value;
     address = AddressUntag(address);
     VIXL_ASSERT((sizeof(value) == 1) || (sizeof(value) == 2) ||
                 (sizeof(value) == 4) || (sizeof(value) == 8));
-#ifdef DEBUG
+#if 0
     if (!safememcpy(&value, reinterpret_cast<const char *>(address), sizeof(value))) {
       perror("Memory Read failed");
       enable_debugger();
@@ -860,8 +867,8 @@ class Simulator : public DecoderVisitor {
   // Indicates whether the exclusive-access warning has been printed.
   bool print_exclusive_access_warning_;
   void PrintExclusiveAccessWarning();
-  virtual void enable_debugger() {
-  }
+
+  virtual void enable_debugger() { }
 };
 
 class Redirection;
