@@ -7974,7 +7974,7 @@ GenerateFFIIonExit(ModuleCompiler &m, const ModuleCompiler::ExitDescriptor &exit
 #elif defined(JS_CODEGEN_X86)
     m.masm().append(AsmJSGlobalAccess(masm.movlWithPatch(Imm32(0), callee), globalDataOffset));
 #elif defined(JS_CODEGEN_ARM64)
-    MOZ_ASSERT(0 && "implement ExitDatum getter");
+    MOZ_CRASH("implement ExitDatum getter");
 #elif defined(JS_CODEGEN_ARM) || defined(JS_CODEGEN_MIPS)
     masm.computeEffectiveAddress(Address(GlobalReg, globalDataOffset - AsmJSGlobalRegBias), callee);
 #endif
@@ -8446,7 +8446,7 @@ GenerateAsyncInterruptExit(ModuleCompiler &m, Label *throwLabel)
     masm.finishDataTransfer();
     masm.ret();
 #elif defined(JS_CODEGEN_ARM64)
-    MOZ_ASSERT(0 && "TODO");
+    MOZ_CRASH("TODO");
 #elif defined(JS_CODEGEN_NONE)
     MOZ_CRASH();
 #else

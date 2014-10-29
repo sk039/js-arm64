@@ -217,7 +217,7 @@ Assembler::bind(RepatchLabel *label)
         return;
     }
 
-    MOZ_ASSERT(0 && "bind (RepatchLabel)");
+    MOZ_CRASH("bind (RepatchLabel)");
 }
 
 // FIXME: Share with ARM?
@@ -278,7 +278,7 @@ Assembler::addPatchableJump(BufferOffset src, Relocation::Kind reloc)
 // FIXME: Shouldn't this be a static method of Assembler?
 void
 PatchJump(CodeLocationJump &jump_, CodeLocationLabel label) {
-    MOZ_ASSERT(0 && "PatchJump()");
+    MOZ_CRASH("PatchJump()");
 }
 
 void

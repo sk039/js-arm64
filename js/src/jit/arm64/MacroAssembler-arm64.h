@@ -268,7 +268,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     void storeUnboxedValue(ConstantOrRegister value, MIRType valueType, const T &dest,
                            MIRType slotType)
     {
-        MOZ_ASSERT(0 && "storeUnboxedValue");
+        MOZ_CRASH("storeUnboxedValue");
     }
     void loadValue(Address src, Register val) {
         Ldr(ARMRegister(val, 64), MemOperand(src));
@@ -346,7 +346,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
 
     void boxValue(JSValueType type, Register src, Register dest) {
-        MOZ_ASSERT(0 && "boxValue");
+        MOZ_CRASH("boxValue");
     }
     void splitTag(Register src, Register dest) {
         ubfx(ARMRegister(dest, 64), ARMRegister(src, 64), JSVAL_TAG_SHIFT, (64 - JSVAL_TAG_SHIFT));
@@ -382,7 +382,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     // If source is int32, convert to double and store in dest.
     // Else, branch to failure.
     void ensureDouble(const ValueOperand &source, FloatRegister dest, Label *failure) {
-        MOZ_ASSERT(0 && "ensureDouble()");
+        MOZ_CRASH("ensureDouble()");
     }
     void emitSet(Assembler::Condition cond, Register dest) {
         Cset(ARMRegister(dest, 64), cond);
@@ -419,17 +419,17 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         Scvtf(ARMFPRegister(dest, 64), ARMRegister(src, 32)); // Uses FPCR rounding mode.
     }
     void convertInt32ToDouble(const Address &src, FloatRegister dest) {
-        MOZ_ASSERT(0 && "convertInt32ToDouble");
+        MOZ_CRASH("convertInt32ToDouble");
     }
     void convertInt32ToFloat32(Register src, FloatRegister dest) {
         Scvtf(ARMFPRegister(dest, 32), ARMRegister(src, 32)); // Uses FPCR rounding mode.
     }
     void convertInt32ToFloat32(const Address &src, FloatRegister dest) {
-        MOZ_ASSERT(0 && "convertInt32ToFloat32");
+        MOZ_CRASH("convertInt32ToFloat32");
     }
 
     void convertUInt32ToDouble(const Address &src, FloatRegister dest) {
-        MOZ_ASSERT(0 && "convertUInt32ToDouble");
+        MOZ_CRASH("convertUInt32ToDouble");
     }
     void convertUInt32ToDouble(Register src, FloatRegister dest) {
         Ucvtf(ARMFPRegister(dest, 64), ARMRegister(src, 32)); // Uses FPCR rounding mode.
@@ -438,37 +438,37 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         Ucvtf(ARMFPRegister(dest, 32), ARMRegister(src, 32)); // Uses FPCR rounding mode.
     }
     void convertUInt32ToFloat32(const Address &src, FloatRegister dest) {
-        MOZ_ASSERT(0 && "convertUInt32ToFloat32");
+        MOZ_CRASH("convertUInt32ToFloat32");
     }
 
     void convertFloat32ToDouble(FloatRegister src, FloatRegister dest) {
-        MOZ_ASSERT(0 && "convertFloat32ToDouble");
+        MOZ_CRASH("convertFloat32ToDouble");
     }
     void convertDoubleToFloat32(FloatRegister src, FloatRegister dest) {
-        MOZ_ASSERT(0 && "convertDoubleToFloat32");
+        MOZ_CRASH("convertDoubleToFloat32");
     }
     void branchTruncateDouble(FloatRegister src, Register dest, Label *fail) {
-        MOZ_ASSERT(0 && "branchTruncateDouble");
+        MOZ_CRASH("branchTruncateDouble");
     }
     void convertDoubleToInt32(FloatRegister src, Register dest, Label *fail,
                               bool negativeZeroCheck = true)
     {
-        MOZ_ASSERT(0 && "convertDoubleToInt32");
+        MOZ_CRASH("convertDoubleToInt32");
     }
     void convertFloat32ToInt32(FloatRegister src, Register dest, Label *fail,
                                bool negativeZeroCheck = true)
     {
-        MOZ_ASSERT(0 && "convertFloat32ToInt32");
+        MOZ_CRASH("convertFloat32ToInt32");
     }
 
     void branchTruncateFloat32(FloatRegister src, Register dest, Label *fail) {
-        MOZ_ASSERT(0 && "branchTruncateFloat32");
+        MOZ_CRASH("branchTruncateFloat32");
     }
     void jump(Label *label) {
         B(label);
     }
     void jump(RepatchLabel *label) {
-        MOZ_ASSERT(0 && "jump (repatchlabel)");
+        MOZ_CRASH("jump (repatchlabel)");
     }
     void jump(Register reg) {
         Br(ARMRegister(reg, 64));
@@ -548,44 +548,44 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         Ldr(dest64, MemOperand(base64, index64, LSL, scale));
     }
     void loadPrivate(const Address &src, Register dest) {
-        MOZ_ASSERT(0 && "loadPrivate");
+        MOZ_CRASH("loadPrivate");
     }
 
     void store8(Register src, const Address &address) {
-        MOZ_ASSERT(0 && "store8");
+        MOZ_CRASH("store8");
     }
     void store8(Imm32 imm, const Address &address) {
-        MOZ_ASSERT(0 && "store8");
+        MOZ_CRASH("store8");
     }
     void store8(Register src, const BaseIndex &address) {
-        MOZ_ASSERT(0 && "store8");
+        MOZ_CRASH("store8");
     }
     void store8(Imm32 imm, const BaseIndex &address) {
-        MOZ_ASSERT(0 && "store8");
+        MOZ_CRASH("store8");
     }
 
     void store16(Register src, const Address &address) {
-        MOZ_ASSERT(0 && "store16");
+        MOZ_CRASH("store16");
     }
     void store16(Imm32 imm, const Address &address) {
-        MOZ_ASSERT(0 && "store16");
+        MOZ_CRASH("store16");
     }
     void store16(Register src, const BaseIndex &address) {
-        MOZ_ASSERT(0 && "store16");
+        MOZ_CRASH("store16");
     }
     void store16(Imm32 imm, const BaseIndex &address) {
-        MOZ_ASSERT(0 && "store16");
+        MOZ_CRASH("store16");
     }
 
     void storePtr(ImmWord imm, const Address &address) {
-        MOZ_ASSERT(0 && "storePtr");
+        MOZ_CRASH("storePtr");
     }
     void storePtr(ImmPtr imm, const Address &address) {
         Mov(ScratchReg2_64, uint64_t(imm.value));
         Str(ScratchReg2_64, MemOperand(ARMRegister(address.base, 64), address.offset));
     }
     void storePtr(ImmGCPtr imm, const Address &address) {
-        MOZ_ASSERT(0 && "storePtr");
+        MOZ_CRASH("storePtr");
     }
     void storePtr(Register src, const Address &address) {
         Str(ARMRegister(src, 64), MemOperand(ARMRegister(address.base, 64), address.offset));
@@ -714,10 +714,10 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         Cmp(ARMRegister(a, 32), Operand(ARMRegister(b, 32)));
     }
     void cmp32(const Operand &lhs, Imm32 rhs) {
-        MOZ_ASSERT(0 && "cmp32");
+        MOZ_CRASH("cmp32");
     }
     void cmp32(const Operand &lhs, Register rhs) {
-        MOZ_ASSERT(0 && "cmp32");
+        MOZ_CRASH("cmp32");
     }
 
     void cmpPtr(Register lhs, ImmWord rhs) {
@@ -730,7 +730,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         Cmp(ARMRegister(lhs, 64), ARMRegister(rhs, 64));
     }
     void cmpPtr(Register lhs, ImmGCPtr rhs) {
-        MOZ_ASSERT(0 && "cmpPtr");
+        MOZ_CRASH("cmpPtr");
     }
     void cmpPtr(Register lhs, ImmMaybeNurseryPtr rhs) {
         cmpPtr(lhs, noteMaybeNurseryPtr(rhs));
@@ -837,7 +837,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         fmov(ARMFPRegister(dest, 32), ARMFPRegister(src, 32));
     }
     void moveFloatAsDouble(Register src, FloatRegister dest) {
-        MOZ_ASSERT(0 && "moveFloatAsDouble");
+        MOZ_CRASH("moveFloatAsDouble");
     }
 
     void splitTag(const ValueOperand &operand, Register dest) {
@@ -848,16 +848,16 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         splitTag(dest, dest);
     }
     void splitTag(const BaseIndex &operand, Register dest) {
-        MOZ_ASSERT(0 && "splitTag");
+        MOZ_CRASH("splitTag");
     }
 
     // Extracts the tag of a value and places it in ScratchReg.
     Register splitTagForTest(const ValueOperand &value) {
-        MOZ_ASSERT(0 && "splitTagForTest");
+        MOZ_CRASH("splitTagForTest");
         return Register::FromCode(Registers::x0);
     }
     void cmpTag(const ValueOperand &operand, ImmTag tag) {
-        MOZ_ASSERT(0 && "cmpTag");
+        MOZ_CRASH("cmpTag");
     }
 
     void load32(const Address &address, Register dest) {
@@ -989,14 +989,14 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
 
     void branch16(Condition cond, Register lhs, Register rhs, Label *label) {
-        MOZ_ASSERT(0 && "branch16");
+        MOZ_CRASH("branch16");
     }
 
     void branch32(Condition cond, const Operand &lhs, Register rhs, Label *label) {
-        MOZ_ASSERT(0 && "branch32");
+        MOZ_CRASH("branch32");
     }
     void branch32(Condition cond, const Operand &lhs, Imm32 rhs, Label *label) {
-        MOZ_ASSERT(0 && "branch32");
+        MOZ_CRASH("branch32");
     }
     void branch32(Condition cond, Register lhs, Register rhs, Label *label) {
         cmp32(lhs, rhs);
@@ -1023,30 +1023,30 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         branch32(cond, Address(ScratchReg2, 0), rhs, label);
     }
     void branch32(Condition cond, BaseIndex lhs, Imm32 rhs, Label *label) {
-        MOZ_ASSERT(0 && "branch32 BaseIndex");
+        MOZ_CRASH("branch32 BaseIndex");
     }
 
     void branchSub32(Condition cond, const Address &lhs, Register rhs, Label *label) {
-        MOZ_ASSERT(0 && "branchSub32");
+        MOZ_CRASH("branchSub32");
     }
     void branchSub32(Condition cond, const Address &lhs, Imm32 imm, Label *label) {
-        MOZ_ASSERT(0 && "branchSub32");
+        MOZ_CRASH("branchSub32");
     }
     void branchSub32(Condition cond, Register lhs, Imm32 imm, Label *label) {
-        MOZ_ASSERT(0 && "branchSub32");
+        MOZ_CRASH("branchSub32");
     }
     void branchSub32(Condition cond, Register lhs, Register rhs, Label *label) {
-        MOZ_ASSERT(0 && "branchSub32");
+        MOZ_CRASH("branchSub32");
     }
     void branchSub32(Condition cond, AbsoluteAddress lhs, Imm32 rhs, Label *label) {
-        MOZ_ASSERT(0 && "branchSub32");
+        MOZ_CRASH("branchSub32");
     }
     void branchSub32(Condition cond, AbsoluteAddress lhs, Register rhs, Label *label) {
-        MOZ_ASSERT(0 && "branchSub32");
+        MOZ_CRASH("branchSub32");
     }
 
     void branchTest16(Condition cond, Register lhs, Register rhs, Label *label) {
-        MOZ_ASSERT(0 && "branchTest16");
+        MOZ_CRASH("branchTest16");
     }
     void branchTest32(Condition cond, Register lhs, Register rhs, Label *label) {
         MOZ_ASSERT(cond == Zero || cond == NonZero || cond == Signed || cond == NotSigned);
@@ -1068,21 +1068,21 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         branchTest32(cond, ScratchReg, imm, label);
     }
     void branchTest32(Condition cond, AbsoluteAddress &address, Imm32 imm, Label *label) {
-        MOZ_ASSERT(0 && "branchTest32");
+        MOZ_CRASH("branchTest32");
     }
     CodeOffsetJump jumpWithPatch(RepatchLabel *label, Condition cond = Always) {
-        MOZ_ASSERT(0 && "jumpWithPatch");
+        MOZ_CRASH("jumpWithPatch");
     }
     CodeOffsetJump backedgeJump(RepatchLabel *label) {
         return jumpWithPatch(label);
     }
     template <typename T>
     CodeOffsetJump branchPtrWithPatch(Condition cond, Register reg, T ptr, RepatchLabel *label) {
-        MOZ_ASSERT(0 && "branchPtrWithPatch");
+        MOZ_CRASH("branchPtrWithPatch");
     }
     template <typename T>
     CodeOffsetJump branchPtrWithPatch(Condition cond, Address addr, T ptr, RepatchLabel *label) {
-        MOZ_ASSERT(0 && "branchPtrWithPatch");
+        MOZ_CRASH("branchPtrWithPatch");
     }
 
     void branchPtr(Condition cond, AsmJSAbsoluteAddress lhs, Register rhs, Label *label) {
@@ -1110,10 +1110,10 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         branch(cond, label);
     }
     void branchPtr(Condition cond, Register lhs, ImmGCPtr ptr, Label *label) {
-        MOZ_ASSERT(0 && "branchPtr");
+        MOZ_CRASH("branchPtr");
     }
     void branchPtr(Condition cond, Address lhs, ImmGCPtr ptr, Label *label) {
-        MOZ_ASSERT(0 && "branchPtr");
+        MOZ_CRASH("branchPtr");
     }
     void branchPtr(Condition cond, Address lhs, ImmMaybeNurseryPtr ptr, Label *label) {
         branchPtr(cond, lhs, noteMaybeNurseryPtr(ptr), label);
@@ -1156,7 +1156,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
 
     void decBranchPtr(Condition cond, Register lhs, Imm32 imm, Label *label) {
-        MOZ_ASSERT(0 && "decBranchPtr");
+        MOZ_CRASH("decBranchPtr");
     }
 
     void branchTestUndefined(Condition cond, Register tag, Label *label) {
@@ -1310,40 +1310,40 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         return testMagic(cond, src);
     }
     void branchTestValue(Condition cond, const ValueOperand &value, const Value &v, Label *label) {
-        MOZ_ASSERT(0 && "branchTestValue");
+        MOZ_CRASH("branchTestValue");
     }
     void branchTestValue(Condition cond, const Address &valaddr, const ValueOperand &value,
                          Label *label)
     {
-        MOZ_ASSERT(0 && "branchTestValue");
+        MOZ_CRASH("branchTestValue");
     }
 
     void compareDouble(DoubleCondition cond, FloatRegister lhs, FloatRegister rhs) {
         Fcmp(ARMFPRegister(lhs, 64), ARMFPRegister(rhs, 64));
     }
     void branchDouble(DoubleCondition cond, FloatRegister lhs, FloatRegister rhs, Label *label) {
-        MOZ_ASSERT(0 && "branchDouble");
+        MOZ_CRASH("branchDouble");
     }
 
     void compareFloat(DoubleCondition cond, FloatRegister lhs, FloatRegister rhs) {
-        MOZ_ASSERT(0 && "compareFloat");
+        MOZ_CRASH("compareFloat");
     }
     void branchFloat(DoubleCondition cond, FloatRegister lhs, FloatRegister rhs, Label *label) {
-        MOZ_ASSERT(0 && "branchFloat");
+        MOZ_CRASH("branchFloat");
     }
 
     void branchNegativeZero(FloatRegister reg, Register scratch, Label *label) {
-        MOZ_ASSERT(0 && "branchNegativeZero");
+        MOZ_CRASH("branchNegativeZero");
     }
     void branchNegativeZeroFloat32(FloatRegister reg, Register scratch, Label *label) {
-        MOZ_ASSERT(0 && "branchNegativeZeroFloat32");
+        MOZ_CRASH("branchNegativeZeroFloat32");
     }
 
     void boxDouble(FloatRegister src, const ValueOperand &dest) {
-        MOZ_ASSERT(0 && "boxDouble");
+        MOZ_CRASH("boxDouble");
     }
     void boxNonDouble(JSValueType type, Register src, const ValueOperand &dest) {
-        MOZ_ASSERT(0 && "boxNonDouble");
+        MOZ_CRASH("boxNonDouble");
     }
 
     // Note that the |dest| register here may be ScratchReg, so we shouldn't use it.
@@ -1354,17 +1354,17 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         load32(src, dest);
     }
     void unboxDouble(const Address &src, FloatRegister dest) {
-        MOZ_ASSERT(0 && "unboxDouble");
+        MOZ_CRASH("unboxDouble");
     }
     void unboxDouble(const ValueOperand &src, FloatRegister dest) {
-        MOZ_ASSERT(0 && "unboxDouble");
+        MOZ_CRASH("unboxDouble");
     }
 
     void unboxArgObjMagic(const ValueOperand &src, Register dest) {
-        MOZ_ASSERT(0 && "unboxArgObjMagic");
+        MOZ_CRASH("unboxArgObjMagic");
     }
     void unboxArgObjMagic(const Address &src, Register dest) {
-        MOZ_ASSERT(0 && "unboxArgObjMagic");
+        MOZ_CRASH("unboxArgObjMagic");
     }
 
     void unboxBoolean(const ValueOperand &src, Register dest) {
@@ -1411,7 +1411,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
 
     void unboxValue(const ValueOperand &src, AnyRegister dest) {
-        MOZ_ASSERT(0 && "unboxValue");
+        MOZ_CRASH("unboxValue");
     }
     void unboxString(const ValueOperand &operand, Register dest) {
         unboxNonDouble(operand, dest);
@@ -1436,10 +1436,10 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
 
     void loadConstantDouble(double d, FloatRegister dest) {
-        MOZ_ASSERT(0 && "loadConstantDouble");
+        MOZ_CRASH("loadConstantDouble");
     }
     void loadConstantFloat32(float f, FloatRegister dest) {
-        MOZ_ASSERT(0 && "loadConstantFloat32");
+        MOZ_CRASH("loadConstantFloat32");
     }
 
     // Register-based tests.
@@ -1679,11 +1679,11 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
     template <typename T>
     void loadUnboxedValue(const T &src, MIRType type, AnyRegister dest) {
-        MOZ_ASSERT(0 && "loadUnboxedValue");
+        MOZ_CRASH("loadUnboxedValue");
     }
 
     void loadInstructionPointerAfterCall(Register dest) {
-        MOZ_ASSERT(0 && "loadInstructionPointerAfterCall");
+        MOZ_CRASH("loadInstructionPointerAfterCall");
     }
 
     // Emit a B that can be toggled to a CMP. See ToggleToJmp(), ToggleToCmp().
@@ -1726,7 +1726,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     // manually, however, if the stack alignment were to change, the macro
     // assembler should be notified before starting a call.
     void setupAlignedABICall(uint32_t args) {
-        MOZ_ASSERT(0 && "setupAlignedABICall");
+        MOZ_CRASH("setupAlignedABICall");
     }
 
     // Sets up an ABI call for when the alignment is not known. This may need a
@@ -1756,7 +1756,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     void callWithABI(Address fun, MoveOp::Type result = MoveOp::GENERAL);
 
     CodeOffsetLabel labelForPatch() {
-        MOZ_ASSERT(0 && "labelForPatch");
+        MOZ_CRASH("labelForPatch");
     }
 
     void handleFailureWithHandler(void *handler);
@@ -1769,18 +1769,18 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
 
     void callWithExitFrame(JitCode *target, Register dynStack) {
-        MOZ_ASSERT(0 && "callWithExitFrame");
+        MOZ_CRASH("callWithExitFrame");
     }
 
     // FIXME: See CodeGeneratorX64 calls to noteAsmJSGlobalAccess.
     void patchAsmJSGlobalAccess(CodeOffsetLabel patchAt, uint8_t *code,
                                 uint8_t *globalData, unsigned globalDataOffset)
     {
-        MOZ_ASSERT(0 && "patchAsmJSGlobalAccess");
+        MOZ_CRASH("patchAsmJSGlobalAccess");
     }
 
     void memIntToValue(Address Source, Address Dest) {
-        MOZ_ASSERT(0 && "memIntToValue");
+        MOZ_CRASH("memIntToValue");
     }
 
 #ifdef JSGC_GENERATIONAL
@@ -1791,7 +1791,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     // Builds an exit frame on the stack, with a return address to an internal
     // non-function. Returns offset to be passed to markSafepointAt().
     bool buildFakeExitFrame(Register scratch, uint32_t *offset) {
-        MOZ_ASSERT(0 && "buildFakeExitFrame");
+        MOZ_CRASH("buildFakeExitFrame");
         return false;
     }
 
@@ -1800,7 +1800,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
 
     void callWithExitFrame(JitCode *target) {
-        MOZ_ASSERT(0 && "callWithExitFrame");
+        MOZ_CRASH("callWithExitFrame");
     }
 
     void callIon(Register callee) {
@@ -1809,21 +1809,21 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
 
     void appendCallSite(const CallSiteDesc &desc) {
-        MOZ_ASSERT(0 && "appendCallSite");
+        MOZ_CRASH("appendCallSite");
     }
 
     void call(const CallSiteDesc &desc, Label *label) {
-        MOZ_ASSERT(0 && "call");
+        MOZ_CRASH("call");
     }
     void call(const CallSiteDesc &desc, Register reg) {
-        MOZ_ASSERT(0 && "call");
+        MOZ_CRASH("call");
     }
     void call(const CallSiteDesc &desc, AsmJSImmPtr imm) {
-        MOZ_ASSERT(0 && "call");
+        MOZ_CRASH("call");
     }
 
     void call(AsmJSImmPtr imm) {
-        MOZ_ASSERT(0 && "call(AsmJSImmPtr)");
+        MOZ_CRASH("call(AsmJSImmPtr)");
     }
 
     void call(Register target) {
@@ -1837,11 +1837,11 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         Bl(target);
     }
     void callExit(AsmJSImmPtr imm, uint32_t stackArgBytes) {
-        MOZ_ASSERT(0 && "callExit");
+        MOZ_CRASH("callExit");
     }
 
     void callIonFromAsmJS(Register reg) {
-        MOZ_ASSERT(0 && "callIonFromAsmJS");
+        MOZ_CRASH("callIonFromAsmJS");
     }
 
   private:
@@ -2006,7 +2006,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
 
     static size_t ToggledCallSize(uint8_t *code) {
-        MOZ_ASSERT(0 && "ToggledCallSize");
+        MOZ_CRASH("ToggledCallSize");
     }
 
     void checkARMRegAlignment(const ARMRegister &reg) {
@@ -2032,7 +2032,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
 
     void abiret() {
-        MOZ_ASSERT(0 && "abiret");
+        MOZ_CRASH("abiret");
     }
 
     void mulBy3(Register src, Register dest) {
@@ -2053,28 +2053,28 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         branch(cond, label);
     }
     void clampCheck(Register r, Label *handleNotAnInt) {
-        MOZ_ASSERT(0 && "clampCheck");
+        MOZ_CRASH("clampCheck");
     }
 
     void memMove32(Address Source, Address Dest) {
-        MOZ_ASSERT(0 && "memMove32");
+        MOZ_CRASH("memMove32");
     }
     void memMove64(Address Source, Address Dest) {
-        MOZ_ASSERT(0 && "memMove64");
+        MOZ_CRASH("memMove64");
     }
 
     void stackCheck(ImmWord limitAddr, Label *label) {
-        MOZ_ASSERT(0 && "stackCheck");
+        MOZ_CRASH("stackCheck");
     }
     void clampIntToUint8(Register reg) {
-        MOZ_ASSERT(0 && "clampIntToUint8");
+        MOZ_CRASH("clampIntToUint8");
     }
 
     void incrementInt32Value(const Address &addr) {
-        MOZ_ASSERT(0 && "IncrementInt32Value");
+        MOZ_CRASH("IncrementInt32Value");
     }
     void inc64(AbsoluteAddress dest) {
-        MOZ_ASSERT(0 && "inc64");
+        MOZ_CRASH("inc64");
     }
 
     void breakpoint();
@@ -2083,7 +2083,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         loadPtr(Address(GlobalReg, AsmJSActivationGlobalDataOffset), dest);
     }
     void loadAsmJSHeapRegisterFromGlobalData() {
-        MOZ_ASSERT(0 && "loadAsmJSHeapRegisterFromGlobalData");
+        MOZ_CRASH("loadAsmJSHeapRegisterFromGlobalData");
     }
     // This moves an un-tagged value from src into a
     // dest that already has the correct tag, and /anything/ in the lower bits
@@ -2102,7 +2102,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
 
   protected:
     bool buildOOLFakeExitFrame(void *fakeReturnAddr) {
-        MOZ_ASSERT(0 && "buildOOLFakeExitFrame");
+        MOZ_CRASH("buildOOLFakeExitFrame");
     }
 };
 

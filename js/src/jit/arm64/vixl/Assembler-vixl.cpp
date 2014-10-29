@@ -675,7 +675,7 @@ AssemblerVIXL::adr(const ARMRegister& rd, int imm21)
 void
 AssemblerVIXL::adr(const ARMRegister& rd, Label* label)
 {
-    MOZ_ASSERT(0 && "adr()");
+    MOZ_CRASH("adr()");
     //adr(rd, LinkAndGetByteOffsetTo(label));
 }
 
@@ -691,7 +691,7 @@ void
 AssemblerVIXL::adrp(const ARMRegister& rd, Label* label)
 {
     VIXL_ASSERT(AllowPageOffsetDependentCode());
-    MOZ_ASSERT(0 && "adrp()");
+    MOZ_CRASH("adrp()");
     //adrp(rd, LinkAndGetPageOffsetTo(label));
 }
 
@@ -2294,7 +2294,7 @@ AssemblerVIXL::LoadLiteral(const CPURegister& rt, uint64_t imm, LoadLiteralOp op
     VIXL_ASSERT(is_int32(imm) || is_uint32(imm) || (rt.Is64Bits()));
 
     //FIXME: BlockLiteralPoolScope scope(this);
-    MOZ_ASSERT(0 && "LoadLiteral");
+    MOZ_CRASH("LoadLiteral");
     RecordLiteral(imm, rt.SizeInBytes());
     Emit(op | ImmLLiteral(0) | Rt(rt));
 }
@@ -2805,14 +2805,14 @@ AssemblerVIXL::RetargetNearBranch(Instruction *i, int offset, bool final)
 void
 AssemblerVIXL::RetargetFarBranch(Instruction *i, uint8_t **slot, uint8_t *dest, Condition cond)
 {
-    MOZ_ASSERT(0 && "RetargetFarBranch()");
+    MOZ_CRASH("RetargetFarBranch()");
 }
 
 void
 AssemblerVIXL::RecordLiteral(int64_t imm, unsigned size)
 {
     //FIXME: literals_.push_front(new Literal(pc_, imm, size));
-    MOZ_ASSERT(0 && "RecordLiteral");
+    MOZ_CRASH("RecordLiteral");
 }
 
 bool

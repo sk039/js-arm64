@@ -73,7 +73,7 @@ CodeGeneratorARM64::emitBranch(Assembler::Condition cond, MBasicBlock *mirTrue, 
 bool
 OutOfLineBailout::accept(CodeGeneratorARM64 *codegen)
 {
-    MOZ_ASSERT(0 && "CodeGeneratorARM64::accept");
+    MOZ_CRASH("CodeGeneratorARM64::accept");
     return false;
 }
 
@@ -149,28 +149,28 @@ CodeGeneratorARM64::generateOutOfLineCode()
 bool
 CodeGeneratorARM64::bailoutIf(Assembler::Condition condition, LSnapshot *snapshot)
 {
-    MOZ_ASSERT(0 && "CodeGeneratorARM64::bailoutIf");
+    MOZ_CRASH("CodeGeneratorARM64::bailoutIf");
     return false;
 }
 
 bool
 CodeGeneratorARM64::bailoutFrom(Label *label, LSnapshot *snapshot)
 {
-    MOZ_ASSERT(0 && "CodeGeneratorARM64::bailoutFrom");
+    MOZ_CRASH("CodeGeneratorARM64::bailoutFrom");
     return false;
 }
 
 bool
 CodeGeneratorARM64::bailout(LSnapshot *snapshot)
 {
-    MOZ_ASSERT(0 && "CodeGeneratorARM64::bailout");
+    MOZ_CRASH("CodeGeneratorARM64::bailout");
     return false;
 }
 
 bool
 CodeGeneratorARM64::visitOutOfLineBailout(OutOfLineBailout *ool)
 {
-    MOZ_ASSERT(0 && "CodeGeneratorARM64::visitOutOfLineBailout");
+    MOZ_CRASH("CodeGeneratorARM64::visitOutOfLineBailout");
     return false;
 }
 
@@ -294,7 +294,7 @@ CodeGeneratorARM64::visitMulI(LMulI *ins)
         rhs_reg = ToRegister(rhs);
     }
     if (mul->canOverflow()) {
-        MOZ_ASSERT(0 && "TODO: Handle overflow");
+        MOZ_CRASH("TODO: Handle overflow");
         // I should /really/ be able to just bail-out directly from the macro assembler.
         // this song-and-dance with condition codes seems unweildy in this case.
         masm.mul32(ToRegister(lhs), rhs_reg, ToRegister(dest), nullptr, nullptr);
@@ -309,21 +309,21 @@ bool
 CodeGeneratorARM64::divICommon(MDiv *mir, Register lhs, Register rhs, Register output,
                              LSnapshot *snapshot, Label &done)
 {
-    MOZ_ASSERT(0 && "CodeGeneratorARM64::divICommon");
+    MOZ_CRASH("CodeGeneratorARM64::divICommon");
     return false;
 }
 
 bool
 CodeGeneratorARM64::visitDivI(LDivI *ins)
 {
-    MOZ_ASSERT(0 && "CodeGeneratorARM64::visitDivI");
+    MOZ_CRASH("CodeGeneratorARM64::visitDivI");
     return false;
 }
 
 bool
 CodeGeneratorARM64::visitDivPowTwoI(LDivPowTwoI *ins)
 {
-    MOZ_ASSERT(0 && "CodeGeneratorARM64::visitDivPowTwoI");
+    MOZ_CRASH("CodeGeneratorARM64::visitDivPowTwoI");
     return false;
 }
 
@@ -331,28 +331,28 @@ bool
 CodeGeneratorARM64::modICommon(MMod *mir, Register lhs, Register rhs, Register output,
                                LSnapshot *snapshot, Label &done)
 {
-    MOZ_ASSERT(0 && "CodeGeneratorARM64::modICommon");
+    MOZ_CRASH("CodeGeneratorARM64::modICommon");
     return false;
 }
 
 bool
 CodeGeneratorARM64::visitModI(LModI *ins)
 {
-    MOZ_ASSERT(0 && "CodeGeneratorARM64::visitModI");
+    MOZ_CRASH("CodeGeneratorARM64::visitModI");
     return false;
 }
 
 bool
 CodeGeneratorARM64::visitModPowTwoI(LModPowTwoI *ins)
 {
-    MOZ_ASSERT(0 && "CodeGeneratorARM64::visitModPowTwoI");
+    MOZ_CRASH("CodeGeneratorARM64::visitModPowTwoI");
     return false;
 }
 
 bool
 CodeGeneratorARM64::visitModMaskI(LModMaskI *ins)
 {
-    MOZ_ASSERT(0 && "CodeGeneratorARM64::visitModMaskI");
+    MOZ_CRASH("CodeGeneratorARM64::visitModMaskI");
     return false;
 }
 
@@ -435,14 +435,14 @@ CodeGeneratorARM64::visitShiftI(LShiftI *ins)
 bool
 CodeGeneratorARM64::visitUrshD(LUrshD *ins)
 {
-    MOZ_ASSERT(0 && "CodeGeneratorARM64::visitUrshD");
+    MOZ_CRASH("CodeGeneratorARM64::visitUrshD");
     return false;
 }
 
 bool
 CodeGeneratorARM64::visitPowHalfD(LPowHalfD *ins)
 {
-    MOZ_ASSERT(0 && "CodeGeneratorARM64::visitPowHalfD");
+    MOZ_CRASH("CodeGeneratorARM64::visitPowHalfD");
     return false;
 }
 
@@ -488,90 +488,90 @@ class js::jit::OutOfLineTableSwitch : public OutOfLineCodeBase<CodeGeneratorARM6
 bool
 CodeGeneratorARM64::visitOutOfLineTableSwitch(OutOfLineTableSwitch *ool)
 {
-    MOZ_ASSERT(0 && "CodeGeneratorARM64::visitOutOfLineTableSwitch");
+    MOZ_CRASH("CodeGeneratorARM64::visitOutOfLineTableSwitch");
     return false;
 }
 
 bool
 CodeGeneratorARM64::emitTableSwitchDispatch(MTableSwitch *mir, Register index, Register base)
 {
-    MOZ_ASSERT(0 && "CodeGeneratorARM64::emitTableSwitchDispatch");
+    MOZ_CRASH("CodeGeneratorARM64::emitTableSwitchDispatch");
     return false;
 }
 
 bool
 CodeGeneratorARM64::visitMathD(LMathD *math)
 {
-    MOZ_ASSERT(0 && "CodeGeneratorARM64::visitMathD");
+    MOZ_CRASH("CodeGeneratorARM64::visitMathD");
     return false;
 }
 
 bool
 CodeGeneratorARM64::visitMathF(LMathF *math)
 {
-    MOZ_ASSERT(0 && "CodeGeneratorARM64::visitMathF");
+    MOZ_CRASH("CodeGeneratorARM64::visitMathF");
     return false;
 }
 
 bool
 CodeGeneratorARM64::visitFloor(LFloor *lir)
 {
-    MOZ_ASSERT(0 && "CodeGeneratorARM64::visitFloor");
+    MOZ_CRASH("CodeGeneratorARM64::visitFloor");
     return false;
 }
 
 bool
 CodeGeneratorARM64::visitFloorF(LFloorF *lir)
 {
-    MOZ_ASSERT(0 && "CodeGeneratorARM64::visitFloorF");
+    MOZ_CRASH("CodeGeneratorARM64::visitFloorF");
     return false;
 }
 
 bool
 CodeGeneratorARM64::visitCeil(LCeil *lir)
 {
-    MOZ_ASSERT(0 && "CodeGeneratorARM64::visitCeil");
+    MOZ_CRASH("CodeGeneratorARM64::visitCeil");
     return false;
 }
 
 bool
 CodeGeneratorARM64::visitCeilF(LCeilF *lir)
 {
-    MOZ_ASSERT(0 && "CodeGeneratorARM64::visitCeilF");
+    MOZ_CRASH("CodeGeneratorARM64::visitCeilF");
     return false;
 }
 
 bool
 CodeGeneratorARM64::visitRound(LRound *lir)
 {
-    MOZ_ASSERT(0 && "CodeGeneratorARM64::visitRound");
+    MOZ_CRASH("CodeGeneratorARM64::visitRound");
     return false;
 }
 
 bool
 CodeGeneratorARM64::visitRoundF(LRoundF *lir)
 {
-    MOZ_ASSERT(0 && "CodeGeneratorARM64::visitRoundF");
+    MOZ_CRASH("CodeGeneratorARM64::visitRoundF");
     return false;
 }
 
 void
 CodeGeneratorARM64::emitRoundDouble(FloatRegister src, Register dest, Label *fail)
 {
-    MOZ_ASSERT(0 && "CodeGeneratorARM64::emitRoundDouble");
+    MOZ_CRASH("CodeGeneratorARM64::emitRoundDouble");
 }
 
 bool
 CodeGeneratorARM64::visitTruncateDToInt32(LTruncateDToInt32 *ins)
 {
-    MOZ_ASSERT(0 && "CodeGeneratorARM64::visitTruncateDToInt32");
+    MOZ_CRASH("CodeGeneratorARM64::visitTruncateDToInt32");
     return false;
 }
 
 bool
 CodeGeneratorARM64::visitTruncateFToInt32(LTruncateFToInt32 *ins)
 {
-    MOZ_ASSERT(0 && "CodeGeneratorARM64::visitTruncateFToInt32");
+    MOZ_CRASH("CodeGeneratorARM64::visitTruncateFToInt32");
     return false;
 }
 
@@ -616,133 +616,133 @@ CodeGeneratorARM64::ToTempValue(LInstruction *ins, size_t pos)
 bool
 CodeGeneratorARM64::visitValue(LValue *value)
 {
-    MOZ_ASSERT(0 && "CodeGeneratorARM64::visitValue");
+    MOZ_CRASH("CodeGeneratorARM64::visitValue");
     return false;
 }
 
 bool
 CodeGeneratorARM64::visitBox(LBox *box)
 {
-    MOZ_ASSERT(0 && "CodeGeneratorARM64::visitBox");
+    MOZ_CRASH("CodeGeneratorARM64::visitBox");
     return false;
 }
 
 bool
 CodeGeneratorARM64::visitUnbox(LUnbox *unbox)
 {
-    MOZ_ASSERT(0 && "CodeGeneratorARM64::visitUnbox");
+    MOZ_CRASH("CodeGeneratorARM64::visitUnbox");
     return false;
 }
 
 bool
 CodeGeneratorARM64::visitDouble(LDouble *ins)
 {
-    MOZ_ASSERT(0 && "CodeGeneratorARM64::visitDouble");
+    MOZ_CRASH("CodeGeneratorARM64::visitDouble");
     return false;
 }
 
 bool
 CodeGeneratorARM64::visitFloat32(LFloat32 *ins)
 {
-    MOZ_ASSERT(0 && "CodeGeneratorARM64::visitFloat32");
+    MOZ_CRASH("CodeGeneratorARM64::visitFloat32");
     return false;
 }
 
 Register
 CodeGeneratorARM64::splitTagForTest(const ValueOperand &value)
 {
-    MOZ_ASSERT(0 && "CodeGeneratorARM64::splitTagForTest");
+    MOZ_CRASH("CodeGeneratorARM64::splitTagForTest");
     return InvalidReg;
 }
 
 bool
 CodeGeneratorARM64::visitTestDAndBranch(LTestDAndBranch *test)
 {
-    MOZ_ASSERT(0 && "CodeGeneratorARM64::visitTestDAndBranch");
+    MOZ_CRASH("CodeGeneratorARM64::visitTestDAndBranch");
     return false;
 }
 
 bool
 CodeGeneratorARM64::visitTestFAndBranch(LTestFAndBranch *test)
 {
-    MOZ_ASSERT(0 && "CodeGeneratorARM64::visitTestFAndBranch");
+    MOZ_CRASH("CodeGeneratorARM64::visitTestFAndBranch");
     return false;
 }
 
 bool
 CodeGeneratorARM64::visitCompareD(LCompareD *comp)
 {
-    MOZ_ASSERT(0 && "CodeGeneratorARM64::visitCompareD");
+    MOZ_CRASH("CodeGeneratorARM64::visitCompareD");
     return false;
 }
 
 bool
 CodeGeneratorARM64::visitCompareF(LCompareF *comp)
 {
-    MOZ_ASSERT(0 && "CodeGeneratorARM64::visitCompareF");
+    MOZ_CRASH("CodeGeneratorARM64::visitCompareF");
     return false;
 }
 
 bool
 CodeGeneratorARM64::visitCompareDAndBranch(LCompareDAndBranch *comp)
 {
-    MOZ_ASSERT(0 && "CodeGeneratorARM64::visitCompareDAndBranch");
+    MOZ_CRASH("CodeGeneratorARM64::visitCompareDAndBranch");
     return false;
 }
 
 bool
 CodeGeneratorARM64::visitCompareFAndBranch(LCompareFAndBranch *comp)
 {
-    MOZ_ASSERT(0 && "CodeGeneratorARM64::visitCompareFAndBranch");
+    MOZ_CRASH("CodeGeneratorARM64::visitCompareFAndBranch");
     return false;
 }
 
 bool
 CodeGeneratorARM64::visitCompareB(LCompareB *lir)
 {
-    MOZ_ASSERT(0 && "CodeGeneratorARM64::visitCompareB");
+    MOZ_CRASH("CodeGeneratorARM64::visitCompareB");
     return false;
 }
 
 bool
 CodeGeneratorARM64::visitCompareBAndBranch(LCompareBAndBranch *lir)
 {
-    MOZ_ASSERT(0 && "CodeGeneratorARM64::visitCompareBAndBranch");
+    MOZ_CRASH("CodeGeneratorARM64::visitCompareBAndBranch");
     return false;
 }
 
 bool
 CodeGeneratorARM64::visitCompareV(LCompareV *lir)
 {
-    MOZ_ASSERT(0 && "CodeGeneratorARM64::visitCompareV");
+    MOZ_CRASH("CodeGeneratorARM64::visitCompareV");
     return false;
 }
 
 bool
 CodeGeneratorARM64::visitCompareVAndBranch(LCompareVAndBranch *lir)
 {
-    MOZ_ASSERT(0 && "CodeGeneratorARM64::visitCompareVAndBranch");
+    MOZ_CRASH("CodeGeneratorARM64::visitCompareVAndBranch");
     return false;
 }
 
 bool
 CodeGeneratorARM64::visitBitAndAndBranch(LBitAndAndBranch *baab)
 {
-    MOZ_ASSERT(0 && "CodeGeneratorARM64::visitBitAndAndBranch");
+    MOZ_CRASH("CodeGeneratorARM64::visitBitAndAndBranch");
     return false;
 }
 
 bool
 CodeGeneratorARM64::visitAsmJSUInt32ToDouble(LAsmJSUInt32ToDouble *lir)
 {
-    MOZ_ASSERT(0 && "CodeGeneratorARM64::visitAsmJSUInt32ToDouble");
+    MOZ_CRASH("CodeGeneratorARM64::visitAsmJSUInt32ToDouble");
     return false;
 }
 
 bool
 CodeGeneratorARM64::visitAsmJSUInt32ToFloat32(LAsmJSUInt32ToFloat32 *lir)
 {
-    MOZ_ASSERT(0 && "CodeGeneratorARM64::visitAsmJSUInt32ToFloat32");
+    MOZ_CRASH("CodeGeneratorARM64::visitAsmJSUInt32ToFloat32");
     return false;
 }
 
@@ -790,28 +790,28 @@ CodeGeneratorARM64::visitNotF(LNotF *ins)
 bool
 CodeGeneratorARM64::visitLoadSlotV(LLoadSlotV *load)
 {
-    MOZ_ASSERT(0 && "CodeGeneratorARM64::visitLoadSlotV");
+    MOZ_CRASH("CodeGeneratorARM64::visitLoadSlotV");
     return false;
 }
 
 bool
 CodeGeneratorARM64::visitLoadSlotT(LLoadSlotT *load)
 {
-    MOZ_ASSERT(0 && "CodeGeneratorARM64::visitLoadSlotT");
+    MOZ_CRASH("CodeGeneratorARM64::visitLoadSlotT");
     return false;
 }
 
 bool
 CodeGeneratorARM64::visitStoreSlotT(LStoreSlotT *store)
 {
-    MOZ_ASSERT(0 && "CodeGeneratorARM64::visitStoreSlotT");
+    MOZ_CRASH("CodeGeneratorARM64::visitStoreSlotT");
     return false;
 }
 
 bool
 CodeGeneratorARM64::visitLoadElementT(LLoadElementT *load)
 {
-    MOZ_ASSERT(0 && "CodeGeneratorARM64::visitLoadElementT");
+    MOZ_CRASH("CodeGeneratorARM64::visitLoadElementT");
     return false;
 }
 
@@ -819,48 +819,48 @@ void
 CodeGeneratorARM64::storeElementTyped(const LAllocation *value, MIRType valueType,
                                       MIRType elementType, Register elements, const LAllocation *index)
 {
-    MOZ_ASSERT(0 && "CodeGeneratorARM64::storeElementTyped");
+    MOZ_CRASH("CodeGeneratorARM64::storeElementTyped");
 }
 
 bool
 CodeGeneratorARM64::visitGuardShape(LGuardShape *guard)
 {
-    MOZ_ASSERT(0 && "CodeGeneratorARM64::visitGuardShape");
+    MOZ_CRASH("CodeGeneratorARM64::visitGuardShape");
     return false;
 }
 
 bool
 CodeGeneratorARM64::visitGuardObjectType(LGuardObjectType *guard)
 {
-    MOZ_ASSERT(0 && "CodeGeneratorARM64::visitGuardObjectType");
+    MOZ_CRASH("CodeGeneratorARM64::visitGuardObjectType");
     return false;
 }
 
 bool
 CodeGeneratorARM64::visitGuardClass(LGuardClass *guard)
 {
-    MOZ_ASSERT(0 && "CodeGeneratorARM64::visitGuardClass");
+    MOZ_CRASH("CodeGeneratorARM64::visitGuardClass");
     return false;
 }
 
 bool
 CodeGeneratorARM64::visitInterruptCheck(LInterruptCheck *lir)
 {
-    MOZ_ASSERT(0 && "CodeGeneratorARM64::visitInterruptCheck");
+    MOZ_CRASH("CodeGeneratorARM64::visitInterruptCheck");
     return false;
 }
 
 bool
 CodeGeneratorARM64::generateInvalidateEpilogue()
 {
-    MOZ_ASSERT(0 && "CodeGeneratorARM64::generateInvalidateEpilogue");
+    MOZ_CRASH("CodeGeneratorARM64::generateInvalidateEpilogue");
     return false;
 }
 
 void
 DispatchIonCache::initializeAddCacheState(LInstruction *ins, AddCacheState *addState)
 {
-    MOZ_ASSERT(0 && "CodeGeneratorARM64::initializeAddCacheState");
+    MOZ_CRASH("CodeGeneratorARM64::initializeAddCacheState");
 }
 
 template <class U>
@@ -877,56 +877,56 @@ getBase(U *mir)
 bool
 CodeGeneratorARM64::visitLoadTypedArrayElementStatic(LLoadTypedArrayElementStatic *ins)
 {
-    MOZ_ASSERT(0 && "CodeGeneratorARM64::visitLoadTypedArrayElementStatic");
+    MOZ_CRASH("CodeGeneratorARM64::visitLoadTypedArrayElementStatic");
     return false;
 }
 
 bool
 CodeGeneratorARM64::visitStoreTypedArrayElementStatic(LStoreTypedArrayElementStatic *ins)
 {
-    MOZ_ASSERT(0 && "CodeGeneratorARM64::visitStoreTypedArrayElementStatic");
+    MOZ_CRASH("CodeGeneratorARM64::visitStoreTypedArrayElementStatic");
     return false;
 }
 
 bool
 CodeGeneratorARM64::visitAsmJSLoadHeap(LAsmJSLoadHeap *ins)
 {
-    MOZ_ASSERT(0 && "CodeGeneratorARM64::visitAsmJSLoadHeap");
+    MOZ_CRASH("CodeGeneratorARM64::visitAsmJSLoadHeap");
     return false;
 }
 
 bool
 CodeGeneratorARM64::visitAsmJSStoreHeap(LAsmJSStoreHeap *ins)
 {
-    MOZ_ASSERT(0 && "CodeGeneratorARM64::visitAsmJSStoreHeap");
+    MOZ_CRASH("CodeGeneratorARM64::visitAsmJSStoreHeap");
     return false;
 }
 
 bool
 CodeGeneratorARM64::visitAsmJSPassStackArg(LAsmJSPassStackArg *ins)
 {
-    MOZ_ASSERT(0 && "CodeGeneratorARM64::visitAsmJSPassStackArg");
+    MOZ_CRASH("CodeGeneratorARM64::visitAsmJSPassStackArg");
     return false;
 }
 
 bool
 CodeGeneratorARM64::visitUDiv(LUDiv *ins)
 {
-    MOZ_ASSERT(0 && "CodeGeneratorARM64::visitUDiv");
+    MOZ_CRASH("CodeGeneratorARM64::visitUDiv");
     return false;
 }
 
 bool
 CodeGeneratorARM64::visitUMod(LUMod *ins)
 {
-    MOZ_ASSERT(0 && "CodeGeneratorARM64::visitUMod");
+    MOZ_CRASH("CodeGeneratorARM64::visitUMod");
     return false;
 }
 
 bool
 CodeGeneratorARM64::visitSoftUDivOrMod(LSoftUDivOrMod *ins)
 {
-    MOZ_ASSERT(0 && "CodeGeneratorARM64::visitSoftUDivOrMod");
+    MOZ_CRASH("CodeGeneratorARM64::visitSoftUDivOrMod");
     return false;
 }
 
@@ -945,28 +945,28 @@ CodeGeneratorARM64::visitEffectiveAddress(LEffectiveAddress *ins)
 bool
 CodeGeneratorARM64::visitAsmJSLoadGlobalVar(LAsmJSLoadGlobalVar *ins)
 {
-    MOZ_ASSERT(0 && "CodeGeneratorARM64::visitAsmJSLoadGlobalVar");
+    MOZ_CRASH("CodeGeneratorARM64::visitAsmJSLoadGlobalVar");
     return false;
 }
 
 bool
 CodeGeneratorARM64::visitAsmJSStoreGlobalVar(LAsmJSStoreGlobalVar *ins)
 {
-    MOZ_ASSERT(0 && "CodeGeneratorARM64::visitAsmJSStoreGlobalVar");
+    MOZ_CRASH("CodeGeneratorARM64::visitAsmJSStoreGlobalVar");
     return false;
 }
 
 bool
 CodeGeneratorARM64::visitAsmJSLoadFuncPtr(LAsmJSLoadFuncPtr *ins)
 {
-    MOZ_ASSERT(0 && "CodeGeneratorARM64::visitAsmJSLoadFuncPtr");
+    MOZ_CRASH("CodeGeneratorARM64::visitAsmJSLoadFuncPtr");
     return false;
 }
 
 bool
 CodeGeneratorARM64::visitAsmJSLoadFFIFunc(LAsmJSLoadFFIFunc *ins)
 {
-    MOZ_ASSERT(0 && "CodeGeneratorARM64::visitAsmJSLoadFFIFunc");
+    MOZ_CRASH("CodeGeneratorARM64::visitAsmJSLoadFFIFunc");
     return false;
 }
 

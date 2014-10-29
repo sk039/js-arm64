@@ -30,7 +30,7 @@ class CodeGeneratorARM64 : public CodeGeneratorShared
     // stack slotted variables are not useful on arm.
     // it looks like this will need to return one of two types.
     inline Operand ToOperand(const LAllocation &a) {
-        MOZ_ASSERT(0 && "ToOperand");
+        MOZ_CRASH("ToOperand");
     }
     inline Operand ToOperand(const LAllocation *a) {
         return ToOperand(*a);
@@ -210,7 +210,7 @@ class CodeGeneratorARM64 : public CodeGeneratorShared
     bool generateInvalidateEpilogue();
   protected:
     void postAsmJSCall(LAsmJSCall *lir) {
-        MOZ_ASSERT(0 && "postAsmJSCall");
+        MOZ_CRASH("postAsmJSCall");
     }
 
     bool visitEffectiveAddress(LEffectiveAddress *ins);

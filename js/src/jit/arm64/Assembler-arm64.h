@@ -99,8 +99,7 @@ class Assembler : public AssemblerVIXL
     }
 
     bool addCodeLabel(CodeLabel label) {
-        MOZ_ASSERT(0 && "addCodeLabel()");
-        return false;
+        MOZ_CRASH("addCodeLabel()");
     }
     size_t numCodeLabels() const {
         return codeLabels_.length();
@@ -151,10 +150,10 @@ class Assembler : public AssemblerVIXL
         return labelOff;
     }
     static uint8_t *PatchableJumpAddress(JitCode *code, uint32_t index) {
-        MOZ_ASSERT(0 && "patchableJumpAddress");
+        MOZ_CRASH("patchableJumpAddress");
     }
     void setPrinter(Sprinter *sp) {
-        MOZ_ASSERT(0 && "setPrinter()");
+        MOZ_CRASH("setPrinter()");
     }
 
     static bool SupportsFloatingPoint() { return true; }
@@ -174,8 +173,7 @@ class Assembler : public AssemblerVIXL
 
   public:
     static uint32_t PatchWrite_NearCallSize() {
-        MOZ_ASSERT(0 && "PatchWrite_NearCallSize()");
-        return 0;
+        MOZ_CRASH("PatchWrite_NearCallSize()");
     }
 
     static uint32_t NopSize() {
@@ -183,7 +181,7 @@ class Assembler : public AssemblerVIXL
     }
 
     static void PatchWrite_NearCall(CodeLocationLabel start, CodeLocationLabel toCall) {
-        MOZ_ASSERT(0 && "PatchWrite_NearCall()");
+        MOZ_CRASH("PatchWrite_NearCall()");
     }
     static void PatchDataWithValueCheck(CodeLocationLabel label,
                                         PatchedImmPtr newValue,
@@ -194,19 +192,16 @@ class Assembler : public AssemblerVIXL
                                         ImmPtr expected);
 
     static void PatchWrite_Imm32(CodeLocationLabel label, Imm32 imm) {
-        MOZ_ASSERT(0 && "PatchWrite_Imm32()");
+        MOZ_CRASH("PatchWrite_Imm32()");
     }
     static uint32_t AlignDoubleArg(uint32_t offset) {
-        MOZ_ASSERT(0 && "AlignDoubleArg()");
-        return (offset+1)&~1;
+        MOZ_CRASH("AlignDoubleArg()");
     }
     static uint8_t *NextInstruction(uint8_t *instruction, uint32_t *count = nullptr) {
-        MOZ_ASSERT(0 && "NextInstruction()");
-        return nullptr;
+        MOZ_CRASH("NextInstruction()");
     }
     static uintptr_t GetPointer(uint8_t *) {
-        MOZ_ASSERT(0 && "GetPointer()");
-        return 0;
+        MOZ_CRASH("GetPointer()");
     }
 
     // Toggle a jmp or cmp emitted by toggledJump().
@@ -348,8 +343,7 @@ GetFloatArgReg(uint32_t usedIntArgs, uint32_t usedFloatArgs, FloatRegister *out)
 static inline bool
 GetTempRegForIntArg(uint32_t usedIntArgs, uint32_t usedFloatArgs, Register *out)
 {
-    MOZ_ASSERT(0 && "TODO");
-    return false;
+    MOZ_CRASH("GetTempRegForIntArg");
 }
 
 // FIXME: Should be shared with ARM's Assembler.

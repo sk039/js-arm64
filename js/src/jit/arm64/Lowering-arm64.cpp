@@ -178,14 +178,14 @@ LIRGeneratorARM64::lowerForBitAndAndBranch(LBitAndAndBranch *baab, MInstruction 
 bool
 LIRGeneratorARM64::defineUntypedPhi(MPhi *phi, size_t lirIndex)
 {
-    MOZ_ASSERT(0 && "defineUntypedPhi");
+    MOZ_CRASH("defineUntypedPhi");
     return false;
 }
 
 void
 LIRGeneratorARM64::lowerUntypedPhiInput(MPhi *phi, uint32_t inputPosition, LBlock *block, size_t lirIndex)
 {
-    MOZ_ASSERT(0 && "lowerUntypedPhiInput");
+    MOZ_CRASH("lowerUntypedPhiInput");
 }
 
 bool
@@ -199,7 +199,7 @@ LIRGeneratorARM64::lowerForShift(LInstructionHelper<1, 2, 0> *ins, MDefinition *
 bool
 LIRGeneratorARM64::lowerDivI(MDiv *div)
 {
-    MOZ_ASSERT(0 && "lowerDivI");
+    MOZ_CRASH("lowerDivI");
     return false;
 }
 
@@ -314,14 +314,14 @@ LIRGeneratorARM64::visitAsmJSNeg(MAsmJSNeg *ins)
 bool
 LIRGeneratorARM64::lowerUDiv(MDiv *div)
 {
-    MOZ_ASSERT(0 && "lowerUDiv");
+    MOZ_CRASH("lowerUDiv");
     return false;
 }
 
 bool
 LIRGeneratorARM64::lowerUMod(MMod *mod)
 {
-    MOZ_ASSERT(0 && "lowerUMod");
+    MOZ_CRASH("lowerUMod");
 }
 
 bool
@@ -343,13 +343,13 @@ LIRGeneratorARM64::visitAsmJSUnsignedToFloat32(MAsmJSUnsignedToFloat32 *ins)
 bool
 LIRGeneratorARM64::visitAsmJSLoadHeap(MAsmJSLoadHeap *ins)
 {
-    MOZ_ASSERT(0 && "visitAsmJSLoadHeap");
+    MOZ_CRASH("visitAsmJSLoadHeap");
 }
 
 bool
 LIRGeneratorARM64::visitAsmJSStoreHeap(MAsmJSStoreHeap *ins)
 {
-    MOZ_ASSERT(0 && "visitAsmJSStoreHeap");
+    MOZ_CRASH("visitAsmJSStoreHeap");
 }
 
 bool
