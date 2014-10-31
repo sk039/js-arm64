@@ -673,10 +673,22 @@ AssemblerVIXL::adr(const ARMRegister& rd, int imm21)
 }
 
 void
+AssemblerVIXL::adr(Instruction *at, const ARMRegister& rd, int imm21)
+{
+    VIXL_ASSERT(rd.Is64Bits());
+    Emit(at, ADR | ImmPCRelAddress(imm21) | Rd(rd));
+}
+
+void
 AssemblerVIXL::adr(const ARMRegister& rd, Label* label)
 {
-    MOZ_CRASH("adr()");
-    //adr(rd, LinkAndGetByteOffsetTo(label));
+    // Flush the instruction buffer before calculating relative offset.
+    // ADR is not a branch.
+    BufferOffset offset = Emit(0);
+    Instruction *ins = getInstructionAt(offset);
+
+    // Encode the relative offset.
+    adr(ins, rd, LinkAndGetByteOffsetTo(offset, label));
 }
 
 void

@@ -153,6 +153,11 @@ LSDataSize CalcLSPairDataSize(LoadStorePairOp op) {
 
 
 ptrdiff_t Instruction::ImmPCRawOffset() const {
+  if (IsPCRelAddressing()) {
+    // ADR and ADRP.
+    VIXL_ASSERT(Mask(PCRelAddressingMask) == ADRP || Mask(PCRelAddressingMask) == ADR);
+    return ptrdiff_t(ImmPCRel());
+  }
   // TODO: No ADR or ADRP support here. Do we even need any?
   VIXL_ASSERT(!IsPCRelAddressing());
 

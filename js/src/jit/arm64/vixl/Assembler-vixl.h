@@ -855,11 +855,11 @@ class AssemblerVIXL : public AssemblerShared
     // unscaled (i.e. the result can be unaligned).
 
     // Calculate the address of a label.
-
     void adr(const ARMRegister& rd, Label* label);
 
     // Calculate the address of a PC offset.
     void adr(const ARMRegister& rd, int imm21);
+    void adr(Instruction *at, const ARMRegister &rd, int imm21);
 
     // Calculate the page address of a label.
     void adrp(const ARMRegister& rd, Label* label);
