@@ -454,7 +454,7 @@ MacroAssemblerCompat::callWithABI(void *fun, MoveOp::Type result)
 
     // Load the target into an intra-call-use register.
     Register callTarget = Register::FromCode(Registers::ip0);
-    movePatchablePtr(ImmPtr((uintptr_t)fun), callTarget);
+    movePatchablePtr(ImmPtr(fun), callTarget);
 
     uint32_t stackAdjust;
     callWithABIPre(&stackAdjust);
