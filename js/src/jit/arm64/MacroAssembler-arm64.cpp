@@ -289,11 +289,14 @@ MacroAssemblerCompat::setupUnalignedABICall(uint32_t args, Register scratch)
     MOZ_ASSERT(!GetStackPointer().Is(sp));
 
     // Remember the stack address on entry.
-    Mov(scratch64, GetStackPointer());
+    Add(scratch64, GetStackPointer(), Operand(0));
 
     // Make alignment, including the effective push of the previous sp.
     Sub(GetStackPointer(), GetStackPointer(), Operand(8));
     And(GetStackPointer(), GetStackPointer(), Operand(alignment));
+
+    // If the PseudoStackPointer is used, sp must be <= psp before a write is valid.
+    syncStackPtr();
 
     // Store previous sp to the top of the stack, aligned.
     Str(scratch64, MemOperand(GetStackPointer(), 0));
@@ -451,7 +454,7 @@ MacroAssemblerCompat::callWithABI(void *fun, MoveOp::Type result)
 
     // Load the target into an intra-call-use register.
     Register callTarget = Register::FromCode(Registers::ip0);
-    movePtr(ImmWord((uintptr_t)fun), callTarget);
+    movePatchablePtr(ImmPtr((uintptr_t)fun), callTarget);
 
     uint32_t stackAdjust;
     callWithABIPre(&stackAdjust);

@@ -42,7 +42,7 @@
 namespace js {
 namespace jit {
 
-const Instruction* Simulator::kEndOfSimAddress = NULL;
+const Instruction* Simulator::kEndOfSimAddress = nullptr;
 
 void SimSystemRegister::SetBits(int msb, int lsb, uint32_t bits) {
   int width = msb - lsb + 1;
@@ -182,7 +182,7 @@ void Simulator::ResetState() {
   fpcr_ = SimSystemRegister::DefaultValueFor(FPCR);
 
   // Reset registers to 0.
-  pc_ = NULL;
+  pc_ = nullptr;
   pc_modified_ = false;
   for (unsigned i = 0; i < kNumberOfRegisters; i++) {
     set_xreg(i, 0xbadbeef);
@@ -2897,7 +2897,7 @@ void Simulator::DoPrintf(Instruction* instr) {
   // Leave enough space for one extra character per expected argument (plus the
   // '\0' termination).
   const char * format_base = reg<const char *>(0);
-  VIXL_ASSERT(format_base != NULL);
+  VIXL_ASSERT(format_base != nullptr);
   size_t length = strlen(format_base) + 1;
   char * const format = new char[length + arg_count];
 

@@ -964,16 +964,18 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         }
     }
     void ret() {
-        Ret(); // Branches to lr with a return hint.
+        syncStackPtr(); // SP is always used to transmit the stack between calls.
+        Ret(lr_64); // Branches to lr with a return hint.
     }
 
     void retn(Imm32 n) {
         // ip0 <- [sp]; sp += n; ret ip0
         Ldr(ip0_64, MemOperand(GetStackPointer(), ptrdiff_t(n.value), PostIndex));
+        syncStackPtr(); // SP is always used to transmit the stack between calls.
         Ret(ip0_64);
     }
 
-    void j(Condition code , Label *dest) {
+    void j(Condition code, Label *dest) {
         b(dest, code);
     }
     void j(Label *dest) {
@@ -984,6 +986,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         b(label, cond);
     }
     void branch(JitCode *target) {
+        syncStackPtr();
         addPendingJump(nextOffset(), ImmPtr(target->raw()), Relocation::JITCODE);
         b(-1); // The jump target will be patched by executableCopy().
     }
@@ -1805,7 +1808,8 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
 
     void callIon(Register callee) {
         // AArch64 cannot read from the PC, so pushing must be handled callee-side.
-        call(callee);
+        syncStackPtr();
+        Blr(ARMRegister(callee, 64));
     }
 
     void appendCallSite(const CallSiteDesc &desc) {
@@ -1813,27 +1817,34 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
 
     void call(const CallSiteDesc &desc, Label *label) {
+        syncStackPtr();
         MOZ_CRASH("call");
     }
     void call(const CallSiteDesc &desc, Register reg) {
+        syncStackPtr();
         MOZ_CRASH("call");
     }
     void call(const CallSiteDesc &desc, AsmJSImmPtr imm) {
+        syncStackPtr();
         MOZ_CRASH("call");
     }
 
     void call(AsmJSImmPtr imm) {
+        syncStackPtr();
         MOZ_CRASH("call(AsmJSImmPtr)");
     }
 
     void call(Register target) {
+        syncStackPtr();
         Blr(ARMRegister(target, 64));
     }
     void call(JitCode *target) {
+        syncStackPtr();
         addPendingJump(nextOffset(), ImmPtr(target->raw()), Relocation::JITCODE);
         bl(-1);
     }
     void call(Label *target) {
+        syncStackPtr();
         Bl(target);
     }
     void callExit(AsmJSImmPtr imm, uint32_t stackArgBytes) {
