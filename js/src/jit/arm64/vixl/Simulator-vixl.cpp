@@ -37,7 +37,11 @@
 #include "jit/arm64/vixl/Debugger-vixl.h"
 #include "jit/arm64/vixl/VIXL-Platform-vixl.h"
 
+#include "mozilla/DebugOnly.h"
+
 #include "vm/Runtime.h"
+
+using mozilla::DebugOnly;
 
 namespace js {
 namespace jit {
@@ -2742,6 +2746,21 @@ void Simulator::VisitCallRedirection(Instruction *instr) {
   // FIXME: It's actually our job to perform the alignment...
   //MOZ_ASSERT((xreg(31, Reg31IsStackPointer) & (StackAlignment - 1)) == 0);
 
+  // Used to assert that callee-saved registers are preserved.
+  DebugOnly<int64_t> x19 = xreg(19);
+  DebugOnly<int64_t> x20 = xreg(20);
+  DebugOnly<int64_t> x21 = xreg(21);
+  DebugOnly<int64_t> x22 = xreg(22);
+  DebugOnly<int64_t> x23 = xreg(23);
+  DebugOnly<int64_t> x24 = xreg(24);
+  DebugOnly<int64_t> x25 = xreg(25);
+  DebugOnly<int64_t> x26 = xreg(26);
+  DebugOnly<int64_t> x27 = xreg(27);
+  DebugOnly<int64_t> x28 = xreg(28);
+  DebugOnly<int64_t> x29 = xreg(29);
+  DebugOnly<int64_t> savedSP = xreg(31, Reg31IsStackPointer);
+
+  // Remember LR for returning from the "call".
   int64_t savedLR = xreg(30);
 
   // Store argument register values in local variables for ease of use below.
@@ -2862,6 +2881,22 @@ void Simulator::VisitCallRedirection(Instruction *instr) {
   }
 
   // TODO: Nuke the volatile registers.
+
+  // Assert that callee-saved registers are unchanged.
+  MOZ_ASSERT(xreg(19) == x19);
+  MOZ_ASSERT(xreg(20) == x20);
+  MOZ_ASSERT(xreg(21) == x21);
+  MOZ_ASSERT(xreg(22) == x22);
+  MOZ_ASSERT(xreg(23) == x23);
+  MOZ_ASSERT(xreg(24) == x24);
+  MOZ_ASSERT(xreg(25) == x25);
+  MOZ_ASSERT(xreg(26) == x26);
+  MOZ_ASSERT(xreg(27) == x27);
+  MOZ_ASSERT(xreg(28) == x28);
+  MOZ_ASSERT(xreg(29) == x29);
+
+  // Assert that the stack is unchanged.
+  MOZ_ASSERT(savedSP == xreg(31, Reg31IsStackPointer));
 
   // Simulate a return.
   set_lr(savedLR);
