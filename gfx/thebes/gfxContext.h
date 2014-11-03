@@ -22,6 +22,12 @@ typedef struct _cairo cairo_t;
 class GlyphBufferAzure;
 template <typename T> class FallibleTArray;
 
+namespace mozilla {
+namespace gfx {
+struct RectCornerRadii;
+}
+}
+
 /**
  * This is the main class for doing actual drawing. It is initialized using
  * a surface and can be drawn on. It manages various state information like
@@ -41,6 +47,7 @@ class gfxContext MOZ_FINAL {
     typedef mozilla::gfx::Path Path;
     typedef mozilla::gfx::Pattern Pattern;
     typedef mozilla::gfx::Rect Rect;
+    typedef mozilla::gfx::RectCornerRadii RectCornerRadii;
 
     NS_INLINE_DECL_REFCOUNTING(gfxContext)
 
@@ -145,12 +152,6 @@ public:
     void MoveTo(const gfxPoint& pt);
 
     /**
-     * Creates a new subpath starting at the current point.
-     * Equivalent to MoveTo(CurrentPoint()).
-     */
-    void NewSubPath();
-
-    /**
      * Returns the current point in the current path.
      */
     gfxPoint CurrentPoint();
@@ -189,18 +190,6 @@ public:
      * Draw a polygon from the given points
      */
     void Polygon(const gfxPoint *points, uint32_t numPoints);
-
-    /*
-     * Draw a rounded rectangle, with the given outer rect and
-     * corners.  The corners specify the radii of the two axes of an
-     * ellipse (the horizontal and vertical directions given by the
-     * width and height, respectively).  By default the ellipse is
-     * drawn in a clockwise direction; if draw_clockwise is false,
-     * then it's drawn counterclockwise.
-     */
-    void RoundedRectangle(const gfxRect& rect,
-                          const gfxCornerSizes& corners,
-                          bool draw_clockwise = true);
 
     /**
      ** Transformation Matrix manipulation
@@ -511,6 +500,7 @@ public:
      */
     void Clip(const Rect& rect);
     void Clip(const gfxRect& rect); // will clip to a rect
+    void Clip(Path* aPath);
 
     /**
      * This will ensure that the surface actually has its clip set.

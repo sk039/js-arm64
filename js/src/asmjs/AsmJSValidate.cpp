@@ -2708,10 +2708,10 @@ class FunctionCompiler
     {
         if (inDeadCode())
             return nullptr;
-        MAsmJSLoadHeap *load = MAsmJSLoadHeap::New(alloc(), vt, ptr);
+
+        bool needsBoundsCheck = chk == NEEDS_BOUNDS_CHECK && !m().usesSignalHandlersForOOB();
+        MAsmJSLoadHeap *load = MAsmJSLoadHeap::New(alloc(), vt, ptr, needsBoundsCheck);
         curBlock_->add(load);
-        if (chk == NO_BOUNDS_CHECK || m().usesSignalHandlersForOOB())
-            load->setSkipBoundsCheck(true);
         return load;
     }
 
@@ -2719,10 +2719,10 @@ class FunctionCompiler
     {
         if (inDeadCode())
             return;
-        MAsmJSStoreHeap *store = MAsmJSStoreHeap::New(alloc(), vt, ptr, v);
+
+        bool needsBoundsCheck = chk == NEEDS_BOUNDS_CHECK && !m().usesSignalHandlersForOOB();
+        MAsmJSStoreHeap *store = MAsmJSStoreHeap::New(alloc(), vt, ptr, v, needsBoundsCheck);
         curBlock_->add(store);
-        if (chk == NO_BOUNDS_CHECK || m().usesSignalHandlersForOOB())
-            store->setSkipBoundsCheck(true);
     }
 
     MDefinition *loadGlobalVar(const ModuleCompiler::Global &global)
