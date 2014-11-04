@@ -235,33 +235,32 @@ int64_t Simulator::call(uint8_t* entry, int argument_count, ...) {
 
   // Argument 0: EnterJitData::jitcode.
   set_xreg(0, va_arg(parameters, int64_t));
-
   // Argument 1: EnterJitData::maxArgc.
   set_xreg(1, va_arg(parameters, unsigned));
-
   // Argument 2: EnterJitData::maxArgv.
   set_xreg(2, va_arg(parameters, int64_t));
-
   // Argument 3: EnterJitData::osrFrame.
   set_xreg(3, va_arg(parameters, int64_t));
-
   // Argument 4: EnterJitData::calleeToken.
   set_xreg(4, va_arg(parameters, int64_t));
-
   // Argument 5: EnterJitData::scopeChain.
   set_xreg(5, va_arg(parameters, int64_t));
-
   // Argument 6: EnterJitData::osrNumStackValues.
   set_xreg(6, va_arg(parameters, unsigned));
-
   // Argument 7: Address of EnterJitData::result.
   set_xreg(7, va_arg(parameters, int64_t));
 
   va_end(parameters);
 
+  // Stack depth must be preserved by call.
+  DebugOnly<int64_t> entryStack = xreg(31, Reg31IsStackPointer);
+
   // Execute the simulation.
   // FIXME: Assert that the stack is sane.
   RunFrom((Instruction *)entry);
+
+  DebugOnly<int64_t> exitStack = xreg(31, Reg31IsStackPointer);
+  MOZ_ASSERT(entryStack == exitStack);
 
   // Get return value.
   int64_t result = xreg(0);
