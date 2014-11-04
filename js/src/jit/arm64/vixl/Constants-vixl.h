@@ -595,7 +595,9 @@ enum ExceptionOp {
 // The SVC instruction encodes an optional 16-bit immediate value.
 // The simulator understands the codes below.
 enum SVCSimulatorCodes {
-  kCallRtRedirected = 0x10 // Transition to x86_64 C code.
+  kCallRtRedirected = 0x10,  // Transition to x86_64 C code.
+  kMarkStackPointer = 0x11,  // Push the current SP on a special Simulator stack.
+  kCheckStackPointer = 0x12  // Pop from the special Simulator stack and compare to SP.
 };
 
 enum MemBarrierOp {

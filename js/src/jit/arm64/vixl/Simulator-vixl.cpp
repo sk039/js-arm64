@@ -34,6 +34,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "jit/arm64/vixl/Assembler-vixl.h"
 #include "jit/arm64/vixl/Debugger-vixl.h"
 #include "jit/arm64/vixl/VIXL-Platform-vixl.h"
 
@@ -280,13 +281,15 @@ class Redirection
 
   Redirection(void *nativeFunction, ABIFunctionType type, SimulatorRuntime *srt)
     : nativeFunction_(nativeFunction),
-      svcInstruction_(SVC | Assembler::ImmException(kCallRtRedirected)),
       type_(type),
       next_(nullptr)
   {
     next_ = srt->redirection();
     // TODO: Flush ICache?
     srt->setRedirection(this);
+
+    Instruction *instr = (Instruction *)(&svcInstruction_);
+    AssemblerVIXL::svc(instr, kCallRtRedirected);
   }
 
  public:
@@ -2674,6 +2677,12 @@ void Simulator::VisitException(Instruction* instr) {
       // causing the Simulator to execute host-native code for callWithABI.
       if (instr->ImmException() == kCallRtRedirected) {
         VisitCallRedirection(instr);
+      } else if (instr->ImmException() == kMarkStackPointer) {
+        spStack_.append(xreg(31, Reg31IsStackPointer));
+      } else if (instr->ImmException() == kCheckStackPointer) {
+        int64_t current = xreg(31, Reg31IsStackPointer);
+        int64_t expected = spStack_.popCopy();
+        MOZ_ASSERT(current == expected);
       } else {
         // Other uses of the SVC instruction are not handled by the simulator.
         VIXL_UNIMPLEMENTED();

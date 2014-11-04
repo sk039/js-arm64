@@ -2039,6 +2039,20 @@ AssemblerVIXL::brk(int code)
 }
 
 void
+AssemblerVIXL::svc(int code)
+{
+    VIXL_ASSERT(is_uint16(code));
+    Emit(SVC | ImmException(code));
+}
+
+void
+AssemblerVIXL::svc(Instruction *at, int code)
+{
+    VIXL_ASSERT(is_uint16(code));
+    Emit(at, SVC | ImmException(code));
+}
+
+void
 AssemblerVIXL::Logical(const ARMRegister& rd, const ARMRegister& rn,
                        const Operand& operand, LogicalOp op)
 {

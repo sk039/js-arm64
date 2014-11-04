@@ -1347,6 +1347,10 @@ class AssemblerVIXL : public AssemblerShared
     // Monitor debug-mode breakpoint.
     void brk(int code);
 
+    // System exception. Used for simulator directives.
+    void svc(int code);
+    static void svc(Instruction *at, int code);
+
     // Halting debug-mode breakpoint.
     void hlt(int code);
 

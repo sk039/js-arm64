@@ -32,6 +32,8 @@
 
 #ifdef JS_CODEGEN_ARM64
 
+#include "mozilla/Vector.h"
+
 #include "jit/arm64/vixl/Assembler-vixl.h"
 #include "jit/arm64/vixl/Disasm-vixl.h"
 #include "jit/arm64/vixl/Instructions-vixl.h"
@@ -856,6 +858,11 @@ class Simulator : public DecoderVisitor {
   static const Instruction* kEndOfSimAddress;
 
  private:
+
+  // Internal stack for tracking SP consistency.
+  // Mutated by SVC instructions of type kMarkStackPointer and kCheckStackPointer.
+  Vector<int64_t, 0, SystemAllocPolicy> spStack_;
+
   bool coloured_trace_;
 
   // Indicates whether the disassembly trace is active.

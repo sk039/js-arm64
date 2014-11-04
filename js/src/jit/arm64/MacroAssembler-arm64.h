@@ -2090,6 +2090,21 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
 
     void breakpoint();
 
+    // Emits a simulator directive to save the current sp on an internal stack.
+    void simulatorMarkSP() {
+#ifdef JS_ARM64_SIMULATOR
+        svc(kMarkStackPointer);
+#endif
+    }
+
+    // Emits a simulator directive to pop from its internal stack
+    // and assert that the value is equal to the current sp.
+    void simulatorCheckSP() {
+#ifdef JS_ARM64_SIMULATOR
+        svc(kCheckStackPointer);
+#endif
+    }
+
     void loadAsmJSActivation(Register dest) {
         loadPtr(Address(GlobalReg, AsmJSActivationGlobalDataOffset), dest);
     }
