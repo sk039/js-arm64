@@ -590,9 +590,17 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     void storePtr(Register src, const Address &address) {
         Str(ARMRegister(src, 64), MemOperand(ARMRegister(address.base, 64), address.offset));
     }
+
+    void storePtr(ImmWord imm, const BaseIndex &address) {
+        MOZ_CRASH("storePtr");
+    }
+    void storePtr(ImmGCPtr imm, const BaseIndex &address) {
+        MOZ_CRASH("storePtr");
+    }
     void storePtr(Register src, const BaseIndex &address) {
         doBaseIndex(ARMRegister(src, 64), address, STR_x);
     }
+
     void storePtr(Register src, AbsoluteAddress address) {
         Mov(ScratchReg2_64, uint64_t(address.addr));
         Str(ARMRegister(src, 64), MemOperand(ScratchReg2_64));

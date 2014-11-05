@@ -3891,6 +3891,7 @@ protected:
   nsCString mOrigin;
   nsCString mDatabaseId;
   State mState;
+  bool mIsApp;
   bool mHasUnlimStoragePerm;
   bool mEnforcingQuota;
   const bool mDeleting;
@@ -10448,6 +10449,7 @@ FactoryOp::FactoryOp(Factory* aFactory,
   , mContentParent(Move(aContentParent))
   , mCommonParams(aCommonParams)
   , mState(State_Initial)
+  , mIsApp(false)
   , mHasUnlimStoragePerm(false)
   , mEnforcingQuota(true)
   , mDeleting(aDeleting)
@@ -10750,11 +10752,11 @@ FactoryOp::CheckPermission(ContentParent* aContentParent,
     }
 
     if (State_Initial == mState) {
-      QuotaManager::GetInfoForChrome(&mGroup, &mOrigin, nullptr,
+      QuotaManager::GetInfoForChrome(&mGroup, &mOrigin, &mIsApp,
                                      &mHasUnlimStoragePerm);
 
       mEnforcingQuota =
-        QuotaManager::IsQuotaEnforced(persistenceType, mOrigin,
+        QuotaManager::IsQuotaEnforced(persistenceType, mOrigin, mIsApp,
                                       mHasUnlimStoragePerm);
     }
 
@@ -10804,14 +10806,15 @@ FactoryOp::CheckPermission(ContentParent* aContentParent,
   if (permission != PermissionRequestBase::kPermissionDenied &&
       State_Initial == mState) {
     rv = QuotaManager::GetInfoFromPrincipal(principal, persistenceType, &mGroup,
-                                            &mOrigin, nullptr,
+                                            &mOrigin, &mIsApp,
                                             &mHasUnlimStoragePerm);
     if (NS_WARN_IF(NS_FAILED(rv))) {
       return rv;
     }
 
-    mEnforcingQuota = QuotaManager::IsQuotaEnforced(persistenceType, mOrigin,
-                                                    mHasUnlimStoragePerm);
+    mEnforcingQuota =
+      QuotaManager::IsQuotaEnforced(persistenceType, mOrigin, mIsApp,
+                                    mHasUnlimStoragePerm);
   }
 
   *aPermission = permission;
@@ -11216,6 +11219,7 @@ OpenDatabaseOp::DoDatabaseWork()
     quotaManager->EnsureOriginIsInitialized(persistenceType,
                                             mGroup,
                                             mOrigin,
+                                            mIsApp,
                                             mHasUnlimStoragePerm,
                                             getter_AddRefs(dbDirectory));
   if (NS_WARN_IF(NS_FAILED(rv))) {

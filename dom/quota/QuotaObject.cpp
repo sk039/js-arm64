@@ -296,14 +296,14 @@ bool
 OriginInfo::IsTreatedAsPersistent() const
 {
   return QuotaManager::IsTreatedAsPersistent(mGroupInfo->mPersistenceType,
-                                             mOrigin);
+                                             mOrigin, mIsApp);
 }
 
 bool
 OriginInfo::IsTreatedAsTemporary() const
 {
   return QuotaManager::IsTreatedAsTemporary(mGroupInfo->mPersistenceType,
-                                            mOrigin);
+                                            mOrigin, mIsApp);
 }
 
 void

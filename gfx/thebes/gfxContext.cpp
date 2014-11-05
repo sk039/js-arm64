@@ -225,30 +225,6 @@ gfxContext::CurrentPoint()
 }
 
 void
-gfxContext::Stroke()
-{
-  Stroke(PatternFromState(this));
-}
-
-void
-gfxContext::Stroke(const Pattern& aPattern)
-{
-  AzureState &state = CurrentState();
-  if (mPathIsRect) {
-    MOZ_ASSERT(!mTransformChanged);
-
-    mDT->StrokeRect(mRect, aPattern,
-                    state.strokeOptions,
-                    DrawOptions(1.0f, GetOp(), state.aaMode));
-  } else {
-    EnsurePath();
-
-    mDT->Stroke(mPath, aPattern, state.strokeOptions,
-                DrawOptions(1.0f, GetOp(), state.aaMode));
-  }
-}
-
-void
 gfxContext::Fill()
 {
   Fill(PatternFromState(this));
@@ -524,26 +500,6 @@ gfxContext::CurrentAntialiasMode() const
 }
 
 void
-gfxContext::SetDash(gfxLineType ltype)
-{
-  static double dash[] = {5.0, 5.0};
-  static double dot[] = {1.0, 1.0};
-
-  switch (ltype) {
-      case gfxLineDashed:
-          SetDash(dash, 2, 0.0);
-          break;
-      case gfxLineDotted:
-          SetDash(dot, 2, 0.0);
-          break;
-      case gfxLineSolid:
-      default:
-          SetDash(nullptr, 0, 0.0);
-          break;
-  }
-}
-
-void
 gfxContext::SetDash(gfxFloat *dashes, int ndash, gfxFloat offset)
 {
   AzureState &state = CurrentState();
@@ -613,27 +569,27 @@ gfxContext::CurrentOperator() const
 }
 
 void
-gfxContext::SetLineCap(GraphicsLineCap cap)
+gfxContext::SetLineCap(CapStyle cap)
 {
-  CurrentState().strokeOptions.mLineCap = ToCapStyle(cap);
+  CurrentState().strokeOptions.mLineCap = cap;
 }
 
-gfxContext::GraphicsLineCap
+CapStyle
 gfxContext::CurrentLineCap() const
 {
-  return ThebesLineCap(CurrentState().strokeOptions.mLineCap);
+  return CurrentState().strokeOptions.mLineCap;
 }
 
 void
-gfxContext::SetLineJoin(GraphicsLineJoin join)
+gfxContext::SetLineJoin(JoinStyle join)
 {
-  CurrentState().strokeOptions.mLineJoin = ToJoinStyle(join);
+  CurrentState().strokeOptions.mLineJoin = join;
 }
 
-gfxContext::GraphicsLineJoin
+JoinStyle
 gfxContext::CurrentLineJoin() const
 {
-  return ThebesLineJoin(CurrentState().strokeOptions.mLineJoin);
+  return CurrentState().strokeOptions.mLineJoin;
 }
 
 void

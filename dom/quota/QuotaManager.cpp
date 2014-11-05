@@ -283,6 +283,7 @@ public:
                      const nsACString& aPersistentGroup,
                      const nsACString& aTemporaryGroup,
                      const OriginOrPatternString& aOrigin,
+                     bool aIsApp,
                      nsIURI* aURI,
                      nsIUsageCallback* aCallback);
 
@@ -330,6 +331,7 @@ private:
   OriginOrPatternString mOrigin;
   CallbackState mCallbackState;
   bool mInMozBrowserOnly;
+  const bool mIsApp;
 };
 
 class ResetOrClearRunnable MOZ_FINAL : public nsRunnable,
@@ -624,6 +626,29 @@ SanitizeOriginString(nsCString& aOrigin)
 #endif
 
   aOrigin.ReplaceChar(kReplaceChars, '+');
+}
+
+bool
+IsApp(const nsCString& aOrigin)
+{
+  MOZ_ASSERT(!aOrigin.IsEmpty());
+
+  if (!NS_IsAsciiDigit(aOrigin.First())) {
+    return false;
+  }
+
+  int32_t pos = aOrigin.Find("+f+");
+  if (pos != kNotFound) {
+    nsCString appIdStr(Substring(aOrigin, 0, pos));
+
+    nsresult rv;
+    int32_t appId = appIdStr.ToInteger(&rv);
+    if (NS_SUCCEEDED(rv) && appId != 0) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 nsresult
@@ -1207,14 +1232,15 @@ void
 QuotaManager::InitQuotaForOrigin(PersistenceType aPersistenceType,
                                  const nsACString& aGroup,
                                  const nsACString& aOrigin,
+                                 bool aIsApp,
                                  uint64_t aLimitBytes,
                                  uint64_t aUsageBytes,
                                  int64_t aAccessTime)
 {
   AssertIsOnIOThread();
-  MOZ_ASSERT_IF(IsTreatedAsPersistent(aPersistenceType, aOrigin),
+  MOZ_ASSERT_IF(IsTreatedAsPersistent(aPersistenceType, aOrigin, aIsApp),
                 aLimitBytes > 0);
-  MOZ_ASSERT_IF(IsTreatedAsPersistent(aPersistenceType, aOrigin),
+  MOZ_ASSERT_IF(IsTreatedAsPersistent(aPersistenceType, aOrigin, aIsApp),
                 aUsageBytes <= aLimitBytes);
 
   MutexAutoLock lock(mQuotaMutex);
@@ -1233,7 +1259,8 @@ QuotaManager::InitQuotaForOrigin(PersistenceType aPersistenceType,
   }
 
   nsRefPtr<OriginInfo> originInfo =
-    new OriginInfo(groupInfo, aOrigin, aLimitBytes, aUsageBytes, aAccessTime);
+    new OriginInfo(groupInfo, aOrigin, aIsApp, aLimitBytes, aUsageBytes,
+                   aAccessTime);
   groupInfo->LockedAddOriginInfo(originInfo);
 }
 
@@ -1889,6 +1916,11 @@ QuotaManager::InitializeRepository(PersistenceType aPersistenceType)
     // XXX This is temporary, we don't have real .metadata files for persistent
     //     storage yet.
     if (aPersistenceType == PERSISTENCE_TYPE_PERSISTENT) {
+      rv = MaybeUpgradeOriginDirectory(childDirectory);
+      if (NS_WARN_IF(NS_FAILED(rv))) {
+        return rv;
+      }
+
       rv = GetDirectoryMetadataLastModifiedTime(childDirectory, &timestamp);
       if (NS_WARN_IF(NS_FAILED(rv))) {
         return rv;
@@ -1905,12 +1937,14 @@ QuotaManager::InitializeRepository(PersistenceType aPersistenceType)
       SanitizeOriginString(origin);
     }
 
-    if (IsTreatedAsPersistent(aPersistenceType, origin)) {
+    bool isApp = IsApp(origin);
+
+    if (IsTreatedAsPersistent(aPersistenceType, origin, isApp)) {
       continue;
     }
 
-    rv = InitializeOrigin(aPersistenceType, group, origin, false, timestamp,
-                          childDirectory);
+    rv = InitializeOrigin(aPersistenceType, group, origin, isApp, false,
+                          timestamp, childDirectory);
     if (NS_WARN_IF(NS_FAILED(rv))) {
       return rv;
     }
@@ -1926,6 +1960,7 @@ nsresult
 QuotaManager::InitializeOrigin(PersistenceType aPersistenceType,
                                const nsACString& aGroup,
                                const nsACString& aOrigin,
+                               bool aIsApp,
                                bool aHasUnlimStoragePerm,
                                int64_t aAccessTime,
                                nsIFile* aDirectory)
@@ -1940,7 +1975,7 @@ QuotaManager::InitializeOrigin(PersistenceType aPersistenceType,
   }
 
   bool trackQuota =
-    IsQuotaEnforced(aPersistenceType, aOrigin, aHasUnlimStoragePerm);
+    IsQuotaEnforced(aPersistenceType, aOrigin, aIsApp, aHasUnlimStoragePerm);
 
   // We need to initialize directories of all clients if they exists and also
   // get the total usage to initialize the quota.
@@ -1996,7 +2031,7 @@ QuotaManager::InitializeOrigin(PersistenceType aPersistenceType,
     uint64_t quotaMaxBytes;
     uint64_t totalUsageBytes = usageInfo->TotalUsage();
 
-    if (IsTreatedAsTemporary(aPersistenceType, aOrigin)) {
+    if (IsTreatedAsTemporary(aPersistenceType, aOrigin, aIsApp)) {
       // Temporary storage has no limit for origin usage (there's a group and
       // the global limit though).
       quotaMaxBytes = 0;
@@ -2009,7 +2044,7 @@ QuotaManager::InitializeOrigin(PersistenceType aPersistenceType,
       }
     }
 
-    InitQuotaForOrigin(aPersistenceType, aGroup, aOrigin, quotaMaxBytes,
+    InitQuotaForOrigin(aPersistenceType, aGroup, aOrigin, aIsApp, quotaMaxBytes,
                        totalUsageBytes, aAccessTime);
   }
 
@@ -2095,6 +2130,7 @@ nsresult
 QuotaManager::EnsureOriginIsInitialized(PersistenceType aPersistenceType,
                                         const nsACString& aGroup,
                                         const nsACString& aOrigin,
+                                        bool aIsApp,
                                         bool aHasUnlimStoragePerm,
                                         nsIFile** aDirectory)
 {
@@ -2109,7 +2145,7 @@ QuotaManager::EnsureOriginIsInitialized(PersistenceType aPersistenceType,
                              getter_AddRefs(directory));
   NS_ENSURE_SUCCESS(rv, rv);
 
-  if (IsTreatedAsPersistent(aPersistenceType, aOrigin)) {
+  if (IsTreatedAsPersistent(aPersistenceType, aOrigin, aIsApp)) {
     if (mInitializedOrigins.Contains(aOrigin)) {
       NS_ADDREF(*aDirectory = directory);
       return NS_OK;
@@ -2169,7 +2205,7 @@ QuotaManager::EnsureOriginIsInitialized(PersistenceType aPersistenceType,
   rv = EnsureDirectory(directory, &created);
   NS_ENSURE_SUCCESS(rv, rv);
 
-  if (IsTreatedAsPersistent(aPersistenceType, aOrigin)) {
+  if (IsTreatedAsPersistent(aPersistenceType, aOrigin, aIsApp)) {
     if (created) {
       timestamp = PR_Now();
 
@@ -2197,7 +2233,7 @@ QuotaManager::EnsureOriginIsInitialized(PersistenceType aPersistenceType,
       }
     }
 
-    rv = InitializeOrigin(aPersistenceType, aGroup, aOrigin,
+    rv = InitializeOrigin(aPersistenceType, aGroup, aOrigin, aIsApp,
                           aHasUnlimStoragePerm, timestamp, directory);
     NS_ENSURE_SUCCESS(rv, rv);
 
@@ -2212,7 +2248,7 @@ QuotaManager::EnsureOriginIsInitialized(PersistenceType aPersistenceType,
     }
     NS_ENSURE_SUCCESS(rv, rv);
 
-    rv = InitializeOrigin(aPersistenceType, aGroup, aOrigin,
+    rv = InitializeOrigin(aPersistenceType, aGroup, aOrigin, aIsApp,
                           aHasUnlimStoragePerm, timestamp, directory);
     NS_ENSURE_SUCCESS(rv, rv);
   }
@@ -2229,16 +2265,19 @@ QuotaManager::OriginClearCompleted(
   AssertIsOnIOThread();
 
   if (aOriginOrPattern.IsOrigin()) {
-    if (IsTreatedAsPersistent(aPersistenceType, aOriginOrPattern)) {
+    bool isApp = IsApp(aOriginOrPattern);
+    if (IsTreatedAsPersistent(aPersistenceType, aOriginOrPattern, isApp)) {
       mInitializedOrigins.RemoveElement(aOriginOrPattern);
     }
   }
   else {
     for (uint32_t index = mInitializedOrigins.Length(); index > 0; index--) {
       nsCString& initializedOrigin = mInitializedOrigins[index - 1];
-      if (PatternMatchesOrigin(aOriginOrPattern, initializedOrigin) &&
-          IsTreatedAsPersistent(aPersistenceType, aOriginOrPattern)) {
-        mInitializedOrigins.RemoveElementAt(index - 1);
+      if (PatternMatchesOrigin(aOriginOrPattern, initializedOrigin)) {
+        bool isApp = IsApp(initializedOrigin);
+        if (IsTreatedAsPersistent(aPersistenceType, initializedOrigin, isApp)) {
+          mInitializedOrigins.RemoveElementAt(index - 1);
+        }
       }
     }
   }
@@ -2570,10 +2609,12 @@ QuotaManager::GetInfoForChrome(nsACString* aGroup,
 
 bool
 QuotaManager::IsTreatedAsPersistent(PersistenceType aPersistenceType,
-                                    const nsACString& aOrigin)
+                                    const nsACString& aOrigin,
+                                    bool aIsApp)
 {
   if (aPersistenceType == PERSISTENCE_TYPE_PERSISTENT &&
-      (aOrigin.Equals("chrome") ||
+      (aIsApp ||
+       aOrigin.Equals("chrome") ||
        aOrigin.Equals("moz-safe-about+home"))) {
     return true;
   }
@@ -2585,11 +2626,12 @@ QuotaManager::IsTreatedAsPersistent(PersistenceType aPersistenceType,
 bool
 QuotaManager::IsQuotaEnforced(PersistenceType aPersistenceType,
                               const nsACString& aOrigin,
+                              bool aIsApp,
                               bool aHasUnlimStoragePerm)
 {
   bool result;
 
-  if (IsTreatedAsTemporary(aPersistenceType, aOrigin)) {
+  if (IsTreatedAsTemporary(aPersistenceType, aOrigin, aIsApp)) {
     result = true;
   } else {
     if (aOrigin.Equals("chrome")) {
@@ -2634,9 +2676,10 @@ QuotaManager::GetUsageForURI(nsIURI* aURI,
   // Figure out which origin we're dealing with.
   nsCString persistentGroup;
   nsCString origin;
+  bool isApp;
   nsresult rv = GetInfoFromURI(aURI, aAppId, aInMozBrowserOnly,
                                PERSISTENCE_TYPE_PERSISTENT, &persistentGroup,
-                               &origin, nullptr, nullptr);
+                               &origin, &isApp, nullptr);
   NS_ENSURE_SUCCESS(rv, rv);
 
   nsCString temporaryGroup;
@@ -2649,7 +2692,7 @@ QuotaManager::GetUsageForURI(nsIURI* aURI,
 
   nsRefPtr<AsyncUsageRunnable> runnable =
     new AsyncUsageRunnable(aAppId, aInMozBrowserOnly, persistentGroup,
-                           temporaryGroup, oops, aURI, aCallback);
+                           temporaryGroup, oops, isApp, aURI, aCallback);
 
   // Put the computation runnable in the queue.
   rv = WaitForOpenAllowed(oops, Nullable<PersistenceType>(), EmptyCString(),
@@ -4113,6 +4156,7 @@ AsyncUsageRunnable::AsyncUsageRunnable(uint32_t aAppId,
                                        const nsACString& aPersistentGroup,
                                        const nsACString& aTemporaryGroup,
                                        const OriginOrPatternString& aOrigin,
+                                       bool aIsApp,
                                        nsIURI* aURI,
                                        nsIUsageCallback* aCallback)
 : mURI(aURI),
@@ -4122,7 +4166,8 @@ AsyncUsageRunnable::AsyncUsageRunnable(uint32_t aAppId,
   mTemporaryGroup(aTemporaryGroup),
   mOrigin(aOrigin),
   mCallbackState(Pending),
-  mInMozBrowserOnly(aInMozBrowserOnly)
+  mInMozBrowserOnly(aInMozBrowserOnly),
+  mIsApp(aIsApp)
 {
   NS_ASSERTION(NS_IsMainThread(), "Wrong thread!");
   NS_ASSERTION(aURI, "Null pointer!");
@@ -4242,7 +4287,8 @@ AsyncUsageRunnable::AddToUsage(QuotaManager* aQuotaManager,
   if (exists && !mCanceled) {
     bool initialized;
 
-    if (QuotaManager::IsTreatedAsPersistent(aPersistenceType, mOrigin)) {
+    if (QuotaManager::IsTreatedAsPersistent(aPersistenceType, mOrigin,
+                                            mIsApp)) {
       initialized = aQuotaManager->mInitializedOrigins.Contains(mOrigin);
     } else {
       initialized = aQuotaManager->mTemporaryStorageInitialized;

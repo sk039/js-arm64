@@ -117,6 +117,7 @@ public:
   InitQuotaForOrigin(PersistenceType aPersistenceType,
                      const nsACString& aGroup,
                      const nsACString& aOrigin,
+                     bool aIsApp,
                      uint64_t aLimitBytes,
                      uint64_t aUsageBytes,
                      int64_t aAccessTime);
@@ -267,6 +268,7 @@ public:
   EnsureOriginIsInitialized(PersistenceType aPersistenceType,
                             const nsACString& aGroup,
                             const nsACString& aOrigin,
+                            bool aIsApp,
                             bool aHasUnlimStoragePerm,
                             nsIFile** aDirectory);
 
@@ -358,18 +360,21 @@ public:
 
   static bool
   IsTreatedAsPersistent(PersistenceType aPersistenceType,
-                        const nsACString& aOrigin);
+                        const nsACString& aOrigin,
+                        bool aIsApp);
 
   static bool
   IsTreatedAsTemporary(PersistenceType aPersistenceType,
-                       const nsACString& aOrigin)
+                       const nsACString& aOrigin,
+                       bool aIsApp)
   {
-    return !IsTreatedAsPersistent(aPersistenceType, aOrigin);
+    return !IsTreatedAsPersistent(aPersistenceType, aOrigin, aIsApp);
   }
 
   static bool
   IsQuotaEnforced(PersistenceType aPersistenceType,
                   const nsACString& aOrigin,
+                  bool aIsApp,
                   bool aHasUnlimStoragePerm);
 
   static void
@@ -452,6 +457,7 @@ private:
   InitializeOrigin(PersistenceType aPersistenceType,
                    const nsACString& aGroup,
                    const nsACString& aOrigin,
+                   bool aIsApp,
                    bool aHasUnlimStoragePerm,
                    int64_t aAccessTime,
                    nsIFile* aDirectory);

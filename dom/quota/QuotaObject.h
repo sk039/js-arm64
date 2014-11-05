@@ -75,10 +75,10 @@ class OriginInfo MOZ_FINAL
   friend class QuotaObject;
 
 public:
-  OriginInfo(GroupInfo* aGroupInfo, const nsACString& aOrigin, uint64_t aLimit,
-             uint64_t aUsage, int64_t aAccessTime)
+  OriginInfo(GroupInfo* aGroupInfo, const nsACString& aOrigin, bool aIsApp,
+             uint64_t aLimit, uint64_t aUsage, int64_t aAccessTime)
   : mGroupInfo(aGroupInfo), mOrigin(aOrigin), mLimit(aLimit), mUsage(aUsage),
-    mAccessTime(aAccessTime)
+    mAccessTime(aAccessTime), mIsApp(aIsApp)
   {
     MOZ_COUNT_CTOR(OriginInfo);
   }
@@ -134,6 +134,7 @@ private:
   const uint64_t mLimit;
   uint64_t mUsage;
   int64_t mAccessTime;
+  const bool mIsApp;
 };
 
 class OriginInfoLRUComparator

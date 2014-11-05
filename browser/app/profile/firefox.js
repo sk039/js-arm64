@@ -182,6 +182,9 @@ pref("app.update.metro.enabled", true);
 // If set to true, the Update Service will present no UI for any event.
 pref("app.update.silent", false);
 
+// If set to true, the hamburger button will show badges for update events.
+pref("app.update.badge", false);
+
 // If set to true, the Update Service will apply updates in the background
 // when it finishes downloading them.
 pref("app.update.staging.enabled", true);
@@ -1303,6 +1306,17 @@ pref("browser.devedition.theme.enabled", false);
 pref("browser.devedition.theme.showCustomizeButton", false);
 #endif
 
+// Developer edition promo preferences
+pref("devtools.devedition.promo.shown", false);
+pref("devtools.devedition.promo.url", "https://mozilla.org/firefox/developer");
+
+// Only potentially show in beta release
+#ifdef MOZ_UPDATE_CHANNEL == beta
+  pref("devtools.devedition.promo.enabled", true);
+#else
+  pref("devtools.devedition.promo.enabled", false);
+#endif
+
 // Disable the error console
 pref("devtools.errorconsole.enabled", false);
 
@@ -1801,3 +1815,5 @@ pref("print.enable_e10s_testing", false);
 #else
 pref("print.enable_e10s_testing", true);
 #endif
+
+pref("browser.defaultbrowser.notificationbar", false);
