@@ -2771,6 +2771,10 @@ void Simulator::VisitCallRedirection(Instruction *instr) {
   // Remember LR for returning from the "call".
   int64_t savedLR = xreg(30);
 
+  // Allow recursive Simulator calls: returning from the call must stop
+  // the simulation and transition back to native Simulator code.
+  set_xreg(30, int64_t(kEndOfSimAddress));
+
   // Store argument register values in local variables for ease of use below.
   int64_t x0 = xreg(0);
   int64_t x1 = xreg(1);
