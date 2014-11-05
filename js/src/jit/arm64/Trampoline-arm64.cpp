@@ -384,6 +384,9 @@ JitRuntime::generateVMWrapper(JSContext *cx, const VMFunction &f)
 
     masm.callWithABI(f.wrapped);
 
+    // SP is used to transfer stack across call boundaries.
+    masm.Add(masm.GetStackPointer(), sp, Operand(0));
+
     // Test for failure.
     switch (f.failType()) {
       case Type_Object:
@@ -399,7 +402,7 @@ JitRuntime::generateVMWrapper(JSContext *cx, const VMFunction &f)
     // Load the outparam and free any allocated stack.
     switch (f.outParam) {
       case Type_Value:
-        masm.Ldr(ARMRegister(JSReturnReg, 64), MemOperand(sp));
+        masm.Ldr(ARMRegister(JSReturnReg, 64), MemOperand(masm.GetStackPointer()));
         masm.freeStack(sizeof(Value));
         break;
 
@@ -408,23 +411,23 @@ JitRuntime::generateVMWrapper(JSContext *cx, const VMFunction &f)
         break;
 
       case Type_Int32:
-        masm.Ldr(ARMRegister(ReturnReg, 32), MemOperand(sp));
+        masm.Ldr(ARMRegister(ReturnReg, 32), MemOperand(masm.GetStackPointer()));
         masm.freeStack(sizeof(int64_t));
         break;
 
       case Type_Bool:
-        masm.Ldrb(ARMRegister(ReturnReg, 32), MemOperand(sp));
+        masm.Ldrb(ARMRegister(ReturnReg, 32), MemOperand(masm.GetStackPointer()));
         masm.freeStack(sizeof(int64_t));
         break;
 
       case Type_Double:
         MOZ_ASSERT(cx->runtime()->jitSupportsFloatingPoint);
-        masm.Ldr(ARMFPRegister(ReturnDoubleReg, 64), MemOperand(sp));
+        masm.Ldr(ARMFPRegister(ReturnDoubleReg, 64), MemOperand(masm.GetStackPointer()));
         masm.freeStack(sizeof(double));
         break;
 
       case Type_Pointer:
-        masm.Ldr(ARMRegister(ReturnReg, 64), MemOperand(sp));
+        masm.Ldr(ARMRegister(ReturnReg, 64), MemOperand(masm.GetStackPointer()));
         masm.freeStack(sizeof(uintptr_t));
         break;
 
