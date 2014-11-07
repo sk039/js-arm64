@@ -327,7 +327,8 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         movePtr(ImmWord(src.asRawBits()), dest.valueReg());
     }
     void moveValue(const ValueOperand &src, const ValueOperand &dest) {
-        movePtr(src.valueReg(), dest.valueReg());
+        if (src.valueReg() != dest.valueReg())
+            movePtr(src.valueReg(), dest.valueReg());
     }
 
     CodeOffsetLabel pushWithPatch(ImmWord imm) {
