@@ -1847,10 +1847,17 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         syncStackPtr();
         Blr(ARMRegister(target, 64));
     }
+    // Call a target JitCode, which must be traceable, and may be movable.
     void call(JitCode *target) {
         syncStackPtr();
         addPendingJump(nextOffset(), ImmPtr(target->raw()), Relocation::JITCODE);
         bl(-1);
+    }
+    // Call a target native function, which is neither traceable nor movable.
+    void call(ImmPtr target) {
+        syncStackPtr();
+        movePtr(target, ip0);
+        Blr(ip0_64);
     }
     void call(Label *target) {
         syncStackPtr();

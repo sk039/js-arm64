@@ -452,13 +452,9 @@ MacroAssemblerCompat::callWithABI(void *fun, MoveOp::Type result)
     fun = Simulator::RedirectNativeFunction(fun, type);
 #endif // JS_ARM64_SIMULATOR
 
-    // Load the target into an intra-call-use register.
-    Register callTarget = Register::FromCode(Registers::ip0);
-    movePatchablePtr(ImmPtr(fun), callTarget);
-
     uint32_t stackAdjust;
     callWithABIPre(&stackAdjust);
-    call(callTarget);
+    call(ImmPtr(fun));
     callWithABIPost(stackAdjust, result);
 }
 
