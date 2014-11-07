@@ -382,20 +382,25 @@ MacroAssemblerCompat::callWithABIPre(uint32_t *stackAdjust)
         emitter.emit(moveResolver_);
         emitter.finish();
     }
+
+    // Call boundaries communicate stack via sp.
+    syncStackPtr();
 }
 
 void
 MacroAssemblerCompat::callWithABIPost(uint32_t stackAdjust, MoveOp::Type result)
 {
+    // Call boundaries communicate stack via sp.
+    if (!GetStackPointer().Is(sp))
+        Add(GetStackPointer(), sp, Operand(0));
+
     inCall_ = false;
     freeStack(stackAdjust);
 
     // Restore the stack pointer from entry.
     if (dynamicAlignment_) {
         Ldr(GetStackPointer(), MemOperand(GetStackPointer(), 0));
-
-        if (!GetStackPointer().Is(sp))
-            Add(sp, GetStackPointer(), Operand(0));
+        syncStackPtr();
     }
 
     // If the ABI's return regs are where ION is expecting them, then
