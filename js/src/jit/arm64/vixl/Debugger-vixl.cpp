@@ -538,6 +538,8 @@ DebuggerARM64::DebuggerARM64(Decoder* decoder, FILE* stream)
   disasm_ = new PrintDisassembler(stdout);
   printer_ = new Decoder();
   printer_->AppendVisitor(disasm_);
+
+  active_invariants = 0x0;
 }
 
 
