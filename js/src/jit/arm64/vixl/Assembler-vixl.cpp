@@ -2800,6 +2800,7 @@ AssemblerVIXL::RetargetNearBranch(Instruction *i, int offset, bool final)
         return;
     }
 
+    // Valid compare branches are CBZ and CBNZ.
     if (i->IsCompareBranch()) {
         ARMRegister rt = i->SixtyFourBits() ? ARMRegister::XRegFromCode(i->Rt())
                                             : ARMRegister::WRegFromCode(i->Rt());
