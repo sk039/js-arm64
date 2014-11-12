@@ -45,6 +45,8 @@ public:
   virtual nsresult ReadMetadata(MediaInfo* aInfo,
                                 MetadataTags** aTags) MOZ_OVERRIDE;
 
+  virtual void ReadUpdatedMetadata(MediaInfo* aInfo) MOZ_OVERRIDE;
+
   virtual void Seek(int64_t aTime,
                     int64_t aStartTime,
                     int64_t aEndTime,
@@ -57,8 +59,7 @@ public:
 
   virtual int64_t GetEvictionOffset(double aTime) MOZ_OVERRIDE;
 
-  virtual nsresult GetBuffered(dom::TimeRanges* aBuffered,
-                               int64_t aStartTime) MOZ_OVERRIDE;
+  virtual nsresult GetBuffered(dom::TimeRanges* aBuffered) MOZ_OVERRIDE;
 
   // For Media Resource Management
   virtual bool IsWaitingMediaResources() MOZ_OVERRIDE;

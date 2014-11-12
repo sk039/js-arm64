@@ -501,6 +501,21 @@ VARIABLES = {
         delimiters.
         """, None),
 
+    'FINAL_TARGET_FILES': (HierarchicalStringList, list,
+        """List of files to be installed into the application directory.
+
+        ``FINAL_TARGET_FILES`` will copy (or symlink, if the platform supports it)
+        the contents of its files to the directory specified by
+        ``FINAL_TARGET`` (typically ``dist/bin``). Files that are destined for a
+        subdirectory can be specified by accessing a field, or as a dict access.
+        For example, to export ``foo.png`` to the top-level directory and
+        ``bar.svg`` to the directory ``images/do-not-use``, append to
+        ``FINAL_TARGET_FILES`` like so::
+
+           FINAL_TARGET_FILES += ['foo.png']
+           FINAL_TARGET_FILES.images['do-not-use'] += ['bar.svg']
+        """, None),
+
     'DISABLE_STL_WRAPPING': (bool, bool,
         """Disable the wrappers for STL which allow it to work with C++ exceptions
         disabled.
@@ -518,14 +533,14 @@ VARIABLES = {
 
         This variable contains a list of files to copy into
         ``$(FINAL_TARGET)/modules.
-        """, 'libs'),
+        """, 'misc'),
 
     'EXTRA_PP_JS_MODULES': (HierarchicalStringList, list,
         """Additional JavaScript files to distribute.
 
         This variable contains a list of files to copy into
         ``$(FINAL_TARGET)/modules``, after preprocessing.
-        """, 'libs'),
+        """, 'misc'),
 
     'TESTING_JS_MODULES': (HierarchicalStringList, list,
         """JavaScript modules to install in the test-only destination.
@@ -537,7 +552,7 @@ VARIABLES = {
         variable to control the final destination. e.g.
 
         ``TESTING_JS_MODULES.foo += ['module.jsm']``.
-        """, 'libs'),
+        """, None),
 
     'EXTRA_PP_COMPONENTS': (StrictOrderingOnAppendList, list,
         """Javascript XPCOM files.

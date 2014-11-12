@@ -1478,33 +1478,11 @@ Interpret(JSContext *cx, RunState &state)
     RootedScript rootScript0(cx);
     DebugOnly<uint32_t> blockDepth;
 
-    if (MOZ_UNLIKELY(REGS.fp()->isGeneratorFrame())) {
-        MOZ_ASSERT(script->containsPC(REGS.pc));
-        MOZ_ASSERT(REGS.stackDepth() <= script->nslots());
-
-        /*
-         * To support generator_throw and to catch ignored exceptions,
-         * fail if cx->isExceptionPending() is true.
-         */
-        if (cx->isExceptionPending()) {
-            probes::EnterScript(cx, script, script->functionNonDelazifying(), REGS.fp());
-            goto error;
-        }
-    }
-
     /* State communicated between non-local jumps: */
     bool interpReturnOK;
 
-    if (!activation.entryFrame()->isGeneratorFrame()) {
-        if (!activation.entryFrame()->prologue(cx))
-            goto error;
-    } else {
-        if (!probes::EnterScript(cx, script, script->functionNonDelazifying(),
-                                 activation.entryFrame()))
-        {
-            goto error;
-        }
-    }
+    if (!activation.entryFrame()->prologue(cx))
+        goto error;
 
     switch (Debugger::onEnterFrame(cx, activation.entryFrame())) {
       case JSTRAP_CONTINUE:
@@ -1659,6 +1637,7 @@ CASE(JSOP_UNUSED190)
 CASE(JSOP_UNUSED191)
 CASE(JSOP_UNUSED192)
 CASE(JSOP_UNUSED196)
+CASE(JSOP_UNUSED207)
 CASE(JSOP_UNUSED208)
 CASE(JSOP_UNUSED209)
 CASE(JSOP_UNUSED210)
@@ -3367,8 +3346,8 @@ END_CASE(JSOP_DEBUGLEAVEBLOCK)
 CASE(JSOP_GENERATOR)
 {
     MOZ_ASSERT(!cx->isExceptionPending());
-    REGS.fp()->initGeneratorFrame();
-    JSObject *obj = GeneratorObject::create(cx, REGS);
+    MOZ_ASSERT(REGS.stackDepth() == 0);
+    JSObject *obj = GeneratorObject::create(cx, REGS.fp());
     if (!obj)
         goto error;
     PUSH_OBJECT(*obj);
@@ -3383,7 +3362,7 @@ CASE(JSOP_INITIALYIELD)
     obj = &REGS.sp[-1].toObject();
     POP_RETURN_VALUE();
     MOZ_ASSERT(REGS.stackDepth() == 0);
-    if (!GeneratorObject::initialSuspend(cx, obj, REGS.fp(), REGS.pc + JSOP_INITIALYIELD_LENGTH))
+    if (!GeneratorObject::initialSuspend(cx, obj, REGS.fp(), REGS.pc))
         goto error;
     goto successful_return_continuation;
 }
@@ -3394,7 +3373,7 @@ CASE(JSOP_YIELD)
     MOZ_ASSERT(REGS.fp()->isNonEvalFunctionFrame());
     RootedObject &obj = rootObject0;
     obj = &REGS.sp[-1].toObject();
-    if (!GeneratorObject::normalSuspend(cx, obj, REGS.fp(), REGS.pc + JSOP_YIELD_LENGTH,
+    if (!GeneratorObject::normalSuspend(cx, obj, REGS.fp(), REGS.pc,
                                         REGS.spForStackDepth(0), REGS.stackDepth() - 2))
     {
         goto error;
@@ -3424,11 +3403,6 @@ CASE(JSOP_RESUME)
     ADVANCE_AND_DISPATCH(0);
 }
 
-CASE(JSOP_FINALYIELD)
-    REGS.fp()->setReturnValue(REGS.sp[-2]);
-    REGS.sp[-2] = REGS.sp[-1];
-    REGS.sp--;
-    /* FALL THROUGH */
 CASE(JSOP_FINALYIELDRVAL)
 {
     RootedObject &gen = rootObject0;

@@ -343,9 +343,9 @@ GMPChild::PreLoadLibraries(const std::string& aPluginPath)
     {
        "d3d9.dll", // Create an `IDirect3D9` to get adapter information
        "dxva2.dll", // Get monitor information
-       "msauddecmft.dll", // H.264 decoder
+       "msauddecmft.dll", // AAC decoder (on Windows 8)
        "msmpeg2adec.dll", // AAC decoder (on Windows 7)
-       "msmpeg2vdec.dll", // AAC decoder (on Windows 8)
+       "msmpeg2vdec.dll", // H.264 decoder
     };
   static const int whitelistLen = sizeof(whitelist) / sizeof(whitelist[0]);
 
@@ -411,7 +411,7 @@ GMPChild::LoadPluginLibrary(const std::string& aPluginPath)
 
   // Enable sandboxing here -- we know the plugin file's path, but
   // this process's execution hasn't been affected by its content yet.
-  if (mozilla::CanSandboxMediaPlugin()) {
+  if (mozilla::MediaPluginSandboxStatus() != mozilla::kSandboxingWouldFail) {
     mozilla::SetMediaPluginSandbox(nativePath.get());
   } else {
     printf_stderr("GMPChild::LoadPluginLibrary: Loading media plugin %s unsandboxed.\n",

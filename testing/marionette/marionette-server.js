@@ -5,6 +5,7 @@
 "use strict";
 
 const FRAME_SCRIPT = "chrome://marionette/content/marionette-listener.js";
+const BROWSER_STARTUP_FINISHED = "browser-delayed-startup-finished";
 
 // import logger
 Cu.import("resource://gre/modules/Log.jsm");
@@ -79,6 +80,13 @@ Services.obs.addObserver(function() {
   systemMessageListenerReady = true;
 }, "system-message-listener-ready", false);
 
+// This is used on desktop to prevent newSession from returning before a page
+// load initiated by the Firefox command line has completed.
+let delayedBrowserStarted = false;
+Services.obs.addObserver(function () {
+  delayedBrowserStarted = true;
+}, BROWSER_STARTUP_FINISHED, false);
+
 /*
  * Custom exceptions
  */
@@ -119,6 +127,7 @@ function MarionetteServerConnection(aPrefix, aTransport, aServer)
   // passing back "actor ids" with responses. unlike the debugger server,
   // we don't have multiple actors, so just use a dummy value of "0" here
   this.actorID = "0";
+  this.sessionId = null;
 
   this.globalMessageManager = Cc["@mozilla.org/globalmessagemanager;1"]
                              .getService(Ci.nsIMessageBroadcaster);
@@ -322,7 +331,9 @@ MarionetteServerConnection.prototype = {
   sendResponse: function MDA_sendResponse(value, command_id) {
     if (typeof(value) == 'undefined')
         value = null;
-    this.sendToClient({from:this.actorID, value: value}, command_id);
+    this.sendToClient({from:this.actorID,
+                       sessionId: this.sessionId,
+                       value: value}, command_id);
   },
 
   sayHello: function MDA_sayHello() {
@@ -545,6 +556,8 @@ MarionetteServerConnection.prototype = {
 
     this.scriptTimeout = 10000;
     if (aRequest && aRequest.parameters) {
+      this.sessionId = aRequest.parameters.session_id ? aRequest.parameters.session_id : null;
+      logger.info("Session Id is set to: " + this.sessionId);
       this.setSessionCapabilities(aRequest.parameters.capabilities);
     }
 
@@ -574,21 +587,33 @@ MarionetteServerConnection.prototype = {
       }
     }
 
-    if (!Services.prefs.getBoolPref("marionette.contentListener")) {
-      waitForWindow.call(this);
+    function runSessionStart() {
+      if (!Services.prefs.getBoolPref("marionette.contentListener")) {
+        waitForWindow.call(this);
+      }
+      else if ((appName != "Firefox") && (this.curBrowser === null)) {
+        // If there is a content listener, then we just wake it up
+        this.addBrowser(this.getCurrentWindow());
+        this.curBrowser.startSession(false, this.getCurrentWindow(),
+                                     this.whenBrowserStarted);
+        this.messageManager.broadcastAsyncMessage("Marionette:restart", {});
+      }
+      else {
+        this.sendError("Session already running", 500, null,
+                       this.command_id);
+      }
+      this.switchToGlobalMessageManager();
     }
-    else if ((appName != "Firefox") && (this.curBrowser == null)) {
-      // If there is a content listener, then we just wake it up
-      this.addBrowser(this.getCurrentWindow());
-      this.curBrowser.startSession(false, this.getCurrentWindow(),
-                                   this.whenBrowserStarted);
-      this.messageManager.broadcastAsyncMessage("Marionette:restart", {});
+
+    if (!delayedBrowserStarted && (appName != "B2G")) {
+      let self = this;
+      Services.obs.addObserver(function onStart () {
+        Services.obs.removeObserver(onStart, BROWSER_STARTUP_FINISHED);
+        runSessionStart.call(self);
+      }, BROWSER_STARTUP_FINISHED, false);
+    } else {
+      runSessionStart.call(this);
     }
-    else {
-      this.sendError("Session already running", 500, null,
-                     this.command_id);
-    }
-    this.switchToGlobalMessageManager();
   },
 
   /**
@@ -604,6 +629,10 @@ MarionetteServerConnection.prototype = {
    */
   getSessionCapabilities: function MDA_getSessionCapabilities() {
     this.command_id = this.getCommandId();
+
+    if (!this.sessionId) {
+      this.sessionId = this.uuidGen.generateUUID().toString();
+    }
 
     // eideticker (bug 965297) and mochitest (bug 965304)
     // compatibility.  They only check for the presence of this
@@ -676,6 +705,14 @@ MarionetteServerConnection.prototype = {
       this.context = context;
       this.sendOk(this.command_id);
     }
+  },
+
+  /**
+   * Gets the context of the server, either 'chrome' or 'content'.
+   */
+  getContext: function MDA_getContext() {
+    this.command_id = this.getCommandId();
+    this.sendResponse(this.context, this.command_id);
   },
 
   /**
@@ -2249,6 +2286,7 @@ MarionetteServerConnection.prototype = {
     if (this.mainFrame) {
       this.mainFrame.focus();
     }
+    this.sessionId = null;
     this.deleteFile('marionetteChromeScripts');
     this.deleteFile('marionetteContentScripts');
   },
@@ -2715,6 +2753,7 @@ MarionetteServerConnection.prototype.requestTypes = {
   "log": MarionetteServerConnection.prototype.log,
   "getLogs": MarionetteServerConnection.prototype.getLogs,
   "setContext": MarionetteServerConnection.prototype.setContext,
+  "getContext": MarionetteServerConnection.prototype.getContext,
   "executeScript": MarionetteServerConnection.prototype.execute,
   "setScriptTimeout": MarionetteServerConnection.prototype.setScriptTimeout,
   "timeouts": MarionetteServerConnection.prototype.timeouts,

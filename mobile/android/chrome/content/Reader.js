@@ -102,7 +102,10 @@ let Reader = {
     let uri = tab.browser.currentURI;
     let urlWithoutRef = uri.specIgnoringRef;
 
-    let article = yield this.getArticle(urlWithoutRef, tabID);
+    let article = yield this.getArticle(urlWithoutRef, tabID).catch(e => {
+      Cu.reportError("Error getting article for tab: " + e);
+      return null;
+    });
     if (!article) {
       // If there was a problem getting the article, just store the
       // URL and title from the tab.
@@ -265,16 +268,18 @@ let Reader = {
     return new Promise((resolve, reject) => {
       let numTags = doc.getElementsByTagName("*").length;
       if (numTags > this.MAX_ELEMS_TO_PARSE) {
-        reject("Aborting parse for " + uri.spec + "; " + numTags + " elements found");
+        this.log("Aborting parse for " + uri.spec + "; " + numTags + " elements found");
+        resolve(null);
         return;
       }
 
       let worker = new ChromeWorker("readerWorker.js");
-      worker.onmessage = function (evt) {
+      worker.onmessage = evt => {
         let article = evt.data;
 
         if (!article) {
-          reject("Worker did not return an article");
+          this.log("Worker did not return an article");
+          resolve(null);
           return;
         }
 
@@ -285,6 +290,10 @@ let Reader = {
         article.title = Cc["@mozilla.org/parserutils;1"].getService(Ci.nsIParserUtils)
                                                         .convertToPlainText(article.title, flags, 0);
         resolve(article);
+      };
+
+      worker.onerror = evt => {
+        reject("Error in worker: " + evt.message);
       };
 
       try {
@@ -354,7 +363,6 @@ let Reader = {
     this.log("Finished loading page: " + doc);
 
     try {
-      this.log("Parsing response with Readability");
       let uri = Services.io.newURI(url, null, null);
       let article = yield this._readerParse(uri, doc);
       this.log("Document parsed successfully");

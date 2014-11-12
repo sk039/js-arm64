@@ -17,6 +17,7 @@
 #include "mozilla/net/NeckoChild.h"
 #include "mozilla/net/HttpChannelChild.h"
 
+#include "nsChannelClassifier.h"
 #include "nsStringStream.h"
 #include "nsHttpHandler.h"
 #include "nsNetUtil.h"
@@ -644,6 +645,10 @@ HttpChannelChild::DoOnStopRequest(nsIRequest* aRequest, nsISupports* aContext)
 {
   MOZ_ASSERT(!mIsPending);
 
+  if (mStatus == NS_ERROR_TRACKING_URI) {
+    nsChannelClassifier::SetBlockedTrackingContent(this);
+  }
+
   mListener->OnStopRequest(aRequest, aContext, mStatus);
 
   mListener = 0;
@@ -979,6 +984,13 @@ HttpChannelChild::RecvFlushedForDiversion()
 
   mEventQ->Enqueue(new HttpFlushedForDiversionEvent(this));
 
+  return true;
+}
+
+bool
+HttpChannelChild::RecvNotifyTrackingProtectionDisabled()
+{
+  nsChannelClassifier::NotifyTrackingProtectionDisabled(this);
   return true;
 }
 
@@ -1493,7 +1505,11 @@ HttpChannelChild::ContinueAsyncOpen()
     mThirdPartyFlags |= thirdParty ?
       nsIHttpChannelInternal::THIRD_PARTY_PARENT_IS_THIRD_PARTY :
       nsIHttpChannelInternal::THIRD_PARTY_PARENT_IS_SAME_PARTY;
+    nsCOMPtr<nsIURI> uri;
+    GetTopWindowURI(getter_AddRefs(uri));
   }
+
+  SerializeURI(mTopWindowURI, openArgs.topWindowURI());
 
   openArgs.fds() = optionalFDs;
 

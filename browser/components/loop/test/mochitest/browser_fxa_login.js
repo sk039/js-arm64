@@ -18,7 +18,7 @@ function* checkFxA401() {
       "Check friendlyDetails");
   ise(err.friendlyDetailsButtonLabel, getLoopString("retry_button"),
       "Check friendlyDetailsButtonLabel");
-  let loopButton = document.getElementById("loop-call-button");
+  let loopButton = document.getElementById("loop-button");
   is(loopButton.getAttribute("state"), "error",
      "state of loop button should be error after a 401 with login");
 
@@ -268,7 +268,7 @@ add_task(function* basicAuthorizationAndRegistration() {
   let visibleEmail = loopDoc.getElementsByClassName("user-identity")[0];
   is(visibleEmail.textContent, "Guest", "Guest should be displayed on the panel when not logged in");
   is(MozLoopService.userProfile, null, "profile should be null before log-in");
-  let loopButton = document.getElementById("loop-call-button");
+  let loopButton = document.getElementById("loop-button");
   is(loopButton.getAttribute("state"), "", "state of loop button should be empty when not logged in");
 
   info("Login");
@@ -421,6 +421,10 @@ add_task(function* openFxASettings() {
   yield new Promise((resolve, reject) => {
     let progressListener = {
       onLocationChange: function onLocationChange(aBrowser) {
+        if (aBrowser.currentURI.spec == BASE_URL) {
+          // Ignore the changes from the addTab above.
+          return;
+        }
         gBrowser.removeTabsProgressListener(progressListener);
         let contentURI = Services.io.newURI(params.content_uri, null, null);
         is(aBrowser.currentURI.spec, Services.io.newURI("/settings", null, contentURI).spec,

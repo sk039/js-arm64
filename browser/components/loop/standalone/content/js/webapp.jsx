@@ -286,7 +286,7 @@ loop.webapp = (function($, _, OT, mozL10n) {
     },
 
     _handleRingingProgress: function() {
-      this.play("ringing", {loop: true});
+      this.play("ringtone", {loop: true});
       this.setState({callState: "ringing"});
     },
 
@@ -534,18 +534,12 @@ loop.webapp = (function($, _, OT, mozL10n) {
    * Ended conversation view.
    */
   var EndedConversationView = React.createClass({
-    mixins: [sharedMixins.AudioMixin],
-
     propTypes: {
       conversation: React.PropTypes.instanceOf(sharedModels.ConversationModel)
                          .isRequired,
       sdk: React.PropTypes.object.isRequired,
       feedbackApiClient: React.PropTypes.object.isRequired,
       onAfterFeedbackReceived: React.PropTypes.func.isRequired
-    },
-
-    componentDidMount: function() {
-      this.play("terminated");
     },
 
     render: function() {
@@ -897,7 +891,10 @@ loop.webapp = (function($, _, OT, mozL10n) {
 
       // XXX New types for flux style
       standaloneAppStore: React.PropTypes.instanceOf(
-        loop.store.StandaloneAppStore).isRequired
+        loop.store.StandaloneAppStore).isRequired,
+      activeRoomStore: React.PropTypes.instanceOf(
+        loop.store.ActiveRoomStore).isRequired,
+      dispatcher: React.PropTypes.instanceOf(loop.Dispatcher).isRequired
     },
 
     getInitialState: function() {
@@ -939,7 +936,12 @@ loop.webapp = (function($, _, OT, mozL10n) {
           );
         }
         case "room": {
-          return <loop.standaloneRoomViews.StandaloneRoomView/>;
+          return (
+            <loop.standaloneRoomViews.StandaloneRoomView
+              activeRoomStore={this.props.activeRoomStore}
+              dispatcher={this.props.dispatcher}
+            />
+          );
         }
         case "home": {
           return <HomeView />;
@@ -958,6 +960,9 @@ loop.webapp = (function($, _, OT, mozL10n) {
    */
   function init() {
     var helper = new sharedUtils.Helper();
+    var standaloneMozLoop = new loop.StandaloneMozLoop({
+      baseServerUrl: loop.config.serverUrl
+    });
 
     // Older non-flux based items.
     var notifications = new sharedModels.NotificationCollection();
@@ -982,12 +987,25 @@ loop.webapp = (function($, _, OT, mozL10n) {
     var client = new loop.StandaloneClient({
       baseServerUrl: loop.config.serverUrl
     });
+    var sdkDriver = new loop.OTSdkDriver({
+      dispatcher: dispatcher,
+      sdk: OT
+    });
 
     var standaloneAppStore = new loop.store.StandaloneAppStore({
       conversation: conversation,
       dispatcher: dispatcher,
       helper: helper,
       sdk: OT
+    });
+    var activeRoomStore = new loop.store.ActiveRoomStore({
+      dispatcher: dispatcher,
+      mozLoop: standaloneMozLoop,
+      sdkDriver: sdkDriver
+    });
+
+    window.addEventListener("unload", function() {
+      dispatcher.dispatch(new sharedActions.WindowUnload());
     });
 
     React.renderComponent(<WebappRootView
@@ -998,6 +1016,8 @@ loop.webapp = (function($, _, OT, mozL10n) {
       sdk={OT}
       feedbackApiClient={feedbackApiClient}
       standaloneAppStore={standaloneAppStore}
+      activeRoomStore={activeRoomStore}
+      dispatcher={dispatcher}
     />, document.querySelector("#main"));
 
     // Set the 'lang' and 'dir' attributes to <html> when the page is translated

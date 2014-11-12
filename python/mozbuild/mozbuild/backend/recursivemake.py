@@ -36,6 +36,7 @@ from ..frontend.data import (
     DirectoryTraversal,
     Exports,
     ExternalLibrary,
+    FinalTargetFiles,
     GeneratedInclude,
     HostLibrary,
     HostProgram,
@@ -307,6 +308,7 @@ class RecursiveMakeBackend(CommonBackend):
                 'dist_public',
                 'dist_private',
                 'dist_sdk',
+                'dist_xpi-stage',
                 'tests',
                 'xpidl',
             ]}
@@ -479,6 +481,8 @@ class RecursiveMakeBackend(CommonBackend):
             self._process_host_library(obj, backend_file)
             self._process_linked_libraries(obj, backend_file)
 
+        elif isinstance(obj, FinalTargetFiles):
+            self._process_final_target_files(obj, obj.files, obj.target)
         else:
             return
         obj.ack()
@@ -922,6 +926,7 @@ INSTALL_TARGETS += %(prefix)s
                                    % (prefix, ' '.join(strings)))
                 backend_file.write('%s_DEST = %s\n' %
                                    (prefix, mozpath.join('$(FINAL_TARGET)', 'modules', path)))
+                backend_file.write('%s_TARGET := misc\n' % prefix)
                 backend_file.write('INSTALL_TARGETS += %s\n\n' % prefix)
             return
 
@@ -935,6 +940,7 @@ INSTALL_TARGETS += %(prefix)s
                                    % (prefix, ' '.join(strings)))
                 backend_file.write('%s_PATH = %s\n' %
                                    (prefix, mozpath.join('$(FINAL_TARGET)', 'modules', path)))
+                backend_file.write('%s_TARGET := misc\n' % prefix)
                 backend_file.write('PP_TARGETS += %s\n\n' % prefix)
             return
 
@@ -1200,6 +1206,22 @@ INSTALL_TARGETS += %(prefix)s
 
         # Process library-based defines
         self._process_defines(obj.defines, backend_file)
+
+    def _process_final_target_files(self, obj, files, target):
+        if target.startswith('dist/bin'):
+            install_manifest = self._install_manifests['dist_bin']
+            reltarget = mozpath.relpath(target, 'dist/bin')
+        elif target.startswith('dist/xpi-stage'):
+            install_manifest = self._install_manifests['dist_xpi-stage']
+            reltarget = mozpath.relpath(target, 'dist/xpi-stage')
+        else:
+            raise Exception("Cannot install to " + target)
+
+        for path, strings in files.walk():
+            for f in strings:
+                source = mozpath.normpath(os.path.join(obj.srcdir, f))
+                dest = mozpath.join(reltarget, path, mozpath.basename(f))
+                install_manifest.add_symlink(source, dest)
 
     def _write_manifests(self, dest, manifests):
         man_dir = mozpath.join(self.environment.topobjdir, '_build_manifests',

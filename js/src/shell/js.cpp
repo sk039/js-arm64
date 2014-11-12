@@ -2513,31 +2513,23 @@ sandbox_enumerate(JSContext *cx, HandleObject obj)
 }
 
 static bool
-sandbox_resolve(JSContext *cx, HandleObject obj, HandleId id, MutableHandleObject objp)
+sandbox_resolve(JSContext *cx, HandleObject obj, HandleId id, bool *resolvedp)
 {
     RootedValue v(cx);
     if (!JS_GetProperty(cx, obj, "lazy", &v))
         return false;
 
-    if (ToBoolean(v)) {
-        bool resolved;
-        if (!JS_ResolveStandardClass(cx, obj, id, &resolved))
-            return false;
-        if (resolved) {
-            objp.set(obj);
-            return true;
-        }
-    }
-    objp.set(nullptr);
+    if (ToBoolean(v))
+        return JS_ResolveStandardClass(cx, obj, id, resolvedp);
     return true;
 }
 
 static const JSClass sandbox_class = {
     "sandbox",
-    JSCLASS_NEW_RESOLVE | JSCLASS_GLOBAL_FLAGS,
+    JSCLASS_GLOBAL_FLAGS,
     JS_PropertyStub,   JS_DeletePropertyStub,
     JS_PropertyStub,   JS_StrictPropertyStub,
-    sandbox_enumerate, (JSResolveOp)sandbox_resolve,
+    sandbox_enumerate, sandbox_resolve,
     JS_ConvertStub, nullptr,
     nullptr, nullptr, nullptr,
     JS_GlobalObjectTraceHook
@@ -2817,131 +2809,6 @@ ShapeOf(JSContext *cx, unsigned argc, JS::Value *vp)
     }
     JSObject *obj = &args[0].toObject();
     args.rval().set(JS_NumberValue(double(uintptr_t(obj->lastProperty()) >> 3)));
-    return true;
-}
-
-/*
- * If referent has an own property named id, copy that property to obj[id].
- * Since obj is native, this isn't totally transparent; properties of a
- * non-native referent may be simplified to data properties.
- */
-static bool
-CopyProperty(JSContext *cx, HandleNativeObject obj, HandleObject referent, HandleId id,
-             MutableHandleObject objp)
-{
-    RootedShape shape(cx);
-    Rooted<PropertyDescriptor> desc(cx);
-    RootedObject obj2(cx);
-
-    objp.set(nullptr);
-    if (referent->isNative()) {
-        if (!LookupNativeProperty(cx, referent.as<NativeObject>(), id, &obj2, &shape))
-            return false;
-        if (obj2 != referent)
-            return true;
-
-        if (shape->hasSlot()) {
-            desc.value().set(referent->as<NativeObject>().getSlot(shape->slot()));
-        } else {
-            desc.value().setUndefined();
-        }
-
-        desc.setAttributes(shape->attributes());
-        desc.setGetter(shape->getter());
-        if (!desc.getter() && !desc.hasGetterObject())
-            desc.setGetter(JS_PropertyStub);
-        desc.setSetter(shape->setter());
-        if (!desc.setter() && !desc.hasSetterObject())
-            desc.setSetter(JS_StrictPropertyStub);
-    } else if (referent->is<ProxyObject>()) {
-        if (!Proxy::getOwnPropertyDescriptor(cx, referent, id, &desc))
-            return false;
-        if (!desc.object())
-            return true;
-    } else {
-        if (!JSObject::lookupGeneric(cx, referent, id, objp, &shape))
-            return false;
-        if (objp != referent)
-            return true;
-        RootedValue value(cx);
-        if (!JSObject::getGeneric(cx, referent, referent, id, &value) ||
-            !JSObject::getGenericAttributes(cx, referent, id, &desc.attributesRef()))
-        {
-            return false;
-        }
-        desc.value().set(value);
-        desc.attributesRef() &= JSPROP_ENUMERATE | JSPROP_READONLY | JSPROP_PERMANENT;
-        desc.setGetter(JS_PropertyStub);
-        desc.setSetter(JS_StrictPropertyStub);
-    }
-
-    objp.set(obj);
-    return DefineNativeProperty(cx, obj, id, desc.value(), desc.getter(), desc.setter(),
-                                desc.attributes());
-}
-
-static bool
-resolver_resolve(JSContext *cx, HandleObject obj, HandleId id, MutableHandleObject objp)
-{
-    jsval v = JS_GetReservedSlot(obj, 0);
-    Rooted<JSObject*> vobj(cx, &v.toObject());
-    return CopyProperty(cx, obj.as<NativeObject>(), vobj, id, objp);
-}
-
-static bool
-resolver_enumerate(JSContext *cx, HandleObject obj)
-{
-    jsval v = JS_GetReservedSlot(obj, 0);
-    RootedObject referent(cx, v.toObjectOrNull());
-
-    AutoIdArray ida(cx, JS_Enumerate(cx, referent));
-    bool ok = !!ida;
-    RootedObject ignore(cx);
-    for (size_t i = 0; ok && i < ida.length(); i++) {
-        Rooted<jsid> id(cx, ida[i]);
-        ok = CopyProperty(cx, obj.as<NativeObject>(), referent, id, &ignore);
-    }
-    return ok;
-}
-
-static const JSClass resolver_class = {
-    "resolver",
-    JSCLASS_NEW_RESOLVE | JSCLASS_HAS_RESERVED_SLOTS(1),
-    JS_PropertyStub,   JS_DeletePropertyStub,
-    JS_PropertyStub,   JS_StrictPropertyStub,
-    resolver_enumerate, (JSResolveOp)resolver_resolve,
-    JS_ConvertStub
-};
-
-static bool
-Resolver(JSContext *cx, unsigned argc, jsval *vp)
-{
-    CallArgs args = CallArgsFromVp(argc, vp);
-
-    RootedObject referent(cx);
-    if (!JS_ValueToObject(cx, args.get(0), &referent))
-        return false;
-    if (!referent) {
-        JS_ReportErrorNumber(cx, js_GetErrorMessage, nullptr, JSMSG_CANT_CONVERT_TO,
-                             args.get(0).isNull() ? "null" : "undefined", "object");
-        return false;
-    }
-
-    RootedObject proto(cx, nullptr);
-    if (!args.get(1).isNullOrUndefined()) {
-        if (!JS_ValueToObject(cx, args.get(1), &proto))
-            return false;
-    }
-
-    RootedObject parent(cx, JS_GetParent(referent));
-    JSObject *result = (args.length() > 1
-                        ? JS_NewObjectWithGivenProto
-                        : JS_NewObject)(cx, &resolver_class, proto, parent);
-    if (!result)
-        return false;
-
-    JS_SetReservedSlot(result, 0, ObjectValue(*referent));
-    args.rval().setObject(*result);
     return true;
 }
 
@@ -4548,11 +4415,6 @@ static const JSFunctionSpecWithHelp shell_functions[] = {
 "shapeOf(obj)",
 "  Get the shape of obj (an implementation detail)."),
 
-    JS_FN_HELP("resolver", Resolver, 1, 0,
-"resolver(src[, proto])",
-"  Create object with resolve hook that copies properties\n"
-"  from src. If proto is omitted, use Object.prototype."),
-
 #ifdef DEBUG
     JS_FN_HELP("arrayInfo", js_ArrayInfo, 1, 0,
 "arrayInfo(a1, a2, ...)",
@@ -4954,27 +4816,20 @@ global_enumerate(JSContext *cx, HandleObject obj)
 }
 
 static bool
-global_resolve(JSContext *cx, HandleObject obj, HandleId id, MutableHandleObject objp)
+global_resolve(JSContext *cx, HandleObject obj, HandleId id, bool *resolvedp)
 {
 #ifdef LAZY_STANDARD_CLASSES
-    bool resolved;
-
-    if (!JS_ResolveStandardClass(cx, obj, id, &resolved))
+    if (!JS_ResolveStandardClass(cx, obj, id, resolvedp))
         return false;
-    if (resolved) {
-        objp.set(obj);
-        return true;
-    }
 #endif
-
     return true;
 }
 
 static const JSClass global_class = {
-    "global", JSCLASS_NEW_RESOLVE | JSCLASS_GLOBAL_FLAGS,
+    "global", JSCLASS_GLOBAL_FLAGS,
     JS_PropertyStub,  JS_DeletePropertyStub,
     JS_PropertyStub,  JS_StrictPropertyStub,
-    global_enumerate, (JSResolveOp) global_resolve,
+    global_enumerate, global_resolve,
     JS_ConvertStub,   nullptr,
     nullptr, nullptr, nullptr,
     JS_GlobalObjectTraceHook
@@ -5328,32 +5183,32 @@ ShellCloseAsmJSCacheEntryForRead(size_t serializedSize, const uint8_t *memory, i
     close(handle);
 }
 
-static bool
+static JS::AsmJSCacheResult
 ShellOpenAsmJSCacheEntryForWrite(HandleObject global, bool installed,
                                  const char16_t *begin, const char16_t *end,
                                  size_t serializedSize, uint8_t **memoryOut, intptr_t *handleOut)
 {
     if (!jsCachingEnabled || !jsCacheAsmJSPath)
-        return false;
+        return JS::AsmJSCache_Disabled_ShellFlags;
 
     // Create the cache directory if it doesn't already exist.
     struct stat dirStat;
     if (stat(jsCacheDir, &dirStat) == 0) {
         if (!(dirStat.st_mode & S_IFDIR))
-            return false;
+            return JS::AsmJSCache_InternalError;
     } else {
 #ifdef XP_WIN
         if (mkdir(jsCacheDir) != 0)
-            return false;
+            return JS::AsmJSCache_InternalError;
 #else
         if (mkdir(jsCacheDir, 0777) != 0)
-            return false;
+            return JS::AsmJSCache_InternalError;
 #endif
     }
 
     ScopedFileDesc fd(open(jsCacheAsmJSPath, O_CREAT|O_RDWR, 0660), ScopedFileDesc::WRITE_LOCK);
     if (fd == -1)
-        return false;
+        return JS::AsmJSCache_InternalError;
 
     // Include extra space for the asmJSCacheCookie.
     serializedSize += sizeof(uint32_t);
@@ -5361,14 +5216,14 @@ ShellOpenAsmJSCacheEntryForWrite(HandleObject global, bool installed,
     // Resize the file to the appropriate size after zeroing their contents.
 #ifdef XP_WIN
     if (chsize(fd, 0))
-        return false;
+        return JS::AsmJSCache_InternalError;
     if (chsize(fd, serializedSize))
-        return false;
+        return JS::AsmJSCache_InternalError;
 #else
     if (ftruncate(fd, 0))
-        return false;
+        return JS::AsmJSCache_InternalError;
     if (ftruncate(fd, serializedSize))
-        return false;
+        return JS::AsmJSCache_InternalError;
 #endif
 
     // Map the file into memory.
@@ -5377,16 +5232,16 @@ ShellOpenAsmJSCacheEntryForWrite(HandleObject global, bool installed,
     HANDLE fdOsHandle = (HANDLE)_get_osfhandle(fd);
     HANDLE fileMapping = CreateFileMapping(fdOsHandle, nullptr, PAGE_READWRITE, 0, 0, nullptr);
     if (!fileMapping)
-        return false;
+        return JS::AsmJSCache_InternalError;
 
     memory = MapViewOfFile(fileMapping, FILE_MAP_WRITE, 0, 0, 0);
     CloseHandle(fileMapping);
     if (!memory)
-        return false;
+        return JS::AsmJSCache_InternalError;
 #else
     memory = mmap(nullptr, serializedSize, PROT_WRITE, MAP_SHARED, fd, 0);
     if (memory == MAP_FAILED)
-        return false;
+        return JS::AsmJSCache_InternalError;
 #endif
 
     // The embedding added the cookie so strip it off of the buffer returned to
@@ -5394,7 +5249,7 @@ ShellOpenAsmJSCacheEntryForWrite(HandleObject global, bool installed,
     MOZ_ASSERT(*(uint32_t *)memory == 0);
     *memoryOut = (uint8_t *)memory + sizeof(uint32_t);
     *handleOut = fd.forget();
-    return true;
+    return JS::AsmJSCache_Success;
 }
 
 static void

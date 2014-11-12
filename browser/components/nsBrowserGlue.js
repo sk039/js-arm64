@@ -132,6 +132,9 @@ XPCOMUtils.defineLazyGetter(this, "ShellService", function() {
 XPCOMUtils.defineLazyModuleGetter(this, "FormValidationHandler",
                                   "resource:///modules/FormValidationHandler.jsm");
 
+XPCOMUtils.defineLazyModuleGetter(this, "WebChannel",
+                                  "resource://gre/modules/WebChannel.jsm");
+
 const PREF_PLUGINS_NOTIFYUSER = "plugins.update.notifyUser";
 const PREF_PLUGINS_UPDATEURL  = "plugins.update.url";
 
@@ -414,23 +417,9 @@ BrowserGlue.prototype = {
         if (data == POLARIS_ENABLED) {
           let enabled = Services.prefs.getBoolPref(POLARIS_ENABLED);
           if (enabled) {
-            let e10sEnabled = Services.appinfo.browserTabsRemoteAutostart;
-            let shouldRestart = e10sEnabled && this._promptForE10sRestart();
-            // Only set the related prefs if e10s is not enabled or the user
-            // saw a notification that e10s would be disabled on restart.
-            if (!e10sEnabled || shouldRestart) {
-              Services.prefs.setBoolPref("privacy.donottrackheader.enabled", enabled);
-              Services.prefs.setBoolPref("privacy.trackingprotection.enabled", enabled);
-              Services.prefs.setBoolPref("privacy.trackingprotection.ui.enabled", enabled);
-              if (shouldRestart) {
-                Services.startup.quit(Ci.nsIAppStartup.eAttemptQuit |
-                                      Ci.nsIAppStartup.eRestart);
-              }
-            } else {
-              // The user chose not to disable E10s which is temporarily
-              // incompatible with Polaris.
-              Services.prefs.clearUserPref(POLARIS_ENABLED);
-            }
+            Services.prefs.setBoolPref("privacy.donottrackheader.enabled", enabled);
+            Services.prefs.setBoolPref("privacy.trackingprotection.enabled", enabled);
+            Services.prefs.setBoolPref("privacy.trackingprotection.ui.enabled", enabled);
           } else {
             // Don't reset DNT because its visible pref is independent of
             // Polaris and may have been previously set.
@@ -440,23 +429,6 @@ BrowserGlue.prototype = {
         }
 #endif
     }
-  },
-
-  _promptForE10sRestart: function () {
-    let win = this.getMostRecentBrowserWindow();
-    let brandBundle = win.document.getElementById("bundle_brand");
-    let brandName = brandBundle.getString("brandShortName");
-    let prefBundle = win.document.getElementById("bundle_preferences");
-    let msg = "Multiprocess Nightly (e10s) does not yet support tracking protection. Multiprocessing will be disabled if you restart Firefox. Would you like to continue?";
-    let title = prefBundle.getFormattedString("shouldRestartTitle", [brandName]);
-    let shouldRestart = Services.prompt.confirm(win, title, msg);
-    if (shouldRestart) {
-      let cancelQuit = Cc["@mozilla.org/supports-PRBool;1"]
-                       .createInstance(Ci.nsISupportsPRBool);
-      Services.obs.notifyObservers(cancelQuit, "quit-application-requested", "restart");
-      shouldRestart = !cancelQuit.data;
-    }
-    return shouldRestart;
   },
 
   _syncSearchEngines: function () {
@@ -767,6 +739,21 @@ BrowserGlue.prototype = {
     }
 #endif
 
+    // A channel for "remote troubleshooting" code...
+    let channel = new WebChannel("remote-troubleshooting", "remote-troubleshooting");
+    channel.listen((id, data, target) => {
+      if (data.command == "request") {
+        let {Troubleshoot} = Cu.import("resource://gre/modules/Troubleshoot.jsm", {});
+        Troubleshoot.snapshot(data => {
+          // for privacy we remove crash IDs and all preferences (but bug 1091944
+          // exists to expose prefs once we are confident of privacy implications)
+          delete data.crashes;
+          delete data.modifiedPreferences;
+          channel.send(data, target);
+        });
+      }
+    });
+
     this._trackSlowStartup();
 
     // Offer to reset a user's profile if it hasn't been used for 60 days.
@@ -838,6 +825,10 @@ BrowserGlue.prototype = {
 
   // All initial windows have opened.
   _onWindowsRestored: function BG__onWindowsRestored() {
+#ifdef MOZ_DEV_EDITION
+    this._createExtraDefaultProfile();
+#endif
+
     this._initServiceDiscovery();
 
     // Show update notification, if needed.
@@ -908,6 +899,39 @@ BrowserGlue.prototype = {
     E10SUINotification.checkStatus();
 #endif
   },
+
+#ifdef MOZ_DEV_EDITION
+  _createExtraDefaultProfile: function () {
+    // If Developer Edition is the only installed Firefox version and no other
+    // profiles are present, create a second one for use by other versions.
+    // This helps Firefox versions earlier than 35 avoid accidentally using the
+    // unsuitable Developer Edition profile.
+    let profileService = Cc["@mozilla.org/toolkit/profile-service;1"]
+                         .getService(Ci.nsIToolkitProfileService);
+    let profileCount = profileService.profileCount;
+    if (profileCount == 1 && profileService.selectedProfile.name != "default") {
+      let newProfile;
+      try {
+        newProfile = profileService.createProfile(null, "default");
+        profileService.defaultProfile = newProfile;
+        profileService.flush();
+      } catch (e) {
+        Cu.reportError("Could not create profile 'default': " + e);
+      }
+      if (newProfile) {
+        // We don't want a default profile with Developer Edition settings, an
+        // empty profile directory will do. The profile service of the other
+        // Firefox will populate it with its own stuff.
+        let newProfilePath = newProfile.rootDir.path;
+        OS.File.removeDir(newProfilePath).then(() => {
+          return OS.File.makeDir(newProfilePath);
+        }).then(null, e => {
+          Cu.reportError("Could not empty profile 'default': " + e);
+        });
+      }
+    }
+  },
+#endif
 
   _onQuitRequest: function BG__onQuitRequest(aCancelQuit, aQuitType) {
     // If user has already dismissed quit request, then do nothing
@@ -2411,19 +2435,14 @@ let DefaultBrowserCheck = {
 let E10SUINotification = {
   // Increase this number each time we want to roll out an
   // e10s testing period to Nightly users.
-  CURRENT_NOTICE_COUNT: 1,
+  CURRENT_NOTICE_COUNT: 2,
   CURRENT_PROMPT_PREF: "browser.displayedE10SPrompt.1",
   PREVIOUS_PROMPT_PREF: "browser.displayedE10SPrompt",
 
   checkStatus: function() {
     let skipE10sChecks = false;
     try {
-      // This order matters, because
-      // browser.tabs.remote.autostart.disabled-because-using-a11y is not
-      // always defined and will throw when not present.
-      // privacy.trackingprotection.enabled is always defined.
       skipE10sChecks = (UpdateChannel.get() != "nightly") ||
-                       Services.prefs.getBoolPref("privacy.trackingprotection.enabled") ||
                        Services.prefs.getBoolPref("browser.tabs.remote.autostart.disabled-because-using-a11y");
     } catch(e) {}
 
@@ -2514,7 +2533,7 @@ let E10SUINotification = {
     Services.prefs.setIntPref("browser.displayedE10SNotice", this.CURRENT_NOTICE_COUNT);
 
     let nb = win.document.getElementById("high-priority-global-notificationbox");
-    let message = "Thanks for helping to test multiprocess Firefox (e10s). Some functions might not work yet."
+    let message = "You're now helping to test Process Separation (e10s)! Please report problems you find.";
     let buttons = [
       {
         label: "Learn More",
