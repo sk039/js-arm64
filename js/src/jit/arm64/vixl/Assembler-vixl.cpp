@@ -2817,9 +2817,6 @@ AssemblerVIXL::RetargetNearBranch(Instruction *i, int offset, bool final)
 
     // Valid test branches are TBZ and TBNZ.
     if (i->IsTestBranch()) {
-        // TODO: This could just be implemented as a mask and OR.
-        int imm14 = i->ImmTestBranch();
-
         // Opposite of ImmTestBranchBit(): MSB in bit 5, 0:5 at bit 40.
         unsigned bit_pos = (i->ImmTestBranchBit5() << 5) | (i->ImmTestBranchBit40());
         MOZ_ASSERT(is_uint6(bit_pos));
@@ -2829,10 +2826,10 @@ AssemblerVIXL::RetargetNearBranch(Instruction *i, int offset, bool final)
 
         //unsigned bit_pos = i->ImmTestBranchBit();
         if (i->IsTBZ()) {
-            tbz(i, rt, bit_pos, imm14);
+            tbz(i, rt, bit_pos, offset);
         } else {
             MOZ_ASSERT(i->IsTBNZ());
-            tbnz(i, rt, bit_pos, imm14);
+            tbnz(i, rt, bit_pos, offset);
         }
 
         MOZ_ASSERT(i->ImmTestBranch() == offset);
