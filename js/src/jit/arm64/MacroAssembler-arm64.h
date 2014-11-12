@@ -549,7 +549,8 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         Ldr(dest64, MemOperand(base64, index64, LSL, scale));
     }
     void loadPrivate(const Address &src, Register dest) {
-        MOZ_CRASH("loadPrivate");
+        loadPtr(src, dest);
+        lshiftPtr(Imm32(1), dest);
     }
 
     void store8(Register src, const Address &address) {
