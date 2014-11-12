@@ -280,23 +280,14 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         doBaseIndex(ARMRegister(val.valueReg(), 64), src, LDR_x);
     }
     void tagValue(JSValueType type, Register payload, ValueOperand dest) {
-        ARMRegister d(dest.valueReg(), 64);
-        ARMRegister p(payload, 64);
-        if (type == JSVAL_TYPE_INT32 || type == JSVAL_TYPE_BOOLEAN) {
-            // 32-bit values can be tagged with two movk's.
-            // or, an ORR instruction, and a movk
-            orr(d, p, Operand(JSVAL_SHIFTED_TAG_MAX_DOUBLE));
-            movk(d, ImmShiftedTag(type).value & 0xffff00000000);
-        } else {
-            // load the tag
-            if (payload != dest.valueReg()) {
-                movePtr(ImmShiftedTag(type), dest.valueReg());
-                bfi(d, p, 0, JSVAL_TAG_SHIFT);
-            } else {
-                bfi(d, p, 0, JSVAL_TAG_SHIFT);
-                orPtr(ImmShiftedTag(type), dest.valueReg());
-            }
-        }
+        // TODO: This could be more clever, but the first attempt had bugs.
+
+        MOZ_ASSERT(dest.valueReg() != ScratchReg2);
+        if (payload != dest.valueReg())
+            movePtr(payload, dest.valueReg());
+
+        movePtr(ImmShiftedTag(type), ScratchReg2);
+        orPtr(ScratchReg2, dest.valueReg());
     }
     void pushValue(ValueOperand val) {
         MacroAssemblerVIXL::Push(ARMRegister(val.valueReg(), 64));
