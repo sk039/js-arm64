@@ -2795,11 +2795,23 @@ AssemblerVIXL::RetargetNearBranch(Instruction *i, int offset, bool final)
             MOZ_ASSERT(i->IsBL());
             bl(i, offset);
         }
+
+        MOZ_ASSERT(i->ImmUncondBranch() == offset);
         return;
     }
 
     if (i->IsCompareBranch()) {
-        MOZ_CRASH("TODO: Retarget compare branches");
+        ARMRegister rt = i->SixtyFourBits() ? ARMRegister::XRegFromCode(i->Rt())
+                                            : ARMRegister::WRegFromCode(i->Rt());
+
+        if (i->IsCBZ()) {
+            cbz(i, rt, offset);
+        } else {
+            MOZ_ASSERT(i->IsCBNZ());
+            cbnz(i, rt, offset);
+        }
+
+        MOZ_ASSERT(i->ImmCmpBranch() == offset);
         return;
     }
 
@@ -2822,6 +2834,8 @@ AssemblerVIXL::RetargetNearBranch(Instruction *i, int offset, bool final)
             MOZ_ASSERT(i->IsTBNZ());
             tbnz(i, rt, bit_pos, imm14);
         }
+
+        MOZ_ASSERT(i->ImmTestBranch() == offset);
         return;
     }
 

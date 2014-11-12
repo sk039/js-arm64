@@ -276,11 +276,22 @@ class Instruction {
 
   // Test branch helpers.
   inline bool IsTBZ() const {
-    return Mask(TestBranchMask) == (TestBranchFixed | TBZ);
+    return Mask(TestBranchMask) == TBZ;
   }
 
   inline bool IsTBNZ() const {
-    return Mask(TestBranchMask) == (TestBranchFixed | TBNZ);
+    return Mask(TestBranchMask) == TBNZ;
+  }
+
+  // Compare branch helpers.
+  inline bool IsCBZ() const {
+    return Mask(CompareBranchMask) == CBZ_w ||
+           Mask(CompareBranchMask) == CBZ_x;
+  }
+
+  inline bool IsCBNZ() const {
+    return Mask(CompareBranchMask) == CBNZ_w ||
+           Mask(CompareBranchMask) == CBNZ_x;
   }
 
   // Indicate whether Rd can be the stack pointer or the zero register. This
