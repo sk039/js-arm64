@@ -1314,14 +1314,6 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         MOZ_ASSERT(cond == Equal || cond == NotEqual);
         branchTestValue(cond, val, MagicValue(why), label);
     }
-    Condition testMagic(Condition cond, const ValueOperand &src) {
-        splitTag(src, ScratchReg);
-        return testMagic(cond, ScratchReg);
-    }
-
-    Condition testError(Condition cond, const ValueOperand &src) {
-        return testMagic(cond, src);
-    }
     void branchTestValue(Condition cond, const ValueOperand &value, const Value &v, Label *label) {
         MOZ_CRASH("branchTestValue");
     }
@@ -1561,6 +1553,13 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         splitTag(value, ScratchReg2);
         return testPrimitive(cond, ScratchReg2);
     }
+    Condition testMagic(Condition cond, const ValueOperand &src) {
+        splitTag(src, ScratchReg2);
+        return testMagic(cond, ScratchReg2);
+    }
+    Condition testError(Condition cond, const ValueOperand &src) {
+        return testMagic(cond, src);
+    }
 
     // Address-based tests.
     Condition testGCThing(Condition cond, const Address &address) {
@@ -1649,7 +1648,6 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         loadPtr(src, ScratchReg2);
         return testGCThing(cond, ScratchReg2);
     }
-
 
     void branchTestInt32Truthy(bool truthy, const ValueOperand &operand, Label *label) {
         ARMRegister payload(operand.valueReg(), 32);
