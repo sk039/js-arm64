@@ -51,11 +51,11 @@ const Instruction* Simulator::kEndOfSimAddress = nullptr;
 
 void SimSystemRegister::SetBits(int msb, int lsb, uint32_t bits) {
   int width = msb - lsb + 1;
-  VIXL_ASSERT(is_uintn(width, bits) || is_intn(width, bits));
+  MOZ_ASSERT(is_uintn(width, bits) || is_intn(width, bits));
 
   bits <<= lsb;
   uint32_t mask = ((1 << width) - 1) << lsb;
-  VIXL_ASSERT((mask & write_ignore_mask_) == 0);
+  MOZ_ASSERT((mask & write_ignore_mask_) == 0);
 
   value_ = (value_ & ~mask) | (bits & mask);
 }
@@ -96,8 +96,8 @@ Simulator::Simulator(Decoder* decoder, FILE* stream) {
 void
 Simulator::init(Decoder* decoder, FILE* stream) {
   // Ensure that shift operations act as the simulator expects.
-  VIXL_ASSERT((static_cast<int32_t>(-1) >> 1) == -1);
-  VIXL_ASSERT((static_cast<uint32_t>(-1) >> 1) == 0x7FFFFFFF);
+  MOZ_ASSERT((static_cast<int32_t>(-1) >> 1) == -1);
+  MOZ_ASSERT((static_cast<uint32_t>(-1) >> 1) == 0x7FFFFFFF);
 #ifdef DEBUG
   pipe(fds);
 #endif
@@ -377,7 +377,7 @@ const char* Simulator::vreg_names[] = {
 
 
 const char* Simulator::WRegNameForCode(unsigned code, Reg31Mode mode) {
-  VIXL_ASSERT(code < kNumberOfRegisters);
+  MOZ_ASSERT(code < kNumberOfRegisters);
   // If the code represents the stack pointer, index the name after zr.
   if ((code == kZeroRegCode) && (mode == Reg31IsStackPointer)) {
     code = kZeroRegCode + 1;
@@ -387,7 +387,7 @@ const char* Simulator::WRegNameForCode(unsigned code, Reg31Mode mode) {
 
 
 const char* Simulator::XRegNameForCode(unsigned code, Reg31Mode mode) {
-  VIXL_ASSERT(code < kNumberOfRegisters);
+  MOZ_ASSERT(code < kNumberOfRegisters);
   // If the code represents the stack pointer, index the name after zr.
   if ((code == kZeroRegCode) && (mode == Reg31IsStackPointer)) {
     code = kZeroRegCode + 1;
@@ -397,19 +397,19 @@ const char* Simulator::XRegNameForCode(unsigned code, Reg31Mode mode) {
 
 
 const char* Simulator::SRegNameForCode(unsigned code) {
-  VIXL_ASSERT(code < kNumberOfFloatRegisters);
+  MOZ_ASSERT(code < kNumberOfFloatRegisters);
   return sreg_names[code];
 }
 
 
 const char* Simulator::DRegNameForCode(unsigned code) {
-  VIXL_ASSERT(code < kNumberOfFloatRegisters);
+  MOZ_ASSERT(code < kNumberOfFloatRegisters);
   return dreg_names[code];
 }
 
 
 const char* Simulator::VRegNameForCode(unsigned code) {
-  VIXL_ASSERT(code < kNumberOfFloatRegisters);
+  MOZ_ASSERT(code < kNumberOfFloatRegisters);
   return vreg_names[code];
 }
 
@@ -461,8 +461,8 @@ int64_t Simulator::AddWithCarry(unsigned reg_size,
                                 int64_t src1,
                                 int64_t src2,
                                 int64_t carry_in) {
-  VIXL_ASSERT((carry_in == 0) || (carry_in == 1));
-  VIXL_ASSERT((reg_size == kXRegSize) || (reg_size == kWRegSize));
+  MOZ_ASSERT((carry_in == 0) || (carry_in == 1));
+  MOZ_ASSERT((reg_size == kXRegSize) || (reg_size == kWRegSize));
 
   uint64_t u1, u2;
   int64_t result;
@@ -630,7 +630,7 @@ void Simulator::PrintSystemRegisters(bool print_all) {
       "0b10 (Round towards Minus Infinity)",
       "0b11 (Round towards Zero)"
     };
-    VIXL_ASSERT(fpcr().RMode() <= (sizeof(rmode) / sizeof(rmode[0])));
+    MOZ_ASSERT(fpcr().RMode() <= (sizeof(rmode) / sizeof(rmode[0])));
     fprintf(stream_, "# %sFPCR: %sAHP:%d DN:%d FZ:%d RMode:%s%s\n",
             clr_flag_name,
             clr_flag_value,
@@ -722,7 +722,7 @@ void Simulator::VisitUnallocated(Instruction* instr) {
 
 
 void Simulator::VisitPCRelAddressing(Instruction* instr) {
-  VIXL_ASSERT((instr->Mask(PCRelAddressingMask) == ADR) ||
+  MOZ_ASSERT((instr->Mask(PCRelAddressingMask) == ADR) ||
               (instr->Mask(PCRelAddressingMask) == ADRP));
   set_reg(instr->Rd(), instr->ImmPCOffsetTarget());
 }
@@ -742,7 +742,7 @@ void Simulator::VisitUnconditionalBranch(Instruction* instr) {
 
 
 void Simulator::VisitConditionalBranch(Instruction* instr) {
-  VIXL_ASSERT(instr->Mask(ConditionalBranchMask) == B_cond);
+  MOZ_ASSERT(instr->Mask(ConditionalBranchMask) == B_cond);
   if (ConditionPassed(instr->ConditionBranch())) {
     set_pc(instr->ImmPCOffsetTarget());
   }
@@ -938,7 +938,7 @@ void Simulator::ConditionalCompareHelper(Instruction* instr, int64_t op2) {
     if (instr->Mask(ConditionalCompareMask) == CCMP) {
       AddWithCarry(reg_size, true, op1, ~op2, 1);
     } else {
-      VIXL_ASSERT(instr->Mask(ConditionalCompareMask) == CCMN);
+      MOZ_ASSERT(instr->Mask(ConditionalCompareMask) == CCMN);
       AddWithCarry(reg_size, true, op1, op2, 0);
     }
   } else {
@@ -971,7 +971,7 @@ void Simulator::VisitLoadStorePostIndex(Instruction* instr) {
 
 void Simulator::VisitLoadStoreRegisterOffset(Instruction* instr) {
   Extend ext = static_cast<Extend>(instr->ExtendMode());
-  VIXL_ASSERT((ext == UXTW) || (ext == UXTX) || (ext == SXTW) || (ext == SXTX));
+  MOZ_ASSERT((ext == UXTW) || (ext == UXTX) || (ext == SXTW) || (ext == SXTX));
   unsigned shift_amount = instr->ImmShiftLS() * instr->SizeLS();
 
   int64_t offset = ExtendValue(kXRegSize, xreg(instr->Rm()), ext,
@@ -1045,7 +1045,7 @@ void Simulator::LoadStorePairHelper(Instruction* instr,
     static_cast<LoadStorePairOp>(instr->Mask(LoadStorePairMask));
 
   // 'rt' and 'rt2' can only be aliased for stores.
-  VIXL_ASSERT(((op & LoadStorePairLBit) == 0) || (rt != rt2));
+  MOZ_ASSERT(((op & LoadStorePairLBit) == 0) || (rt != rt2));
 
   switch (op) {
     case LDP_w: {
@@ -1278,7 +1278,7 @@ uint8_t* Simulator::AddressModeHelper(unsigned addr_reg,
   }
 
   if ((addrmode == PreIndex) || (addrmode == PostIndex)) {
-    VIXL_ASSERT(offset != 0);
+    MOZ_ASSERT(offset != 0);
     set_xreg(addr_reg, address + offset, Reg31IsStackPointer);
   }
 
@@ -1287,7 +1287,7 @@ uint8_t* Simulator::AddressModeHelper(unsigned addr_reg,
   }
 
   // Verify that the calculated address is available to the host.
-  VIXL_ASSERT(address == static_cast<uintptr_t>(address));
+  MOZ_ASSERT(address == static_cast<uintptr_t>(address));
 
   return reinterpret_cast<uint8_t*>(address);
 }
@@ -1300,7 +1300,7 @@ void Simulator::VisitMoveWideImmediate(Instruction* instr) {
 
   bool is_64_bits = instr->SixtyFourBits() == 1;
   // Shift is limited for W operations.
-  VIXL_ASSERT(is_64_bits || (instr->ShiftMoveWide() < 2));
+  MOZ_ASSERT(is_64_bits || (instr->ShiftMoveWide() < 2));
 
   // Get the shifted immediate.
   int64_t shift = instr->ShiftMoveWide() * 16;
@@ -1387,7 +1387,7 @@ void Simulator::VisitDataProcessing1Source(Instruction* instr) {
 
 
 uint64_t Simulator::ReverseBits(uint64_t value, unsigned num_bits) {
-  VIXL_ASSERT((num_bits == kWRegSize) || (num_bits == kXRegSize));
+  MOZ_ASSERT((num_bits == kWRegSize) || (num_bits == kXRegSize));
   uint64_t result = 0;
   for (unsigned i = 0; i < num_bits; i++) {
     result = (result << 1) | (value & 1);
@@ -1411,7 +1411,7 @@ uint64_t Simulator::ReverseBytes(uint64_t value, ReverseByteMode mode) {
   //  permute_table[Reverse16] is used by REV16_x, REV16_w
   //  permute_table[Reverse32] is used by REV32_x, REV_w
   //  permute_table[Reverse64] is used by REV_x
-  VIXL_STATIC_ASSERT((Reverse16 == 0) && (Reverse32 == 1) && (Reverse64 == 2));
+  JS_STATIC_ASSERT((Reverse16 == 0) && (Reverse32 == 1) && (Reverse64 == 2));
   static const uint8_t permute_table[3][8] = { {6, 7, 4, 5, 2, 3, 0, 1},
                                                {4, 5, 6, 7, 0, 1, 2, 3},
                                                {0, 1, 2, 3, 4, 5, 6, 7} };
@@ -1906,10 +1906,10 @@ void Simulator::VisitFPDataProcessing1Source(Instruction* instr) {
 template <class T, int ebits, int mbits>
 static T FPRound(int64_t sign, int64_t exponent, uint64_t mantissa,
                  FPRounding round_mode) {
-  VIXL_ASSERT((sign == 0) || (sign == 1));
+  MOZ_ASSERT((sign == 0) || (sign == 1));
 
   // Only the FPTieEven rounding mode is implemented.
-  VIXL_ASSERT(round_mode == FPTieEven);
+  MOZ_ASSERT(round_mode == FPTieEven);
   USEARG(round_mode);
 
   // Rounding can promote subnormals to normals, and normals to infinities. For
@@ -1966,7 +1966,7 @@ static T FPRound(int64_t sign, int64_t exponent, uint64_t mantissa,
   static const int mantissa_offset = 0;
   static const int exponent_offset = mantissa_offset + mbits;
   static const int sign_offset = exponent_offset + ebits;
-  VIXL_ASSERT(sign_offset == (sizeof(T) * 8 - 1));
+  MOZ_ASSERT(sign_offset == (sizeof(T) * 8 - 1));
 
   // Bail out early for zero inputs.
   if (mantissa == 0) {
@@ -2226,7 +2226,7 @@ double Simulator::FPToDouble(float value) {
 
 float Simulator::FPToFloat(double value, FPRounding round_mode) {
   // Only the FPTieEven rounding mode is implemented.
-  VIXL_ASSERT(round_mode == FPTieEven);
+  MOZ_ASSERT(round_mode == FPTieEven);
   USEARG(round_mode);
 
   switch (std::fpclassify(value)) {
@@ -2355,7 +2355,7 @@ void Simulator::VisitFPDataProcessing3Source(Instruction* instr) {
 template <typename T>
 T Simulator::FPAdd(T op1, T op2) {
   // NaNs should be handled elsewhere.
-  VIXL_ASSERT(!isnan(op1) && !isnan(op2));
+  MOZ_ASSERT(!isnan(op1) && !isnan(op2));
 
   if (isinf(op1) && isinf(op2) && (op1 != op2)) {
     // inf + -inf returns the default NaN.
@@ -2371,7 +2371,7 @@ T Simulator::FPAdd(T op1, T op2) {
 template <typename T>
 T Simulator::FPDiv(T op1, T op2) {
   // NaNs should be handled elsewhere.
-  VIXL_ASSERT(!isnan(op1) && !isnan(op2));
+  MOZ_ASSERT(!isnan(op1) && !isnan(op2));
 
   if ((isinf(op1) && isinf(op2)) || ((op1 == 0.0) && (op2 == 0.0))) {
     // inf / inf and 0.0 / 0.0 return the default NaN.
@@ -2389,7 +2389,7 @@ T Simulator::FPDiv(T op1, T op2) {
 template <typename T>
 T Simulator::FPMax(T a, T b) {
   // NaNs should be handled elsewhere.
-  VIXL_ASSERT(!isnan(a) && !isnan(b));
+  MOZ_ASSERT(!isnan(a) && !isnan(b));
 
   if ((a == 0.0) && (b == 0.0) &&
       (copysign(1.0, a) != copysign(1.0, b))) {
@@ -2417,7 +2417,7 @@ T Simulator::FPMaxNM(T a, T b) {
 template <typename T>
 T Simulator::FPMin(T a, T b) {
   // NaNs should be handled elsewhere.
-  VIXL_ASSERT(!isnan(a) && !isnan(b));
+  MOZ_ASSERT(!isnan(a) && !isnan(b));
 
   if ((a == 0.0) && (b == 0.0) &&
       (copysign(1.0, a) != copysign(1.0, b))) {
@@ -2445,7 +2445,7 @@ T Simulator::FPMinNM(T a, T b) {
 template <typename T>
 T Simulator::FPMul(T op1, T op2) {
   // NaNs should be handled elsewhere.
-  VIXL_ASSERT(!isnan(op1) && !isnan(op2));
+  MOZ_ASSERT(!isnan(op1) && !isnan(op2));
 
   if ((isinf(op1) && (op2 == 0.0)) || (isinf(op2) && (op1 == 0.0))) {
     // inf * 0.0 returns the default NaN.
@@ -2493,7 +2493,7 @@ T Simulator::FPMulAdd(T a, T op1, T op2) {
   }
 
   result = FusedMultiplyAdd(op1, op2, a);
-  VIXL_ASSERT(!isnan(result));
+  MOZ_ASSERT(!isnan(result));
 
   // Work around broken fma implementations for rounded zero results: If a is
   // 0.0, the sign of the result is the sign of op1 * op2 before rounding.
@@ -2508,7 +2508,7 @@ T Simulator::FPMulAdd(T a, T op1, T op2) {
 template <typename T>
 T Simulator::FPSub(T op1, T op2) {
   // NaNs should be handled elsewhere.
-  VIXL_ASSERT(!isnan(op1) && !isnan(op2));
+  MOZ_ASSERT(!isnan(op1) && !isnan(op2));
 
   if (isinf(op1) && isinf(op2) && (op1 == op2)) {
     // inf - inf returns the default NaN.
@@ -2536,7 +2536,7 @@ T Simulator::FPSqrt(T op) {
 
 template <typename T>
 T Simulator::FPProcessNaN(T op) {
-  VIXL_ASSERT(isnan(op));
+  MOZ_ASSERT(isnan(op));
   if (IsSignallingNaN(op)) {
     FPProcessException();
   }
@@ -2551,10 +2551,10 @@ T Simulator::FPProcessNaNs(T op1, T op2) {
   } else if (IsSignallingNaN(op2)) {
     return FPProcessNaN(op2);
   } else if (isnan(op1)) {
-    VIXL_ASSERT(IsQuietNaN(op1));
+    MOZ_ASSERT(IsQuietNaN(op1));
     return FPProcessNaN(op1);
   } else if (isnan(op2)) {
-    VIXL_ASSERT(IsQuietNaN(op2));
+    MOZ_ASSERT(IsQuietNaN(op2));
     return FPProcessNaN(op2);
   } else {
     return 0.0;
@@ -2571,13 +2571,13 @@ T Simulator::FPProcessNaNs3(T op1, T op2, T op3) {
   } else if (IsSignallingNaN(op3)) {
     return FPProcessNaN(op3);
   } else if (isnan(op1)) {
-    VIXL_ASSERT(IsQuietNaN(op1));
+    MOZ_ASSERT(IsQuietNaN(op1));
     return FPProcessNaN(op1);
   } else if (isnan(op2)) {
-    VIXL_ASSERT(IsQuietNaN(op2));
+    MOZ_ASSERT(IsQuietNaN(op2));
     return FPProcessNaN(op2);
   } else if (isnan(op3)) {
-    VIXL_ASSERT(IsQuietNaN(op3));
+    MOZ_ASSERT(IsQuietNaN(op3));
     return FPProcessNaN(op3);
   } else {
     return 0.0;
@@ -2614,7 +2614,7 @@ void Simulator::VisitSystem(Instruction* instr) {
   // range of immediates instead of indicating a different instruction. This
   // makes the decoding tricky.
   if (instr->Mask(SystemExclusiveMonitorFMask) == SystemExclusiveMonitorFixed) {
-    VIXL_ASSERT(instr->Mask(SystemExclusiveMonitorMask) == CLREX);
+    MOZ_ASSERT(instr->Mask(SystemExclusiveMonitorMask) == CLREX);
     switch (instr->Mask(SystemExclusiveMonitorMask)) {
       case CLREX: {
         PrintExclusiveAccessWarning();
@@ -2642,7 +2642,7 @@ void Simulator::VisitSystem(Instruction* instr) {
       }
     }
   } else if (instr->Mask(SystemHintFMask) == SystemHintFixed) {
-    VIXL_ASSERT(instr->Mask(SystemHintMask) == HINT);
+    MOZ_ASSERT(instr->Mask(SystemHintMask) == HINT);
     switch (instr->ImmHint()) {
       case NOP: break;
       default: VIXL_UNIMPLEMENTED();
@@ -2744,8 +2744,8 @@ void Simulator::setFP64Result(double result) {
 
 // Simulator support for callWithABI().
 void Simulator::VisitCallRedirection(Instruction *instr) {
-  VIXL_ASSERT(instr->Mask(ExceptionMask) == SVC);
-  VIXL_ASSERT(instr->ImmException() == kCallRtRedirected);
+  MOZ_ASSERT(instr->Mask(ExceptionMask) == SVC);
+  MOZ_ASSERT(instr->ImmException() == kCallRtRedirected);
 
   Redirection *redir = Redirection::FromSvcInstruction(instr);
   uintptr_t nativeFn = reinterpret_cast<uintptr_t>(redir->nativeFunction());
@@ -2917,13 +2917,13 @@ void Simulator::VisitCallRedirection(Instruction *instr) {
 
 
 void Simulator::DoPrintf(Instruction* instr) {
-  VIXL_ASSERT((instr->Mask(ExceptionMask) == HLT) &&
+  MOZ_ASSERT((instr->Mask(ExceptionMask) == HLT) &&
               (instr->ImmException() == kPrintfOpcode));
 
   // Read the arguments encoded inline in the instruction stream.
   uint32_t arg_count;
   uint32_t arg_pattern_list;
-  VIXL_STATIC_ASSERT(sizeof(*instr) == 1);
+  JS_STATIC_ASSERT(sizeof(*instr) == 1);
   memcpy(&arg_count,
          instr + kPrintfArgCountOffset,
          sizeof(arg_count));
@@ -2931,8 +2931,8 @@ void Simulator::DoPrintf(Instruction* instr) {
          instr + kPrintfArgPatternListOffset,
          sizeof(arg_pattern_list));
 
-  VIXL_ASSERT(arg_count <= kPrintfMaxArgCount);
-  VIXL_ASSERT((arg_pattern_list >> (kPrintfArgPatternBits * arg_count)) == 0);
+  MOZ_ASSERT(arg_count <= kPrintfMaxArgCount);
+  MOZ_ASSERT((arg_pattern_list >> (kPrintfArgPatternBits * arg_count)) == 0);
 
   // We need to call the host printf function with a set of arguments defined by
   // arg_pattern_list. Because we don't know the types and sizes of the
@@ -2944,7 +2944,7 @@ void Simulator::DoPrintf(Instruction* instr) {
   // Leave enough space for one extra character per expected argument (plus the
   // '\0' termination).
   const char * format_base = reg<const char *>(0);
-  VIXL_ASSERT(format_base != nullptr);
+  MOZ_ASSERT(format_base != nullptr);
   size_t length = strlen(format_base) + 1;
   char * const format = new char[length + arg_count];
 
@@ -2966,7 +2966,7 @@ void Simulator::DoPrintf(Instruction* instr) {
         // need to escape '%' characters in those chunks.
         if (placeholder_count > 0) *format_scratch++ = format_base[i];
       } else {
-        VIXL_CHECK(placeholder_count < arg_count);
+        MOZ_ASSERT(placeholder_count < arg_count);
         // Insert '\0' before placeholders, and store their locations.
         *format_scratch++ = '\0';
         chunks[placeholder_count++] = format_scratch;
@@ -2974,7 +2974,7 @@ void Simulator::DoPrintf(Instruction* instr) {
       }
     }
   }
-  VIXL_CHECK(placeholder_count == arg_count);
+  MOZ_ASSERT(placeholder_count == arg_count);
 
   // Finally, call printf with each chunk, passing the appropriate register
   // argument. Normally, printf returns the number of bytes transmitted, so we

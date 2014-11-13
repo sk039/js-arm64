@@ -150,7 +150,7 @@ class SimRegisterBase {
   // Write the specified value. The value is zero-extended if necessary.
   template<typename T>
   void Set(T new_value) {
-    VIXL_STATIC_ASSERT(sizeof(new_value) <= kSizeInBytes);
+    JS_STATIC_ASSERT(sizeof(new_value) <= kSizeInBytes);
     if (sizeof(new_value) < kSizeInBytes) {
       // All AArch64 registers are zero-extending.
       memset(value_ + sizeof(new_value), 0, kSizeInBytes - sizeof(new_value));
@@ -162,7 +162,7 @@ class SimRegisterBase {
   template<typename T>
   T Get() const {
     T result;
-    VIXL_STATIC_ASSERT(sizeof(result) <= kSizeInBytes);
+    JS_STATIC_ASSERT(sizeof(result) <= kSizeInBytes);
     memcpy(&result, value_, sizeof(T));
     return result;
   }
@@ -198,7 +198,7 @@ class SimExclusiveLocalMonitor {
   // Mark the address range for exclusive access (like load-exclusive).
   template <typename T>
   void MarkExclusive(T address, size_t size) {
-    VIXL_STATIC_ASSERT(sizeof(address) == sizeof(address_));
+    JS_STATIC_ASSERT(sizeof(address) == sizeof(address_));
     address_ = reinterpret_cast<uintptr_t>(address);
     size_ = size;
   }
@@ -207,8 +207,8 @@ class SimExclusiveLocalMonitor {
   // This helper doesn't implicitly clear the monitor.
   template <typename T>
   bool IsExclusive(T address, size_t size) {
-    VIXL_STATIC_ASSERT(sizeof(address) == sizeof(address_));
-    VIXL_ASSERT(size > 0);
+    JS_STATIC_ASSERT(sizeof(address) == sizeof(address_));
+    MOZ_ASSERT(size > 0);
     // Be pedantic: Require both the address and the size to match.
     return (size == size_) &&
            (reinterpret_cast<uintptr_t>(address) == address_);
@@ -312,7 +312,7 @@ class Simulator : public DecoderVisitor {
 
   inline void ExecuteInstruction() {
     // The program counter should always be aligned.
-    VIXL_ASSERT(IsWordAligned(pc_));
+    MOZ_ASSERT(IsWordAligned(pc_));
     decoder_->Decode(pc_);
     increment_pc();
   }
@@ -327,9 +327,9 @@ class Simulator : public DecoderVisitor {
   // Basic accessor: Read the register as the specified type.
   template<typename T>
   inline T reg(unsigned code, Reg31Mode r31mode = Reg31IsZeroRegister) const {
-    VIXL_STATIC_ASSERT((sizeof(T) == kWRegSizeInBytes) ||
+    JS_STATIC_ASSERT((sizeof(T) == kWRegSizeInBytes) ||
                        (sizeof(T) == kXRegSizeInBytes));
-    VIXL_ASSERT(code < kNumberOfRegisters);
+    MOZ_ASSERT(code < kNumberOfRegisters);
 
     if ((code == 31) && (r31mode == Reg31IsZeroRegister)) {
       T result;
@@ -365,7 +365,7 @@ class Simulator : public DecoderVisitor {
     }
 
     T result;
-    VIXL_STATIC_ASSERT(sizeof(result) <= sizeof(raw));
+    JS_STATIC_ASSERT(sizeof(result) <= sizeof(raw));
     // Copy the result and truncate to fit. This assumes a little-endian host.
     memcpy(&result, &raw, sizeof(result));
     return result;
@@ -381,9 +381,9 @@ class Simulator : public DecoderVisitor {
   template<typename T>
   inline void set_reg(unsigned code, T value,
                       Reg31Mode r31mode = Reg31IsZeroRegister) {
-    VIXL_STATIC_ASSERT((sizeof(T) == kWRegSizeInBytes) ||
+    JS_STATIC_ASSERT((sizeof(T) == kWRegSizeInBytes) ||
                        (sizeof(T) == kXRegSizeInBytes));
-    VIXL_ASSERT(code < kNumberOfRegisters);
+    MOZ_ASSERT(code < kNumberOfRegisters);
 
     if ((code == 31) && (r31mode == Reg31IsZeroRegister)) {
       return;
@@ -409,7 +409,7 @@ class Simulator : public DecoderVisitor {
                       Reg31Mode r31mode = Reg31IsZeroRegister) {
     // Zero-extend the input.
     uint64_t raw = 0;
-    VIXL_STATIC_ASSERT(sizeof(value) <= sizeof(raw));
+    JS_STATIC_ASSERT(sizeof(value) <= sizeof(raw));
     memcpy(&raw, &value, sizeof(value));
 
     // Write (and possibly truncate) the value.
@@ -442,9 +442,9 @@ class Simulator : public DecoderVisitor {
   // Basic accessor: Read the register as the specified type.
   template<typename T>
   inline T fpreg(unsigned code) const {
-    VIXL_STATIC_ASSERT((sizeof(T) == kSRegSizeInBytes) ||
+    JS_STATIC_ASSERT((sizeof(T) == kSRegSizeInBytes) ||
                        (sizeof(T) == kDRegSizeInBytes));
-    VIXL_ASSERT(code < kNumberOfFloatRegisters);
+    MOZ_ASSERT(code < kNumberOfFloatRegisters);
 
     return fpregisters_[code].Get<T>();
   }
@@ -481,7 +481,7 @@ class Simulator : public DecoderVisitor {
     }
 
     T result;
-    VIXL_STATIC_ASSERT(sizeof(result) <= sizeof(raw));
+    JS_STATIC_ASSERT(sizeof(result) <= sizeof(raw));
     // Copy the result and truncate to fit. This assumes a little-endian host.
     memcpy(&result, &raw, sizeof(result));
     return result;
@@ -490,9 +490,9 @@ class Simulator : public DecoderVisitor {
   // Basic accessor: Write the specified value.
   template<typename T>
   inline void set_fpreg(unsigned code, T value) {
-    VIXL_STATIC_ASSERT((sizeof(value) == kSRegSizeInBytes) ||
-                       (sizeof(value) == kDRegSizeInBytes));
-    VIXL_ASSERT(code < kNumberOfFloatRegisters);
+    JS_STATIC_ASSERT((sizeof(value) == kSRegSizeInBytes) ||
+                     (sizeof(value) == kDRegSizeInBytes));
+    MOZ_ASSERT(code < kNumberOfFloatRegisters);
     fpregisters_[code].Set(value);
   }
 
@@ -682,7 +682,7 @@ class Simulator : public DecoderVisitor {
   T MemoryRead(A address) {
     T value;
     address = AddressUntag(address);
-    VIXL_ASSERT((sizeof(value) == 1) || (sizeof(value) == 2) ||
+    MOZ_ASSERT((sizeof(value) == 1) || (sizeof(value) == 2) ||
                 (sizeof(value) == 4) || (sizeof(value) == 8));
 #if 0
     if (!safememcpy(&value, reinterpret_cast<const char *>(address), sizeof(value))) {
@@ -698,7 +698,7 @@ class Simulator : public DecoderVisitor {
   template <typename T, typename A>
   void MemoryWrite(A address, T value) {
     address = AddressUntag(address);
-    VIXL_ASSERT((sizeof(value) == 1) || (sizeof(value) == 2) ||
+    MOZ_ASSERT((sizeof(value) == 1) || (sizeof(value) == 2) ||
                 (sizeof(value) == 4) || (sizeof(value) == 8));
     memcpy(reinterpret_cast<char *>(address), &value, sizeof(value));
   }
@@ -819,8 +819,8 @@ class Simulator : public DecoderVisitor {
   // functions, or to save and restore it when entering and leaving generated
   // code.
   void AssertSupportedFPCR() {
-    VIXL_ASSERT(fpcr().FZ() == 0);             // No flush-to-zero support.
-    VIXL_ASSERT(fpcr().RMode() == FPTieEven);  // Ties-to-even rounding only.
+    MOZ_ASSERT(fpcr().FZ() == 0);             // No flush-to-zero support.
+    MOZ_ASSERT(fpcr().RMode() == FPTieEven);  // Ties-to-even rounding only.
 
     // The simulator does not support half-precision operations so fpcr().AHP()
     // is irrelevant, and is not checked here.

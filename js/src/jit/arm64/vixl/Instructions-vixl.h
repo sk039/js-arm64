@@ -92,7 +92,7 @@ const unsigned kAddressTagOffset = 56;
 const unsigned kAddressTagWidth = 8;
 const uint64_t kAddressTagMask =
     ((UINT64_C(1) << kAddressTagWidth) - 1) << kAddressTagOffset;
-VIXL_STATIC_ASSERT(kAddressTagMask == UINT64_C(0xff00000000000000));
+JS_STATIC_ASSERT(kAddressTagMask == UINT64_C(0xff00000000000000));
 
 // AArch64 floating-point specifics. These match IEEE-754.
 const unsigned kDoubleMantissaBits = 52;
@@ -397,7 +397,7 @@ class Instruction {
   }
 
   inline Instruction* InstructionAtOffset(int64_t offset) {
-    VIXL_ASSERT(IsWordAligned(this + offset));
+    MOZ_ASSERT(IsWordAligned(this + offset));
     return this + offset;
   }
 

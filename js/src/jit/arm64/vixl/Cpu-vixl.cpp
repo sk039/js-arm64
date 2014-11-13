@@ -96,8 +96,8 @@ void CPU::EnsureIAndDCacheCoherency(void *address, size_t length) {
   uintptr_t iline = start & ~(isize - 1);
 
   // Cache line sizes are always a power of 2.
-  VIXL_ASSERT(IsPowerOf2(dsize));
-  VIXL_ASSERT(IsPowerOf2(isize));
+  MOZ_ASSERT(IsPowerOf2(dsize));
+  MOZ_ASSERT(IsPowerOf2(isize));
   uintptr_t end = start + length;
 
   do {

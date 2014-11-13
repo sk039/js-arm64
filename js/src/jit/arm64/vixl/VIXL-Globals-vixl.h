@@ -64,11 +64,8 @@ const int MBytes = 1024 * KBytes;
 
 #define VIXL_ABORT() printf("in %s, line %i", __FILE__, __LINE__); abort()
 
-#define VIXL_ASSERT(condition) MOZ_ASSERT(condition)
-#define VIXL_CHECK(condition) MOZ_ASSERT(condition)
-#define VIXL_UNIMPLEMENTED() MOZ_ASSERT(!"VIXL Unimplemented")
+#define VIXL_UNIMPLEMENTED() MOZ_CRASH("VIXL Unimplemented")
 #define VIXL_UNREACHABLE() MOZ_CRASH("VIXL Unreachable")
-#define VIXL_STATIC_ASSERT(condition) JS_STATIC_ASSERT(condition)
 #define VIXL_ALIGNMENT_EXCEPTION() printf("ALIGNMENT EXCEPTION\t"); VIXL_ABORT()
 
 // Unfortunately, assembler/wtf/Platform.h defines USE() as a

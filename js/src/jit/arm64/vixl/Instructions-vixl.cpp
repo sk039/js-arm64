@@ -37,7 +37,7 @@ namespace jit {
 static uint64_t RotateRight(uint64_t value,
                             unsigned int rotate,
                             unsigned int width) {
-  VIXL_ASSERT(width <= 64);
+  MOZ_ASSERT(width <= 64);
   rotate &= 63;
   return ((value & ((UINT64_C(1) << rotate) - 1)) <<
           (width - rotate)) | (value >> rotate);
@@ -47,9 +47,9 @@ static uint64_t RotateRight(uint64_t value,
 static uint64_t RepeatBitsAcrossReg(unsigned reg_size,
                                     uint64_t value,
                                     unsigned width) {
-  VIXL_ASSERT((width == 2) || (width == 4) || (width == 8) || (width == 16) ||
+  MOZ_ASSERT((width == 2) || (width == 4) || (width == 8) || (width == 16) ||
               (width == 32));
-  VIXL_ASSERT((reg_size == kWRegSize) || (reg_size == kXRegSize));
+  MOZ_ASSERT((reg_size == kWRegSize) || (reg_size == kXRegSize));
   uint64_t result = value & ((UINT64_C(1) << width) - 1);
   for (unsigned i = width; i < reg_size; i *= 2) {
     result |= (result << i);
@@ -155,14 +155,14 @@ LSDataSize CalcLSPairDataSize(LoadStorePairOp op) {
 ptrdiff_t Instruction::ImmPCRawOffset() const {
   if (IsPCRelAddressing()) {
     // ADR and ADRP.
-    VIXL_ASSERT(Mask(PCRelAddressingMask) == ADRP || Mask(PCRelAddressingMask) == ADR);
+    MOZ_ASSERT(Mask(PCRelAddressingMask) == ADRP || Mask(PCRelAddressingMask) == ADR);
     return ptrdiff_t(ImmPCRel());
   }
   // TODO: No ADR or ADRP support here. Do we even need any?
-  VIXL_ASSERT(!IsPCRelAddressing());
+  MOZ_ASSERT(!IsPCRelAddressing());
 
   // All PC-relative branches.
-  VIXL_ASSERT(BranchType() != UnknownBranchType);
+  MOZ_ASSERT(BranchType() != UnknownBranchType);
   // Relative branch offsets are instruction-size-aligned.
   return ptrdiff_t(ImmBranch());
 }
@@ -178,11 +178,11 @@ Instruction* Instruction::ImmPCOffsetTarget() {
       base = AlignDown(base, kPageSize);
       offset *= kPageSize;
     } else {
-      VIXL_ASSERT(Mask(PCRelAddressingMask) == ADR);
+      MOZ_ASSERT(Mask(PCRelAddressingMask) == ADR);
     }
   } else {
     // All PC-relative branches.
-    VIXL_ASSERT(BranchType() != UnknownBranchType);
+    MOZ_ASSERT(BranchType() != UnknownBranchType);
     // Relative branch offsets are instruction-size-aligned.
     offset = ImmBranch() << kInstructionSizeLog2;
   }
@@ -216,7 +216,7 @@ void Instruction::SetPCRelImmTarget(Instruction* target) {
   if ((Mask(PCRelAddressingMask) == ADR)) {
     imm21 = target - this;
   } else {
-    VIXL_ASSERT(Mask(PCRelAddressingMask) == ADRP);
+    MOZ_ASSERT(Mask(PCRelAddressingMask) == ADRP);
     uintptr_t this_page = reinterpret_cast<uintptr_t>(this) / kPageSize;
     uintptr_t target_page = reinterpret_cast<uintptr_t>(target) / kPageSize;
     imm21 = target_page - this_page;
@@ -228,7 +228,7 @@ void Instruction::SetPCRelImmTarget(Instruction* target) {
 
 
 bool Instruction::IsTargetReachable(Instruction* target) {
-  VIXL_ASSERT(((target - this) & 3) == 0);
+  MOZ_ASSERT(((target - this) & 3) == 0);
   int offset = (target - this) >> kInstructionSizeLog2;
   switch (BranchType()) {
     case CondBranchType:
@@ -246,7 +246,7 @@ bool Instruction::IsTargetReachable(Instruction* target) {
 
 
 void Instruction::SetBranchImmTarget(Instruction* target) {
-  VIXL_ASSERT(((target - this) & 3) == 0);
+  MOZ_ASSERT(((target - this) & 3) == 0);
   Instr branch_imm = 0;
   uint32_t imm_mask = 0;
   int offset = (target - this) >> kInstructionSizeLog2;
@@ -278,7 +278,7 @@ void Instruction::SetBranchImmTarget(Instruction* target) {
 
 
 void Instruction::SetImmLLiteral(Instruction* source) {
-  VIXL_ASSERT(((source - this) & 3) == 0);
+  MOZ_ASSERT(((source - this) & 3) == 0);
   int offset = (source - this) >> kLiteralEntrySizeLog2;
   Instr imm = AssemblerVIXL::ImmLLiteral(offset);
   Instr mask = ImmLLiteral_mask;

@@ -138,7 +138,7 @@ void Decoder::InsertVisitorBefore(DecoderVisitor* new_visitor,
   }
   // We reached the end of the list. The last element must be
   // registered_visitor.
-  VIXL_ASSERT(*it == registered_visitor);
+  MOZ_ASSERT(*it == registered_visitor);
   visitors_.insert(it, new_visitor);
 }
 
@@ -156,7 +156,7 @@ void Decoder::InsertVisitorAfter(DecoderVisitor* new_visitor,
   }
   // We reached the end of the list. The last element must be
   // registered_visitor.
-  VIXL_ASSERT(*it == registered_visitor);
+  MOZ_ASSERT(*it == registered_visitor);
   visitors_.push_back(new_visitor);
 }
 
@@ -167,16 +167,16 @@ void Decoder::RemoveVisitor(DecoderVisitor* visitor) {
 
 
 void Decoder::DecodePCRelAddressing(Instruction* instr) {
-  VIXL_ASSERT(instr->Bits(27, 24) == 0x0);
+  MOZ_ASSERT(instr->Bits(27, 24) == 0x0);
   // We know bit 28 is set, as <b28:b27> = 0 is filtered out at the top level
   // decode.
-  VIXL_ASSERT(instr->Bit(28) == 0x1);
+  MOZ_ASSERT(instr->Bit(28) == 0x1);
   VisitPCRelAddressing(instr);
 }
 
 
 void Decoder::DecodeBranchSystemException(Instruction* instr) {
-  VIXL_ASSERT((instr->Bits(27, 24) == 0x4) ||
+  MOZ_ASSERT((instr->Bits(27, 24) == 0x4) ||
               (instr->Bits(27, 24) == 0x5) ||
               (instr->Bits(27, 24) == 0x6) ||
               (instr->Bits(27, 24) == 0x7) );
@@ -277,7 +277,7 @@ void Decoder::DecodeBranchSystemException(Instruction* instr) {
 
 
 void Decoder::DecodeLoadStore(Instruction* instr) {
-  VIXL_ASSERT((instr->Bits(27, 24) == 0x8) ||
+  MOZ_ASSERT((instr->Bits(27, 24) == 0x8) ||
               (instr->Bits(27, 24) == 0x9) ||
               (instr->Bits(27, 24) == 0xC) ||
               (instr->Bits(27, 24) == 0xD) );
@@ -395,7 +395,7 @@ void Decoder::DecodeLoadStore(Instruction* instr) {
 
 
 void Decoder::DecodeLogical(Instruction* instr) {
-  VIXL_ASSERT(instr->Bits(27, 24) == 0x2);
+  MOZ_ASSERT(instr->Bits(27, 24) == 0x2);
 
   if (instr->Mask(0x80400000) == 0x00400000) {
     VisitUnallocated(instr);
@@ -414,7 +414,7 @@ void Decoder::DecodeLogical(Instruction* instr) {
 
 
 void Decoder::DecodeBitfieldExtract(Instruction* instr) {
-  VIXL_ASSERT(instr->Bits(27, 24) == 0x3);
+  MOZ_ASSERT(instr->Bits(27, 24) == 0x3);
 
   if ((instr->Mask(0x80400000) == 0x80000000) ||
       (instr->Mask(0x80400000) == 0x00400000) ||
@@ -439,7 +439,7 @@ void Decoder::DecodeBitfieldExtract(Instruction* instr) {
 
 
 void Decoder::DecodeAddSubImmediate(Instruction* instr) {
-  VIXL_ASSERT(instr->Bits(27, 24) == 0x1);
+  MOZ_ASSERT(instr->Bits(27, 24) == 0x1);
   if (instr->Bit(23) == 1) {
     VisitUnallocated(instr);
   } else {
@@ -449,7 +449,7 @@ void Decoder::DecodeAddSubImmediate(Instruction* instr) {
 
 
 void Decoder::DecodeDataProcessing(Instruction* instr) {
-  VIXL_ASSERT((instr->Bits(27, 24) == 0xA) ||
+  MOZ_ASSERT((instr->Bits(27, 24) == 0xA) ||
               (instr->Bits(27, 24) == 0xB));
 
   if (instr->Bit(24) == 0) {
@@ -564,7 +564,7 @@ void Decoder::DecodeDataProcessing(Instruction* instr) {
 
 
 void Decoder::DecodeFP(Instruction* instr) {
-  VIXL_ASSERT((instr->Bits(27, 24) == 0xE) ||
+  MOZ_ASSERT((instr->Bits(27, 24) == 0xE) ||
               (instr->Bits(27, 24) == 0xF));
 
   if (instr->Bit(28) == 0) {
@@ -677,7 +677,7 @@ void Decoder::DecodeFP(Instruction* instr) {
           }
         } else {
           // Bit 30 == 1 has been handled earlier.
-          VIXL_ASSERT(instr->Bit(30) == 0);
+          MOZ_ASSERT(instr->Bit(30) == 0);
           if (instr->Mask(0xA0800000) != 0) {
             VisitUnallocated(instr);
           } else {
@@ -692,21 +692,21 @@ void Decoder::DecodeFP(Instruction* instr) {
 
 void Decoder::DecodeAdvSIMDLoadStore(Instruction* instr) {
   // TODO: Implement Advanced SIMD load/store instruction decode.
-  VIXL_ASSERT(instr->Bits(29, 25) == 0x6);
+  MOZ_ASSERT(instr->Bits(29, 25) == 0x6);
   VisitUnimplemented(instr);
 }
 
 
 void Decoder::DecodeAdvSIMDDataProcessing(Instruction* instr) {
   // TODO: Implement Advanced SIMD data processing instruction decode.
-  VIXL_ASSERT(instr->Bits(27, 25) == 0x7);
+  MOZ_ASSERT(instr->Bits(27, 25) == 0x7);
   VisitUnimplemented(instr);
 }
 
 
 #define DEFINE_VISITOR_CALLERS(A)                                              \
   void Decoder::Visit##A(Instruction *instr) {                                 \
-    VIXL_ASSERT(instr->Mask(A##FMask) == A##Fixed);                            \
+    MOZ_ASSERT(instr->Mask(A##FMask) == A##Fixed);                            \
     std::list<DecoderVisitor*>::iterator it;                                   \
     for (it = visitors_.begin(); it != visitors_.end(); it++) {                \
       (*it)->Visit##A(instr);                                                  \

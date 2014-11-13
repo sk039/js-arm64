@@ -177,6 +177,8 @@ MoveEmitterARM64::cycleSlot()
 void
 MoveEmitterARM64::breakCycle(const MoveOperand &from, const MoveOperand &to, MoveOp::Type type)
 {
+    // TODO: Uh, pretty sure cycle resolution should just use a temp register.
+    // TODO: Stack seems pretty overkill.
     switch (type) {
       case MoveOp::FLOAT32:
         if (to.isMemory()) {

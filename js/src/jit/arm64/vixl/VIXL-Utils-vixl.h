@@ -49,18 +49,18 @@ namespace jit {
 
 // Check number width.
 inline bool is_intn(unsigned n, int64_t x) {
-  VIXL_ASSERT((0 < n) && (n < 64));
+  MOZ_ASSERT((0 < n) && (n < 64));
   int64_t limit = INT64_C(1) << (n - 1);
   return (-limit <= x) && (x < limit);
 }
 
 inline bool is_uintn(unsigned n, int64_t x) {
-  VIXL_ASSERT((0 < n) && (n < 64));
+  MOZ_ASSERT((0 < n) && (n < 64));
   return !(x >> n);
 }
 
 inline unsigned truncate_to_intn(unsigned n, int64_t x) {
-  VIXL_ASSERT((0 < n) && (n < 64));
+  MOZ_ASSERT((0 < n) && (n < 64));
   return (x & ((INT64_C(1) << n) - 1));
 }
 
@@ -141,14 +141,14 @@ inline bool IsQuietNaN(T num) {
 // Convert the NaN in 'num' to a quiet NaN.
 inline double ToQuietNaN(double num) {
   const uint64_t kFP64QuietNaNMask = UINT64_C(0x0008000000000000);
-  VIXL_ASSERT(isnan(num));
+  MOZ_ASSERT(isnan(num));
   return rawbits_to_double(double_to_rawbits(num) | kFP64QuietNaNMask);
 }
 
 
 inline float ToQuietNaN(float num) {
   const uint32_t kFP32QuietNaNMask = 0x00400000;
-  VIXL_ASSERT(isnan(num));
+  MOZ_ASSERT(isnan(num));
   return rawbits_to_float(float_to_rawbits(num) | kFP32QuietNaNMask);
 }
 
@@ -176,7 +176,7 @@ bool IsPowerOf2(int64_t value);
 // TODO: rename/refactor to make it specific to instructions.
 template<typename T>
 bool IsWordAligned(T pointer) {
-  VIXL_ASSERT(sizeof(pointer) == sizeof(intptr_t));   // NOLINT(runtime/sizeof)
+  MOZ_ASSERT(sizeof(pointer) == sizeof(intptr_t));   // NOLINT(runtime/sizeof)
   return (reinterpret_cast<intptr_t>(pointer) & 3) == 0;
 }
 
@@ -187,10 +187,10 @@ T AlignUp(T pointer, size_t alignment) {
   // reinterpret_cast behaviour for other types.
 
   uintptr_t pointer_raw = (uintptr_t)pointer;
-  VIXL_STATIC_ASSERT(sizeof(pointer) == sizeof(pointer_raw));
+  JS_STATIC_ASSERT(sizeof(pointer) == sizeof(pointer_raw));
 
   size_t align_step = (alignment - pointer_raw) % alignment;
-  VIXL_ASSERT((pointer_raw + align_step) % alignment == 0);
+  MOZ_ASSERT((pointer_raw + align_step) % alignment == 0);
 
   return (T)(pointer_raw + align_step);
 }
@@ -202,10 +202,10 @@ T AlignDown(T pointer, size_t alignment) {
   // reinterpret_cast behaviour for other types.
 
   uintptr_t pointer_raw = (uintptr_t)pointer;
-  VIXL_STATIC_ASSERT(sizeof(pointer) == sizeof(pointer_raw));
+  JS_STATIC_ASSERT(sizeof(pointer) == sizeof(pointer_raw));
 
   size_t align_step = pointer_raw % alignment;
-  VIXL_ASSERT((pointer_raw - align_step) % alignment == 0);
+  MOZ_ASSERT((pointer_raw - align_step) % alignment == 0);
 
   return (T)(pointer_raw - align_step);
 }

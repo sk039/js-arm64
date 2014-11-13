@@ -197,7 +197,7 @@ enum Condition {
 inline Condition InvertCondition(Condition cond) {
   // Conditions al and nv behave identically, as "always true". They can't be
   // inverted, because there is no "always false" condition.
-  VIXL_ASSERT((cond != al) && (cond != nv));
+  MOZ_ASSERT((cond != al) && (cond != nv));
   return static_cast<Condition>(cond ^ 1);
 }
 
@@ -304,7 +304,7 @@ enum SystemRegister {
 //
 // The enumerations can be used like this:
 //
-// VIXL_ASSERT(instr->Mask(PCRelAddressingFMask) == PCRelAddressingFixed);
+// MOZ_ASSERT(instr->Mask(PCRelAddressingFMask) == PCRelAddressingFixed);
 // switch(instr->Mask(PCRelAddressingMask)) {
 //   case ADR:  Format("adr 'Xd, 'AddrPCRelByte"); break;
 //   case ADRP: Format("adrp 'Xd, 'AddrPCRelPage"); break;

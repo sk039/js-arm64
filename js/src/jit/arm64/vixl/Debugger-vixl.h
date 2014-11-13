@@ -153,7 +153,7 @@ class DebuggerARM64 : public Simulator {
   // back control.
   inline int steps() { return steps_; }
   inline void set_steps(int value) {
-    VIXL_ASSERT(value > 1);
+    MOZ_ASSERT(value > 1);
     steps_ = value;
   }
 
