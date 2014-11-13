@@ -499,16 +499,12 @@ AssemblerVIXL::ret(const ARMRegister& xn)
 BufferOffset
 AssemblerVIXL::b(int imm26)
 {
-    if (imm26 == 0xcc / 4)
-        printf("gotcha\n");
     return EmitBranch(B | ImmUncondBranch(imm26));
 }
 
 void
 AssemblerVIXL::b(Instruction *at, int imm26)
 {
-    if (imm26 == 0xcc / 4)
-        printf("gotcha\n");
     return EmitBranch(at, B | ImmUncondBranch(imm26));
 }
 
