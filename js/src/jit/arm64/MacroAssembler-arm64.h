@@ -82,7 +82,19 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     uint32_t stackForCall_;
     bool dynamicAlignment_;
 
-    MacroAssemblerCompat();
+    MacroAssemblerCompat()
+      : MacroAssemblerVIXL(),
+        enoughMemory_(true),
+        framePushed_(0),
+        inCall_(false),
+        usedOutParam_(false),
+        args_(0),
+        passedIntArgs_(0),
+        passedFloatArgs_(0),
+        passedArgTypes_(0),
+        stackForCall_(0),
+        dynamicAlignment_(false)
+    { }
 
   protected:
     MoveResolver moveResolver_;
