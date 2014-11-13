@@ -1988,11 +1988,9 @@ class AssemblerVIXL : public AssemblerShared
     static uint32_t PlaceConstantPoolBarrier(int offset) {
         MOZ_CRASH("PlaceConstantPoolBarrier");
     }
-    static void WritePoolGuard(BufferOffset branch, Instruction *inst, BufferOffset dest) {
-        b(inst, dest.getOffset() - branch.getOffset());
-    }
     static void WritePoolHeader(uint8_t *start, Pool *p, bool isNatural);
     static void WritePoolFooter(uint8_t *start, Pool *p, bool isNatural);
+    static void WritePoolGuard(BufferOffset branch, Instruction *inst, BufferOffset dest);
 
     // Static interface used by IonAssemblerBufferWithConstantPools.
     static ptrdiff_t GetBranchOffset(const Instruction *i);

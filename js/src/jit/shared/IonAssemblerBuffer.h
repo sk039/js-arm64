@@ -16,8 +16,7 @@ namespace jit {
 // This should theoretically reside inside of AssemblerBuffer, but that won't be
 // nice AssemblerBuffer is templated, BufferOffset would be indirectly.
 //
-// A BufferOffset is the offset into a buffer, expressed in bytes of
-// instructions.
+// A BufferOffset is the byte offset into a buffer.
 
 class BufferOffset
 {
