@@ -82,19 +82,8 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     uint32_t stackForCall_;
     bool dynamicAlignment_;
 
-    MacroAssemblerCompat()
-      : MacroAssemblerVIXL(),
-        enoughMemory_(true),
-        framePushed_(0),
-        inCall_(false),
-        usedOutParam_(false),
-        args_(0),
-        passedIntArgs_(0),
-        passedFloatArgs_(0),
-        passedArgTypes_(0),
-        stackForCall_(0),
-        dynamicAlignment_(false)
-    { }
+    MacroAssemblerCompat();
+     
 
   protected:
     MoveResolver moveResolver_;
@@ -374,7 +363,18 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     // If source is int32, convert to double and store in dest.
     // Else, branch to failure.
     void ensureDouble(const ValueOperand &source, FloatRegister dest, Label *failure) {
-        MOZ_CRASH("ensureDouble()");
+        Label isDouble, done;
+        Register reg = splitTagForTest(source);
+        branchTestDouble(Assembler::Equal, reg, &isDouble);
+        branchTestInt32(Assembler::NotEqual, reg, failure);
+        convertInt32ToDouble(source.valueReg(), dest);
+        jump(&done);
+
+        bind(&isDouble);
+        unboxDouble(source, dest);
+
+        bind(&done);
+
     }
     void emitSet(Assembler::Condition cond, Register dest) {
         Cset(ARMRegister(dest, 64), cond);
@@ -445,7 +445,19 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     void convertDoubleToInt32(FloatRegister src, Register dest, Label *fail,
                               bool negativeZeroCheck = true)
     {
-        MOZ_CRASH("convertDoubleToInt32");
+        ARMFPRegister fsrc(src, 64);
+        ARMRegister dest64(dest, 64);
+        Fcvtzs(dest64, fsrc);
+        Scvtf(ScratchDoubleReg_, dest64);
+        Fcmp(ScratchDoubleReg_, fsrc);
+        B(fail, Assembler::NotEqual);
+        if (negativeZeroCheck) {
+            Label nonzero;
+            Cbnz(dest64, &nonzero);
+            Fmov(dest64, fsrc);
+            Cbnz(dest64, fail);
+            bind(&nonzero);
+        }
     }
     void convertFloat32ToInt32(FloatRegister src, Register dest, Label *fail,
                                bool negativeZeroCheck = true)
@@ -854,8 +866,8 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
 
     // Extracts the tag of a value and places it in ScratchReg.
     Register splitTagForTest(const ValueOperand &value) {
-        MOZ_CRASH("splitTagForTest");
-        return Register::FromCode(Registers::x0);
+        Lsr(ScratchReg2_64, ARMRegister(value.valueReg(), 64), JSVAL_TAG_SHIFT);
+        return ScratchReg2;
     }
     void cmpTag(const ValueOperand &operand, ImmTag tag) {
         MOZ_CRASH("cmpTag");
@@ -1336,7 +1348,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
 
     void boxDouble(FloatRegister src, const ValueOperand &dest) {
-        MOZ_CRASH("boxDouble");
+        Fmov(ARMRegister(dest.valueReg(), 64), ARMFPRegister(src, 64));
     }
     void boxNonDouble(JSValueType type, Register src, const ValueOperand &dest) {
         MOZ_CRASH("boxNonDouble");
@@ -1350,10 +1362,10 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         load32(src, dest);
     }
     void unboxDouble(const Address &src, FloatRegister dest) {
-        MOZ_CRASH("unboxDouble");
+        loadDouble(src, dest);
     }
     void unboxDouble(const ValueOperand &src, FloatRegister dest) {
-        MOZ_CRASH("unboxDouble");
+        Fmov(ARMFPRegister(dest, 64), ARMRegister(src.valueReg(), 64));
     }
 
     void unboxArgObjMagic(const ValueOperand &src, Register dest) {

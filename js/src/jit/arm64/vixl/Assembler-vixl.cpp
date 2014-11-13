@@ -2761,7 +2761,8 @@ ptrdiff_t
 AssemblerVIXL::GetBranchOffset(const Instruction *ins)
 {
     MOZ_ASSERT_IF(!ins->IsBranchLinkImm(), ins->BranchType() != UnknownBranchType);
-    return ins->ImmPCRawOffset();
+    // All of the assembler buffer's offsets are in bytes, this is in instructions.
+    return ins->ImmPCRawOffset() * 4;
 }
 
 void
@@ -2779,6 +2780,8 @@ AssemblerVIXL::RetargetNearBranch(Instruction *i, int offset, Condition cond, bo
 void
 AssemblerVIXL::RetargetNearBranch(Instruction *i, int offset, bool final)
 {
+    // We expect the offset in instructions, the buffer gives it in bytes.
+    offset = offset / 4;
     // The only valid conditional instruction is B.
     if (i->IsCondBranchImm()) {
         MOZ_ASSERT(i->IsCondB());
