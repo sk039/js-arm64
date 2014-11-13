@@ -83,7 +83,6 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     bool dynamicAlignment_;
 
     MacroAssemblerCompat();
-     
 
   protected:
     MoveResolver moveResolver_;
@@ -364,18 +363,20 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     // Else, branch to failure.
     void ensureDouble(const ValueOperand &source, FloatRegister dest, Label *failure) {
         Label isDouble, done;
-        Register reg = splitTagForTest(source);
-        branchTestDouble(Assembler::Equal, reg, &isDouble);
-        branchTestInt32(Assembler::NotEqual, reg, failure);
-        convertInt32ToDouble(source.valueReg(), dest);
+        Register tag = splitTagForTest(source);
+        branchTestDouble(Assembler::Equal, tag, &isDouble);
+        branchTestInt32(Assembler::NotEqual, tag, failure);
+
+        unboxInt32(source, ScratchReg2);
+        convertInt32ToDouble(ScratchReg2, dest);
         jump(&done);
 
         bind(&isDouble);
         unboxDouble(source, dest);
 
         bind(&done);
-
     }
+
     void emitSet(Assembler::Condition cond, Register dest) {
         Cset(ARMRegister(dest, 64), cond);
     }
@@ -447,10 +448,12 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     {
         ARMFPRegister fsrc(src, 64);
         ARMRegister dest64(dest, 64);
-        Fcvtzs(dest64, fsrc);
-        Scvtf(ScratchDoubleReg_, dest64);
+
+        Fcvtzs(dest64, fsrc); // Convert, rounding toward zero.
+        Scvtf(ScratchDoubleReg_, dest64); // Convert back, using FPCR rounding mode.
         Fcmp(ScratchDoubleReg_, fsrc);
         B(fail, Assembler::NotEqual);
+
         if (negativeZeroCheck) {
             Label nonzero;
             Cbnz(dest64, &nonzero);
