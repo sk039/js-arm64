@@ -551,3 +551,20 @@ MacroAssembler::restoreFrameAlignmentForICArguments(MacroAssembler::AfterICSaveL
 
 } // namespace jit
 } // namespace js
+MacroAssemblerCompat::MacroAssemblerCompat()
+ : MacroAssemblerVIXL(),
+        enoughMemory_(true),
+        framePushed_(0),
+        inCall_(false),
+        usedOutParam_(false),
+        args_(0),
+        passedIntArgs_(0),
+        passedFloatArgs_(0),
+        passedArgTypes_(0),
+        stackForCall_(0),
+        dynamicAlignment_(false)
+    {
+        static int count = 0x123;
+        fprintf(stderr, "Acount = %x\n", count);
+        Mov(ScratchReg2_64, count++);
+    }
