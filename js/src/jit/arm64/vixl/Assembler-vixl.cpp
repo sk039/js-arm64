@@ -2762,7 +2762,7 @@ AssemblerVIXL::GetBranchOffset(const Instruction *ins)
 {
     MOZ_ASSERT_IF(!ins->IsBranchLinkImm(), ins->BranchType() != UnknownBranchType);
     // Convert from instruction offset to byte offset.
-    return ins->ImmPCRawOffset() * sizeof(Instruction);
+    return ins->ImmPCRawOffset() * kInstructionSize;
 }
 
 void
@@ -2781,27 +2781,28 @@ void
 AssemblerVIXL::RetargetNearBranch(Instruction *i, int byteOffset, bool final)
 {
     // We expect the offset in instructions, the buffer gives it in bytes.
-    MOZ_ASSERT(byteOffset % sizeof(Instruction) == 0);
-    int offset = byteOffset / sizeof(Instruction);
+    JS_STATIC_ASSERT(kInstructionSize == 4);
+    MOZ_ASSERT(byteOffset % kInstructionSize == 0);
+    int instOffset = byteOffset >> kInstructionSizeLog2;
 
     // The only valid conditional instruction is B.
     if (i->IsCondBranchImm()) {
         MOZ_ASSERT(i->IsCondB());
         Condition cond = static_cast<Condition>(i->ConditionBranch());
-        b(i, offset, cond);
+        b(i, instOffset, cond);
         return;
     }
 
     // Valid unconditional branches are B and BL.
     if (i->IsUncondBranchImm()) {
         if (i->IsUncondB()) {
-            b(i, offset);
+            b(i, instOffset);
         } else {
             MOZ_ASSERT(i->IsBL());
-            bl(i, offset);
+            bl(i, instOffset);
         }
 
-        MOZ_ASSERT(i->ImmUncondBranch() == offset);
+        MOZ_ASSERT(i->ImmUncondBranch() == instOffset);
         return;
     }
 
@@ -2811,13 +2812,13 @@ AssemblerVIXL::RetargetNearBranch(Instruction *i, int byteOffset, bool final)
                                             : ARMRegister::WRegFromCode(i->Rt());
 
         if (i->IsCBZ()) {
-            cbz(i, rt, offset);
+            cbz(i, rt, instOffset);
         } else {
             MOZ_ASSERT(i->IsCBNZ());
-            cbnz(i, rt, offset);
+            cbnz(i, rt, instOffset);
         }
 
-        MOZ_ASSERT(i->ImmCmpBranch() == offset);
+        MOZ_ASSERT(i->ImmCmpBranch() == instOffset);
         return;
     }
 
@@ -2832,13 +2833,13 @@ AssemblerVIXL::RetargetNearBranch(Instruction *i, int byteOffset, bool final)
 
         //unsigned bit_pos = i->ImmTestBranchBit();
         if (i->IsTBZ()) {
-            tbz(i, rt, bit_pos, offset);
+            tbz(i, rt, bit_pos, instOffset);
         } else {
             MOZ_ASSERT(i->IsTBNZ());
-            tbnz(i, rt, bit_pos, offset);
+            tbnz(i, rt, bit_pos, instOffset);
         }
 
-        MOZ_ASSERT(i->ImmTestBranch() == offset);
+        MOZ_ASSERT(i->ImmTestBranch() == instOffset);
         return;
     }
 

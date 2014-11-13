@@ -115,7 +115,7 @@ Assembler::emitExtendedJumpTable()
         //   [Patchable 8-byte constant high bits]
         DebugOnly<size_t> preOffset = size_t(armbuffer_.nextOffset().getOffset());
 
-        ldr(ip0_64, ptrdiff_t(2 * sizeof(Instruction)));
+        ldr(ip0_64, ptrdiff_t(2 * kInstructionSize));
         br(ip0_64);
 
         DebugOnly<size_t> prePointer = size_t(armbuffer_.nextOffset().getOffset());
