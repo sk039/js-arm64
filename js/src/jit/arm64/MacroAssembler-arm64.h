@@ -297,7 +297,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
     void pushValue(const Value &val) {
         if (val.isMarkable()) {
-            push(ImmMaybeNurseryPtr(reinterpret_cast<gc::Cell *>(val.toGCThing())));
+            MOZ_CRASH("FIXME NOW: Push a markable value.");
         } else {
             moveValue(val, ScratchReg2);
             push(ScratchReg2);
