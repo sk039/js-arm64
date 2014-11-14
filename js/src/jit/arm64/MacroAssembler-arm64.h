@@ -1095,8 +1095,8 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         B(label, cond);
     }
     void branchTest32(Condition cond, const Address &address, Imm32 imm, Label *label) {
-        load32(address, ScratchReg);
-        branchTest32(cond, ScratchReg, imm, label);
+        load32(address, ScratchReg2);
+        branchTest32(cond, ScratchReg2, imm, label);
     }
     void branchTest32(Condition cond, AbsoluteAddress &address, Imm32 imm, Label *label) {
         MOZ_CRASH("branchTest32");
@@ -1117,8 +1117,8 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
 
     void branchPtr(Condition cond, AsmJSAbsoluteAddress lhs, Register rhs, Label *label) {
-        loadPtr(lhs, ScratchReg);
-        branchPtr(cond, ScratchReg, rhs, label);
+        loadPtr(lhs, ScratchReg2);
+        branchPtr(cond, ScratchReg2, rhs, label);
     }
     void branchPtr(Condition cond, Address lhs, ImmWord ptr, Label *label) {
         loadPtr(lhs, ScratchReg2);
@@ -1133,11 +1133,11 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         branchPtr(cond, ScratchReg2, ptr, label);
     }
     void branchPtr(Condition cond, Register lhs, ImmWord ptr, Label *label) {
-        Mov(ScratchReg64, uint64_t(ptr.value));
+        Mov(ScratchReg2_64, uint64_t(ptr.value));
         branch(cond, label);
     }
     void branchPtr(Condition cond, Register lhs, ImmPtr rhs, Label *label) {
-        Mov(ScratchReg64, uint64_t(rhs.value));
+        Mov(ScratchReg2_64, uint64_t(rhs.value));
         branch(cond, label);
     }
     void branchPtr(Condition cond, Register lhs, ImmGCPtr ptr, Label *label) {
