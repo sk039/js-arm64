@@ -296,8 +296,11 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         MacroAssemblerVIXL::Pop(ARMRegister(val.valueReg(), 64));
     }
     void pushValue(const Value &val) {
+        jsval_layout jv = JSVAL_TO_IMPL(val);
         if (val.isMarkable()) {
-            MOZ_CRASH("FIXME NOW: Push a markable value.");
+            writeDataRelocation(val);
+            movePatchablePtr(ImmPtr((void *)jv.asBits), ScratchReg2);
+            push(ScratchReg2);
         } else {
             moveValue(val, ScratchReg2);
             push(ScratchReg2);
@@ -1726,6 +1729,15 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         if (ptr.value)
             tmpDataRelocations_.append(nextOffset());
     }
+    void writeDataRelocation(const Value &val) {
+        if (val.isMarkable()) {
+            gc::Cell *cell = reinterpret_cast<gc::Cell *>(val.toGCThing());
+            if (cell && gc::IsInsideNursery(cell))
+                embedsNurseryPointers_ = true;
+            tmpDataRelocations_.append(nextOffset());
+        }
+    }
+
     void writePrebarrierOffset(CodeOffsetLabel label) {
         tmpPreBarriers_.append(BufferOffset(label.offset()));
     }
