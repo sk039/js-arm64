@@ -456,14 +456,19 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         MOZ_CRASH("convertDoubleToFloat32");
     }
     void branchTruncateDouble(FloatRegister src, Register dest, Label *fail) {
-        MOZ_CRASH("branchTruncateDouble");
+        ARMFPRegister fsrc(src, 64);
+        ARMRegister dest64(dest, 64);
+        Fcvtzs(dest64, fsrc);
+        Mov(ScratchReg2_64, 0x7fffffffffffffffll);
+        Add(ScratchReg2_64, ScratchReg2_64, Operand(dest64));
+        Cmn(ScratchReg2_64, Operand(3));
+        B(fail, Assembler::Above);
     }
     void convertDoubleToInt32(FloatRegister src, Register dest, Label *fail,
                               bool negativeZeroCheck = true)
     {
         ARMFPRegister fsrc(src, 64);
         ARMRegister dest64(dest, 64);
-
         Fcvtzs(dest64, fsrc); // Convert, rounding toward zero.
         Scvtf(ScratchDoubleReg_, dest64); // Convert back, using FPCR rounding mode.
         Fcmp(ScratchDoubleReg_, fsrc);
@@ -931,7 +936,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
 
     void add32(Register src, Register dest) {
-        Add(ARMRegister(dest, 32), ARMRegister(src, 32), Operand(ARMRegister(src, 32)));
+        Add(ARMRegister(dest, 32), ARMRegister(dest, 32), Operand(ARMRegister(src, 32)));
     }
     void add32(Imm32 imm, Register dest) {
         Add(ARMRegister(dest, 32), ARMRegister(dest, 32), Operand(imm.value));
@@ -945,7 +950,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         Sub(ARMRegister(dest, 32), ARMRegister(dest, 32), Operand(imm.value));
     }
     void sub32(Register src, Register dest) {
-        Sub(ARMRegister(dest, 32), ARMRegister(src, 32), Operand(ARMRegister(src, 32)));
+        Sub(ARMRegister(dest, 32), ARMRegister(dest, 32), Operand(ARMRegister(src, 32)));
     }
 
     void addPtr(Register src, Register dest) {
