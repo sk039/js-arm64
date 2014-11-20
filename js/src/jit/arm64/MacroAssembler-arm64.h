@@ -112,6 +112,11 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
                                           LSL, unsigned(addr.scale)), op);
             return;
         }
+
+        // Store operations should not clobber.
+        MOZ_ASSERT(!rt.Is(ScratchReg2_32));
+        MOZ_ASSERT(!rt.Is(ScratchReg2_64));
+
         // TODO: should only add here when we can fit it into a single operand.
         Add(ScratchReg2_64,
             ARMRegister(addr.base, 64),
@@ -605,24 +610,26 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
 
     void storePtr(ImmWord imm, const Address &address) {
-        MOZ_CRASH("storePtr");
+        movePtr(imm, ScratchReg2);
+        storePtr(ScratchReg2, address);
     }
     void storePtr(ImmPtr imm, const Address &address) {
         Mov(ScratchReg2_64, uint64_t(imm.value));
         Str(ScratchReg2_64, MemOperand(ARMRegister(address.base, 64), address.offset));
     }
     void storePtr(ImmGCPtr imm, const Address &address) {
-        MOZ_CRASH("storePtr");
+        movePtr(imm, ScratchReg2);
+        storePtr(ScratchReg2, address);
     }
     void storePtr(Register src, const Address &address) {
         Str(ARMRegister(src, 64), MemOperand(ARMRegister(address.base, 64), address.offset));
     }
 
     void storePtr(ImmWord imm, const BaseIndex &address) {
-        MOZ_CRASH("storePtr");
+        MOZ_CRASH("storePtr"); // Careful -- doBaseIndex() may use both scratch regs!
     }
     void storePtr(ImmGCPtr imm, const BaseIndex &address) {
-        MOZ_CRASH("storePtr");
+        MOZ_CRASH("storePtr"); // Careful -- doBaseIndex() may use both scratch regs!
     }
     void storePtr(Register src, const BaseIndex &address) {
         doBaseIndex(ARMRegister(src, 64), address, STR_x);
