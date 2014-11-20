@@ -505,7 +505,6 @@ AssemblerVIXL::b(int imm26)
 void
 AssemblerVIXL::b(Instruction *at, int imm26)
 {
-    fprintf(stderr, "writing offset 0x%x at %p\n", imm26, at);
     return EmitBranch(at, B | ImmUncondBranch(imm26));
 }
 

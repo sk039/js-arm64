@@ -208,13 +208,8 @@ MacroAssemblerCompat::handleFailureWithHandler(void *handler)
     // Ask for an exception handler.
     setupUnalignedABICall(1, r1);
     passABIArg(r0);
-    static int x = 1234;
-    Nop();
-    if (x == 0x5b2) {
-        //   MOZ_ASSERT(false);
-    }
-    Mov(x1, x++);
     callWithABI(handler);
+
     JitCode *excTail = GetIonContext()->runtime->jitRuntime()->getExceptionTail();
     branch(excTail);
 }
