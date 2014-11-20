@@ -285,6 +285,9 @@ MacroAssemblerCompat::setupUnalignedABICall(uint32_t args, Register scratch)
     int64_t alignment = ~(int64_t(ABIStackAlignment) - 1);
     ARMRegister scratch64(scratch, 64);
 
+    // Always save LR -- Baseline ICs assume that LR isn't modified.
+    push(lr);
+
     // TODO: Unhandled for sp -- needs slightly different logic.
     MOZ_ASSERT(!GetStackPointer().Is(sp));
 
@@ -398,10 +401,15 @@ MacroAssemblerCompat::callWithABIPost(uint32_t stackAdjust, MoveOp::Type result)
     freeStack(stackAdjust);
 
     // Restore the stack pointer from entry.
-    if (dynamicAlignment_) {
+    if (dynamicAlignment_)
         Ldr(GetStackPointer(), MemOperand(GetStackPointer(), 0));
-        syncStackPtr();
-    }
+
+    // Restore LR.
+    pop(lr);
+
+    // TODO: This one shouldn't be necessary -- check that callers
+    // aren't enforcing the ABI themselves!
+    syncStackPtr();
 
     // If the ABI's return regs are where ION is expecting them, then
     // no other work needs to be done.
