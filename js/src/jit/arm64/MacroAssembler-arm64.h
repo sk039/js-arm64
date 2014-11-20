@@ -456,29 +456,29 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         MOZ_CRASH("convertDoubleToFloat32");
     }
     void branchTruncateDouble(FloatRegister src, Register dest, Label *fail) {
-        ARMFPRegister fsrc(src, 64);
-        ARMRegister dest64(dest, 64);
-        Fcvtzs(dest64, fsrc);
-        Mov(ScratchReg2_64, 0x7fffffffffffffffll);
-        Add(ScratchReg2_64, ScratchReg2_64, Operand(dest64));
-        Cmn(ScratchReg2_64, Operand(3));
-        B(fail, Assembler::Above);
+        // An out of range integer will be saturated to the destination size.
+        ARMRegister dest32(dest, 32);
+        Fcvtzs(dest32, ARMFPRegister(src, 64));
+
+        // TODO: Ripe for improvement.
+        branch32(Assembler::Equal, dest, Imm32(0x7fffffff), fail);
+        branch32(Assembler::Equal, dest, Imm32(0x80000000), fail);
     }
     void convertDoubleToInt32(FloatRegister src, Register dest, Label *fail,
                               bool negativeZeroCheck = true)
     {
         ARMFPRegister fsrc(src, 64);
-        ARMRegister dest64(dest, 64);
-        Fcvtzs(dest64, fsrc); // Convert, rounding toward zero.
-        Scvtf(ScratchDoubleReg_, dest64); // Convert back, using FPCR rounding mode.
+        ARMRegister dest32(dest, 32);
+        Fcvtzs(dest32, fsrc); // Convert, rounding toward zero.
+        Scvtf(ScratchDoubleReg_, dest32); // Convert back, using FPCR rounding mode.
         Fcmp(ScratchDoubleReg_, fsrc);
         B(fail, Assembler::NotEqual);
 
         if (negativeZeroCheck) {
             Label nonzero;
-            Cbnz(dest64, &nonzero);
-            Fmov(dest64, fsrc);
-            Cbnz(dest64, fail);
+            Cbnz(dest32, &nonzero);
+            Fmov(dest32, fsrc);
+            Cbnz(dest32, fail);
             bind(&nonzero);
         }
     }
