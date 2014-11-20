@@ -457,8 +457,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
     void branchTruncateDouble(FloatRegister src, Register dest, Label *fail) {
         // An out of range integer will be saturated to the destination size.
-        ARMRegister dest32(dest, 32);
-        Fcvtzs(dest32, ARMFPRegister(src, 64));
+        Fcvtzs(ARMRegister(dest, 32), ARMFPRegister(src, 64));
 
         // TODO: Ripe for improvement.
         branch32(Assembler::Equal, dest, Imm32(0x7fffffff), fail);
