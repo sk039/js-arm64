@@ -186,7 +186,7 @@ Assembler::bind(Label *label, BufferOffset targetOffset)
         return;
     }
 
-    //Instruction *target = getInstructionAt(targetOffset);
+    Instruction *target = getInstructionAt(targetOffset);
 
     // Get the most recent instruction that used the label, as stored in the label.
     // This instruction is the head of an implicit linked list of label uses.
@@ -200,7 +200,6 @@ Assembler::bind(Label *label, BufferOffset targetOffset)
         uint32_t nextLinkOffset = uint32_t(link->ImmPCRawOffset());
 
         // Write a new relative offset into the instruction.
-        Instruction *target = link + ((targetOffset.getOffset() - branchOffset));
         link->SetImmPCOffsetTarget(target);
         branchOffset = nextLinkOffset;
     }
