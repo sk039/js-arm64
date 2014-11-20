@@ -425,33 +425,41 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         cond = testUndefined(cond, value);
         emitSet(cond, dest);
     }
+
     void convertBoolToInt32(Register source, Register dest) {
         Uxtb(ARMRegister(dest, 64), ARMRegister(source, 64));
     }
+
     void convertInt32ToDouble(Register src, FloatRegister dest) {
         Scvtf(ARMFPRegister(dest, 64), ARMRegister(src, 32)); // Uses FPCR rounding mode.
     }
     void convertInt32ToDouble(const Address &src, FloatRegister dest) {
-        MOZ_CRASH("convertInt32ToDouble");
+        load32(src, ScratchReg2);
+        convertInt32ToDouble(ScratchReg2, dest);
     }
+
     void convertInt32ToFloat32(Register src, FloatRegister dest) {
         Scvtf(ARMFPRegister(dest, 32), ARMRegister(src, 32)); // Uses FPCR rounding mode.
     }
     void convertInt32ToFloat32(const Address &src, FloatRegister dest) {
-        MOZ_CRASH("convertInt32ToFloat32");
+        load32(src, ScratchReg2);
+        convertInt32ToFloat32(ScratchReg2, dest);
     }
 
-    void convertUInt32ToDouble(const Address &src, FloatRegister dest) {
-        MOZ_CRASH("convertUInt32ToDouble");
-    }
     void convertUInt32ToDouble(Register src, FloatRegister dest) {
         Ucvtf(ARMFPRegister(dest, 64), ARMRegister(src, 32)); // Uses FPCR rounding mode.
     }
+    void convertUInt32ToDouble(const Address &src, FloatRegister dest) {
+        load32(src, ScratchReg2);
+        convertUInt32ToDouble(ScratchReg2, dest);
+    }
+
     void convertUInt32ToFloat32(Register src, FloatRegister dest) {
         Ucvtf(ARMFPRegister(dest, 32), ARMRegister(src, 32)); // Uses FPCR rounding mode.
     }
     void convertUInt32ToFloat32(const Address &src, FloatRegister dest) {
-        MOZ_CRASH("convertUInt32ToFloat32");
+        load32(src, ScratchReg2);
+        convertUInt32ToFloat32(ScratchReg2, dest);
     }
 
     void convertFloat32ToDouble(FloatRegister src, FloatRegister dest) {
@@ -460,6 +468,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     void convertDoubleToFloat32(FloatRegister src, FloatRegister dest) {
         MOZ_CRASH("convertDoubleToFloat32");
     }
+
     void branchTruncateDouble(FloatRegister src, Register dest, Label *fail) {
         // An out of range integer will be saturated to the destination size.
         Fcvtzs(ARMRegister(dest, 32), ARMFPRegister(src, 64));
