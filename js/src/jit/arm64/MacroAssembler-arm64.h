@@ -946,11 +946,31 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         Add(ScratchReg2_32, ScratchReg2_32, Operand(imm.value));
         Str(ScratchReg2_32, MemOperand(ARMRegister(dest.base, 64), dest.offset));
     }
+
+    void adds32(Register src, Register dest) {
+        Adds(ARMRegister(dest, 32), ARMRegister(dest, 32), Operand(ARMRegister(src, 32)));
+    }
+    void adds32(Imm32 imm, Register dest) {
+        Adds(ARMRegister(dest, 32), ARMRegister(dest, 32), Operand(imm.value));
+    }
+    void adds32(Imm32 imm, const Address &dest) {
+        Ldr(ScratchReg2_32, MemOperand(ARMRegister(dest.base, 64), dest.offset));
+        Adds(ScratchReg2_32, ScratchReg2_32, Operand(imm.value));
+        Str(ScratchReg2_32, MemOperand(ARMRegister(dest.base, 64), dest.offset));
+    }
+
     void sub32(Imm32 imm, Register dest) {
         Sub(ARMRegister(dest, 32), ARMRegister(dest, 32), Operand(imm.value));
     }
     void sub32(Register src, Register dest) {
         Sub(ARMRegister(dest, 32), ARMRegister(dest, 32), Operand(ARMRegister(src, 32)));
+    }
+
+    void subs32(Imm32 imm, Register dest) {
+        Subs(ARMRegister(dest, 32), ARMRegister(dest, 32), Operand(imm.value));
+    }
+    void subs32(Register src, Register dest) {
+        Subs(ARMRegister(dest, 32), ARMRegister(dest, 32), Operand(ARMRegister(src, 32)));
     }
 
     void addPtr(Register src, Register dest) {
@@ -2104,13 +2124,13 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
 
     template <typename T>
     void branchAdd32(Condition cond, T src, Register dest, Label *label) {
-        add32(src, dest);
+        adds32(src, dest);
         branch(cond, label);
     }
 
     template <typename T>
     void branchSub32(Condition cond, T src, Register dest, Label *label) {
-        sub32(src, dest);
+        subs32(src, dest);
         branch(cond, label);
     }
     void clampCheck(Register r, Label *handleNotAnInt) {
