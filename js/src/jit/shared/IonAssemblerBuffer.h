@@ -21,9 +21,24 @@ namespace jit {
 class BufferOffset
 {
     int offset;
+
   public:
     friend BufferOffset nextOffset();
-    explicit BufferOffset(int offset_) : offset(offset_) {}
+
+    BufferOffset()
+      : offset(INT_MIN)
+    { }
+
+    explicit BufferOffset(int offset_)
+      : offset(offset_)
+    { }
+    explicit BufferOffset(Label *l)
+      : offset(l->offset())
+    { }
+    explicit BufferOffset(RepatchLabel *l)
+      : offset(l->offset())
+    { }
+
     // Return the offset as a raw integer.
     int getOffset() const { return offset; }
 
@@ -43,12 +58,6 @@ class BufferOffset
         return BOffImm(offset - other->offset());
     }
 
-    explicit BufferOffset(Label *l) : offset(l->offset()) {
-    }
-    explicit BufferOffset(RepatchLabel *l) : offset(l->offset()) {
-    }
-
-    BufferOffset() : offset(INT_MIN) {}
     bool assigned() const { return offset != INT_MIN; }
 };
 
@@ -59,9 +68,20 @@ struct BufferSlice {
     BufferSlice<SliceSize> *next_;
     // How much data has been added to the current node.
     uint32_t nodeSize_;
+
   public:
+    mozilla::Array<uint8_t, SliceSize> instructions;
+
+  public:
+    explicit BufferSlice()
+      : prev_(nullptr),
+        next_(nullptr),
+        nodeSize_(0)
+    { }
+
     BufferSlice *getNext() const { return next_; }
     BufferSlice *getPrev() const { return prev_; }
+
     void setNext(BufferSlice<SliceSize> *next) {
         MOZ_ASSERT(next_ == nullptr);
         MOZ_ASSERT(next->prev_ == nullptr);
@@ -69,11 +89,10 @@ struct BufferSlice {
         next->prev_ = this;
     }
 
-    mozilla::Array<uint8_t, SliceSize> instructions;
     size_t size() const {
         return nodeSize_;
     }
-    explicit BufferSlice() : prev_(nullptr), next_(nullptr), nodeSize_(0) {}
+
     void putBlob(uint32_t instSize, uint8_t* inst) {
         if (inst != nullptr)
             memcpy(&instructions[size()], inst, instSize);
@@ -85,24 +104,41 @@ template<int SliceSize, class Inst>
 struct AssemblerBuffer
 {
   public:
-    explicit AssemblerBuffer() : head(nullptr), tail(nullptr), m_oom(false),
-                                 m_bail(false), bufferSize(0), lifoAlloc_(8192) {}
+    explicit AssemblerBuffer()
+      : head(nullptr),
+        tail(nullptr),
+        m_oom(false),
+        m_bail(false),
+        bufferSize(0),
+        lastInstSize(0),
+        lifoAlloc_(8192)
+    { }
+
   protected:
     typedef BufferSlice<SliceSize> Slice;
     typedef AssemblerBuffer<SliceSize, Inst> AssemblerBuffer_;
     Slice *head;
     Slice *tail;
+
   public:
     bool m_oom;
     bool m_bail;
-    // How much data has been added to the buffer thus far.
-    uint32_t bufferSize;
+    uint32_t bufferSize; // How much data has been added to the buffer thus far.
     uint32_t lastInstSize;
+
+    // Finger for speeding up accesses.
+    Slice *finger;
+    unsigned int finger_offset;
+
+    LifoAlloc lifoAlloc_;
+
+  public:
     bool isAligned(int alignment) const {
         // Make sure the requested alignment is a power of two.
         MOZ_ASSERT(IsPowerOfTwo(alignment));
         return !(size() & (alignment - 1));
     }
+
     virtual Slice *newSlice(LifoAlloc &a) {
         Slice *tmp = static_cast<Slice*>(a.alloc(sizeof(Slice)));
         if (!tmp) {
@@ -112,22 +148,28 @@ struct AssemblerBuffer
         new (tmp) Slice;
         return tmp;
     }
+
     bool ensureSpace(int size) {
         if (tail != nullptr && tail->size() + size <= SliceSize)
             return true;
+
         Slice *tmp = newSlice(lifoAlloc_);
         if (tmp == nullptr)
             return false;
+
         if (tail != nullptr) {
             bufferSize += tail->size();
             tail->setNext(tmp);
         }
+
         tail = tmp;
+
         if (head == nullptr) {
             finger = tmp;
             finger_offset = 0;
             head = tmp;
         }
+
         return true;
     }
 
@@ -142,6 +184,7 @@ struct AssemblerBuffer
     BufferOffset putInt(uint32_t value) {
         return putBlob(sizeof(value), (uint8_t*)&value);
     }
+
     BufferOffset putBlob(uint32_t instSize, uint8_t *inst) {
         if (!ensureSpace(instSize))
             return BufferOffset();
@@ -149,42 +192,46 @@ struct AssemblerBuffer
         tail->putBlob(instSize, inst);
         return ret;
     }
+
     unsigned int size() const {
-        int executableSize;
-        if (tail != nullptr)
-            executableSize = bufferSize + tail->size();
-        else
-            executableSize = bufferSize;
-        return executableSize;
+        if (tail)
+            return bufferSize + tail->size();
+        return bufferSize;
     }
+
     bool oom() const {
         return m_oom || m_bail;
     }
+
     bool bail() const {
         return m_bail;
     }
+
     void fail_oom() {
         m_oom = true;
     }
+
     void fail_bail() {
         m_bail = true;
     }
-    // Finger for speeding up accesses.
-    Slice *finger;
-    unsigned int finger_offset;
+
     Inst *getInst(BufferOffset off) {
         int local_off = off.getOffset();
+
         // Don't update the structure's finger in place, so there is the option
         // to not update it.
         Slice *cur = nullptr;
         int cur_off;
+
         // Get the offset that we'd be dealing with by walking through
         // backwards.
         int end_off = bufferSize - local_off;
+
         // If end_off is negative, then it is in the last chunk, and there is no
         // real work to be done.
         if (end_off <= 0)
             return (Inst*)&tail->instructions[-end_off];
+
         bool used_finger = false;
         int finger_off = abs((int)(local_off - finger_offset));
         if (finger_off < Min(local_off, end_off)) {
@@ -201,6 +248,7 @@ struct AssemblerBuffer
             cur = tail;
             cur_off = bufferSize;
         }
+
         int count = 0;
         if (local_off < cur_off) {
             for (; cur != nullptr; cur = cur->getPrev(), cur_off -= cur->size()) {
@@ -223,21 +271,24 @@ struct AssemblerBuffer
             }
             MOZ_ASSERT(cur != nullptr);
         }
+
         if (count > 2 || used_finger) {
             finger = cur;
             finger_offset = cur_off;
         }
+
         // The offset within this node should not be larger than the node
         // itself.
         MOZ_ASSERT(local_off < (int)cur->size());
         return (Inst*)&cur->instructions[local_off];
     }
+
     BufferOffset nextOffset() const {
-        if (tail != nullptr)
+        if (tail)
             return BufferOffset(bufferSize + tail->size());
-        else
-            return BufferOffset(bufferSize);
+        return BufferOffset(bufferSize);
     }
+
     BufferOffset prevOffset() const {
         MOZ_CRASH("Don't current record lastInstSize");
     }
@@ -249,6 +300,7 @@ struct AssemblerBuffer
             m_oom = true;
             return;
         }
+
         bufferSize += tail->size();
         tail->setNext(tmp);
         tail = tmp;
@@ -268,24 +320,24 @@ struct AssemblerBuffer
       private:
         BufferOffset bo;
         AssemblerBuffer_ *m_buffer;
+
       public:
         explicit AssemblerBufferInstIterator(BufferOffset off, AssemblerBuffer_ *buff)
-            : bo(off), m_buffer(buff)
-        {
-        }
+          : bo(off), m_buffer(buff)
+        { }
+
         Inst *next() {
             Inst *i = m_buffer->getInst(bo);
             bo = BufferOffset(bo.getOffset() + i->size());
             return cur();
         }
+
         Inst *cur() {
             return m_buffer->getInst(bo);
         }
     };
-  public:
-    LifoAlloc lifoAlloc_;
 };
 
-} // ion
-} // js
+} // namespace jit
+} // namespace js
 #endif /* jit_shared_IonAssemblerBuffer_h */
