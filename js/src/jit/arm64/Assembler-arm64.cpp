@@ -186,8 +186,6 @@ Assembler::bind(Label *label, BufferOffset targetOffset)
         return;
     }
 
-    Instruction *target = getInstructionAt(targetOffset);
-
     // Get the most recent instruction that used the label, as stored in the label.
     // This instruction is the head of an implicit linked list of label uses.
     uint32_t branchOffset = label->offset();
@@ -198,6 +196,14 @@ Assembler::bind(Label *label, BufferOffset targetOffset)
         // Before overwriting the offset in this instruction, get the offset of
         // the next link in the implicit branch list.
         uint32_t nextLinkOffset = uint32_t(link->ImmPCRawOffset());
+
+        // Linking against the actual (Instruction *) would be invalid,
+        // since that Instruction could be anywhere in memory.
+        // Instead, just link against the correct relative offset, assuming
+        // no constant pools, which will be taken into consideration
+        // during finalization.
+        ptrdiff_t relativeByteOffset = targetOffset.getOffset() - branchOffset;
+        Instruction *target = (Instruction *)(((uint8_t *)link) + relativeByteOffset);
 
         // Write a new relative offset into the instruction.
         link->SetImmPCOffsetTarget(target);
