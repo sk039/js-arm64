@@ -688,6 +688,8 @@ AssemblerVIXL::adr(const ARMRegister& rd, Label* label)
     Instruction *ins = getInstructionAt(offset);
 
     // Encode the relative offset.
+    // TODO: This is probably incorrect -- ADR needs patching
+    // during finalization to take constant pools into account.
     adr(ins, rd, LinkAndGetByteOffsetTo(offset, label));
 }
 
