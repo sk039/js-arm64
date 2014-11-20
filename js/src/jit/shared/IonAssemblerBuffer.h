@@ -14,10 +14,16 @@ namespace js {
 namespace jit {
 
 // This should theoretically reside inside of AssemblerBuffer, but that won't be
-// nice AssemblerBuffer is templated, BufferOffset would be indirectly.
-//
-// A BufferOffset is the byte offset into a buffer.
+// nice: AssemblerBuffer is templated, BufferOffset would be indirectly.
 
+// Offset into an imaginary contiguous buffer of instructions.
+//
+// The interface of a contiguous buffer allows for easily
+// calculating relative distances between instructions, for branches.
+//
+// If the underlying buffer is in fact perforated by constant pools,
+// finalization will walk over the instructions and fix up
+// relative branches to take constant pools into consideration.
 class BufferOffset
 {
     int offset;
