@@ -390,8 +390,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         branchTestDouble(Assembler::Equal, tag, &isDouble);
         branchTestInt32(Assembler::NotEqual, tag, failure);
 
-        unboxInt32(source, ScratchReg2);
-        convertInt32ToDouble(ScratchReg2, dest);
+        convertInt32ToDouble(source.valueReg(), dest);
         jump(&done);
 
         bind(&isDouble);
