@@ -1999,6 +1999,24 @@ class AssemblerVIXL : public AssemblerShared
     static void RetargetFarBranch(Instruction *i, uint8_t **slot, uint8_t *dest, Condition cond);
 
   protected:
+    // Prevent generation of a literal pool for the next |maxInst| instructions.
+    // Guarantees instruction linearity.
+    class AutoBlockLiteralPool
+    {
+        ARMBuffer *armbuffer_;
+
+      public:
+        AutoBlockLiteralPool(AssemblerVIXL *assembler, size_t maxInst)
+          : armbuffer_(&assembler->armbuffer_)
+        {
+            armbuffer_->enterNoPool(maxInst);
+        }
+        ~AutoBlockLiteralPool() {
+            armbuffer_->leaveNoPool();
+        }
+    };
+
+  protected:
     // The buffer into which code and relocation info are generated.
     ARMBuffer armbuffer_;
 
