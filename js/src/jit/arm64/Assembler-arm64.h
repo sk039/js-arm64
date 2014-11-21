@@ -390,7 +390,7 @@ static MOZ_CONSTEXPR_VAR ARMFPRegister ReturnFloat32Reg_(ReturnFloat32Reg, 32);
 static MOZ_CONSTEXPR_VAR ARMFPRegister ScratchFloat32Reg_(ScratchFloat32Reg, 32);
 
 
-static MOZ_CONSTEXPR_VAR Register OsrFrameReg = { Registers::x5 };
+static MOZ_CONSTEXPR_VAR Register OsrFrameReg = { Registers::x3 };
 static MOZ_CONSTEXPR_VAR Register ArgumentsRectifierReg = { Registers::x8 };
 static MOZ_CONSTEXPR_VAR Register CallTempReg0 = { Registers::x5 };
 static MOZ_CONSTEXPR_VAR Register CallTempReg1 = { Registers::x6 };

@@ -43,7 +43,7 @@ JitRuntime::generateEnterJIT(JSContext *cx, EnterJitType type)
     const Register reg_vp        = IntArgReg7; // Address of EnterJitData::result.
 
     // FIXME: Probably use x8 or something.
-    MOZ_ASSERT(OsrFrameReg == IntArgReg5);
+    MOZ_ASSERT(OsrFrameReg == IntArgReg3);
 
     // TODO: Save old stack frame pointer, set new stack frame pointer.
 
@@ -162,6 +162,7 @@ JitRuntime::generateEnterJIT(JSContext *cx, EnterJitType type)
         masm.branchTestPtr(Assembler::Zero, OsrFrameReg, OsrFrameReg, &notOsr);
         masm.breakpoint(); // TODO: Handle Baseline with OSR, which is complicated.
         masm.bind(&notOsr);
+        masm.movePtr(reg_scope, R1_);
     }
 
     // Call function.
