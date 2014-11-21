@@ -1663,6 +1663,8 @@ CASE(JSOP_LABEL)
 END_CASE(JSOP_LABEL)
 
 CASE(JSOP_LOOPENTRY)
+    // FIXME: Re-enable OSR.
+#if 0
     // Attempt on-stack replacement with Baseline code.
     if (jit::IsBaselineEnabled(cx)) {
         jit::MethodStatus status = jit::CanEnterBaselineAtBranch(cx, REGS.fp(), false);
@@ -1688,6 +1690,7 @@ CASE(JSOP_LOOPENTRY)
             goto leave_on_safe_point;
         }
     }
+#endif
 END_CASE(JSOP_LOOPENTRY)
 
 CASE(JSOP_LINENO)
