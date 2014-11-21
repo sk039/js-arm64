@@ -282,7 +282,8 @@ MacroAssemblerVIXL::Mov(const ARMRegister& rd, uint64_t imm)
 
     // Immediates on Aarch64 can be produced using an initial value, and zero to
     // three move keep operations.
-    //
+    JS_STATIC_ASSERT(kMaxInstrForMoveImm == 4);
+
     // Initial values can be generated with:
     //  1. 64-bit move zero (movz).
     //  2. 32-bit move inverted (movn).
