@@ -403,10 +403,19 @@ Assembler::TraceJumpRelocations(JSTracer *trc, JitCode *code, CompactBufferReade
     }
 }
 
+static void
+TraceDataRelocations(JSTracer *trc, uint8_t *buffer, CompactBufferReader &reader)
+{
+    while (reader.more()) {
+        size_t offset = reader.readUnsigned();
+        MOZ_CRASH("TraceDataRelocations");
+    }
+}
+
 void
 Assembler::TraceDataRelocations(JSTracer *trc, JitCode *code, CompactBufferReader &reader)
 {
-    MOZ_CRASH("TraceDataRelocations()");
+    ::TraceDataRelocations(trc, code->raw(), reader);
 }
 
 int32_t
