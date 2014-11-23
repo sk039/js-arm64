@@ -552,10 +552,9 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         Mov(ARMRegister(dest, 32), ARMRegister(src, 32));
     }
 
-    void movePatchablePtr(ImmPtr ptr, Register dest) {
-        // FIXME: For the moment, this just moves the pointer normally.
-        movePtr(ptr, dest);
-    }
+    // Move a pointer using a literal pool, so that the pointer
+    // may be easily patched or traced.
+    void movePatchablePtr(ImmPtr ptr, Register dest);
 
     void not32(Register reg) {
         Orn(ARMRegister(reg, 32), wzr, ARMRegister(reg, 32));

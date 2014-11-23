@@ -403,6 +403,9 @@ AssemblerVIXL::FinalizeCode()
 void
 AssemblerVIXL::InsertIndexIntoTag(uint8_t *load, uint32_t index)
 {
+    // Store the PoolEntry index into the instruction.
+    // finishPool() will walk over all literal load instructions
+    // and use PatchConstantPoolLoad() to patch to the final relative offset.
     *((uint32_t*)load) |= ImmLLiteral(index);
 }
 
@@ -410,10 +413,17 @@ bool
 AssemblerVIXL::PatchConstantPoolLoad(void *loadAddr, void *constPoolAddr)
 {
     Instruction *load = reinterpret_cast<Instruction*>(loadAddr);
+
+    // The load currently contains the PoolEntry's index,
+    // as written by InsertIndexIntoTag().
+    uint32_t index = load->ImmLLiteral();
+
+    // Each entry in the literal pool is uint32_t-sized.
     uint32_t *constPool = reinterpret_cast<uint32_t*>(constPoolAddr);
-    uint32_t idx = load->ImmLLiteral();
-    load->SetImmLLiteral(reinterpret_cast<Instruction*>(&constPool[idx]));
-    return false;
+    Instruction *source = reinterpret_cast<Instruction *>(&constPool[index]);
+
+    load->SetImmLLiteral(source);
+    return false; // FIXME: Nothing actually uses the return value.
 }
 
 // A common implementation for the LinkAndGet<Type>OffsetTo helpers.

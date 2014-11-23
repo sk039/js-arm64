@@ -195,6 +195,18 @@ MacroAssembler::clampDoubleToUint8(FloatRegister input, Register output)
 }
 
 void
+MacroAssemblerCompat::movePatchablePtr(ImmPtr ptr, Register dest)
+{
+#if 0
+    size_t numInst = 1; // FIXME: What the shit is this doing here?
+    unsigned numPoolEntries = 2; // Apparently every pool entry is 4 bytes.
+    uint8_t *inst = nullptr; // ???????
+    uint8_t *data = &ptr.value;
+#endif
+    movePtr(ptr, dest);
+}
+
+void
 MacroAssemblerCompat::handleFailureWithHandler(void *handler)
 {
     // Reserve space for exception information.
