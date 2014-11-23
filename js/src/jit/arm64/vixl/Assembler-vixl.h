@@ -1246,6 +1246,7 @@ class AssemblerVIXL : public AssemblerShared
 
     // Load integer or FP register from pc + imm19 << 2.
     void ldr(const CPURegister& rt, int imm19);
+    void ldr(Instruction *at, const CPURegister& rt, int imm19);
 
     // Load word with sign extension from pc + imm19 << 2.
     void ldrsw(const ARMRegister &rt, int imm19);

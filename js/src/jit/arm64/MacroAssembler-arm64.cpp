@@ -197,13 +197,26 @@ MacroAssembler::clampDoubleToUint8(FloatRegister input, Register output)
 void
 MacroAssemblerCompat::movePatchablePtr(ImmPtr ptr, Register dest)
 {
-#if 0
-    size_t numInst = 1; // FIXME: What the shit is this doing here?
-    unsigned numPoolEntries = 2; // Apparently every pool entry is 4 bytes.
-    uint8_t *inst = nullptr; // ???????
-    uint8_t *data = &ptr.value;
-#endif
-    movePtr(ptr, dest);
+    size_t numInst = 1; // Inserting one load instruction.
+    unsigned numPoolEntries = 2; // Every pool entry is 4 bytes.
+    uint8_t *literalAddr = (uint8_t *)(&ptr.value);
+
+    // Scratch space for generating the load instruction.
+    //
+    // allocEntry() will use InsertIndexIntoTag() to store a temporary
+    // index to the corresponding PoolEntry in the instruction itself.
+    //
+    // That index will be fixed up later when finishPool()
+    // walks over all marked loads and calls PatchConstantPoolLoad().
+    uint32_t instructionScratch = 0;
+
+    // Emit the instruction mask in the scratch space.
+    // The offset doesn't matter: it will be fixed up later.
+    AssemblerVIXL::ldr((Instruction *)&instructionScratch, ARMRegister(dest, 64), 0);
+
+    // Add the entry to the pool, fix up the LDR imm19 offset,
+    // and add the completed instruction to the buffer.
+    armbuffer_.allocEntry(numInst, numPoolEntries, (uint8_t *)&instructionScratch, literalAddr);
 }
 
 void

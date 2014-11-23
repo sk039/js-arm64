@@ -303,11 +303,8 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     void pushValue(const Value &val) {
         jsval_layout jv = JSVAL_TO_IMPL(val);
         if (val.isMarkable()) {
-            {
-                AutoBlockLiteralPool block(this, kMaxInstrForMoveImm);
-                writeDataRelocation(val);
-                movePatchablePtr(ImmPtr((void *)jv.asBits), ScratchReg2);
-            }
+            writeDataRelocation(val);
+            movePatchablePtr(ImmPtr((void *)jv.asBits), ScratchReg2);
             push(ScratchReg2);
         } else {
             moveValue(val, ScratchReg2);
@@ -538,7 +535,6 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         movePatchablePtr(ImmPtr((void*)0xffffffffffffffffULL), dest);
     }
     void movePtr(ImmGCPtr imm, Register dest) {
-        AutoBlockLiteralPool block(this, kMaxInstrForMoveImm);
         writeDataRelocation(imm);
         movePatchablePtr(ImmPtr(imm.value), dest);
     }
@@ -1767,7 +1763,6 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         return ret;
     }
 
-    // Always use the AutoBlockLiteralPool guard around writeDataRelocation.
     void writeDataRelocation(ImmGCPtr ptr) {
         if (ptr.value)
             tmpDataRelocations_.append(nextOffset());

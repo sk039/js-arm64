@@ -1385,6 +1385,13 @@ AssemblerVIXL::ldr(const CPURegister &rt, int imm19)
 }
 
 void
+AssemblerVIXL::ldr(Instruction *at, const CPURegister &rt, int imm19)
+{
+    LoadLiteralOp op = LoadLiteralOpFor(rt);
+    Emit(at, op | ImmLLiteral(imm19) | Rt(rt));
+}
+
+void
 AssemblerVIXL::ldrsw(const ARMRegister &rt, int imm19)
 {
     Emit(LDRSW_x_lit | ImmLLiteral(imm19) | Rt(rt));
