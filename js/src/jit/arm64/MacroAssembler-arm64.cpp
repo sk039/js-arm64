@@ -197,9 +197,9 @@ MacroAssembler::clampDoubleToUint8(FloatRegister input, Register output)
 void
 MacroAssemblerCompat::movePatchablePtr(ImmPtr ptr, Register dest)
 {
-    size_t numInst = 1; // Inserting one load instruction.
-    unsigned numPoolEntries = 2; // Every pool entry is 4 bytes.
-    uint8_t *literalAddr = (uint8_t *)(&ptr.value);
+    const size_t numInst = 1; // Inserting one load instruction.
+    const unsigned numPoolEntries = 2; // Every pool entry is 4 bytes.
+    uint8_t *literalAddr = (uint8_t *)(&ptr.value); // TODO: Should be const.
 
     // Scratch space for generating the load instruction.
     //
