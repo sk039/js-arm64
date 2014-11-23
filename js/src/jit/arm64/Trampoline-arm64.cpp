@@ -146,8 +146,11 @@ JitRuntime::generateEnterJIT(JSContext *cx, EnterJitType type)
     }
     masm.checkStackAlignment();
 
-    // Push numActualArgs and the calleeToken.
-    masm.MacroAssemblerVIXL::Push(ARMRegister(reg_argc, 64), ARMRegister(reg_callee, 64));
+    // Push the number of actual arguments and the calleeToken.
+    // The result address is used to store the actual number of arguments
+    // without adding an argument to EnterJIT.
+    masm.unboxInt32(Address(reg_vp, 0x0), ip0);
+    masm.MacroAssemblerVIXL::Push(ip0_64, ARMRegister(reg_callee, 64));
     masm.checkStackAlignment();
 
     // Calculate the number of bytes pushed so far.
