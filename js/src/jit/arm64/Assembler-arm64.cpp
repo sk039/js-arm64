@@ -408,7 +408,29 @@ TraceDataRelocations(JSTracer *trc, uint8_t *buffer, CompactBufferReader &reader
 {
     while (reader.more()) {
         size_t offset = reader.readUnsigned();
-        MOZ_CRASH("TraceDataRelocations");
+        Instruction *load = (Instruction *)&buffer[offset];
+
+        // The only valid traceable operation is a 64-bit load to an ARMRegister.
+        // Refer to movePatchablePtr() for generation.
+        MOZ_ASSERT(load->Mask(LoadLiteralMask) == LDR_x_lit);
+
+        uint32_t pcOffset = load->ImmLLiteral();
+        uint8_t *literalAddr = ((uint8_t *)load) + (pcOffset << kLiteralEntrySizeLog2);
+
+        // All pointers on AArch64 will have the top bits cleared.
+        // If those bits are not cleared, this must be a Value.
+        uintptr_t *word = reinterpret_cast<uintptr_t *>(literalAddr);
+        if (*word >> JSVAL_TAG_SHIFT) {
+            jsval_layout layout;
+            layout.asBits = *word;
+            Value v = IMPL_TO_JSVAL(layout);
+            gc::MarkValueUnbarriered(trc, &v, "ion-masm-value");
+            *word = JSVAL_TO_IMPL(v).asBits; // TODO: Need to flush caches?
+            continue;
+        }
+
+        // No barriers needed since the pointers are constants.
+        gc::MarkGCThingUnbarriered(trc, reinterpret_cast<void **>(literalAddr), "ion-masm-ptr");
     }
 }
 

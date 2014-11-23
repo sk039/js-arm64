@@ -296,6 +296,11 @@ class Instruction {
            Mask(CompareBranchMask) == CBNZ_x;
   }
 
+  // Load helpers.
+  inline bool IsLDR() const {
+    return Mask(LoadLiteralMask) == LDR_x_lit;
+  }
+
   // Indicate whether Rd can be the stack pointer or the zero register. This
   // does not check that the instruction actually has an Rd field.
   inline Reg31Mode RdMode() const {
