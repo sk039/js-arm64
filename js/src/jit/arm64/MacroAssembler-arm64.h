@@ -462,10 +462,10 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
 
     void convertFloat32ToDouble(FloatRegister src, FloatRegister dest) {
-        MOZ_CRASH("convertFloat32ToDouble");
+        Fcvt(ARMFPRegister(dest, 64), ARMFPRegister(src, 32));
     }
     void convertDoubleToFloat32(FloatRegister src, FloatRegister dest) {
-        MOZ_CRASH("convertDoubleToFloat32");
+        Fcvt(ARMFPRegister(dest, 32), ARMFPRegister(src, 64));
     }
 
     void branchTruncateDouble(FloatRegister src, Register dest, Label *fail) {
@@ -1387,14 +1387,46 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         Fcmp(ARMFPRegister(lhs, 64), ARMFPRegister(rhs, 64));
     }
     void branchDouble(DoubleCondition cond, FloatRegister lhs, FloatRegister rhs, Label *label) {
-        MOZ_CRASH("branchDouble");
+        compareDouble(cond, lhs, rhs);
+        switch (cond) {
+          case DoubleNotEqual: {
+            Label unordered;
+            // not equal *and* ordered
+            branch(Overflow, &unordered);
+            branch(NotEqual, label);
+            bind(&unordered);
+            break;
+          }
+          case DoubleEqualOrUnordered:
+            branch(Overflow, label);
+            branch(Equal, label);
+            break;
+          default:
+            branch(Condition(cond), label);
+        }
     }
 
     void compareFloat(DoubleCondition cond, FloatRegister lhs, FloatRegister rhs) {
-        MOZ_CRASH("compareFloat");
+        Fcmp(ARMFPRegister(lhs, 32), ARMFPRegister(rhs, 32));
     }
     void branchFloat(DoubleCondition cond, FloatRegister lhs, FloatRegister rhs, Label *label) {
-        MOZ_CRASH("branchFloat");
+        compareFloat(cond, lhs, rhs);
+        switch (cond) {
+          case DoubleNotEqual: {
+            Label unordered;
+            // not equal *and* ordered
+            branch(Overflow, &unordered);
+            branch(NotEqual, label);
+            bind(&unordered);
+            break;
+          }
+          case DoubleEqualOrUnordered:
+            branch(Overflow, label);
+            branch(Equal, label);
+            break;
+          default:
+            branch(Condition(cond), label);
+        }
     }
 
     void branchNegativeZero(FloatRegister reg, Register scratch, Label *label) {
@@ -1501,10 +1533,10 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
 
     void loadConstantDouble(double d, FloatRegister dest) {
-        MOZ_CRASH("loadConstantDouble");
+        Fmov(ARMFPRegister(dest, 64), d);
     }
     void loadConstantFloat32(float f, FloatRegister dest) {
-        MOZ_CRASH("loadConstantFloat32");
+        Fmov(ARMFPRegister(dest, 32), f);
     }
 
     // Register-based tests.
