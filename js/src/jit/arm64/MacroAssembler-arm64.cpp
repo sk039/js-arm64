@@ -194,7 +194,7 @@ MacroAssembler::clampDoubleToUint8(FloatRegister input, Register output)
     csel(dest, wzr, dest, LessThan);
 }
 
-void
+BufferOffset
 MacroAssemblerCompat::movePatchablePtr(ImmPtr ptr, Register dest)
 {
     const size_t numInst = 1; // Inserting one load instruction.
@@ -216,7 +216,8 @@ MacroAssemblerCompat::movePatchablePtr(ImmPtr ptr, Register dest)
 
     // Add the entry to the pool, fix up the LDR imm19 offset,
     // and add the completed instruction to the buffer.
-    armbuffer_.allocEntry(numInst, numPoolEntries, (uint8_t *)&instructionScratch, literalAddr);
+    return armbuffer_.allocEntry(numInst, numPoolEntries,
+                                 (uint8_t *)&instructionScratch, literalAddr);
 }
 
 void

@@ -303,8 +303,8 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     void pushValue(const Value &val) {
         jsval_layout jv = JSVAL_TO_IMPL(val);
         if (val.isMarkable()) {
-            writeDataRelocation(val);
-            movePatchablePtr(ImmPtr((void *)jv.asBits), ScratchReg2);
+            BufferOffset load = movePatchablePtr(ImmPtr((void *)jv.asBits), ScratchReg2);
+            writeDataRelocation(val, load);
             push(ScratchReg2);
         } else {
             moveValue(val, ScratchReg2);
@@ -535,8 +535,8 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         movePatchablePtr(ImmPtr((void*)0xffffffffffffffffULL), dest);
     }
     void movePtr(ImmGCPtr imm, Register dest) {
-        writeDataRelocation(imm);
-        movePatchablePtr(ImmPtr(imm.value), dest);
+        BufferOffset load = movePatchablePtr(ImmPtr(imm.value), dest);
+        writeDataRelocation(imm, load);
     }
     void movePtr(ImmMaybeNurseryPtr imm, Register dest) {
         movePtr(noteMaybeNurseryPtr(imm), dest);
@@ -550,7 +550,8 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
 
     // Move a pointer using a literal pool, so that the pointer
     // may be easily patched or traced.
-    void movePatchablePtr(ImmPtr ptr, Register dest);
+    // Returns the BufferOffset of the load instruction emitted.
+    BufferOffset movePatchablePtr(ImmPtr ptr, Register dest);
 
     void not32(Register reg) {
         Orn(ARMRegister(reg, 32), wzr, ARMRegister(reg, 32));
@@ -1763,16 +1764,17 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         return ret;
     }
 
-    void writeDataRelocation(ImmGCPtr ptr) {
+    // load: offset to the load instruction obtained by movePatchablePtr().
+    void writeDataRelocation(ImmGCPtr ptr, BufferOffset load) {
         if (ptr.value)
-            tmpDataRelocations_.append(nextOffset());
+            tmpDataRelocations_.append(load);
     }
-    void writeDataRelocation(const Value &val) {
+    void writeDataRelocation(const Value &val, BufferOffset load) {
         if (val.isMarkable()) {
             gc::Cell *cell = reinterpret_cast<gc::Cell *>(val.toGCThing());
             if (cell && gc::IsInsideNursery(cell))
                 embedsNurseryPointers_ = true;
-            tmpDataRelocations_.append(nextOffset());
+            tmpDataRelocations_.append(load);
         }
     }
 
