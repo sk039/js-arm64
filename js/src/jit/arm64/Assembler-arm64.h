@@ -56,6 +56,10 @@ class Assembler : public AssemblerVIXL
 
     BufferOffset immPool(ARMRegister dest, uint8_t *value, LoadLiteralOp op);
     BufferOffset immPool64(ARMRegister dest, uint64_t value);
+    BufferOffset fImmPool(ARMFPRegister dest, uint8_t *value, LoadLiteralOp op);
+    BufferOffset fImmPool64(ARMFPRegister dest, double value);
+    BufferOffset fImmPool32(ARMFPRegister dest, float value);
+
     void bind(Label *label) { bind(label, nextOffset()); }
     void bind(Label *label, BufferOffset boff);
     void bind(RepatchLabel* label);

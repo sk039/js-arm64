@@ -541,7 +541,7 @@ MacroAssemblerVIXL::Fmov(ARMFPRegister fd, double imm)
     else if ((imm == 0.0) && (copysign(1.0, imm) == 1.0))
         fmov(fd, xzr);
     else
-        ldr(fd, imm);
+        Assembler::fImmPool64(fd, imm);
 }
 
 void
@@ -558,7 +558,7 @@ MacroAssemblerVIXL::Fmov(ARMFPRegister fd, float imm)
     else if ((imm == 0.0) && (copysign(1.0, imm) == 1.0))
         fmov(fd, wzr);
     else
-        ldr(fd, imm);
+        Assembler::fImmPool32(fd, imm);
 }
 
 void

@@ -177,6 +177,26 @@ Assembler::immPool64(ARMRegister dest, uint64_t value)
     return immPool(dest, (uint8_t*)&value, LDR_x_lit);
 }
 
+BufferOffset
+Assembler::fImmPool(ARMFPRegister dest, uint8_t *value, LoadLiteralOp op)
+{
+    uint32_t inst = op | Rt(dest);
+    const size_t numInst = 1;
+    const unsigned numPoolEntries = dest.size() / 32;
+    return armbuffer_.allocEntry(numInst, numPoolEntries, (uint8_t*)&inst, value);
+}
+
+BufferOffset
+Assembler::fImmPool64(ARMFPRegister dest, double value)
+{
+    return fImmPool(dest, (uint8_t*)&value, LDR_d_lit);
+}
+BufferOffset
+Assembler::fImmPool32(ARMFPRegister dest, float value)
+{
+    return fImmPool(dest, (uint8_t*)&value, LDR_s_lit);
+}
+
 void
 Assembler::bind(Label *label, BufferOffset targetOffset)
 {
