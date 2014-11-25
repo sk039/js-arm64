@@ -71,7 +71,7 @@ GCONF_VERSION=1.2.1
 GIO_VERSION=2.20
 STARTUP_NOTIFICATION_VERSION=0.8
 DBUS_VERSION=0.60
-SQLITE_VERSION=3.8.7.1
+SQLITE_VERSION=3.8.7.2
 
 MSMANIFEST_TOOL=
 
@@ -1459,6 +1459,7 @@ if test "$GNU_CC"; then
     # -Wignored-qualifiers - catches returns types with qualifiers like const
     # -Wint-to-pointer-cast - catches cast to pointer from integer of different size
     # -Wmultichar - catches multicharacter integer constants like 'THIS'
+    # -Wnon-literal-null-conversion - catches expressions used as a null pointer constant
     # -Wnonnull - catches NULL used with functions arguments marked as non-null
     # -Wpointer-arith - catches pointer arithmetic using NULL or sizeof(void)
     # -Wpointer-sign - catches mixing pointers to signed and unsigned types
@@ -1493,6 +1494,8 @@ if test "$GNU_CC"; then
         _WARNINGS_CFLAGS="${_WARNINGS_CFLAGS} -Werror=sequence-point"
         _WARNINGS_CFLAGS="${_WARNINGS_CFLAGS} -Werror=trigraphs"
         _WARNINGS_CFLAGS="${_WARNINGS_CFLAGS} -Werror=unknown-pragmas"
+
+        MOZ_C_SUPPORTS_WARNING(-Werror=, non-literal-null-conversion, ac_c_has_werror_non_literal_null_conversion)
     fi
 
     # Turn off the following warnings that -Wall turns on:
@@ -1552,6 +1555,7 @@ if test "$GNU_CXX"; then
     # -Wendif-labels - catches `#else FOO` and `#endif FOO` not in comment
     # -Wint-to-pointer-cast - catches cast to pointer from integer of different size
     # -Wmissing-braces - catches aggregate initializers missing nested braces
+    # -Wnon-literal-null-conversion - catches expressions used as a null pointer constant
     # -Woverloaded-virtual - function declaration hides virtual function from base class
     # -Wparentheses - catches `if (a=b)` and operator precedence bugs
     # -Wpointer-arith - catches pointer arithmetic using NULL or sizeof(void)
@@ -1583,6 +1587,8 @@ if test "$GNU_CXX"; then
         _WARNINGS_CXXFLAGS="${_WARNINGS_CXXFLAGS} -Werror=trigraphs"
         _WARNINGS_CXXFLAGS="${_WARNINGS_CXXFLAGS} -Werror=type-limits"
         _WARNINGS_CXXFLAGS="${_WARNINGS_CXXFLAGS} -Werror=unused-label"
+
+        MOZ_CXX_SUPPORTS_WARNING(-Werror=, non-literal-null-conversion, ac_cxx_has_werror_non_literal_null_conversion)
     fi
 
     # Turn off the following warnings that -Wall turns on:
@@ -2206,7 +2212,7 @@ ia64*-hpux*)
         if test "$CPU_ARCH" = "x86"; then
             WIN32_SUBSYSTEM_VERSION=5.01
         else
-            WIN32_SUBSYSTEM_VERSION=5.02
+            WIN32_SUBSYSTEM_VERSION=6.01
         fi
         WIN32_CONSOLE_EXE_LDFLAGS=-SUBSYSTEM:CONSOLE,$WIN32_SUBSYSTEM_VERSION
         WIN32_GUI_EXE_LDFLAGS=-SUBSYSTEM:WINDOWS,$WIN32_SUBSYSTEM_VERSION
@@ -3982,13 +3988,7 @@ MOZ_ARG_WITH_STRING(xulrunner-stub-name,
   XULRUNNER_STUB_NAME=$withval)
 
 if test -z "$XULRUNNER_STUB_NAME"; then
-  case "$target_os" in
-  darwin*)
-    XULRUNNER_STUB_NAME=xulrunner
-    ;;
-  *)
-    XULRUNNER_STUB_NAME=xulrunner-stub
-  esac
+  XULRUNNER_STUB_NAME=xulrunner-stub
 fi
 AC_SUBST(XULRUNNER_STUB_NAME)
 
@@ -5935,53 +5935,57 @@ if test -n "$MOZ_ANGLE_RENDERER"; then
   ######################################
   # Find _43 for use by XP.
 
-  # Get the SDK path from the registry.
-  # First try to get the June 2010 SDK
-  MOZ_DIRECTX_SDK_REG_KEY=`reg query 'HKLM\Software\Microsoft\DirectX' //s | grep 'Microsoft DirectX SDK (June 2010)' | head -n 1`
-  if test -z "$MOZ_DIRECTX_SDK_REG_KEY" ; then
-    # Otherwise just take whatever comes first
-    MOZ_DIRECTX_SDK_REG_KEY=`reg query 'HKLM\Software\Microsoft\DirectX' //s | grep 'Microsoft DirectX SDK' | head -n 1`
-  fi
-  MOZ_DIRECTX_SDK_PATH=`reg query "$MOZ_DIRECTX_SDK_REG_KEY" //v InstallPath | grep REG_SZ | sed 's/.*\([[a-zA-Z]]\)\\:\\\\/\\1\\:\\\\/' | sed 's,\\\\,/,g'`
-
-  if test -n "$MOZ_DIRECTX_SDK_PATH" &&
-     test -f "$MOZ_DIRECTX_SDK_PATH"/lib/$MOZ_D3D_CPU_SUFFIX/dxguid.lib ; then
-    AC_MSG_RESULT([Found DirectX SDK via registry, using $MOZ_DIRECTX_SDK_PATH])
+  if test "$HAVE_64BIT_BUILD"; then
+    AC_MSG_RESULT([We are building a 64-bit binary, skip checking d3dcompiler_43.])
   else
-    AC_MSG_RESULT([DirectX SDK not found.])
-    MOZ_DIRECTX_SDK_PATH=
-  fi
+    # Get the SDK path from the registry.
+    # First try to get the June 2010 SDK
+    MOZ_DIRECTX_SDK_REG_KEY=`reg query 'HKLM\Software\Microsoft\DirectX' //s | grep 'Microsoft DirectX SDK (June 2010)' | head -n 1`
+    if test -z "$MOZ_DIRECTX_SDK_REG_KEY" ; then
+      # Otherwise just take whatever comes first
+      MOZ_DIRECTX_SDK_REG_KEY=`reg query 'HKLM\Software\Microsoft\DirectX' //s | grep 'Microsoft DirectX SDK' | head -n 1`
+    fi
+    MOZ_DIRECTX_SDK_PATH=`reg query "$MOZ_DIRECTX_SDK_REG_KEY" //v InstallPath | grep REG_SZ | sed 's/.*\([[a-zA-Z]]\)\\:\\\\/\\1\\:\\\\/' | sed 's,\\\\,/,g'`
 
-  # Check that our DirectX SDK is acceptable.
-  if test -n "$MOZ_DIRECTX_SDK_PATH"; then
-    if test -n "`echo $MOZ_DIRECTX_SDK_REG_KEY | grep 'February 2010'`" ; then
-      AC_MSG_RESULT([Found the February 2010 DirectX SDK, which is unacceptable to ANGLE.])
+    if test -n "$MOZ_DIRECTX_SDK_PATH" &&
+       test -f "$MOZ_DIRECTX_SDK_PATH"/lib/$MOZ_D3D_CPU_SUFFIX/dxguid.lib ; then
+      AC_MSG_RESULT([Found DirectX SDK via registry, using $MOZ_DIRECTX_SDK_PATH])
+    else
+      AC_MSG_RESULT([DirectX SDK not found.])
       MOZ_DIRECTX_SDK_PATH=
     fi
-  fi
 
-  if test -n "$MOZ_DIRECTX_SDK_PATH"; then
-    # Find a D3D compiler DLL in the DirectX SDK, if we didn't find one already.
-    # Get the SDK numeric version (e.g. 43) by looking at the dependencies of d3dx9.lib
-    MOZ_D3DX9_VERSION=`dumpbin //headers "$MOZ_DIRECTX_SDK_PATH"/lib/$MOZ_D3D_CPU_SUFFIX/d3dx9.lib | egrep d3dx9_[[0-9]][[0-9]]\.dll | head -n1 | sed 's/.*\([[0-9]][[0-9]]\).*/\\1/g'`
+    # Check that our DirectX SDK is acceptable.
+    if test -n "$MOZ_DIRECTX_SDK_PATH"; then
+      if test -n "`echo $MOZ_DIRECTX_SDK_REG_KEY | grep 'February 2010'`" ; then
+        AC_MSG_RESULT([Found the February 2010 DirectX SDK, which is unacceptable to ANGLE.])
+        MOZ_DIRECTX_SDK_PATH=
+      fi
+    fi
 
-    if test -n "$MOZ_D3DX9_VERSION" ; then
-      MOZ_D3DCOMPILER_XP_CAB=`find "$MOZ_DIRECTX_SDK_PATH"/Redist -name *D3DCompiler_${MOZ_D3DX9_VERSION}_${MOZ_D3D_CPU_SUFFIX}.cab | head -n1`
+    if test -n "$MOZ_DIRECTX_SDK_PATH"; then
+      # Find a D3D compiler DLL in the DirectX SDK, if we didn't find one already.
+      # Get the SDK numeric version (e.g. 43) by looking at the dependencies of d3dx9.lib
+      MOZ_D3DX9_VERSION=`dumpbin //headers "$MOZ_DIRECTX_SDK_PATH"/lib/$MOZ_D3D_CPU_SUFFIX/d3dx9.lib | egrep d3dx9_[[0-9]][[0-9]]\.dll | head -n1 | sed 's/.*\([[0-9]][[0-9]]\).*/\\1/g'`
 
-      if test -n "$MOZ_D3DCOMPILER_XP_CAB"; then
-        MOZ_D3DCOMPILER_XP_DLL=D3DCompiler_$MOZ_D3DX9_VERSION.dll
+      if test -n "$MOZ_D3DX9_VERSION" ; then
+        MOZ_D3DCOMPILER_XP_CAB=`find "$MOZ_DIRECTX_SDK_PATH"/Redist -name *D3DCompiler_${MOZ_D3DX9_VERSION}_${MOZ_D3D_CPU_SUFFIX}.cab | head -n1`
+
+        if test -n "$MOZ_D3DCOMPILER_XP_CAB"; then
+          MOZ_D3DCOMPILER_XP_DLL=D3DCompiler_$MOZ_D3DX9_VERSION.dll
+        else
+          AC_MSG_RESULT([Couldn't find a CAB containing the D3D compiler DLL.])
+          AC_MSG_ERROR([DirectX SDK at "$MOZ_DIRECTX_SDK_PATH" appears broken.])
+          MOZ_DIRECTX_SDK_PATH=
+        fi
       else
-        AC_MSG_RESULT([Couldn't find a CAB containing the D3D compiler DLL.])
-        AC_MSG_ERROR([DirectX SDK at "$MOZ_DIRECTX_SDK_PATH" appears broken.])
+        AC_MSG_RESULT([Couldn't determine the D3DX9 version for the DirectX SDK.])
         MOZ_DIRECTX_SDK_PATH=
       fi
     else
-      AC_MSG_RESULT([Couldn't determine the D3DX9 version for the DirectX SDK.])
-      MOZ_DIRECTX_SDK_PATH=
+      AC_MSG_RESULT([Couldn't find an acceptable DirectX SDK for ANGLE, needed for d3dcompiler_43.])
+      AC_MSG_RESULT([  Either ignore, install DirectX SDK (June 2010 version or newer), or reconfigure with --disable-webgl.])
     fi
-  else
-    AC_MSG_RESULT([Couldn't find an acceptable DirectX SDK for ANGLE, needed for d3dcompiler_43.])
-    AC_MSG_RESULT([  Either ignore, install DirectX SDK (June 2010 version or newer), or reconfigure with --disable-webgl.])
   fi
 
   ######################################
@@ -7155,6 +7159,7 @@ if test -n "$MOZ_REPLACE_MALLOC" -a -z "$MOZ_MEMORY"; then
     dnl deliberate choice not to enable it (bug 702250, for instance)
     AC_MSG_ERROR([--enable-replace-malloc requires --enable-jemalloc])
 elif test -n "$MOZ_REPLACE_MALLOC"; then
+    AC_DEFINE(MOZ_REPLACE_MALLOC)
     MOZ_NATIVE_JEMALLOC=
 
     dnl Replace-malloc Mac linkage quirks
@@ -7299,7 +7304,7 @@ dnl our own linker.
 if test "$OS_TARGET" = Android; then
     MOZ_GLUE_WRAP_LDFLAGS="${MOZ_GLUE_WRAP_LDFLAGS} -Wl,--wrap=PR_GetEnv,--wrap=PR_SetEnv"
     if test "$MOZ_WIDGET_TOOLKIT" = gonk -a -n "$MOZ_NUWA_PROCESS"; then
-        MOZ_GLUE_WRAP_LDFLAGS="${MOZ_GLUE_WRAP_LDFLAGS} -Wl,--wrap=pthread_create,--wrap=epoll_wait,--wrap=poll,--wrap=pthread_cond_timedwait,--wrap=__pthread_cond_timedwait,--wrap=pthread_cond_wait,--wrap=epoll_create,--wrap=epoll_ctl,--wrap=close,--wrap=pthread_key_create,--wrap=pthread_key_delete,--wrap=socketpair,--wrap=pthread_self,--wrap=pthread_mutex_lock,--wrap=pthread_join,--wrap=pipe,--wrap=pipe2,--wrap=tgkill"
+        MOZ_GLUE_WRAP_LDFLAGS="${MOZ_GLUE_WRAP_LDFLAGS} -Wl,--wrap=pthread_create,--wrap=epoll_wait,--wrap=poll,--wrap=pthread_cond_timedwait,--wrap=__pthread_cond_timedwait,--wrap=pthread_cond_wait,--wrap=epoll_create,--wrap=epoll_ctl,--wrap=close,--wrap=pthread_key_create,--wrap=pthread_key_delete,--wrap=socketpair,--wrap=pthread_self,--wrap=pthread_mutex_lock,--wrap=pthread_join,--wrap=pipe,--wrap=pipe2"
     fi
 fi
 
@@ -7377,17 +7382,7 @@ USE_ELF_HACK=1
 MOZ_ARG_DISABLE_BOOL(elf-hack,
 [  --disable-elf-hack      Disable elf hacks],
     [USE_ELF_HACK=],
-    [USE_ELF_HACK=F # Force enable elf-hack])
-
-# Disable elf hack for profiling because the built in profiler
-# doesn't read the segments properly with elf hack. This is
-# temporary and should be fixed soon in the profiler.
-if test "$MOZ_PROFILING" = 1; then
-  if test "$USE_ELF_HACK" = F; then
-    AC_ERROR([--enable-elf-hack is not compatible with --enable-profiling])
-  fi
-  USE_ELF_HACK=
-fi
+    [USE_ELF_HACK=1])
 
 # Only enable elfhack where supported
 if test "$USE_ELF_HACK" = 1; then
@@ -7560,6 +7555,7 @@ fi
 AC_SUBST(MOZ_B2G_BT)
 AC_SUBST(MOZ_B2G_BT_BLUEZ)
 AC_SUBST(MOZ_B2G_BT_BLUEDROID)
+AC_SUBST(MOZ_B2G_BT_DAEMON)
 
 dnl ========================================================
 dnl = Enable NFC Interface for B2G (Gonk usually)

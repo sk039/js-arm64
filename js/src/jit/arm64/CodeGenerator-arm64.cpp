@@ -889,6 +889,12 @@ CodeGeneratorARM64::visitStoreTypedArrayElementStatic(LStoreTypedArrayElementSta
 }
 
 bool
+CodeGeneratorARM64::visitAsmJSCall(LAsmJSCall *ins)
+{
+    MOZ_CRASH("visitAsmJSCall");
+}
+
+bool
 CodeGeneratorARM64::visitAsmJSLoadHeap(LAsmJSLoadHeap *ins)
 {
     MOZ_CRASH("CodeGeneratorARM64::visitAsmJSLoadHeap");
@@ -900,6 +906,18 @@ CodeGeneratorARM64::visitAsmJSStoreHeap(LAsmJSStoreHeap *ins)
 {
     MOZ_CRASH("CodeGeneratorARM64::visitAsmJSStoreHeap");
     return false;
+}
+
+bool
+CodeGeneratorARM64::visitAsmJSCompareExchangeHeap(LAsmJSCompareExchangeHeap *ins)
+{
+    MOZ_CRASH("visitAsmJSCompareExchangeHeap");
+}
+
+bool
+CodeGeneratorARM64::visitAsmJSAtomicBinopHeap(LAsmJSAtomicBinopHeap *ins)
+{
+    MOZ_CRASH("visitAsmJSAtomicBinopHeap");
 }
 
 bool

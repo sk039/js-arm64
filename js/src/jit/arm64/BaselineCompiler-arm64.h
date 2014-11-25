@@ -39,7 +39,7 @@ class BaselineCompilerARM64 : public BaselineCompilerShared
             return true;
         if (xfp < xsp)
             return false;
-        if (xfp - xsp < BaselineFrame::Size())
+        if (xfp - xsp < (int64_t)BaselineFrame::Size())
             return false;
         return true;
     }

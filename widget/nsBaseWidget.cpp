@@ -42,7 +42,6 @@
 #include "mozilla/gfx/2D.h"
 #include "mozilla/MouseEvents.h"
 #include "GLConsts.h"
-#include "LayerScope.h"
 #include "mozilla/unused.h"
 
 #ifdef ACCESSIBILITY
@@ -172,8 +171,6 @@ static void DeferredDestroyCompositor(CompositorParent* aCompositorParent,
 
 void nsBaseWidget::DestroyCompositor()
 {
-  LayerScope::DeInit();
-
   if (mCompositorChild) {
     mCompositorChild->SendWillStop();
     mCompositorChild->Destroy();
@@ -662,6 +659,59 @@ nsBaseWidget::GetWindowClipRegion(nsTArray<nsIntRect>* aRects)
   }
 }
 
+const nsIntRegion
+nsBaseWidget::RegionFromArray(const nsTArray<nsIntRect>& aRects)
+{
+  nsIntRegion region;
+  for (uint32_t i = 0; i < aRects.Length(); ++i) {
+    region.Or(region, aRects[i]);
+  }
+  return region;
+}
+
+void
+nsBaseWidget::ArrayFromRegion(const nsIntRegion& aRegion, nsTArray<nsIntRect>& aRects)
+{
+  const nsIntRect* r;
+  for (nsIntRegionRectIterator iter(aRegion); (r = iter.Next());) {
+    aRects.AppendElement(*r);
+  }
+}
+
+nsresult
+nsBaseWidget::SetWindowClipRegion(const nsTArray<nsIntRect>& aRects,
+                                  bool aIntersectWithExisting)
+{
+  if (!aIntersectWithExisting) {
+    nsBaseWidget::StoreWindowClipRegion(aRects);
+  } else {
+    // In this case still early return if nothing changed.
+    if (mClipRects && mClipRectCount == aRects.Length() &&
+        memcmp(mClipRects,
+               aRects.Elements(),
+               sizeof(nsIntRect)*mClipRectCount) == 0) {
+      return NS_OK;
+    }
+
+    // get current rects
+    nsTArray<nsIntRect> currentRects;
+    GetWindowClipRegion(&currentRects);
+    // create region from them
+    nsIntRegion currentRegion = RegionFromArray(currentRects);
+    // create region from new rects
+    nsIntRegion newRegion = RegionFromArray(aRects);
+    // intersect regions
+    nsIntRegion intersection;
+    intersection.And(currentRegion, newRegion);
+    // create int rect array from intersection
+    nsTArray<nsIntRect> rects;
+    ArrayFromRegion(intersection, rects);
+    // store
+    nsBaseWidget::StoreWindowClipRegion(rects);
+  }
+  return NS_OK;
+}
+
 //-------------------------------------------------------------------------
 //
 // Set window shadow style
@@ -688,7 +738,7 @@ NS_IMETHODIMP nsBaseWidget::HideWindowChrome(bool aShouldHide)
 // Put the window into full-screen mode
 //
 //-------------------------------------------------------------------------
-NS_IMETHODIMP nsBaseWidget::MakeFullScreen(bool aFullScreen)
+NS_IMETHODIMP nsBaseWidget::MakeFullScreen(bool aFullScreen, nsIScreen* aScreen)
 {
   HideWindowChrome(aFullScreen);
 
@@ -708,12 +758,16 @@ NS_IMETHODIMP nsBaseWidget::MakeFullScreen(bool aFullScreen)
     screenManager = do_GetService("@mozilla.org/gfx/screenmanager;1");
     NS_ASSERTION(screenManager, "Unable to grab screenManager.");
     if (screenManager) {
-      nsCOMPtr<nsIScreen> screen;
-      screenManager->ScreenForRect(mOriginalBounds->x,
-                                   mOriginalBounds->y,
-                                   mOriginalBounds->width,
-                                   mOriginalBounds->height,
-                                   getter_AddRefs(screen));
+      nsCOMPtr<nsIScreen> screen = aScreen;
+      if (!screen) {
+        // no screen was passed in, use the one that the window is on
+        screenManager->ScreenForRect(mOriginalBounds->x,
+                                     mOriginalBounds->y,
+                                     mOriginalBounds->width,
+                                     mOriginalBounds->height,
+                                     getter_AddRefs(screen));
+      }
+
       if (screen) {
         int32_t left, top, width, height;
         if (NS_SUCCEEDED(screen->GetRectDisplayPix(&left, &top, &width, &height))) {
@@ -883,9 +937,6 @@ void nsBaseWidget::CreateCompositor(int aWidth, int aHeight)
   if (!mShutdownObserver) {
     return;
   }
-
-  // Initialize LayerScope on the main thread.
-  LayerScope::Init();
 
   mCompositorParent = NewCompositorParent(aWidth, aHeight);
   MessageChannel *parentChannel = mCompositorParent->GetIPCChannel();

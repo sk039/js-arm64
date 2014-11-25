@@ -8,7 +8,7 @@
  */
 let PerformanceView = {
   /**
-   * Sets up the view with event binding.
+   * Sets up the view with event binding and main subviews.
    */
   initialize: function () {
     this._recordButton = $("#record-button");
@@ -16,20 +16,30 @@ let PerformanceView = {
     this._onRecordButtonClick = this._onRecordButtonClick.bind(this);
     this._unlockRecordButton = this._unlockRecordButton.bind(this);
 
-    this._recordButton.addEventListener("mouseup", this._onRecordButtonClick);
+    this._recordButton.addEventListener("click", this._onRecordButtonClick);
 
     // Bind to controller events to unlock the record button
     PerformanceController.on(EVENTS.RECORDING_STARTED, this._unlockRecordButton);
     PerformanceController.on(EVENTS.RECORDING_STOPPED, this._unlockRecordButton);
+
+    return promise.all([
+      OverviewView.initialize(),
+      DetailsView.initialize()
+    ]);
   },
 
   /**
-   * Unbinds events.
+   * Unbinds events and destroys subviews.
    */
   destroy: function () {
-    this._recordButton.removeEventListener("mouseup", this._onRecordButtonClick);
+    this._recordButton.removeEventListener("click", this._onRecordButtonClick);
     PerformanceController.off(EVENTS.RECORDING_STARTED, this._unlockRecordButton);
     PerformanceController.off(EVENTS.RECORDING_STOPPED, this._unlockRecordButton);
+
+    return promise.all([
+      OverviewView.destroy(),
+      DetailsView.destroy()
+    ]);
   },
 
   /**

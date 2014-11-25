@@ -51,7 +51,7 @@ interface nsITranslationNodeList;
 interface nsIJSRAIIHelper;
 interface nsIContentPermissionRequest;
 
-[scriptable, uuid(e293355b-ae7f-4ef7-9237-452bcf3e9e6b)]
+[scriptable, uuid(9621eb05-b498-4e87-a012-95d817987624)]
 interface nsIDOMWindowUtils : nsISupports {
 
   /**
@@ -181,15 +181,13 @@ interface nsIDOMWindowUtils : nsISupports {
    * that each edge is located at a multiple of the "alignment" value.
    *
    * Note that both the margin values and alignment are treated as values in
-   * LayerPixels. Refer to layout/base/Units.h for a description of this unit.
+   * ScreenPixels. Refer to layout/base/Units.h for a description of this unit.
    * The base rect values are in app units.
    */
   void setDisplayPortMarginsForElement(in float aLeftMargin,
                                        in float aTopMargin,
                                        in float aRightMargin,
                                        in float aBottomMargin,
-                                       in uint32_t aAlignmentX,
-                                       in uint32_t aAlignmentY,
                                        in nsIDOMElement aElement,
                                        in uint32_t aPriority);
 
@@ -1038,11 +1036,13 @@ interface nsIDOMWindowUtils : nsISupports {
    * Cannot be accessed from unprivileged context (not content-accessible)
    * Will throw a DOM security error if called without chrome privileges.
    *
-   * @param aType     The event type: "compositionstart", "compositionend" or
-   *                  "compositionupdate".
+   * @param aType     The event type: "compositionstart",
+   *                  "compositioncommitasis", or "compositioncommit".
    * @param aData     The data property value.  Note that this isn't applied
    *                  for compositionstart event because its value is the
-   *                  selected text which is automatically computed.
+   *                  selected text which is automatically computed. And also
+   *                  this isn't applied for compositioncommitasis because
+   *                  the last data will be set automatically.
    * @param aLocale   The locale property value.
    */
   void sendCompositionEvent(in AString aType,

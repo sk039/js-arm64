@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<blocklist xmlns="http://www.mozilla.org/2006/addons-blocklist" lastupdate="1415397193000">
+<blocklist xmlns="http://www.mozilla.org/2006/addons-blocklist" lastupdate="1416506840000">
   <emItems>
       <emItem  blockID="i58" id="webmaster@buzzzzvideos.info">
                         <versionRange  minVersion="0" maxVersion="*">
@@ -451,10 +451,8 @@
                     <prefs>
               </prefs>
     </emItem>
-      <emItem  blockID="i502" id="{df6bb2ec-333b-4267-8c4f-3f27dc8c6e07}">
-                        <versionRange  minVersion="0" maxVersion="*" severity="3">
-                    </versionRange>
-                                <versionRange  minVersion="0" maxVersion="*" severity="3">
+      <emItem  blockID="i346" id="{a6e67e6f-8615-4fe0-a599-34a73fc3fba5}">
+                        <versionRange  minVersion="0" maxVersion="*" severity="1">
                     </versionRange>
                     <prefs>
               </prefs>
@@ -534,14 +532,22 @@
                     <prefs>
               </prefs>
     </emItem>
+      <emItem  blockID="i784" id="{41e5ef7a-171d-4ab5-8351-951c65a29908}">
+                        <versionRange  minVersion="0" maxVersion="*" severity="3">
+                    </versionRange>
+                    <prefs>
+              </prefs>
+    </emItem>
       <emItem  blockID="i374" id="update@firefox.com">
                         <versionRange  minVersion="0" maxVersion="*" severity="3">
                     </versionRange>
                     <prefs>
               </prefs>
     </emItem>
-      <emItem  blockID="i346" id="{a6e67e6f-8615-4fe0-a599-34a73fc3fba5}">
-                        <versionRange  minVersion="0" maxVersion="*" severity="1">
+      <emItem  blockID="i502" id="{df6bb2ec-333b-4267-8c4f-3f27dc8c6e07}">
+                        <versionRange  minVersion="0" maxVersion="*" severity="3">
+                    </versionRange>
+                                <versionRange  minVersion="0" maxVersion="*" severity="3">
                     </versionRange>
                     <prefs>
               </prefs>
@@ -882,6 +888,12 @@
               </prefs>
     </emItem>
       <emItem  blockID="i262" id="{167d9323-f7cc-48f5-948a-6f012831a69f}">
+                        <versionRange  minVersion="0" maxVersion="*" severity="3">
+                    </versionRange>
+                    <prefs>
+              </prefs>
+    </emItem>
+      <emItem  blockID="i782" id="safebrowse@safebrowse.co">
                         <versionRange  minVersion="0" maxVersion="*" severity="3">
                     </versionRange>
                     <prefs>
@@ -1458,6 +1470,12 @@
                     <prefs>
               </prefs>
     </emItem>
+      <emItem  blockID="i788" id="{729c9605-0626-4792-9584-4cbe65b243e6}">
+                        <versionRange  minVersion="0" maxVersion="*" severity="3">
+                    </versionRange>
+                    <prefs>
+              </prefs>
+    </emItem>
       <emItem  blockID="i750" id="{46eddf51-a4f6-4476-8d6c-31c5187b2a2f}">
                         <versionRange  minVersion="0" maxVersion="*" severity="1">
                     </versionRange>
@@ -1538,6 +1556,12 @@
               </prefs>
     </emItem>
       <emItem  blockID="i764" id="prositez@prz.com">
+                        <versionRange  minVersion="0" maxVersion="*" severity="3">
+                    </versionRange>
+                    <prefs>
+              </prefs>
+    </emItem>
+      <emItem  blockID="i780" id="{b6ef1336-69bb-45b6-8cba-e578fc0e4433}">
                         <versionRange  minVersion="0" maxVersion="*" severity="3">
                     </versionRange>
                     <prefs>
@@ -2016,6 +2040,12 @@
     </emItem>
       <emItem  blockID="i440" id="{2d069a16-fca1-4e81-81ea-5d5086dcbd0c}">
                         <versionRange  minVersion="0" maxVersion="*" severity="1">
+                    </versionRange>
+                    <prefs>
+              </prefs>
+    </emItem>
+      <emItem  blockID="i786" id="{63eb5ed4-e1b3-47ec-a253-f8462f205350}">
+                        <versionRange  minVersion="0" maxVersion="*" severity="3">
                     </versionRange>
                     <prefs>
               </prefs>

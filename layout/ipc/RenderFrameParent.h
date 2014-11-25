@@ -101,6 +101,8 @@ public:
   void ContentReceivedTouch(const ScrollableLayerGuid& aGuid,
                             uint64_t aInputBlockId,
                             bool aPreventDefault);
+  void SetTargetAPZC(uint64_t aInputBlockId,
+                     const nsTArray<ScrollableLayerGuid>& aTargets);
 
   void UpdateZoomConstraints(uint32_t aPresShellId,
                              ViewID aViewId,
@@ -109,6 +111,11 @@ public:
 
   bool HitTest(const nsRect& aRect);
 
+  bool UseAsyncPanZoom() { return !!mContentController; }
+
+  void GetTextureFactoryIdentifier(TextureFactoryIdentifier* aTextureFactoryIdentifier);
+
+  inline uint64_t GetLayersId() { return mLayersId; }
 protected:
   void ActorDestroy(ActorDestroyReason why) MOZ_OVERRIDE;
 

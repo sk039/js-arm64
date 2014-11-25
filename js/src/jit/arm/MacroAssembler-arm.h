@@ -591,6 +591,10 @@ class MacroAssemblerARMCompat : public MacroAssemblerARM
         call(label);
         append(desc, currentOffset(), framePushed_);
     }
+    void callAndPushReturnAddress(Label *label) {
+        ma_push(pc);
+        call(label);
+    }
 
     void branch(JitCode *c) {
         BufferOffset bo = m_buffer.nextOffset();
@@ -691,6 +695,9 @@ class MacroAssemblerARMCompat : public MacroAssemblerARM
 
     void jump(Label *label) {
         as_b(label);
+    }
+    void jump(JitCode *code) {
+        branch(code);
     }
     void jump(Register reg) {
         ma_bx(reg);
@@ -1827,6 +1834,9 @@ class MacroAssemblerARMCompat : public MacroAssemblerARM
     }
     void loadAsmJSHeapRegisterFromGlobalData() {
         loadPtr(Address(GlobalReg, AsmJSHeapGlobalDataOffset - AsmJSGlobalRegBias), HeapReg);
+    }
+    void pushReturnAddress() {
+        push(lr);
     }
 };
 

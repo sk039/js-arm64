@@ -440,7 +440,7 @@ this.DOMApplicationRegistry = {
     }
   },
 
-  updatePermissionsForApp: function(aId, aIsPreinstalled, aIsSystemUpdate) {
+  updatePermissionsForApp: function(aId, aIsPreinstalled) {
     if (!this.webapps[aId]) {
       return;
     }
@@ -458,7 +458,6 @@ this.DOMApplicationRegistry = {
           manifestURL: this.webapps[aId].manifestURL,
           origin: this.webapps[aId].origin,
           isPreinstalled: aIsPreinstalled,
-          isSystemUpdate: aIsSystemUpdate,
           kind: this.webapps[aId].kind
         }, true, function() {
           debug("Error installing permissions for " + aId);
@@ -472,13 +471,16 @@ this.DOMApplicationRegistry = {
     this._readManifests([{ id: aId }]).then((aResult) => {
       let manifest =
         new ManifestHelper(aResult[0].manifest, app.origin, app.manifestURL);
-      OfflineCacheInstaller.installCache({
-        cachePath: app.cachePath,
-        appId: aId,
-        origin: Services.io.newURI(app.origin, null, null),
-        localId: app.localId,
-        appcache_path: manifest.fullAppcachePath()
-      });
+      let fullAppcachePath = manifest.fullAppcachePath();
+      if (fullAppcachePath) {
+        OfflineCacheInstaller.installCache({
+          cachePath: app.cachePath || app.basePath,
+          appId: aId,
+          origin: Services.io.newURI(app.origin, null, null),
+          localId: app.localId,
+          appcache_path: fullAppcachePath
+        });
+      }
     });
   },
 
@@ -721,8 +723,7 @@ this.DOMApplicationRegistry = {
             continue;
           }
           this.updateOfflineCacheForApp(id);
-          this.updatePermissionsForApp(id, isPreinstalled,
-                                       true /* isSystemUpdate */);
+          this.updatePermissionsForApp(id, isPreinstalled);
         }
         // Need to update the persisted list of apps since
         // installPreinstalledApp() removes the ones failing to install.
@@ -3262,7 +3263,7 @@ this.DOMApplicationRegistry = {
       // can proceed to access the app. We also throw an error to alert
       // the caller that the package wasn't downloaded.
       this._sendAppliedEvent(aOldApp);
-      throw new Error("PACKAGE_UNCHANGED");
+      throw "PACKAGE_UNCHANGED";
     }
 
     let newManifest = yield this._openAndReadPackage(zipFile, aOldApp, aNewApp,
@@ -3921,6 +3922,13 @@ this.DOMApplicationRegistry = {
       return;
     }
 
+    // If the error that got us here was that the package hasn't changed,
+    // since we already sent a success and an applied, let's not confuse
+    // the clients...
+    if (aError == "PACKAGE_UNCHANGED") {
+      return;
+    }
+
     let download = AppDownloadManager.get(aNewApp.manifestURL);
     aOldApp.downloading = false;
 
@@ -3932,7 +3940,9 @@ this.DOMApplicationRegistry = {
                                     : aIsUpdate ? "installed"
                                                 : "pending";
 
-    if (aOldApp.staged) {
+    // Erase the .staged properties only if there's no download available
+    // anymore.
+    if (!aOldApp.downloadAvailable && aOldApp.staged) {
       delete aOldApp.staged;
     }
 

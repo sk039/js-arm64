@@ -33,10 +33,14 @@ class   nsIContent;
 class   ViewWrapper;
 class   nsIWidgetListener;
 class   nsIntRegion;
+class   nsIScreen;
 
 namespace mozilla {
 namespace dom {
 class TabChild;
+}
+namespace plugins {
+class PluginWidgetChild;
 }
 namespace layers {
 class Composer2D;
@@ -98,8 +102,8 @@ typedef void* nsNativeWidget;
 #endif
 
 #define NS_IWIDGET_IID \
-{ 0xcfe7543b, 0x8c0e, 0x40c3, \
-  { 0x9a, 0x6d, 0x77, 0x6e, 0x84, 0x8a, 0x7c, 0xfc } };
+{ 0x13239ca, 0xaf3f, 0x4f27, \
+  { 0xaf, 0x83, 0x47, 0xa9, 0x82, 0x3d, 0x99, 0xee } };
 
 /*
  * Window shadow styles
@@ -1274,6 +1278,15 @@ class nsIWidget : public nsISupports {
     nsWindowType WindowType() { return mWindowType; }
 
     /**
+     * Determines if this widget is one of the three types of plugin widgets.
+     */
+    bool IsPlugin() {
+      return mWindowType == eWindowType_plugin ||
+             mWindowType == eWindowType_plugin_ipc_chrome ||
+             mWindowType == eWindowType_plugin_ipc_content;
+    }
+
+    /**
      * Set the transparency mode of the top-level window containing this widget.
      * So, e.g., if you call this on the widget for an IFRAME, the top level
      * browser window containing the IFRAME actually gets set. Be careful.
@@ -1325,6 +1338,8 @@ class nsIWidget : public nsISupports {
      * moved in that order.
      */
     virtual nsresult ConfigureChildren(const nsTArray<Configuration>& aConfigurations) = 0;
+    virtual nsresult SetWindowClipRegion(const nsTArray<nsIntRect>& aRects,
+                                         bool aIntersectWithExisting) = 0;
 
     /**
      * Appends to aRects the rectangles constituting this widget's clip
@@ -1391,9 +1406,12 @@ class nsIWidget : public nsISupports {
 
     /**
      * Put the toplevel window into or out of fullscreen mode.
-     *
+     * If aTargetScreen is given, attempt to go fullscreen on that screen,
+     * if possible.  (If not, it behaves as if aTargetScreen is null.)
+     * If !aFullScreen, aTargetScreen is ignored.
+     * aTargetScreen support is currently only implemented on Windows.
      */
-    NS_IMETHOD MakeFullScreen(bool aFullScreen) = 0;
+    NS_IMETHOD MakeFullScreen(bool aFullScreen, nsIScreen* aTargetScreen = nullptr) = 0;
 
     /**
      * Invalidate a specified rect for a widget so that it will be repainted
@@ -2026,6 +2044,16 @@ public:
      */
     static already_AddRefed<nsIWidget>
     CreatePuppetWidget(TabChild* aTabChild);
+
+    /**
+     * Allocate and return a "plugin proxy widget", a subclass of PuppetWidget
+     * used in wrapping a PPluginWidget connection for remote widgets. Note
+     * this call creates the base object, it does not create the widget. Use
+     * nsIWidget's Create to do this.
+     */
+    static already_AddRefed<nsIWidget>
+    CreatePluginProxyWidget(TabChild* aTabChild,
+                            mozilla::plugins::PluginWidgetChild* aActor);
 
     /**
      * Reparent this widget's native widget.

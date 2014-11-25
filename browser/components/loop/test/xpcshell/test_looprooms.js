@@ -209,16 +209,22 @@ add_task(function* setup_server() {
     res.finish();
   }
 
+  function getJSONData(body) {
+    return JSON.parse(CommonUtils.readBytesFromInputStream(body));
+  }
+
   // Add a request handler for each room in the list.
   [...kRooms.values()].forEach(function(room) {
     loopServer.registerPathHandler("/rooms/" + encodeURIComponent(room.roomToken), (req, res) => {
       if (req.method == "POST") {
-        let body = CommonUtils.readBytesFromInputStream(req.bodyInputStream);
-        let data = JSON.parse(body);
+        let data = getJSONData(req.bodyInputStream);
         res.setStatusLine(null, 200, "OK");
         res.write(JSON.stringify(data));
         res.processAsync();
         res.finish();
+      } else if (req.method == "PATCH") {
+        let data = getJSONData(req.bodyInputStream);
+        returnRoomDetails(res, data.roomName);
       } else {
         returnRoomDetails(res, room.roomName);
       }
@@ -293,8 +299,8 @@ add_task(function* test_openRoom() {
 
   Assert.ok(openedUrl, "should open a chat window");
 
-  // Stop the busy kicking in for following tests.
-  let windowId = openedUrl.match(/about:loopconversation\#(\d+)$/)[1];
+  // Stop the busy kicking in for following tests. (note: windowId can be 'fakeToken')
+  let windowId = openedUrl.match(/about:loopconversation\#(\w+)$/)[1];
   let windowData = MozLoopService.getConversationWindowData(windowId);
 
   Assert.equal(windowData.type, "room", "window data should contain room as the type");
@@ -331,6 +337,13 @@ add_task(function* test_roomUpdates() {
 });
 
 // Test if joining a room works as expected.
+add_task(function* test_joinRoomGuest() {
+  // We need these set up for getting the email address.
+  let roomToken = "_nxD4V4FflQ";
+  let joinedData = yield LoopRooms.promise("join", roomToken);
+  Assert.equal(joinedData.action, "join");
+});
+
 add_task(function* test_joinRoom() {
   // We need these set up for getting the email address.
   Services.prefs.setCharPref("loop.fxa_oauth.profile", JSON.stringify({
@@ -344,6 +357,9 @@ add_task(function* test_joinRoom() {
   let joinedData = yield LoopRooms.promise("join", roomToken);
   Assert.equal(joinedData.action, "join");
   Assert.equal(joinedData.displayName, "fake@invalid.com");
+
+  Services.prefs.clearUserPref("loop.fxa_oauth.profile");
+  Services.prefs.clearUserPref("loop.fxa_oauth.tokendata");
 });
 
 // Test if refreshing a room works as expected.
@@ -361,6 +377,13 @@ add_task(function* test_leaveRoom() {
   let leaveData = yield LoopRooms.promise("leave", roomToken, "fakeLeaveSessionToken");
   Assert.equal(leaveData.action, "leave");
   Assert.equal(leaveData.sessionToken, "fakeLeaveSessionToken");
+});
+
+// Test if renaming a room works as expected.
+add_task(function* test_renameRoom() {
+  let roomToken = "_nxD4V4FflQ";
+  let renameData = yield LoopRooms.promise("rename", roomToken, "fakeName");
+  Assert.equal(renameData.roomName, "fakeName");
 });
 
 // Test if the event emitter implementation doesn't leak and is working as expected.

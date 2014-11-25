@@ -505,12 +505,17 @@ Parser<ParseHandler>::Parser(ExclusiveContext *cx, LifoAlloc *alloc,
     ss(nullptr),
     keepAtoms(cx->perThreadData),
     foldConstants(foldConstants),
+#ifdef DEBUG
+    checkOptionsCalled(false),
+#endif
     abortedSyntaxParse(false),
     isUnexpectedEOF_(false),
     sawDeprecatedForEach(false),
     sawDeprecatedDestructuringForIn(false),
     sawDeprecatedLegacyGenerator(false),
     sawDeprecatedExpressionClosure(false),
+    sawDeprecatedLetBlock(false),
+    sawDeprecatedLetExpression(false),
     handler(cx, *alloc, tokenStream, foldConstants, syntaxParser, lazyOuterFunction)
 {
     {
@@ -527,9 +532,25 @@ Parser<ParseHandler>::Parser(ExclusiveContext *cx, LifoAlloc *alloc,
     tempPoolMark = alloc->mark();
 }
 
+template<typename ParseHandler>
+bool
+Parser<ParseHandler>::checkOptions()
+{
+#ifdef DEBUG
+    checkOptionsCalled = true;
+#endif
+
+    if (!tokenStream.checkOptions())
+        return false;
+
+    return true;
+}
+
 template <typename ParseHandler>
 Parser<ParseHandler>::~Parser()
 {
+    MOZ_ASSERT(checkOptionsCalled);
+
     accumulateTelemetry();
 
     alloc.release(tempPoolMark);
@@ -690,6 +711,8 @@ template <typename ParseHandler>
 typename ParseHandler::Node
 Parser<ParseHandler>::parse(JSObject *chain)
 {
+    MOZ_ASSERT(checkOptionsCalled);
+
     /*
      * Protect atoms from being collected by a GC activation, which might
      * - nest on this thread due to out of memory (the so-called "last ditch"
@@ -798,6 +821,8 @@ Parser<FullParseHandler>::standaloneFunctionBody(HandleFunction fun, const AutoN
                                                  Directives inheritedDirectives,
                                                  Directives *newDirectives)
 {
+    MOZ_ASSERT(checkOptionsCalled);
+
     Node fn = handler.newFunctionDefinition();
     if (!fn)
         return null();
@@ -1905,11 +1930,10 @@ Parser<FullParseHandler>::checkFunctionDefinition(HandlePropertyName funName,
         if (!addFreeVariablesFromLazyFunction(fun, pc, *pbodyLevelHoistedUse))
             return false;
 
-        // The position passed to tokenStream.advance() is relative to
-        // userbuf.base() while LazyScript::{begin,end} offsets are relative to
-        // the outermost script source. N.B: userbuf.base() is initialized
-        // (in TokenStream()) to begin() - column() so that column numbers in
-        // the lazily parsed script are correct.
+        // The position passed to tokenStream.advance() is an offset of the sort
+        // returned by userbuf.offset() and expected by userbuf.rawCharPtrAt(),
+        // while LazyScript::{begin,end} offsets are relative to the outermost
+        // script source.
         uint32_t userbufBase = lazyOuter->begin() - lazyOuter->column();
         tokenStream.advance(fun->lazyScript()->end() - userbufBase);
 
@@ -2410,8 +2434,15 @@ ParseNode *
 Parser<FullParseHandler>::standaloneLazyFunction(HandleFunction fun, unsigned staticLevel,
                                                  bool strict, GeneratorKind generatorKind)
 {
+    MOZ_ASSERT(checkOptionsCalled);
+
     Node pn = handler.newFunctionDefinition();
     if (!pn)
+        return null();
+
+    // Our tokenStream has no current token, so pn's position is garbage.
+    // Substitute the position of the first token in our source.
+    if (!tokenStream.peekTokenPos(&pn->pn_pos))
         return null();
 
     Directives directives(/* strict = */ strict);
@@ -3618,7 +3649,7 @@ Parser<ParseHandler>::letBlock(LetContext letContext)
              * the return value of the expression.
              */
             needExprStmt = true;
-            letContext = LetExpresion;
+            letContext = LetExpression;
         }
     }
 
@@ -3628,10 +3659,15 @@ Parser<ParseHandler>::letBlock(LetContext letContext)
         if (!expr)
             return null();
         MUST_MATCH_TOKEN(TOK_RC, JSMSG_CURLY_AFTER_LET);
+        sawDeprecatedLetBlock = true;
     } else {
-        MOZ_ASSERT(letContext == LetExpresion);
+        MOZ_ASSERT(letContext == LetExpression);
         expr = assignExpr();
         if (!expr)
+            return null();
+
+        sawDeprecatedLetExpression = true;
+        if (!report(ParseWarning, pc->sc->strict, expr, JSMSG_DEPRECATED_LET_EXPRESSION))
             return null();
     }
     handler.setLexicalScopeBody(block, expr);
@@ -4309,7 +4345,7 @@ Parser<ParseHandler>::exportDeclaration()
         break;
 
       case TOK_NAME:
-        // Handle the form |export a} in the same way as |export let a|, by
+        // Handle the form |export a| in the same way as |export let a|, by
         // acting as if we've just seen the let keyword. Simply unget the token
         // and fall through.
         tokenStream.ungetToken();
@@ -4335,7 +4371,6 @@ Parser<SyntaxParseHandler>::exportDeclaration()
     JS_ALWAYS_FALSE(abortIfSyntaxParser());
     return SyntaxParseHandler::NodeFailure;
 }
-
 
 template <typename ParseHandler>
 typename ParseHandler::Node
@@ -4583,7 +4618,7 @@ Parser<FullParseHandler>::forStatement()
                 if (!tokenStream.peekToken(&tt))
                     return null();
                 if (tt == TOK_LP) {
-                    pn1 = letBlock(LetExpresion);
+                    pn1 = letBlock(LetExpression);
                 } else {
                     isForDecl = true;
                     blockObj = StaticBlockObject::create(context);
@@ -5699,6 +5734,8 @@ template <typename ParseHandler>
 typename ParseHandler::Node
 Parser<ParseHandler>::statement(bool canHaveDirectives)
 {
+    MOZ_ASSERT(checkOptionsCalled);
+
     JS_CHECK_RECURSION(context, return null());
 
     TokenKind tt;
@@ -5781,7 +5818,10 @@ Parser<ParseHandler>::statement(bool canHaveDirectives)
 
       case TOK_YIELD: {
         TokenKind next;
-        if (!tokenStream.peekToken(&next))
+        TokenStream::Modifier modifier = yieldExpressionsSupported()
+                                         ? TokenStream::Operand
+                                         : TokenStream::None;
+        if (!tokenStream.peekToken(&next, modifier))
             return null();
         if (next == TOK_COLON) {
             if (!checkYieldNameValidity())
@@ -6140,7 +6180,7 @@ Parser<ParseHandler>::assignExpr()
             return stringLiteral();
     }
 
-    if (tt == TOK_YIELD && (versionNumber() >= JSVERSION_1_7 || pc->isGenerator()))
+    if (tt == TOK_YIELD && yieldExpressionsSupported())
         return yieldExpression();
 
     tokenStream.ungetToken();
@@ -8046,7 +8086,7 @@ Parser<ParseHandler>::primaryExpr(TokenKind tt)
         return objectLiteral();
 
       case TOK_LET:
-        return letBlock(LetExpresion);
+        return letBlock(LetExpression);
 
       case TOK_LP:
         return parenExprOrGeneratorComprehension();
@@ -8301,6 +8341,8 @@ Parser<ParseHandler>::accumulateTelemetry()
         DeprecatedDestructuringForIn = 1, // JS 1.7 only
         DeprecatedLegacyGenerator = 2,    // JS 1.7+
         DeprecatedExpressionClosure = 3,  // Added in JS 1.8, but not version-gated
+        DeprecatedLetBlock = 4,           // Added in JS 1.7, but not version-gated
+        DeprecatedLetExpression = 5,      // Added in JS 1.7, but not version-gated
     };
 
     // Hazard analysis can't tell that the telemetry callbacks don't GC.
@@ -8315,6 +8357,10 @@ Parser<ParseHandler>::accumulateTelemetry()
         (*cb)(JS_TELEMETRY_DEPRECATED_LANGUAGE_EXTENSIONS_IN_CONTENT, DeprecatedLegacyGenerator);
     if (sawDeprecatedExpressionClosure)
         (*cb)(JS_TELEMETRY_DEPRECATED_LANGUAGE_EXTENSIONS_IN_CONTENT, DeprecatedExpressionClosure);
+    if (sawDeprecatedLetBlock)
+        (*cb)(JS_TELEMETRY_DEPRECATED_LANGUAGE_EXTENSIONS_IN_CONTENT, DeprecatedLetBlock);
+    if (sawDeprecatedLetExpression)
+        (*cb)(JS_TELEMETRY_DEPRECATED_LANGUAGE_EXTENSIONS_IN_CONTENT, DeprecatedLetExpression);
 }
 
 template class Parser<FullParseHandler>;

@@ -15,6 +15,7 @@
 
 #include "GLDefs.h"
 #include "WebGLActiveInfo.h"
+#include "WebGLContextUnchecked.h"
 #include "WebGLObjectModel.h"
 #include "WebGLRenderbuffer.h"
 #include "WebGLTexture.h"
@@ -71,16 +72,17 @@ class WebGLContextBoundObject;
 class WebGLActiveInfo;
 class WebGLExtensionBase;
 class WebGLBuffer;
-struct WebGLVertexAttribData;
 class WebGLShader;
 class WebGLProgram;
 class WebGLQuery;
 class WebGLUniformLocation;
 class WebGLFramebuffer;
 class WebGLRenderbuffer;
+class WebGLSampler;
 class WebGLShaderPrecisionFormat;
 class WebGLTexture;
 class WebGLVertexArray;
+struct WebGLVertexAttribData;
 
 namespace dom {
 class ImageData;
@@ -93,6 +95,8 @@ template<typename> struct Nullable;
 namespace gfx {
 class SourceSurface;
 }
+
+typedef WebGLRefPtr<WebGLQuery> WebGLQueryRefPtr;
 
 WebGLTexelFormat GetWebGLTexelFormat(TexInternalFormat format);
 
@@ -127,10 +131,29 @@ struct WebGLContextOptions {
 // From WebGLContextUtils
 TexTarget TexImageTargetToTexTarget(TexImageTarget texImageTarget);
 
+class WebGLIntOrFloat {
+    enum {
+        Int,
+        Float
+    } mType;
+    union {
+        GLint i;
+        GLfloat f;
+    } mValue;
+
+public:
+    explicit WebGLIntOrFloat(GLint i) : mType(Int) { mValue.i = i; }
+    explicit WebGLIntOrFloat(GLfloat f) : mType(Float) { mValue.f = f; }
+
+    GLint AsInt() const { return (mType == Int) ? mValue.i : NS_lroundf(mValue.f); }
+    GLfloat AsFloat() const { return (mType == Float) ? mValue.f : GLfloat(mValue.i); }
+};
+
 class WebGLContext :
     public nsIDOMWebGLRenderingContext,
     public nsICanvasRenderingContextInternal,
     public nsSupportsWeakReference,
+    public WebGLContextUnchecked,
     public WebGLRectangleObject,
     public nsWrapperCache,
     public SupportsWeakPtr<WebGLContext>
@@ -220,7 +243,11 @@ public:
      * This version is like gl::GLenumToStr but with out the GL_ prefix to
      * keep consistency with how errors are reported from WebGL.
      */
-    static const char *EnumName(GLenum glenum);
+
+    // Returns nullptr if glenum is unknown.
+    static const char* EnumName(GLenum glenum);
+    // Returns hex formatted version of glenum if glenum is unknown.
+    static void EnumName(GLenum glenum, nsACString* out_name);
 
     bool IsCompressedTextureFormat(GLenum format);
     bool IsTextureFormatCompressed(TexInternalFormat format);
@@ -324,7 +351,7 @@ public:
     void ClearDepth(GLclampf v);
     void ClearStencil(GLint v);
     void ColorMask(WebGLboolean r, WebGLboolean g, WebGLboolean b, WebGLboolean a);
-    void CompileShader(WebGLShader *shader);
+    void CompileShader(WebGLShader* shader);
     void CompressedTexImage2D(GLenum target, GLint level,
                               GLenum internalformat, GLsizei width,
                               GLsizei height, GLint border,
@@ -797,30 +824,6 @@ public:
     void RestoreContext();
 
 // -----------------------------------------------------------------------------
-// Asynchronous Queries (WebGLContextAsyncQueries.cpp)
-public:
-    already_AddRefed<WebGLQuery> CreateQuery();
-    void DeleteQuery(WebGLQuery *query);
-    void BeginQuery(GLenum target, WebGLQuery *query);
-    void EndQuery(GLenum target);
-    bool IsQuery(WebGLQuery *query);
-    already_AddRefed<WebGLQuery> GetQuery(GLenum target, GLenum pname);
-    JS::Value GetQueryObject(JSContext* cx, WebGLQuery *query, GLenum pname);
-    void GetQueryObject(JSContext* cx, WebGLQuery *query, GLenum pname,
-                        JS::MutableHandle<JS::Value> retval) {
-        retval.set(GetQueryObject(cx, query, pname));
-    }
-
-private:
-    // ANY_SAMPLES_PASSED(_CONSERVATIVE) slot
-    WebGLRefPtr<WebGLQuery> mActiveOcclusionQuery;
-
-    // LOCAL_GL_TRANSFORM_FEEDBACK_PRIMITIVES_WRITTEN slot
-    WebGLRefPtr<WebGLQuery> mActiveTransformFeedbackQuery;
-
-    WebGLRefPtr<WebGLQuery>* GetQueryTargetSlot(GLenum target, const char* infos);
-
-// -----------------------------------------------------------------------------
 // Buffer Objects (WebGLContextBuffers.cpp)
 public:
     void BindBuffer(GLenum target, WebGLBuffer* buf);
@@ -852,6 +855,14 @@ private:
     WebGLRefPtr<WebGLBuffer>* GetBufferSlotByTarget(GLenum target, const char* infos);
     WebGLRefPtr<WebGLBuffer>* GetBufferSlotByTargetIndexed(GLenum target, GLuint index, const char* infos);
     bool ValidateBufferUsageEnum(GLenum target, const char* infos);
+
+// -----------------------------------------------------------------------------
+// Queries (WebGL2ContextQueries.cpp)
+protected:
+    WebGLQueryRefPtr* GetQueryTargetSlot(GLenum target);
+
+    WebGLQueryRefPtr mActiveOcclusionQuery;
+    WebGLQueryRefPtr mActiveTransformFeedbackQuery;
 
 // -----------------------------------------------------------------------------
 // State and State Requests (WebGLContextState.cpp)
@@ -1005,8 +1016,6 @@ protected:
         return ((x + y - 1) / y) * y;
     }
 
-    nsRefPtr<gl::GLContext> gl;
-
     CheckedUint32 mGeneration;
 
     WebGLContextOptions mOptions;
@@ -1060,6 +1069,9 @@ public:
         return mGLMaxVertexAttribs;
     }
 
+
+    bool IsFormatValidForFB(GLenum sizedFormat) const;
+
 protected:
     // Represents current status of the context with respect to context loss.
     // That is, whether the context is lost, and what part of the context loss
@@ -1091,6 +1103,10 @@ protected:
 
     // enable an extension. the extension should not be enabled before.
     void EnableExtension(WebGLExtensionID ext);
+
+    // Enable an extension if it's supported. Return the extension on success.
+    WebGLExtensionBase* EnableSupportedExtension(JSContext* js,
+                                                 WebGLExtensionID ext);
 
     // returns true if the extension has been enabled by calling getExtension.
     bool IsExtensionEnabled(WebGLExtensionID ext) const;
@@ -1138,6 +1154,10 @@ protected:
     bool ValidateCopyTexImage(GLenum internalformat,
                               WebGLTexImageFunc func,
                               WebGLTexDimensions dims);
+
+    bool ValidateSamplerParameterName(GLenum pname, const char* info);
+    bool ValidateSamplerParameterParams(GLenum pname, const WebGLIntOrFloat& param, const char* info);
+
     bool ValidateTexImage(TexImageTarget texImageTarget,
                           GLint level, GLenum internalFormat,
                           GLint xoffset, GLint yoffset, GLint zoffset,
@@ -1325,6 +1345,9 @@ protected:
     LinkedList<WebGLFramebuffer> mFramebuffers;
     LinkedList<WebGLVertexArray> mVertexArrays;
 
+    // TODO(djg): Does this need a rethink? Should it be WebGL2Context?
+    LinkedList<WebGLSampler> mSamplers;
+
     WebGLRefPtr<WebGLVertexArray> mDefaultVertexArray;
 
     // PixelStore parameters
@@ -1440,6 +1463,7 @@ public:
     friend class WebGLProgram;
     friend class WebGLQuery;
     friend class WebGLBuffer;
+    friend class WebGLSampler;
     friend class WebGLShader;
     friend class WebGLUniformLocation;
     friend class WebGLVertexArray;

@@ -459,7 +459,7 @@ CreateInterfaceObject(JSContext* cx, JS::Handle<JSObject*> global,
     }
 
     if (!JS_DefineProperty(cx, constructor, "length", ctorNargs,
-                           JSPROP_READONLY | JSPROP_PERMANENT)) {
+                           JSPROP_READONLY)) {
       return nullptr;
     }
 
@@ -1698,9 +1698,10 @@ ReparentWrapper(JSContext* aCx, JS::Handle<JSObject*> aObjArg)
 {
   js::AssertSameCompartment(aCx, aObjArg);
 
-  // Check if we're near the stack limit before we get anywhere near the
-  // transplanting code. We use a conservative check since we'll use a little
-  // more space before we actually hit the critical "can't fail" path.
+  // Check if we're anywhere near the stack limit before we reach the
+  // transplanting code, since it has no good way to handle errors. This uses
+  // the untrusted script limit, which is not strictly necessary since no
+  // actual script should run.
   JS_CHECK_RECURSION_CONSERVATIVE(aCx, return NS_ERROR_FAILURE);
 
   JS::Rooted<JSObject*> aObj(aCx, aObjArg);
@@ -2088,7 +2089,9 @@ ConstructJSImplementation(JSContext* aCx, const char* aContractId,
     nsresult rv;
     nsCOMPtr<nsISupports> implISupports = do_CreateInstance(aContractId, &rv);
     if (!implISupports) {
-      NS_WARNING("Failed to get JS implementation for contract");
+      nsPrintfCString msg("Failed to get JS implementation for contract \"%s\"",
+                          aContractId);
+      NS_WARNING(msg.get());
       aRv.Throw(rv);
       return;
     }
@@ -2141,7 +2144,7 @@ NonVoidByteStringToJsval(JSContext *cx, const nsACString &str,
 
 
 template<typename T> static void
-NormalizeScalarValueStringInternal(JSContext* aCx, T& aString)
+NormalizeUSVStringInternal(JSContext* aCx, T& aString)
 {
   char16_t* start = aString.BeginWriting();
   // Must use const here because we can't pass char** to UTF16CharEnumerator as
@@ -2158,15 +2161,15 @@ NormalizeScalarValueStringInternal(JSContext* aCx, T& aString)
 }
 
 void
-NormalizeScalarValueString(JSContext* aCx, nsAString& aString)
+NormalizeUSVString(JSContext* aCx, nsAString& aString)
 {
-  NormalizeScalarValueStringInternal(aCx, aString);
+  NormalizeUSVStringInternal(aCx, aString);
 }
 
 void
-NormalizeScalarValueString(JSContext* aCx, binding_detail::FakeString& aString)
+NormalizeUSVString(JSContext* aCx, binding_detail::FakeString& aString)
 {
-  NormalizeScalarValueStringInternal(aCx, aString);
+  NormalizeUSVStringInternal(aCx, aString);
 }
 
 bool

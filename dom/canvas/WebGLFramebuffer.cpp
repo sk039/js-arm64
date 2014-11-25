@@ -26,16 +26,14 @@ WebGLFramebuffer::WrapObject(JSContext* cx)
     return dom::WebGLFramebufferBinding::Wrap(cx, this);
 }
 
-WebGLFramebuffer::WebGLFramebuffer(WebGLContext* context)
-    : WebGLBindableName<FBTarget>()
+WebGLFramebuffer::WebGLFramebuffer(WebGLContext* context, GLuint fbo)
+    : WebGLBindableName<FBTarget>(fbo)
     , WebGLContextBoundObject(context)
     , mStatus(0)
     , mDepthAttachment(LOCAL_GL_DEPTH_ATTACHMENT)
     , mStencilAttachment(LOCAL_GL_STENCIL_ATTACHMENT)
     , mDepthStencilAttachment(LOCAL_GL_DEPTH_STENCIL_ATTACHMENT)
 {
-    mContext->MakeContextCurrent();
-    mContext->gl->fGenFramebuffers(1, &mGLName);
     mContext->mFramebuffers.insertBack(this);
 
     mColorAttachments.SetLength(1);
@@ -286,6 +284,36 @@ IsValidFBORenderbufferStencilFormat(GLenum internalFormat)
 }
 
 bool
+WebGLContext::IsFormatValidForFB(GLenum sizedFormat) const
+{
+    switch (sizedFormat) {
+    case LOCAL_GL_ALPHA8:
+    case LOCAL_GL_LUMINANCE8:
+    case LOCAL_GL_LUMINANCE8_ALPHA8:
+    case LOCAL_GL_RGB8:
+    case LOCAL_GL_RGBA8:
+    case LOCAL_GL_RGB565:
+    case LOCAL_GL_RGB5_A1:
+    case LOCAL_GL_RGBA4:
+        return true;
+
+    case LOCAL_GL_SRGB8:
+    case LOCAL_GL_SRGB8_ALPHA8_EXT:
+        return IsExtensionEnabled(WebGLExtensionID::EXT_sRGB);
+
+    case LOCAL_GL_RGB32F:
+    case LOCAL_GL_RGBA32F:
+        return IsExtensionEnabled(WebGLExtensionID::WEBGL_color_buffer_float);
+
+    case LOCAL_GL_RGB16F:
+    case LOCAL_GL_RGBA16F:
+        return IsExtensionEnabled(WebGLExtensionID::EXT_color_buffer_half_float);
+    }
+
+    return false;
+}
+
+bool
 WebGLFramebuffer::Attachment::IsComplete() const
 {
     if (!HasImage())
@@ -303,23 +331,24 @@ WebGLFramebuffer::Attachment::IsComplete() const
         MOZ_ASSERT(Texture()->HasImageInfoAt(mTexImageTarget, mTexImageLevel));
         const WebGLTexture::ImageInfo& imageInfo =
             Texture()->ImageInfoAt(mTexImageTarget, mTexImageLevel);
-        GLenum internalformat = imageInfo.EffectiveInternalFormat().get();
+        GLenum sizedFormat = imageInfo.EffectiveInternalFormat().get();
 
         if (mAttachmentPoint == LOCAL_GL_DEPTH_ATTACHMENT)
-            return IsValidFBOTextureDepthFormat(internalformat);
+            return IsValidFBOTextureDepthFormat(sizedFormat);
 
         if (mAttachmentPoint == LOCAL_GL_STENCIL_ATTACHMENT)
             return false; // Textures can't have the correct format for stencil buffers
 
         if (mAttachmentPoint == LOCAL_GL_DEPTH_STENCIL_ATTACHMENT) {
-            return IsValidFBOTextureDepthStencilFormat(internalformat);
+            return IsValidFBOTextureDepthStencilFormat(sizedFormat);
         }
 
         if (mAttachmentPoint >= LOCAL_GL_COLOR_ATTACHMENT0 &&
             mAttachmentPoint <= FBAttachment(LOCAL_GL_COLOR_ATTACHMENT0 - 1 +
                                              WebGLContext::kMaxColorAttachments))
         {
-            return IsValidFBOTextureColorFormat(internalformat);
+            WebGLContext* webgl = Texture()->Context();
+            return webgl->IsFormatValidForFB(sizedFormat);
         }
         MOZ_ASSERT(false, "Invalid WebGL attachment point?");
         return false;
@@ -341,7 +370,8 @@ WebGLFramebuffer::Attachment::IsComplete() const
             mAttachmentPoint <= FBAttachment(LOCAL_GL_COLOR_ATTACHMENT0 - 1 +
                                              WebGLContext::kMaxColorAttachments))
         {
-            return IsValidFBORenderbufferColorFormat(internalFormat);
+            WebGLContext* webgl = Renderbuffer()->Context();
+            return webgl->IsFormatValidForFB(internalFormat);
         }
         MOZ_ASSERT(false, "Invalid WebGL attachment point?");
         return false;
@@ -375,7 +405,7 @@ WebGLFramebuffer::Attachment::FinalizeAttachment(GLContext* gl, FBAttachment att
     MOZ_ASSERT(HasImage());
 
     if (Texture()) {
-        MOZ_ASSERT(gl == Texture()->Context()->gl);
+        MOZ_ASSERT(gl == Texture()->Context()->GL());
 
         const GLenum imageTarget = ImageTarget().get();
         const GLint mipLevel = MipLevel();

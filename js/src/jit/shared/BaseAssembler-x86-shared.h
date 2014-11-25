@@ -197,6 +197,18 @@ public:
         ConditionNC = ConditionAE
     } Condition;
 
+    // Conditions for CMP instructions (CMPSS, CMPSD, CMPPS, CMPPD, etc).
+    typedef enum {
+        ConditionCmp_EQ    = 0x0,
+        ConditionCmp_LT    = 0x1,
+        ConditionCmp_LE    = 0x2,
+        ConditionCmp_UNORD = 0x3,
+        ConditionCmp_NEQ   = 0x4,
+        ConditionCmp_NLT   = 0x5,
+        ConditionCmp_NLE   = 0x6,
+        ConditionCmp_ORD   = 0x7,
+    } ConditionCmp;
+
     static const char* nameCC(Condition cc)
     {
         static const char* const names[16]
@@ -300,9 +312,11 @@ private:
         OP2_MOVSD_WsdVsd    = 0x11,
         OP2_MOVPS_WpsVps    = 0x11,
         OP2_MOVHLPS_VqUq    = 0x12,
+        OP2_MOVSLDUP_VpsWps = 0x12,
         OP2_UNPCKLPS_VsdWsd = 0x14,
         OP2_UNPCKHPS_VsdWsd = 0x15,
         OP2_MOVLHPS_VqUq    = 0x16,
+        OP2_MOVSHDUP_VpsWps = 0x16,
         OP2_MOVAPD_VsdWsd   = 0x28,
         OP2_MOVAPS_VsdWsd   = 0x28,
         OP2_MOVAPS_WsdVsd   = 0x29,
@@ -380,6 +394,8 @@ private:
     typedef enum {
         OP3_ROUNDSS_VsdWsd  = 0x0A,
         OP3_ROUNDSD_VsdWsd  = 0x0B,
+        OP3_PEXTRD_EdVdqIb  = 0x16,
+        OP3_BLENDPS_VpsWpsIb = 0x0C,
         OP3_PTEST_VdVd      = 0x17,
         OP3_INSERTPS_VpsUps = 0x21,
         OP3_PINSRD_VdqEdIb  = 0x22
@@ -388,8 +404,10 @@ private:
     typedef enum {
         ESCAPE_PTEST        = 0x38,
         ESCAPE_PINSRD       = 0x3A,
+        ESCAPE_PEXTRD       = 0x3A,
         ESCAPE_ROUNDSD      = 0x3A,
-        ESCAPE_INSERTPS     = 0x3A
+        ESCAPE_INSERTPS     = 0x3A,
+        ESCAPE_BLENDPS      = 0x3A
     } ThreeByteEscape;
 
     TwoByteOpcodeID jccRel32(Condition cond)
@@ -603,6 +621,13 @@ public:
             m_formatter.oneByteOp(OP_GROUP1_EvIz, GROUP1_OP_ADD, dst);
             m_formatter.immediate32(imm);
         }
+    }
+    void addl_ir_wide(int imm, RegisterID dst)
+    {
+        // 32-bit immediate always, for patching.
+        spew("addl       $0x%x, %s", imm, nameIReg(4,dst));
+        m_formatter.oneByteOp(OP_GROUP1_EvIz, GROUP1_OP_ADD, dst);
+        m_formatter.immediate32(imm);
     }
 
     void addl_im(int imm, int offset, RegisterID base)
@@ -3214,6 +3239,19 @@ public:
         m_formatter.twoByteOp(OP2_MOVSD_VsdWsd, (RegisterID)dst, address);
     }
 
+    void movups_mr(const void* address, XMMRegisterID dst)
+    {
+        spew("movups     %p, %s", address, nameFPReg(dst));
+        m_formatter.twoByteOp(OP2_MOVPS_VpsWps, (RegisterID)dst, address);
+    }
+
+    void movdqu_mr(const void* address, XMMRegisterID dst)
+    {
+        spew("movdqu     %p, %s", address, nameFPReg(dst));
+        m_formatter.prefix(PRE_SSE_F3);
+        m_formatter.twoByteOp(OP2_MOVDQ_VdqWdq, (RegisterID)dst, address);
+    }
+
     void movsd_rm(XMMRegisterID src, const void* address)
     {
         spew("movsd      %s, %p", nameFPReg(src), address);
@@ -3238,6 +3276,19 @@ public:
     void movaps_rm(XMMRegisterID src, const void* address)
     {
         spew("movaps     %s, %p", nameFPReg(src), address);
+        m_formatter.twoByteOp(OP2_MOVAPS_WsdVsd, (RegisterID)src, address);
+    }
+
+    void movdqu_rm(XMMRegisterID src, const void* address)
+    {
+        spew("movdqu     %s, %p", nameFPReg(src), address);
+        m_formatter.prefix(PRE_SSE_F3);
+        m_formatter.twoByteOp(OP2_MOVDQ_WdqVdq, (RegisterID)src, address);
+    }
+
+    void movups_rm(XMMRegisterID src, const void* address)
+    {
+        spew("movups     %s, %p", nameFPReg(src), address);
         m_formatter.twoByteOp(OP2_MOVPS_WpsVps, (RegisterID)src, address);
     }
 #ifdef JS_CODEGEN_X64
@@ -3321,6 +3372,12 @@ public:
              nameFPReg(src), PRETTY_PRINT_OFFSET(offset), nameIReg(base));
         m_formatter.twoByteOp(OP2_MOVPS_WpsVps, (RegisterID)src, base, offset);
     }
+    void movups_rm_disp32(XMMRegisterID src, int offset, RegisterID base)
+    {
+        spew("movups     %s, %s0x%x(%s)",
+             nameFPReg(src), PRETTY_PRINT_OFFSET(offset), nameIReg(base));
+        m_formatter.twoByteOp_disp32(OP2_MOVPS_WpsVps, (RegisterID)src, base, offset);
+    }
     void movups_rm(XMMRegisterID src, int offset, RegisterID base, RegisterID index, int scale)
     {
         spew("movups     %s, %d(%s,%s,%d)",
@@ -3332,6 +3389,12 @@ public:
         spew("movups     %s0x%x(%s), %s",
              PRETTY_PRINT_OFFSET(offset), nameIReg(base), nameFPReg(dst));
         m_formatter.twoByteOp(OP2_MOVPS_VpsWps, (RegisterID)dst, base, offset);
+    }
+    void movups_mr_disp32(int offset, RegisterID base, XMMRegisterID dst)
+    {
+        spew("movups     %s0x%x(%s), %s",
+             PRETTY_PRINT_OFFSET(offset), nameIReg(base), nameFPReg(dst));
+        m_formatter.twoByteOp_disp32(OP2_MOVPS_VpsWps, (RegisterID)dst, base, offset);
     }
     void movups_mr(int offset, RegisterID base, RegisterID index, int scale, XMMRegisterID dst)
     {
@@ -3385,6 +3448,14 @@ public:
         m_formatter.twoByteOp(OP2_MOVDQ_WdqVdq, (RegisterID)src, base, offset);
     }
 
+    void movdqu_rm_disp32(XMMRegisterID src, int offset, RegisterID base)
+    {
+        spew("movdqu     %s, %s0x%x(%s)",
+             nameFPReg(src), PRETTY_PRINT_OFFSET(offset), nameIReg(base));
+        m_formatter.prefix(PRE_SSE_F3);
+        m_formatter.twoByteOp_disp32(OP2_MOVDQ_WdqVdq, (RegisterID)src, base, offset);
+    }
+
     void movdqu_rm(XMMRegisterID src, int offset, RegisterID base, RegisterID index, int scale)
     {
         spew("movdqu     %s, %d(%s,%s,%d)",
@@ -3399,6 +3470,14 @@ public:
              PRETTY_PRINT_OFFSET(offset), nameIReg(base), nameFPReg(dst));
         m_formatter.prefix(PRE_SSE_F3);
         m_formatter.twoByteOp(OP2_MOVDQ_VdqWdq, (RegisterID)dst, base, offset);
+    }
+
+    void movdqu_mr_disp32(int offset, RegisterID base, XMMRegisterID dst)
+    {
+        spew("movdqu     %s0x%x(%s), %s",
+             PRETTY_PRINT_OFFSET(offset), nameIReg(base), nameFPReg(dst));
+        m_formatter.prefix(PRE_SSE_F3);
+        m_formatter.twoByteOp_disp32(OP2_MOVDQ_VdqWdq, (RegisterID)dst, base, offset);
     }
 
     void movdqu_mr(int offset, RegisterID base, RegisterID index, int scale, XMMRegisterID dst)
@@ -3697,7 +3776,7 @@ public:
     void insertps_irr(unsigned mask, XMMRegisterID src, XMMRegisterID dst)
     {
         MOZ_ASSERT(mask < 256);
-        spew("insertps   $%u, %s, %s", mask, nameFPReg(src), nameFPReg(dst));
+        spew("insertps   $%x, %s, %s", mask, nameFPReg(src), nameFPReg(dst));
         m_formatter.prefix(PRE_SSE_66);
         m_formatter.threeByteOp(OP3_INSERTPS_VpsUps, ESCAPE_INSERTPS, (RegisterID)dst, (RegisterID)src);
         m_formatter.immediate8(uint8_t(mask));
@@ -3706,7 +3785,7 @@ public:
     void pinsrd_irr(unsigned lane, RegisterID src, XMMRegisterID dst)
     {
         MOZ_ASSERT(lane < 4);
-        spew("pinsrd     $%u, %s, %s", lane, nameIReg(src), nameFPReg(dst));
+        spew("pinsrd     $%x, %s, %s", lane, nameIReg(4, src), nameFPReg(dst));
         m_formatter.prefix(PRE_SSE_66);
         m_formatter.threeByteOp(OP3_PINSRD_VdqEdIb, ESCAPE_PINSRD, (RegisterID)dst, (RegisterID)src);
         m_formatter.immediate8(uint8_t(lane));
@@ -3715,11 +3794,79 @@ public:
     void pinsrd_imr(unsigned lane, int offset, RegisterID base, XMMRegisterID dst)
     {
         MOZ_ASSERT(lane < 4);
-        spew("pinsrd     $%u, %s0x%x(%s), %s", lane, PRETTY_PRINT_OFFSET(offset),
+        spew("pinsrd     $%x, %s0x%x(%s), %s", lane, PRETTY_PRINT_OFFSET(offset),
              nameIReg(base), nameFPReg(dst));
         m_formatter.prefix(PRE_SSE_66);
         m_formatter.threeByteOp(OP3_PINSRD_VdqEdIb, ESCAPE_PINSRD, (RegisterID)dst, base, offset);
         m_formatter.immediate8(uint8_t(lane));
+    }
+
+    void pextrd_irr(unsigned lane, XMMRegisterID src, RegisterID dst)
+    {
+        MOZ_ASSERT(lane < 4);
+        spew("pextrd     $%x, %s, %s", lane, nameFPReg(src), nameIReg(4, dst));
+        m_formatter.prefix(PRE_SSE_66);
+        m_formatter.threeByteOp(OP3_PEXTRD_EdVdqIb, ESCAPE_PEXTRD, (RegisterID)src, (RegisterID)dst);
+        m_formatter.immediate8(uint8_t(lane));
+    }
+
+    void pextrd_imr(unsigned lane, XMMRegisterID src, int offset, RegisterID base)
+    {
+        MOZ_ASSERT(lane < 4);
+        spew("pextrd     $%x, %s, %s0x%x(%s)", lane, nameFPReg(src),
+             PRETTY_PRINT_OFFSET(offset), nameIReg(base));
+        m_formatter.prefix(PRE_SSE_66);
+        m_formatter.threeByteOp(OP3_PEXTRD_EdVdqIb, ESCAPE_PEXTRD, (RegisterID)src, base, offset);
+        m_formatter.immediate8(uint8_t(lane));
+    }
+
+    void blendps_irr(unsigned imm, XMMRegisterID src, XMMRegisterID dst)
+    {
+        MOZ_ASSERT(imm < 16);
+        spew("blendps    $%x, %s, %s", imm, nameFPReg(src), nameFPReg(dst));
+        m_formatter.prefix(PRE_SSE_66);
+        m_formatter.threeByteOp(OP3_BLENDPS_VpsWpsIb, ESCAPE_BLENDPS, (RegisterID)dst, (RegisterID)src);
+        m_formatter.immediate8(uint8_t(imm));
+    }
+
+    void blendps_imr(unsigned imm, int offset, RegisterID base, XMMRegisterID dst)
+    {
+        MOZ_ASSERT(imm < 16);
+        spew("blendps    $%x, %s0x%x(%s), %s", imm, PRETTY_PRINT_OFFSET(offset), nameIReg(base),
+             nameFPReg(dst));
+        m_formatter.prefix(PRE_SSE_66);
+        m_formatter.threeByteOp(OP3_BLENDPS_VpsWpsIb, ESCAPE_BLENDPS, (RegisterID)dst, base, offset);
+        m_formatter.immediate8(uint8_t(imm));
+    }
+
+    void movsldup_rr(XMMRegisterID src, XMMRegisterID dst)
+    {
+        spew("movsldup   %s, %s", nameFPReg(src), nameFPReg(dst));
+        m_formatter.prefix(PRE_SSE_F3);
+        m_formatter.twoByteOp(OP2_MOVSLDUP_VpsWps, (RegisterID)dst, (RegisterID)src);
+    }
+
+    void movsldup_mr(int offset, RegisterID base, XMMRegisterID dst)
+    {
+        spew("movsldup   %s0x%x(%s), %s", PRETTY_PRINT_OFFSET(offset), nameIReg(base),
+             nameFPReg(dst));
+        m_formatter.prefix(PRE_SSE_F3);
+        m_formatter.twoByteOp(OP2_MOVSLDUP_VpsWps, (RegisterID)dst, base, offset);
+    }
+
+    void movshdup_rr(XMMRegisterID src, XMMRegisterID dst)
+    {
+        spew("movshdup   %s, %s", nameFPReg(src), nameFPReg(dst));
+        m_formatter.prefix(PRE_SSE_F3);
+        m_formatter.twoByteOp(OP2_MOVSHDUP_VpsWps, (RegisterID)dst, (RegisterID)src);
+    }
+
+    void movshdup_mr(int offset, RegisterID base, XMMRegisterID dst)
+    {
+        spew("movshdup   %s0x%x(%s), %s", PRETTY_PRINT_OFFSET(offset), nameIReg(base),
+             nameFPReg(dst));
+        m_formatter.prefix(PRE_SSE_F3);
+        m_formatter.twoByteOp(OP2_MOVSHDUP_VpsWps, (RegisterID)dst, base, offset);
     }
 
     void minsd_rr(XMMRegisterID src, XMMRegisterID dst)

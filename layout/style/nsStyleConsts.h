@@ -79,7 +79,7 @@ static inline mozilla::css::Side operator++(mozilla::css::Side& side, int) {
 #define NS_STYLE_BASIC_SHAPE_POLYGON       0
 #define NS_STYLE_BASIC_SHAPE_CIRCLE        1
 #define NS_STYLE_BASIC_SHAPE_ELLIPSE       2
-//#define NS_STYLE_BASIC_SHAPE_INSET       3
+#define NS_STYLE_BASIC_SHAPE_INSET         3
 
 // box-shadow
 #define NS_STYLE_BOX_SHADOW_INSET         0
@@ -399,7 +399,6 @@ static inline mozilla::css::Side operator++(mozilla::css::Side& side, int) {
 // See nsStyleVisibility
 #define NS_STYLE_DIRECTION_LTR                  0
 #define NS_STYLE_DIRECTION_RTL                  1
-#define NS_STYLE_DIRECTION_INHERIT              2
 
 // See nsStyleVisibility
 #define NS_STYLE_WRITING_MODE_HORIZONTAL_TB     0
@@ -444,6 +443,7 @@ static inline mozilla::css::Side operator++(mozilla::css::Side& side, int) {
 #define NS_STYLE_DISPLAY_RUBY_BASE_CONTAINER    35
 #define NS_STYLE_DISPLAY_RUBY_TEXT              36
 #define NS_STYLE_DISPLAY_RUBY_TEXT_CONTAINER    37
+#define NS_STYLE_DISPLAY_CONTENTS               38
 
 // See nsStylePosition
 #define NS_STYLE_ALIGN_CONTENT_FLEX_START       0

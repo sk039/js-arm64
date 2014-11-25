@@ -19,33 +19,6 @@
 
 #include "GeckoProfiler.h"
 
-#define BOOKMARKS_TO_KEYWORDS_INITIAL_CACHE_LENGTH 32
-#define RECENT_BOOKMARKS_INITIAL_CACHE_LENGTH 10
-// Threshold to expire old bookmarks if the initial cache size is exceeded.
-#define RECENT_BOOKMARKS_THRESHOLD PRTime((int64_t)1 * 60 * PR_USEC_PER_SEC)
-
-#define BEGIN_CRITICAL_BOOKMARK_CACHE_SECTION(_itemId_) \
-  mUncachableBookmarks.PutEntry(_itemId_); \
-  mRecentBookmarksCache.RemoveEntry(_itemId_)
-
-#define END_CRITICAL_BOOKMARK_CACHE_SECTION(_itemId_) \
-  MOZ_ASSERT(!mRecentBookmarksCache.GetEntry(_itemId_)); \
-  MOZ_ASSERT(mUncachableBookmarks.GetEntry(_itemId_)); \
-  mUncachableBookmarks.RemoveEntry(_itemId_)
-
-#define ADD_TO_BOOKMARK_CACHE(_itemId_, _data_) \
-  PR_BEGIN_MACRO \
-  ExpireNonrecentBookmarks(&mRecentBookmarksCache); \
-  if (!mUncachableBookmarks.GetEntry(_itemId_)) { \
-    BookmarkKeyClass* key = mRecentBookmarksCache.PutEntry(_itemId_); \
-    if (key) { \
-      key->bookmark = _data_; \
-    } \
-  } \
-  PR_END_MACRO
-
-#define TOPIC_PLACES_MAINTENANCE "places-maintenance-finished"
-
 using namespace mozilla;
 
 // These columns sit to the right of the kGetInfoIndex_* columns.
@@ -64,25 +37,6 @@ PLACES_FACTORY_SINGLETON_IMPLEMENTATION(nsNavBookmarks, gBookmarksService)
 
 
 namespace {
-
-struct keywordSearchData
-{
-  int64_t itemId;
-  nsString keyword;
-};
-
-PLDHashOperator
-SearchBookmarkForKeyword(nsTrimInt64HashKey::KeyType aKey,
-                         const nsString aValue,
-                         void* aUserArg)
-{
-  keywordSearchData* data = reinterpret_cast<keywordSearchData*>(aUserArg);
-  if (data->keyword.Equals(aValue)) {
-    data->itemId = aKey;
-    return PL_DHASH_STOP;
-  }
-  return PL_DHASH_NEXT;
-}
 
 template<typename Method, typename DataType>
 class AsyncGetBookmarksForURI : public AsyncStatementCallback
@@ -155,46 +109,6 @@ private:
   DataType mData;
 };
 
-static PLDHashOperator
-ExpireNonrecentBookmarksCallback(BookmarkKeyClass* aKey,
-                                 void* userArg)
-{
-  int64_t* threshold = reinterpret_cast<int64_t*>(userArg);
-  if (aKey->creationTime < *threshold) {
-    return PL_DHASH_REMOVE;
-  }
-  return PL_DHASH_NEXT;
-}
-
-static void
-ExpireNonrecentBookmarks(nsTHashtable<BookmarkKeyClass>* hashTable)
-{
-  if (hashTable->Count() > RECENT_BOOKMARKS_INITIAL_CACHE_LENGTH) {
-    int64_t threshold = PR_Now() - RECENT_BOOKMARKS_THRESHOLD;
-    (void)hashTable->EnumerateEntries(ExpireNonrecentBookmarksCallback,
-                                      reinterpret_cast<void*>(&threshold));
-  }
-}
-
-static PLDHashOperator
-ExpireRecentBookmarksByParentCallback(BookmarkKeyClass* aKey,
-                                      void* userArg)
-{
-  int64_t* parentId = reinterpret_cast<int64_t*>(userArg);
-  if (aKey->bookmark.parentId == *parentId) {
-    return PL_DHASH_REMOVE;
-  }
-  return PL_DHASH_NEXT;
-}
-
-static void
-ExpireRecentBookmarksByParent(nsTHashtable<BookmarkKeyClass>* hashTable,
-                              int64_t aParentId)
-{
-  (void)hashTable->EnumerateEntries(ExpireRecentBookmarksByParentCallback,
-                                    reinterpret_cast<void*>(&aParentId));
-}
-
 } // Anonymous namespace.
 
 
@@ -208,10 +122,6 @@ nsNavBookmarks::nsNavBookmarks()
   , mCanNotify(false)
   , mCacheObservers("bookmark-observers")
   , mBatching(false)
-  , mBookmarkToKeywordHash(BOOKMARKS_TO_KEYWORDS_INITIAL_CACHE_LENGTH)
-  , mBookmarkToKeywordHashInitialized(false)
-  , mRecentBookmarksCache(RECENT_BOOKMARKS_INITIAL_CACHE_LENGTH)
-  , mUncachableBookmarks(RECENT_BOOKMARKS_INITIAL_CACHE_LENGTH)
 {
   NS_ASSERTION(!gBookmarksService,
                "Attempting to create two instances of the service!");
@@ -245,7 +155,6 @@ nsNavBookmarks::Init()
 
   nsCOMPtr<nsIObserverService> os = mozilla::services::GetObserverService();
   if (os) {
-    (void)os->AddObserver(this, TOPIC_PLACES_MAINTENANCE, true);
     (void)os->AddObserver(this, TOPIC_PLACES_SHUTDOWN, true);
     (void)os->AddObserver(this, TOPIC_PLACES_CONNECTION_CLOSED, true);
   }
@@ -345,10 +254,6 @@ nsNavBookmarks::AdjustIndices(int64_t aFolderId,
 {
   NS_ASSERTION(aStartIndex >= 0 && aEndIndex <= INT32_MAX &&
                aStartIndex <= aEndIndex, "Bad indices");
-
-  // Expire all cached items for this parent, since all positions are going to
-  // change.
-  ExpireRecentBookmarksByParent(&mRecentBookmarksCache, aFolderId);
 
   nsCOMPtr<mozIStorageStatement> stmt = mDB->GetStatement(
     "UPDATE moz_bookmarks SET position = position + :delta "
@@ -552,8 +457,6 @@ nsNavBookmarks::InsertBookmarkInDB(int64_t aPlaceId,
   bookmark.parentGuid = aParentGuid;
   bookmark.grandParentId = aGrandParentId;
 
-  ADD_TO_BOOKMARK_CACHE(*_itemId, bookmark);
-
   return NS_OK;
 }
 
@@ -684,8 +587,6 @@ nsNavBookmarks::RemoveItem(int64_t aItemId)
     NS_ENSURE_SUCCESS(rv, rv);
   }
 
-  BEGIN_CRITICAL_BOOKMARK_CACHE_SECTION(bookmark.id);
-
   nsCOMPtr<mozIStorageStatement> stmt = mDB->GetStatement(
     "DELETE FROM moz_bookmarks WHERE id = :item_id"
   );
@@ -712,8 +613,6 @@ nsNavBookmarks::RemoveItem(int64_t aItemId)
   rv = transaction.Commit();
   NS_ENSURE_SUCCESS(rv, rv);
 
-  END_CRITICAL_BOOKMARK_CACHE_SECTION(bookmark.id);
-
   nsCOMPtr<nsIURI> uri;
   if (bookmark.type == TYPE_BOOKMARK) {
     // If not a tag, recalculate frecency for this entry, since it changed.
@@ -724,7 +623,7 @@ nsNavBookmarks::RemoveItem(int64_t aItemId)
       NS_ENSURE_SUCCESS(rv, rv);
     }
 
-    rv = UpdateKeywordsHashForRemovedBookmark(aItemId);
+    rv = removeOrphanKeywords();
     NS_ENSURE_SUCCESS(rv, rv);
 
     // A broken url should not interrupt the removal process.
@@ -1154,8 +1053,6 @@ nsNavBookmarks::RemoveFolderChildren(int64_t aFolderId)
       foldersToRemove.Append(',');
       foldersToRemove.AppendInt(child.id);
     }
-
-    BEGIN_CRITICAL_BOOKMARK_CACHE_SECTION(child.id);
   }
 
   // Delete items from the database now.
@@ -1199,10 +1096,9 @@ nsNavBookmarks::RemoveFolderChildren(int64_t aFolderId)
         NS_ENSURE_SUCCESS(rv, rv);
       }
 
-      rv = UpdateKeywordsHashForRemovedBookmark(child.id);
+      rv = removeOrphanKeywords();
       NS_ENSURE_SUCCESS(rv, rv);
     }
-    END_CRITICAL_BOOKMARK_CACHE_SECTION(child.id);
   }
 
   rv = transaction.Commit();
@@ -1351,8 +1247,6 @@ nsNavBookmarks::MoveItem(int64_t aItemId, int64_t aNewParent, int32_t aIndex)
     NS_ENSURE_SUCCESS(rv, rv);
   }
 
-  BEGIN_CRITICAL_BOOKMARK_CACHE_SECTION(bookmark.id);
-
   {
     // Update parent and position.
     nsCOMPtr<mozIStorageStatement> stmt = mDB->GetStatement(
@@ -1381,8 +1275,6 @@ nsNavBookmarks::MoveItem(int64_t aItemId, int64_t aNewParent, int32_t aIndex)
   rv = transaction.Commit();
   NS_ENSURE_SUCCESS(rv, rv);
 
-  END_CRITICAL_BOOKMARK_CACHE_SECTION(bookmark.id);
-
   NOTIFY_OBSERVERS(mCanNotify, mCacheObservers, mObservers,
                    nsINavBookmarkObserver,
                    OnItemMoved(bookmark.id,
@@ -1401,14 +1293,6 @@ nsresult
 nsNavBookmarks::FetchItemInfo(int64_t aItemId,
                               BookmarkData& _bookmark)
 {
-  // Check if the requested id is in the recent cache and avoid the database
-  // lookup if so.  Invalidate the cache after getting data if requested.
-  BookmarkKeyClass* key = mRecentBookmarksCache.GetEntry(aItemId);
-  if (key) {
-    _bookmark = key->bookmark;
-    return NS_OK;
-  }
-
   // LEFT JOIN since not all bookmarks have an associated place.
   nsCOMPtr<mozIStorageStatement> stmt = mDB->GetStatement(
     "SELECT b.id, h.url, b.title, b.position, b.fk, b.parent, b.type, "
@@ -1471,8 +1355,6 @@ nsNavBookmarks::FetchItemInfo(int64_t aItemId,
     _bookmark.grandParentId = -1;
   }
 
-  ADD_TO_BOOKMARK_CACHE(aItemId, _bookmark);
-
   return NS_OK;
 }
 
@@ -1506,16 +1388,6 @@ nsNavBookmarks::SetItemDateInternal(enum BookmarkDate aDateType,
 
   rv = stmt->Execute();
   NS_ENSURE_SUCCESS(rv, rv);
-
-  // Update the cache entry, if needed.
-  BookmarkKeyClass* key = mRecentBookmarksCache.GetEntry(aItemId);
-  if (key) {
-    if (aDateType == DATE_ADDED) {
-      key->bookmark.dateAdded = aValue;
-    }
-    // Set lastModified in both cases.
-    key->bookmark.lastModified = aValue;
-  }
 
   // note, we are not notifying the observers
   // that the item has changed.
@@ -1649,18 +1521,6 @@ nsNavBookmarks::SetItemTitle(int64_t aItemId, const nsACString& aTitle)
 
   rv = statement->Execute();
   NS_ENSURE_SUCCESS(rv, rv);
-
-  // Update the cache entry, if needed.
-  BookmarkKeyClass* key = mRecentBookmarksCache.GetEntry(aItemId);
-  if (key) {
-    if (title.IsVoid()) {
-      key->bookmark.title.SetIsVoid(true);
-    }
-    else {
-      key->bookmark.title.Assign(title);
-    }
-    key->bookmark.lastModified = bookmark.lastModified;
-  }
 
   NOTIFY_OBSERVERS(mCanNotify, mCacheObservers, mObservers,
                    nsINavBookmarkObserver,
@@ -2109,8 +1969,6 @@ nsNavBookmarks::ChangeBookmarkURI(int64_t aBookmarkId, nsIURI* aNewURI)
   if (!newPlaceId)
     return NS_ERROR_INVALID_ARG;
 
-  BEGIN_CRITICAL_BOOKMARK_CACHE_SECTION(bookmark.id);
-
   nsCOMPtr<mozIStorageStatement> statement = mDB->GetStatement(
     "UPDATE moz_bookmarks SET fk = :page_id, lastModified = :date "
     "WHERE id = :item_id "
@@ -2131,8 +1989,6 @@ nsNavBookmarks::ChangeBookmarkURI(int64_t aBookmarkId, nsIURI* aNewURI)
 
   rv = transaction.Commit();
   NS_ENSURE_SUCCESS(rv, rv);
-
-  END_CRITICAL_BOOKMARK_CACHE_SECTION(bookmark.id);
 
   rv = history->UpdateFrecency(newPlaceId);
   NS_ENSURE_SUCCESS(rv, rv);
@@ -2345,8 +2201,6 @@ nsNavBookmarks::SetItemIndex(int64_t aItemId, int32_t aNewIndex)
   // Check the parent's guid is the expected one.
   MOZ_ASSERT(bookmark.parentGuid == folderGuid);
 
-  BEGIN_CRITICAL_BOOKMARK_CACHE_SECTION(bookmark.id);
-
   nsCOMPtr<mozIStorageStatement> stmt = mDB->GetStatement(
     "UPDATE moz_bookmarks SET position = :item_index WHERE id = :item_id"
   );
@@ -2360,8 +2214,6 @@ nsNavBookmarks::SetItemIndex(int64_t aItemId, int32_t aNewIndex)
 
   rv = stmt->Execute();
   NS_ENSURE_SUCCESS(rv, rv);
-
-  END_CRITICAL_BOOKMARK_CACHE_SECTION(bookmark.id);
 
   NOTIFY_OBSERVERS(mCanNotify, mCacheObservers, mObservers,
                    nsINavBookmarkObserver,
@@ -2380,39 +2232,23 @@ nsNavBookmarks::SetItemIndex(int64_t aItemId, int32_t aNewIndex)
 
 
 nsresult
-nsNavBookmarks::UpdateKeywordsHashForRemovedBookmark(int64_t aItemId)
+nsNavBookmarks::removeOrphanKeywords()
 {
-  nsAutoString keyword;
-  if (NS_SUCCEEDED(GetKeywordForBookmark(aItemId, keyword)) &&
-      !keyword.IsEmpty()) {
-    nsresult rv = EnsureKeywordsHash();
-    NS_ENSURE_SUCCESS(rv, rv);
-    mBookmarkToKeywordHash.Remove(aItemId);
+  // If the keyword is unused, remove it from the database.
+  nsCOMPtr<mozIStorageAsyncStatement> stmt = mDB->GetAsyncStatement(
+    "DELETE FROM moz_keywords "
+    "WHERE NOT EXISTS ( "
+      "SELECT id "
+      "FROM moz_bookmarks "
+      "WHERE keyword_id = moz_keywords.id "
+    ")"
+  );
+  NS_ENSURE_STATE(stmt);
 
-    // If the keyword is unused, remove it from the database.
-    keywordSearchData searchData;
-    searchData.keyword.Assign(keyword);
-    searchData.itemId = -1;
-    mBookmarkToKeywordHash.EnumerateRead(SearchBookmarkForKeyword, &searchData);
-    if (searchData.itemId == -1) {
-      nsCOMPtr<mozIStorageAsyncStatement> stmt = mDB->GetAsyncStatement(
-        "DELETE FROM moz_keywords "
-        "WHERE keyword = :keyword "
-        "AND NOT EXISTS ( "
-          "SELECT id "
-          "FROM moz_bookmarks "
-          "WHERE keyword_id = moz_keywords.id "
-        ")"
-      );
-      NS_ENSURE_STATE(stmt);
+  nsCOMPtr<mozIStoragePendingStatement> pendingStmt;
+  nsresult rv = stmt->ExecuteAsync(nullptr, getter_AddRefs(pendingStmt));
+  NS_ENSURE_SUCCESS(rv, rv);
 
-      rv = stmt->BindStringByName(NS_LITERAL_CSTRING("keyword"), keyword);
-      NS_ENSURE_SUCCESS(rv, rv);
-      nsCOMPtr<mozIStoragePendingStatement> pendingStmt;
-      rv = stmt->ExecuteAsync(nullptr, getter_AddRefs(pendingStmt));
-      NS_ENSURE_SUCCESS(rv, rv);
-    }
-  }
   return NS_OK;
 }
 
@@ -2426,9 +2262,6 @@ nsNavBookmarks::SetKeywordForBookmark(int64_t aBookmarkId,
   // This also ensures the bookmark is valid.
   BookmarkData bookmark;
   nsresult rv = FetchItemInfo(aBookmarkId, bookmark);
-  NS_ENSURE_SUCCESS(rv, rv);
-
-  rv = EnsureKeywordsHash();
   NS_ENSURE_SUCCESS(rv, rv);
 
   // Shortcuts are always lowercased internally.
@@ -2456,8 +2289,6 @@ nsNavBookmarks::SetKeywordForBookmark(int64_t aBookmarkId,
   mozStorageStatementScoper updateBookmarkScoper(updateBookmarkStmt);
 
   if (keyword.IsEmpty()) {
-    // Remove keyword association from the hash.
-    mBookmarkToKeywordHash.Remove(bookmark.id);
     rv = updateBookmarkStmt->BindNullByName(NS_LITERAL_CSTRING("keyword"));
   }
    else {
@@ -2475,10 +2306,6 @@ nsNavBookmarks::SetKeywordForBookmark(int64_t aBookmarkId,
     rv = newKeywordStmt->Execute();
     NS_ENSURE_SUCCESS(rv, rv);
 
-    // Add new keyword association to the hash, removing the old one if needed.
-    if (!oldKeyword.IsEmpty())
-      mBookmarkToKeywordHash.Remove(bookmark.id);
-    mBookmarkToKeywordHash.Put(bookmark.id, keyword);
     rv = updateBookmarkStmt->BindStringByName(NS_LITERAL_CSTRING("keyword"), keyword);
   }
   NS_ENSURE_SUCCESS(rv, rv);
@@ -2494,12 +2321,6 @@ nsNavBookmarks::SetKeywordForBookmark(int64_t aBookmarkId,
 
   rv = transaction.Commit();
   NS_ENSURE_SUCCESS(rv, rv);
-
-  // Update the cache entry, if needed.
-  BookmarkKeyClass* key = mRecentBookmarksCache.GetEntry(aBookmarkId);
-  if (key) {
-    key->bookmark.lastModified = bookmark.lastModified;
-  }
 
   NOTIFY_OBSERVERS(mCanNotify, mCacheObservers, mObservers,
                    nsINavBookmarkObserver,
@@ -2542,12 +2363,12 @@ nsNavBookmarks::GetKeywordForURI(nsIURI* aURI, nsAString& aKeyword)
   rv = stmt->ExecuteStep(&hasMore);
   if (NS_FAILED(rv) || !hasMore) {
     aKeyword.SetIsVoid(true);
-    return NS_OK; // not found: return void keyword string
+    return NS_OK;
   }
 
-  // found, get the keyword
   rv = stmt->GetString(0, aKeyword);
   NS_ENSURE_SUCCESS(rv, rv);
+
   return NS_OK;
 }
 
@@ -2558,16 +2379,28 @@ nsNavBookmarks::GetKeywordForBookmark(int64_t aBookmarkId, nsAString& aKeyword)
   NS_ENSURE_ARG_MIN(aBookmarkId, 1);
   aKeyword.Truncate(0);
 
-  nsresult rv = EnsureKeywordsHash();
+  nsCOMPtr<mozIStorageStatement> stmt = mDB->GetStatement(
+    "/* do not warn (bug no) - there is no index on keyword_id) */ "
+    "SELECT k.keyword "
+    "FROM moz_bookmarks b "
+    "JOIN moz_keywords k ON k.id = b.keyword_id "
+    "WHERE b.id = :id "
+  );
+  NS_ENSURE_STATE(stmt);
+  mozStorageStatementScoper scoper(stmt);
+
+  nsresult rv = stmt->BindInt64ByName(NS_LITERAL_CSTRING("id"), aBookmarkId);
   NS_ENSURE_SUCCESS(rv, rv);
 
-  nsAutoString keyword;
-  if (!mBookmarkToKeywordHash.Get(aBookmarkId, &keyword)) {
+  bool hasMore = false;
+  rv = stmt->ExecuteStep(&hasMore);
+  if (NS_FAILED(rv) || !hasMore) {
     aKeyword.SetIsVoid(true);
+    return NS_OK;
   }
-  else {
-    aKeyword.Assign(keyword);
-  }
+
+  rv = stmt->GetString(0, aKeyword);
+  NS_ENSURE_SUCCESS(rv, rv);
 
   return NS_OK;
 }
@@ -2585,52 +2418,32 @@ nsNavBookmarks::GetURIForKeyword(const nsAString& aUserCasedKeyword,
   nsAutoString keyword(aUserCasedKeyword);
   ToLowerCase(keyword);
 
-  nsresult rv = EnsureKeywordsHash();
+  nsCOMPtr<mozIStorageStatement> stmt = mDB->GetStatement(
+    "/* do not warn (bug no) - there is no index on keyword_id) */ "
+    "SELECT url FROM moz_keywords k "
+    "JOIN moz_bookmarks b ON b.keyword_id = k.id "
+    "JOIN moz_places h ON b.fk = h.id "
+    "WHERE k.keyword = :keyword "
+    "ORDER BY b.dateAdded DESC"
+  );
+  NS_ENSURE_STATE(stmt);
+  mozStorageStatementScoper scoper(stmt);
+
+  nsresult rv = stmt->BindStringByName(NS_LITERAL_CSTRING("keyword"), keyword);
   NS_ENSURE_SUCCESS(rv, rv);
 
-  keywordSearchData searchData;
-  searchData.keyword.Assign(keyword);
-  searchData.itemId = -1;
-  mBookmarkToKeywordHash.EnumerateRead(SearchBookmarkForKeyword, &searchData);
-
-  if (searchData.itemId == -1) {
-    // Not found.
+  bool hasMore = false;
+  rv = stmt->ExecuteStep(&hasMore);
+  if (NS_FAILED(rv) || !hasMore) {
     return NS_OK;
   }
 
-  rv = GetBookmarkURI(searchData.itemId, aURI);
+  nsCString url;
+  rv = stmt->GetUTF8String(0, url);
   NS_ENSURE_SUCCESS(rv, rv);
 
-  return NS_OK;
-}
-
-
-nsresult
-nsNavBookmarks::EnsureKeywordsHash() {
-  if (mBookmarkToKeywordHashInitialized) {
-    return NS_OK;
-  }
-  mBookmarkToKeywordHashInitialized = true;
-
-  nsCOMPtr<mozIStorageStatement> stmt;
-  nsresult rv = mDB->MainConn()->CreateStatement(NS_LITERAL_CSTRING(
-    "SELECT b.id, k.keyword "
-    "FROM moz_bookmarks b "
-    "JOIN moz_keywords k ON k.id = b.keyword_id "
-  ), getter_AddRefs(stmt));
+  rv = NS_NewURI(aURI, url);
   NS_ENSURE_SUCCESS(rv, rv);
-
-  bool hasMore;
-  while (NS_SUCCEEDED(stmt->ExecuteStep(&hasMore)) && hasMore) {
-    int64_t itemId;
-    rv = stmt->GetInt64(0, &itemId);
-    NS_ENSURE_SUCCESS(rv, rv);
-    nsAutoString keyword;
-    rv = stmt->GetString(1, keyword);
-    NS_ENSURE_SUCCESS(rv, rv);
-
-    mBookmarkToKeywordHash.Put(itemId, keyword);
-  }
 
   return NS_OK;
 }
@@ -2758,12 +2571,7 @@ nsNavBookmarks::Observe(nsISupports *aSubject, const char *aTopic,
 {
   NS_ASSERTION(NS_IsMainThread(), "This can only be called on the main thread");
 
-  if (strcmp(aTopic, TOPIC_PLACES_MAINTENANCE) == 0) {
-    // Maintenance can execute direct writes to the database, thus clear all
-    // the cached bookmarks.
-    mRecentBookmarksCache.Clear();
-  }
-  else if (strcmp(aTopic, TOPIC_PLACES_SHUTDOWN) == 0) {
+  if (strcmp(aTopic, TOPIC_PLACES_SHUTDOWN) == 0) {
     // Stop Observing annotations.
     nsAnnotationService* annosvc = nsAnnotationService::GetAnnotationService();
     if (annosvc) {

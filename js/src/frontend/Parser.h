@@ -325,7 +325,7 @@ struct BindData;
 
 class CompExprTransplanter;
 
-enum LetContext { LetExpresion, LetStatement };
+enum LetContext { LetExpression, LetStatement };
 enum VarContext { HoistVars, DontHoistVars };
 enum FunctionType { Getter, Setter, Normal };
 
@@ -357,6 +357,11 @@ class Parser : private JS::AutoGCRooter, public StrictModeGetter
     const bool          foldConstants:1;
 
   private:
+#if DEBUG
+    /* Our fallible 'checkOptions' member function has been called. */
+    bool checkOptionsCalled:1;
+#endif
+
     /*
      * Not all language constructs can be handled during syntax parsing. If it
      * is not known whether the parse succeeds or fails, this bit is set and
@@ -372,6 +377,8 @@ class Parser : private JS::AutoGCRooter, public StrictModeGetter
     bool sawDeprecatedDestructuringForIn:1;
     bool sawDeprecatedLegacyGenerator:1;
     bool sawDeprecatedExpressionClosure:1;
+    bool sawDeprecatedLetBlock:1;
+    bool sawDeprecatedLetExpression:1;
 
     typedef typename ParseHandler::Node Node;
     typedef typename ParseHandler::DefinitionNode DefinitionNode;
@@ -394,6 +401,8 @@ class Parser : private JS::AutoGCRooter, public StrictModeGetter
            Parser<SyntaxParseHandler> *syntaxParser,
            LazyScript *lazyOuterFunction);
     ~Parser();
+
+    bool checkOptions();
 
     // A Parser::Mark is the extension of the LifoAlloc::Mark to the entire
     // Parser's state. Note: clients must still take care that any ParseContext
@@ -499,6 +508,9 @@ class Parser : private JS::AutoGCRooter, public StrictModeGetter
     // whether it's prohibited due to strictness, JS version, or occurrence
     // inside a star generator.
     bool checkYieldNameValidity();
+    bool yieldExpressionsSupported() {
+        return versionNumber() >= JSVERSION_1_7 || pc->isGenerator();
+    }
 
     virtual bool strictMode() { return pc->sc->strict; }
 

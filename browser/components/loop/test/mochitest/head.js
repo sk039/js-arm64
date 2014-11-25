@@ -161,7 +161,7 @@ function promiseObserverNotified(aTopic, aExpectedData = null) {
   return new Promise((resolve, reject) => {
     Services.obs.addObserver(function onNotification(aSubject, aTopic, aData) {
       Services.obs.removeObserver(onNotification, aTopic);
-      is(aData, aExpectedData, "observer data should match expected data")
+      is(aData, aExpectedData, "observer data should match expected data");
       resolve({subject: aSubject, data: aData});
     }, aTopic, false);
   });
@@ -183,7 +183,7 @@ function promiseOAuthGetRegistration(baseURL) {
 }
 
 function getLoopString(stringID) {
-  return MozLoopServiceInternal.localizedStrings[stringID].textContent;
+  return MozLoopServiceInternal.localizedStrings.get(stringID);
 }
 
 /**

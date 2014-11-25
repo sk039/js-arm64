@@ -841,9 +841,9 @@ function _loadURIWithFlags(browser, uri, flags, referrer, charset, postdata) {
     browser.userTypedClear++;
   }
 
+  let shouldBeRemote = gMultiProcessBrowser &&
+                       E10SUtils.shouldBrowserBeRemote(uri);
   try {
-    let shouldBeRemote = gMultiProcessBrowser &&
-                         E10SUtils.shouldBrowserBeRemote(uri);
     if (browser.isRemoteBrowser == shouldBeRemote) {
       browser.webNavigation.loadURI(uri, flags, referrer, postdata, null);
     } else {
@@ -853,6 +853,13 @@ function _loadURIWithFlags(browser, uri, flags, referrer, charset, postdata) {
         referrer: referrer ? referrer.spec : null,
       });
     }
+  } catch (e) {
+    // If anything goes wrong just switch remoteness manually and load the URI.
+    // We might lose history that way but at least the browser loaded a page.
+    // This might be necessary if SessionStore wasn't initialized yet i.e.
+    // when the homepage is a non-remote page.
+    gBrowser.updateBrowserRemoteness(browser, shouldBeRemote);
+    browser.webNavigation.loadURI(uri, flags, referrer, postdata, null);
   } finally {
     if (browser.userTypedClear) {
       browser.userTypedClear--;
@@ -1133,6 +1140,28 @@ var gBrowserInit = {
 #ifdef MOZ_CRASHREPORTER
       TabCrashReporter.onAboutTabCrashedLoad(gBrowser.getBrowserForDocument(event.target));
 #endif
+    }, false, true);
+
+    gBrowser.addEventListener("AboutTabCrashedTryAgain", function(event) {
+      let ownerDoc = event.originalTarget;
+
+      if (!ownerDoc.documentURI.startsWith("about:tabcrashed")) {
+        return;
+      }
+
+      let isTopFrame = (ownerDoc.defaultView.parent === ownerDoc.defaultView);
+      if (!isTopFrame) {
+        return;
+      }
+
+      let browser = gBrowser.getBrowserForDocument(ownerDoc);
+#ifdef MOZ_CRASHREPORTER
+      if (event.detail.sendCrashReport) {
+        TabCrashReporter.submitCrashReport(browser);
+      }
+#endif
+      let tab = gBrowser.getTabForBrowser(browser);
+      SessionStore.reviveCrashedTab(tab);
     }, false, true);
 
     if (uriToLoad && uriToLoad != "about:blank") {
@@ -1736,7 +1765,7 @@ function HandleAppCommandEvent(evt) {
                      gBrowser.selectedBrowser);
     break;
   case "Save":
-    saveDocument(window.content.document);
+    saveDocument(gBrowser.selectedBrowser.contentDocumentAsCPOW);
     break;
   case "SendMail":
     MailIntegration.sendLinkForWindow(window.content);
@@ -2599,9 +2628,6 @@ let BrowserOnClick = {
         ownerDoc.documentURI.toLowerCase() == "about:newtab") {
       this.onE10sAboutNewTab(event, ownerDoc);
     }
-    else if (ownerDoc.documentURI.startsWith("about:tabcrashed")) {
-      this.onAboutTabCrashed(event, ownerDoc);
-    }
   },
 
   receiveMessage: function (msg) {
@@ -2859,29 +2885,6 @@ let BrowserOnClick = {
       event.preventDefault();
       let where = whereToOpenLink(event, false, false);
       openLinkIn(anchorTarget.href, where, { charset: ownerDoc.characterSet });
-    }
-  },
-
-  /**
-   * The about:tabcrashed can't do window.reload() because that
-   * would reload the page but not use a remote browser.
-   */
-  onAboutTabCrashed: function(event, ownerDoc) {
-    let isTopFrame = (ownerDoc.defaultView.parent === ownerDoc.defaultView);
-    if (!isTopFrame) {
-      return;
-    }
-
-    let button = event.originalTarget;
-    if (button.id == "tryAgain") {
-      let browser = gBrowser.getBrowserForDocument(ownerDoc);
-#ifdef MOZ_CRASHREPORTER
-      if (ownerDoc.getElementById("checkSendReport").checked) {
-        TabCrashReporter.submitCrashReport(browser);
-      }
-#endif
-      let tab = gBrowser.getTabForBrowser(browser);
-      SessionStore.reviveCrashedTab(tab);
     }
   },
 
@@ -7302,9 +7305,13 @@ let gPrivateBrowsingUI = {
 
     if (gURLBar &&
         !PrivateBrowsingUtils.permanentPrivateBrowsing) {
-      // Disable switch to tab autocompletion for private windows 
-      // (not for "Always use private browsing" mode)
-      gURLBar.setAttribute("autocompletesearchparam", "");
+      // Disable switch to tab autocompletion for private windows.
+      // We leave it enabled for permanent private browsing mode though.
+      let value = gURLBar.getAttribute("autocompletesearchparam") || "";
+      if (!value.contains("disable-private-actions")) {
+        gURLBar.setAttribute("autocompletesearchparam",
+                             value + " disable-private-actions");
+      }
     }
   }
 };

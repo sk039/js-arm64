@@ -95,17 +95,12 @@ struct DisplayPortPropertyData {
 };
 
 struct DisplayPortMarginsPropertyData {
-  DisplayPortMarginsPropertyData(const LayerMargin& aMargins,
-                                 uint32_t aAlignmentX, uint32_t aAlignmentY,
+  DisplayPortMarginsPropertyData(const ScreenMargin& aMargins,
                                  uint32_t aPriority)
     : mMargins(aMargins)
-    , mAlignmentX(aAlignmentX)
-    , mAlignmentY(aAlignmentY)
     , mPriority(aPriority)
   {}
-  LayerMargin mMargins;
-  uint32_t mAlignmentX;
-  uint32_t mAlignmentY;
+  ScreenMargin mMargins;
   uint32_t mPriority;
 };
 
@@ -122,6 +117,7 @@ class nsLayoutUtils
   typedef mozilla::dom::DOMRectList DOMRectList;
   typedef mozilla::layers::Layer Layer;
   typedef mozilla::ContainerLayerParameters ContainerLayerParameters;
+  typedef mozilla::IntrinsicSize IntrinsicSize;
   typedef mozilla::gfx::SourceSurface SourceSurface;
   typedef mozilla::gfx::Color Color;
   typedef mozilla::gfx::DrawTarget DrawTarget;
@@ -137,7 +133,7 @@ public:
   typedef FrameMetrics::ViewID ViewID;
   typedef mozilla::CSSPoint CSSPoint;
   typedef mozilla::CSSSize CSSSize;
-  typedef mozilla::LayerMargin LayerMargin;
+  typedef mozilla::ScreenMargin ScreenMargin;
   typedef mozilla::LayoutDeviceIntSize LayoutDeviceIntSize;
 
   /**
@@ -185,12 +181,11 @@ public:
    * @param aPriority a priority value to determine which margins take effect
    *                  when multiple callers specify margins
    * @param aRepaintMode whether to schedule a paint after setting the margins
+   * @return true if the new margins were applied.
    */
-  static void SetDisplayPortMargins(nsIContent* aContent,
+  static bool SetDisplayPortMargins(nsIContent* aContent,
                                     nsIPresShell* aPresShell,
-                                    const LayerMargin& aMargins,
-                                    uint32_t aAlignmentX,
-                                    uint32_t aAlignmentY,
+                                    const ScreenMargin& aMargins,
                                     uint32_t aPriority = 0,
                                     RepaintMode aRepaintMode = RepaintMode::Repaint);
 
@@ -215,22 +210,47 @@ public:
   static mozilla::layout::FrameChildListID GetChildListNameFor(nsIFrame* aChildFrame);
 
   /**
-   * GetBeforeFrame returns the outermost :before frame of the given frame, if
+   * GetBeforeFrameForContent returns the ::before frame for aContent, if
    * one exists.  This is typically O(1).  The frame passed in must be
    * the first-in-flow.
    *
-   * @param aFrame the frame whose :before is wanted
+   * @param aGenConParentFrame an ancestor of the ::before frame
+   * @param aContent the content whose ::before is wanted
+   * @return the ::before frame or nullptr if there isn't one
+   */
+  static nsIFrame* GetBeforeFrameForContent(nsIFrame* aGenConParentFrame,
+                                            nsIContent* aContent);
+
+  /**
+   * GetBeforeFrame returns the outermost ::before frame of the given frame, if
+   * one exists.  This is typically O(1).  The frame passed in must be
+   * the first-in-flow.
+   *
+   * @param aFrame the frame whose ::before is wanted
    * @return the :before frame or nullptr if there isn't one
    */
   static nsIFrame* GetBeforeFrame(nsIFrame* aFrame);
 
   /**
-   * GetAfterFrame returns the outermost :after frame of the given frame, if one
+   * GetAfterFrameForContent returns the ::after frame for aContent, if one
+   * exists.  This will walk the in-flow chain of aGenConParentFrame to the
+   * last-in-flow if needed.  This function is typically O(N) in the number
+   * of child frames, following in-flows, etc.
+   *
+   * @param aGenConParentFrame an ancestor of the ::after frame
+   * @param aContent the content whose ::after is wanted
+   * @return the ::after frame or nullptr if there isn't one
+   */
+  static nsIFrame* GetAfterFrameForContent(nsIFrame* aGenConParentFrame,
+                                           nsIContent* aContent);
+
+  /**
+   * GetAfterFrame returns the outermost ::after frame of the given frame, if one
    * exists.  This will walk the in-flow chain to the last-in-flow if
    * needed.  This function is typically O(N) in the number of child
    * frames, following in-flows, etc.
    *
-   * @param aFrame the frame whose :after is wanted
+   * @param aFrame the frame whose ::after is wanted
    * @return the :after frame or nullptr if there isn't one
    */
   static nsIFrame* GetAfterFrame(nsIFrame* aFrame);
@@ -494,6 +514,12 @@ public:
   static void SetScrollbarThumbLayerization(nsIFrame* aThumbFrame, bool aLayerize);
 
   /**
+   * Returns whether aThumbFrame wants its own layer due to having called
+   * SetScrollbarThumbLayerization.
+   */
+  static bool IsScrollbarThumbLayerized(nsIFrame* aThumbFrame);
+
+  /**
    * Finds the nearest ancestor frame to aItem that is considered to have (or
    * will have) "animated geometry". For example the scrolled frames of
    * scrollframes which are actively being scrolled fall into this category.
@@ -542,8 +568,27 @@ public:
                                                                    Direction aDirection);
 
   enum {
+    /**
+     * If the SCROLLABLE_SAME_DOC flag is set, then we only walk the frame tree
+     * up to the root frame in the current document.
+     */
     SCROLLABLE_SAME_DOC = 0x01,
-    SCROLLABLE_INCLUDE_HIDDEN = 0x02
+    /**
+     * If the SCROLLABLE_INCLUDE_HIDDEN flag is set then we allow
+     * overflow:hidden scrollframes to be returned as scrollable frames.
+     */
+    SCROLLABLE_INCLUDE_HIDDEN = 0x02,
+    /**
+     * If the SCROLLABLE_ONLY_ASYNC_SCROLLABLE flag is set, then we only
+     * want to match scrollable frames for which WantAsyncScroll() returns
+     * true.
+     */
+    SCROLLABLE_ONLY_ASYNC_SCROLLABLE = 0x04,
+    /**
+     * If the SCROLLABLE_ALWAYS_MATCH_ROOT flag is set, then return the
+     * root scrollable frame for the root content document if we hit it.
+     */
+    SCROLLABLE_ALWAYS_MATCH_ROOT = 0x08,
   };
   /**
    * GetNearestScrollableFrame locates the first ancestor of aFrame
@@ -741,6 +786,12 @@ public:
    * aAncestor to go up to the root frame.
    */
   static Matrix4x4 GetTransformToAncestor(nsIFrame *aFrame, const nsIFrame *aAncestor);
+
+  /**
+   * Gets the scale factors of the transform for aFrame relative to the root
+   * frame if this transform is 2D, or the identity scale factors otherwise.
+   */
+  static gfxSize GetTransformToAncestorScale(nsIFrame* aFrame);
 
   /**
    * Transforms a list of CSSPoints from aFromFrame to aToFrame, taking into
@@ -1026,21 +1077,6 @@ public:
     virtual void AddRect(const nsRect& aRect);
   };
 
-  /**
-   * SelectionCaret draws carets base on range. The carets are at begin
-   * and end position of range's client rects. This class help us to
-   * collect first and last rect for drawing carets.
-   */
-  struct FirstAndLastRectCollector : public RectCallback {
-    nsRect mFirstRect;
-    nsRect mLastRect;
-    bool mSeenFirstRect;
-
-    FirstAndLastRectCollector();
-
-    virtual void AddRect(const nsRect& aRect);
-  };
-
   static nsIFrame* GetContainingBlockForClientRect(nsIFrame* aFrame);
 
   enum {
@@ -1094,6 +1130,32 @@ public:
   static nsRect GetTextShadowRectsUnion(const nsRect& aTextAndDecorationsRect,
                                         nsIFrame* aFrame,
                                         uint32_t aFlags = 0);
+
+  /**
+   * Computes the destination rect that a given replaced element should render
+   * into, based on its CSS 'object-fit' and 'object-position' properties.
+   *
+   * @param aConstraintRect The constraint rect that we have at our disposal,
+   *                        which would e.g. be exactly filled by the image
+   *                        if we had "object-fit: fill".
+   * @param aIntrinsicSize The replaced content's intrinsic size, as reported
+   *                       by nsIFrame::GetIntrinsicSize().
+   * @param aIntrinsicRatio The replaced content's intrinsic ratio, as reported
+   *                        by nsIFrame::GetIntrinsicRatio().
+   * @param aStylePos The nsStylePosition struct that contains the 'object-fit'
+   *                  and 'object-position' values that we should rely on.
+   *                  (This should usually be the nsStylePosition for the
+   *                  replaced element in question, but not always. For
+   *                  example, a <video>'s poster-image has a dedicated
+   *                  anonymous element & child-frame, but we should still use
+   *                  the <video>'s 'object-fit' and 'object-position' values.)
+   * @return The nsRect into which we should render the replaced content (using
+   *         the same coordinate space as the passed-in aConstraintRect).
+   */
+  static nsRect ComputeObjectDestRect(const nsRect& aConstraintRect,
+                                      const IntrinsicSize& aIntrinsicSize,
+                                      const nsSize& aIntrinsicRatio,
+                                      const nsStylePosition* aStylePos);
 
   /**
    * Get the font metrics corresponding to the frame's style data.
@@ -1406,11 +1468,15 @@ public:
   /**
    * Gets the baseline to vertically center text from a font within a
    * line of specified height.
+   * aIsInverted: true if the text is inverted relative to the block
+   * direction, so that the block-dir "ascent" corresponds to font
+   * descent. (Applies to sideways text in vertical-lr mode.)
    *
    * Returns the baseline position relative to the top of the line.
    */
   static nscoord GetCenteredFontBaseline(nsFontMetrics* aFontMetrics,
-                                         nscoord         aLineHeight);
+                                         nscoord        aLineHeight,
+                                         bool           aIsInverted);
 
   /**
    * Derive a baseline of |aFrame| (measured from its top border edge)
@@ -2364,7 +2430,18 @@ public:
     }
   }
 
- /**
+  /**
+   * Calculate a default set of displayport margins for the given scrollframe
+   * and set them on the scrollframe's content element. The margins are set with
+   * the default priority, which may clobber previously set margins. The repaint
+   * mode provided is passed through to the call to SetDisplayPortMargins.
+   * The |aScrollFrame| parameter must be non-null and queryable to an nsIFrame.
+   * @return true iff the call to SetDisplayPortMargins returned true.
+   */
+  static bool CalculateAndSetDisplayPortMargins(nsIScrollableFrame* aScrollFrame,
+                                                RepaintMode aRepaintMode);
+
+  /**
    * Get the display port for |aScrollFrame|'s content. If |aScrollFrame|
    * WantsAsyncScroll() and we don't have a scrollable displayport yet (as
    * tracked by |aBuilder|), calculate and set a display port. Returns true if

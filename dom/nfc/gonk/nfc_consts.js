@@ -19,8 +19,8 @@
 this.DEBUG_ALL = false;
 
 // Set individually to debug specific layers
-this.DEBUG_CONTENT_HELPER = false || DEBUG_ALL;
-this.DEBUG_NFC = false || DEBUG_ALL;
+this.DEBUG_CONTENT_HELPER = DEBUG_ALL || false;
+this.DEBUG_NFC = DEBUG_ALL || false;
 
 // Gecko specific error codes
 this.NFC_GECKO_SUCCESS = 0;
@@ -37,11 +37,9 @@ this.NFC_ERROR_MSG[this.NFC_GECKO_ERROR_NOT_ENABLED] = "NfcNotEnabledError";
 this.NFC_ERROR_MSG[this.NFC_GECKO_ERROR_SEND_FILE_FAILED] = "NfcSendFileFailed";
 this.NFC_ERROR_MSG[this.NFC_GECKO_ERROR_BAD_SESSION_TOKEN] = "NfcBadSessionToken";
 
-// NFC powerlevels must match config PDUs.
-this.NFC_POWER_LEVEL_UNKNOWN        = -1;
-this.NFC_POWER_LEVEL_DISABLED       = 0;
-this.NFC_POWER_LEVEL_LOW            = 1;
-this.NFC_POWER_LEVEL_ENABLED        = 2;
+this.NFC_RF_STATE_IDLE = "idle";
+this.NFC_RF_STATE_LISTEN = "listen";
+this.NFC_RF_STATE_DISCOVERY = "discovery";
 
 this.TOPIC_MOZSETTINGS_CHANGED      = "mozsettings-changed";
 this.TOPIC_XPCOM_SHUTDOWN           = "xpcom-shutdown";

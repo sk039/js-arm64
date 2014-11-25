@@ -247,9 +247,19 @@ RangeAnalysis::addBetaNodes()
             if (bound == 0)
                 comp.refineToExcludeNegativeZero();
             break;
+          case JSOP_STRICTEQ:
+            // A strict comparison can test for things other than numeric value.
+            if (!compare->isNumericComparison())
+                continue;
+            // Otherwise fall through to handle JSOP_STRICTEQ the same as JSOP_EQ.
           case JSOP_EQ:
             comp.setDouble(bound, bound);
             break;
+          case JSOP_STRICTNE:
+            // A strict comparison can test for things other than numeric value.
+            if (!compare->isNumericComparison())
+                continue;
+            // Otherwise fall through to handle JSOP_STRICTNE the same as JSOP_NE.
           case JSOP_NE:
             // Negative zero is not not-equal to zero.
             if (bound == 0) {
@@ -2253,22 +2263,12 @@ RangeAnalysis::addRangeAssertions()
             // Beta nodes and interrupt checks are required to be located at the
             // beginnings of basic blocks, so we must insert range assertions
             // after any such instructions.
-            MInstructionIterator insertIter = ins->isPhi()
-                                            ? block->begin()
-                                            : block->begin(ins->toInstruction());
-            while (insertIter->isBeta() ||
-                   insertIter->isInterruptCheck() ||
-                   insertIter->isInterruptCheckPar() ||
-                   insertIter->isConstant() ||
-                   insertIter->isRecoveredOnBailout())
-            {
-                insertIter++;
-            }
+            MInstruction *insertAt = block->safeInsertTop(ins);
 
-            if (*insertIter == *iter)
-                block->insertAfter(*insertIter,  guard);
+            if (insertAt == *iter)
+                block->insertAfter(insertAt,  guard);
             else
-                block->insertBefore(*insertIter, guard);
+                block->insertBefore(insertAt, guard);
         }
     }
 

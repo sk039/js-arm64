@@ -545,6 +545,22 @@ RenderFrameParent::ContentReceivedTouch(const ScrollableLayerGuid& aGuid,
 }
 
 void
+RenderFrameParent::SetTargetAPZC(uint64_t aInputBlockId,
+                                 const nsTArray<ScrollableLayerGuid>& aTargets)
+{
+  for (size_t i = 0; i < aTargets.Length(); i++) {
+    if (aTargets[i].mLayersId != mLayersId) {
+      // Guard against bad data from hijacked child processes
+      NS_ERROR("Unexpected layers id in SetTargetAPZC; dropping message...");
+      return;
+    }
+  }
+  if (GetApzcTreeManager()) {
+    GetApzcTreeManager()->SetTargetAPZC(aInputBlockId, aTargets);
+  }
+}
+
+void
 RenderFrameParent::UpdateZoomConstraints(uint32_t aPresShellId,
                                          ViewID aViewId,
                                          bool aIsRoot,
@@ -563,6 +579,19 @@ bool
 RenderFrameParent::HitTest(const nsRect& aRect)
 {
   return mTouchRegion.Contains(aRect);
+}
+
+void
+RenderFrameParent::GetTextureFactoryIdentifier(TextureFactoryIdentifier* aTextureFactoryIdentifier)
+{
+  nsRefPtr<LayerManager> lm = GetFrom(mFrameLoader);
+  // Perhaps the document containing this frame currently has no presentation?
+  if (lm && lm->GetBackendType() == LayersBackend::LAYERS_CLIENT) {
+    *aTextureFactoryIdentifier =
+      static_cast<ClientLayerManager*>(lm.get())->GetTextureFactoryIdentifier();
+  } else {
+    *aTextureFactoryIdentifier = TextureFactoryIdentifier();
+  }
 }
 
 }  // namespace layout

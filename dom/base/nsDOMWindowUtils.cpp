@@ -415,8 +415,6 @@ nsDOMWindowUtils::SetDisplayPortMarginsForElement(float aLeftMargin,
                                                   float aTopMargin,
                                                   float aRightMargin,
                                                   float aBottomMargin,
-                                                  uint32_t aAlignmentX,
-                                                  uint32_t aAlignmentY,
                                                   nsIDOMElement* aElement,
                                                   uint32_t aPriority)
 {
@@ -444,14 +442,14 @@ nsDOMWindowUtils::SetDisplayPortMarginsForElement(float aLeftMargin,
   }
 
   // Note order change of arguments between our function signature and
-  // LayerMargin constructor.
-  LayerMargin displayportMargins(aTopMargin,
-                                 aRightMargin,
-                                 aBottomMargin,
-                                 aLeftMargin);
+  // ScreenMargin constructor.
+  ScreenMargin displayportMargins(aTopMargin,
+                                  aRightMargin,
+                                  aBottomMargin,
+                                  aLeftMargin);
 
   nsLayoutUtils::SetDisplayPortMargins(content, presShell, displayportMargins,
-                                       aAlignmentX, aAlignmentY, aPriority);
+                                       aPriority);
 
   return NS_OK;
 }
@@ -868,7 +866,7 @@ nsDOMWindowUtils::SendPointerEventCommon(const nsAString& aType,
   event.height = aHeight;
   event.tiltX = aTiltX;
   event.tiltY = aTiltY;
-  event.isPrimary = aIsPrimary;
+  event.isPrimary = (nsIDOMMouseEvent::MOZ_SOURCE_MOUSE == aInputSourceArg) ? true : aIsPrimary;
   event.clickCount = aClickCount;
   event.time = PR_IntervalNow();
   event.mFlags.mIsSynthesizedForTests = aOptionalArgCount >= 10 ? aIsSynthesized : true;
@@ -2068,7 +2066,7 @@ nsDOMWindowUtils::GetFullZoom(float* aFullZoom)
     return NS_OK;
   }
 
-  *aFullZoom = presContext->DeviceContext()->GetPixelScale();
+  *aFullZoom = presContext->DeviceContext()->GetFullZoom();
 
   return NS_OK;
 }
@@ -2130,7 +2128,15 @@ nsDOMWindowUtils::SendCompositionEvent(const nsAString& aType,
   if (aType.EqualsLiteral("compositionstart")) {
     msg = NS_COMPOSITION_START;
   } else if (aType.EqualsLiteral("compositionend")) {
-    msg = NS_COMPOSITION_END;
+    // Now we don't support manually dispatching composition end with this
+    // API.  A compositionend is dispatched when this is called with
+    // compositioncommitasis or compositioncommit automatically.  For backward
+    // compatibility, this shouldn't return error in this case.
+    NS_WARNING("Don't call nsIDOMWindowUtils.sendCompositionEvent() for "
+               "compositionend.  Instead, use it with compositioncommitasis or "
+               "compositioncommit.  Then, compositionend will be automatically "
+               "dispatched.");
+    return NS_OK;
   } else if (aType.EqualsLiteral("compositionupdate")) {
     // Now we don't support manually dispatching composition update with this
     // API.  A compositionupdate is dispatched when a DOM text event modifies
@@ -2140,13 +2146,17 @@ nsDOMWindowUtils::SendCompositionEvent(const nsAString& aType,
                "compositionupdate since it's ignored and the event is "
                "fired automatically when it's necessary");
     return NS_OK;
+  } else if (aType.EqualsLiteral("compositioncommitasis")) {
+    msg = NS_COMPOSITION_COMMIT_AS_IS;
+  } else if (aType.EqualsLiteral("compositioncommit")) {
+    msg = NS_COMPOSITION_COMMIT;
   } else {
     return NS_ERROR_FAILURE;
   }
 
   WidgetCompositionEvent compositionEvent(true, msg, widget);
   InitEvent(compositionEvent);
-  if (msg != NS_COMPOSITION_START) {
+  if (msg != NS_COMPOSITION_START && msg != NS_COMPOSITION_COMMIT_AS_IS) {
     compositionEvent.mData = aData;
   }
 

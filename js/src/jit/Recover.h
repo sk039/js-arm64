@@ -46,10 +46,12 @@ namespace jit {
     _(Abs)                                      \
     _(Sqrt)                                     \
     _(Atan2)                                    \
+    _(Hypot)                                    \
     _(StringSplit)                              \
     _(RegExpExec)                               \
     _(RegExpTest)                               \
     _(RegExpReplace)                            \
+    _(StringReplace)                            \
     _(TypeOf)                                   \
     _(ToDouble)                                 \
     _(ToFloat32)                                \
@@ -457,6 +459,18 @@ class RAtan2 MOZ_FINAL : public RInstruction
     bool recover(JSContext *cx, SnapshotIterator &iter) const;
 };
 
+class RHypot MOZ_FINAL : public RInstruction
+{
+   public:
+     RINSTRUCTION_HEADER_(Hypot)
+
+     virtual uint32_t numOperands() const {
+         return 2;
+     }
+
+     bool recover(JSContext *cx, SnapshotIterator &iter) const;
+};
+
 class RStringSplit MOZ_FINAL : public RInstruction
 {
   public:
@@ -497,6 +511,18 @@ class RRegExpReplace MOZ_FINAL : public RInstruction
 {
   public:
     RINSTRUCTION_HEADER_(RegExpReplace)
+
+    virtual uint32_t numOperands() const {
+        return 3;
+    }
+
+    bool recover(JSContext *cx, SnapshotIterator &iter) const;
+};
+
+class RStringReplace MOZ_FINAL : public RInstruction
+{
+  public:
+    RINSTRUCTION_HEADER_(StringReplace)
 
     virtual uint32_t numOperands() const {
         return 3;

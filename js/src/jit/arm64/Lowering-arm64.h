@@ -49,14 +49,14 @@ class LIRGeneratorARM64 : public LIRGeneratorShared
                        MDefinition *rhs);
     bool lowerUrshD(MUrsh *mir);
 
-    bool lowerForALU(LInstructionHelper<1, 1, 0> *ins, MDefinition *mir,
-                     MDefinition *input);
+    bool lowerForALU(LInstructionHelper<1, 1, 0> *ins, MDefinition *mir, MDefinition *input);
     bool lowerForALU(LInstructionHelper<1, 2, 0> *ins, MDefinition *mir,
                      MDefinition *lhs, MDefinition *rhs);
 
-    bool lowerForFPU(LInstructionHelper<1, 1, 0> *ins, MDefinition *mir,
-                     MDefinition *src);
-    bool lowerForFPU(LInstructionHelper<1, 2, 0> *ins, MDefinition *mir,
+    bool lowerForFPU(LInstructionHelper<1, 1, 0> *ins, MDefinition *mir, MDefinition *input);
+
+    template <size_t Temps>
+    bool lowerForFPU(LInstructionHelper<1, 2, Temps> *ins, MDefinition *mir,
                      MDefinition *lhs, MDefinition *rhs);
 
     bool lowerForCompIx4(LSimdBinaryCompIx4 *ins, MSimdBinaryComp *mir,
@@ -102,6 +102,8 @@ class LIRGeneratorARM64 : public LIRGeneratorShared
     bool visitAsmJSLoadHeap(MAsmJSLoadHeap *ins);
     bool visitAsmJSStoreHeap(MAsmJSStoreHeap *ins);
     bool visitAsmJSLoadFuncPtr(MAsmJSLoadFuncPtr *ins);
+    bool visitAsmJSCompareExchangeHeap(MAsmJSCompareExchangeHeap *ins);
+    bool visitAsmJSAtomicBinopHeap(MAsmJSAtomicBinopHeap *ins);
     bool visitStoreTypedArrayElementStatic(MStoreTypedArrayElementStatic *ins);
     bool visitForkJoinGetSlice(MForkJoinGetSlice *ins);
     bool visitSimdTernaryBitwise(MSimdTernaryBitwise *ins);

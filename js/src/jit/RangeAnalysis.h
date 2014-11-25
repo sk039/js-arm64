@@ -234,7 +234,8 @@ class Range : public TempObject {
         // exponent 30, which is strictly less than MaxInt32Exponent. For
         // another example, 1.9 has an exponent of 0 but requires upper_ to be
         // at least 2, which has exponent 1.
-        uint32_t adjustedExponent = max_exponent_ + (canHaveFractionalPart_ ? 1 : 0);
+        mozilla::DebugOnly<uint32_t> adjustedExponent = max_exponent_ +
+            (canHaveFractionalPart_ ? 1 : 0);
         MOZ_ASSERT_IF(!hasInt32LowerBound_ || !hasInt32UpperBound_,
                       adjustedExponent >= MaxInt32Exponent);
         MOZ_ASSERT(adjustedExponent >= mozilla::FloorLog2(mozilla::Abs(upper_)));
@@ -409,6 +410,12 @@ class Range : public TempObject {
 
     static Range *NewInt32Range(TempAllocator &alloc, int32_t l, int32_t h) {
         return new(alloc) Range(l, h, ExcludesFractionalParts, ExcludesNegativeZero, MaxInt32Exponent);
+    }
+
+    // Construct an int32 range containing just i. This is just a convenience
+    // wrapper around NewInt32Range.
+    static Range *NewInt32SingletonRange(TempAllocator &alloc, int32_t i) {
+        return NewInt32Range(alloc, i, i);
     }
 
     static Range *NewUInt32Range(TempAllocator &alloc, uint32_t l, uint32_t h) {

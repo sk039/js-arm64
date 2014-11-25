@@ -49,6 +49,10 @@ let bypassOffline = false;
 let qemu = "0";
 let device = null;
 
+XPCOMUtils.defineLazyServiceGetter(this, "cookieManager",
+                                   "@mozilla.org/cookiemanager;1",
+                                   "nsICookieManager");
+
 try {
   XPCOMUtils.defineLazyGetter(this, "libcutils", function () {
     Cu.import("resource://gre/modules/systemlibs.js");
@@ -94,18 +98,14 @@ function FrameSendNotInitializedError(frame) {
   this.code = 54;
   this.frame = frame;
   this.message = "Error sending message to frame (NS_ERROR_NOT_INITIALIZED)";
-  this.toString = function() {
-    return this.message + " " + this.frame + "; frame has closed.";
-  }
+  this.errMsg = this.message + " " + this.frame + "; frame has closed.";
 }
 
 function FrameSendFailureError(frame) {
   this.code = 55;
   this.frame = frame;
   this.message = "Error sending message to frame (NS_ERROR_FAILURE)";
-  this.toString = function() {
-    return this.message + " " + this.frame + "; frame not responding.";
-  }
+  this.errMsg = this.message + " " + this.frame + "; frame not responding.";
 }
 
 /**
@@ -151,6 +151,11 @@ function MarionetteServerConnection(aPrefix, aTransport, aServer)
   this.currentFrameElement = null;
   this.testName = null;
   this.mozBrowserClose = null;
+  this.frameHeartbeatTimer = null;
+  this.frameHeartbeatLastPong = null;
+  this.frameHeartbeatLastApp = null;
+  this.frameHeartbeatExceptionPending = false;
+  this.frameTimeout = 5000; // default, set with setFrameTimeout
   this.oopFrameId = null; // frame ID of current remote frame, used for mozbrowserclose events
   this.sessionCapabilities = {
     // Mandated capabilities
@@ -239,10 +244,20 @@ MarionetteServerConnection.prototype = {
    * @param object values
    *        Object to send to the listener
    */
-  sendAsync: function MDA_sendAsync(name, values, commandId, ignoreFailure) {
+  sendAsync: function MDA_sendAsync(name, values, commandId, ignoreFailure, throwError) {
     let success = true;
     if (commandId) {
       values.command_id = commandId;
+    }
+    if (typeof(throwError) !== "boolean") {
+      throwError = false;
+    }
+    if (this.frameHeartbeatExceptionPending) {
+      // Previous frame was not responding; send exception indicating have switched to system frame
+      this.frameHeartbeatExceptionPending = false;
+      let errorTxt = "Frame not responding (" + this.frameHeartbeatLastApp + "), switching to root frame";
+      this.sendError(errorTxt, 56, null, this.command_id);
+      return false;
     }
     if (this.curBrowser.frameManager.currentRemoteFrame !== null) {
       try {
@@ -264,7 +279,12 @@ MarionetteServerConnection.prototype = {
               break;
           }
           let code = error.hasOwnProperty('code') ? e.code : 500;
-          this.sendError(error.toString(), code, error.stack, commandId);
+          if (throwError == false) {
+            this.sendError(error.toString(), code, error.stack, commandId);
+          }
+          else {
+            throw {message:"sendAsync failed: " + error.hasOwnProperty('type'), code, stack:null};
+          }
         }
       }
     }
@@ -477,16 +497,32 @@ MarionetteServerConnection.prototype = {
    *        True if this is the first time we're talking to this browser
    */
   whenBrowserStarted: function MDA_whenBrowserStarted(win, newSession) {
+    utils.window = win;
+
     try {
+      let mm = win.window.messageManager;
+      if (!newSession) {
+        // Loading the frame script corresponds to a situation we need to
+        // return to the server. If the messageManager is a message broadcaster
+        // with no children, we don't have a hope of coming back from this call,
+        // so send the ack here. Otherwise, make a note of how many child scripts
+        // will be loaded so we known when it's safe to return.
+        if (mm.childCount === 0) {
+          this.sendOk(this.command_id);
+        } else {
+          this.curBrowser.frameRegsPending = mm.childCount;
+        }
+      }
+
       if (!Services.prefs.getBoolPref("marionette.contentListener") || !newSession) {
-        this.curBrowser.loadFrameScript(FRAME_SCRIPT, win);
+        mm.loadFrameScript(FRAME_SCRIPT, true, true);
+        Services.prefs.setBoolPref("marionette.contentListener", true);
       }
     }
     catch (e) {
       //there may not always be a content process
       logger.info("could not load listener into content for page: " + win.location.href);
     }
-    utils.window = win;
   },
 
   /**
@@ -704,6 +740,10 @@ MarionetteServerConnection.prototype = {
     else {
       this.context = context;
       this.sendOk(this.command_id);
+      // Stop the OOP frame heartbeat if switched into chrome
+      if (context == "chrome") {
+        this.stopHeartbeat();
+      }
     }
   },
 
@@ -1159,7 +1199,19 @@ MarionetteServerConnection.prototype = {
     if (this.context != "chrome") {
       aRequest.command_id = command_id;
       aRequest.parameters.pageTimeout = this.pageTimeout;
+      // stop OOP frame heartbeat if it's running, so it won't timeout during URL load
+      this.stopHeartbeat();
       this.sendAsync("get", aRequest.parameters, command_id);
+      return;
+    }
+
+    // At least on desktop, navigating in chrome scope does not
+    // correspond to something a user can do, and leaves marionette
+    // and the browser in an unusable state. Return a generic error insted.
+    // TODO: Error codes need to be refined as a part of bug 1100545 and
+    // bug 945729.
+    if (appName == "Firefox") {
+      sendError("Cannot navigate in chrome context", 13, null, command_id);
       return;
     }
 
@@ -1391,8 +1443,8 @@ MarionetteServerConnection.prototype = {
         else {
           utils.window = foundWin;
           this.curBrowser = this.browsers[winId];
+          this.sendOk(command_id);
         }
-        this.sendOk(command_id);
         return;
       }
     }
@@ -1441,7 +1493,6 @@ MarionetteServerConnection.prototype = {
         this.sendError("Error loading page", 13, null, command_id);
         return;
       }
-
       checkTimer.initWithCallback(checkLoad.bind(this), 100, Ci.nsITimer.TYPE_ONE_SHOT);
     }
     if (this.context == "chrome") {
@@ -2297,6 +2348,7 @@ MarionetteServerConnection.prototype = {
    */
   deleteSession: function MDA_deleteSession() {
     let command_id = this.command_id = this.getCommandId();
+    this.stopHeartbeat();
     try {
       this.sessionTearDown();
     }
@@ -2612,12 +2664,76 @@ MarionetteServerConnection.prototype = {
   },
 
   /**
+   * Sets the OOP frame timeout value (ms)
+   */
+  setFrameTimeout: function MDA_setFrameTimeout(aRequest) {
+    this.command_id = this.getCommandId();
+    let timeout = parseInt(aRequest.parameters.ms);
+    if (isNaN(timeout)) {
+      this.sendError("Not a number", 500, null, this.command_id);
+      return;
+    }
+    else {
+      this.frameTimeout = timeout;
+    }
+    this.sendOk(this.command_id);
+  },
+
+  /**
    * Helper function to convert an outerWindowID into a UID that Marionette
    * tracks.
    */
   generateFrameId: function MDA_generateFrameId(id) {
     let uid = id + (appName == "B2G" ? "-b2g" : "");
     return uid;
+  },
+
+  /**
+   * Start the OOP frame heartbeat
+   */
+  startHeartbeat: function MDA_startHeartbeat() {
+    this.frameHeartbeatLastPong = new Date().getTime();
+    function pulse() {
+      let noResponse = false;
+      let now = new Date().getTime();
+      let elapsed = now - this.frameHeartbeatLastPong;
+      try {
+        if (elapsed > this.frameTimeout) {
+          throw {message:null, code:56, stack:null};
+        }
+        let result = this.sendAsync("ping", {}, this.command_id, false, true);
+        if (result == false) {
+          throw {message:null, code:56, stack:null};
+        }
+      }
+      catch (e) {
+        let lastApp = this.frameHeartbeatLastApp ? this.frameHeartbeatLastApp : "undefined";
+        this.stopHeartbeat();
+        this.curBrowser.frameManager.removeRemoteFrame(this.curBrowser.frameManager.currentRemoteFrame.frameId);
+        this.switchToGlobalMessageManager();
+        // If there is an active request, send back an exception now, otherwise wait until next request
+        if (this.command_id) {
+          let errorTxt = "Frame not responding (" + lastApp + "), switching to root frame";
+          this.sendError(errorTxt, e.code, e.stack, this.command_id);
+        }
+        else {
+          this.frameHeartbeatExceptionPending = true;
+        }
+        return;
+      }
+    }
+    this.frameHeartbeatTimer = Cc["@mozilla.org/timer;1"].createInstance(Ci.nsITimer);
+    this.frameHeartbeatTimer.initWithCallback(pulse.bind(this), 500, Ci.nsITimer.TYPE_REPEATING_PRECISE_CAN_SKIP);
+  },
+
+  /**
+   * Stop the OOP frame heartbeat
+   */
+  stopHeartbeat: function MDA_stopHeartbeat() {
+    if (this.frameHeartbeatTimer !== null) {
+      this.frameHeartbeatTimer.cancel();
+      this.frameHeartbeatTimer = null;
+    }
   },
 
   /**
@@ -2656,7 +2772,7 @@ MarionetteServerConnection.prototype = {
         this.sendToClient(message.json, -1);
         break;
       case "Marionette:switchToFrame":
-        this.oopFrameId = this.curBrowser.frameManager.switchToFrame(message);
+        [this.oopFrameId, this.frameHeartbeatLastApp] = this.curBrowser.frameManager.switchToFrame(message);
         this.messageManager = this.curBrowser.frameManager.currentRemoteFrame.messageManager.get();
         break;
       case "Marionette:switchToModalOrigin":
@@ -2677,7 +2793,47 @@ MarionetteServerConnection.prototype = {
           }
           this.currentFrameElement = message.json.frameValue;
         }
+        this.stopHeartbeat();
         break;
+      case "Marionette:getVisibleCookies":
+        let [currentPath, host] = message.json.value;
+        let isForCurrentPath = function(aPath) {
+          return currentPath.indexOf(aPath) != -1;
+        }
+        let results = [];
+        let enumerator = cookieManager.enumerator;
+        while (enumerator.hasMoreElements()) {
+          let cookie = enumerator.getNext().QueryInterface(Ci['nsICookie']);
+          // Take the hostname and progressively shorten
+          let hostname = host;
+          do {
+            if ((cookie.host == '.' + hostname || cookie.host == hostname)
+                && isForCurrentPath(cookie.path)) {
+              results.push({
+                'name': cookie.name,
+                'value': cookie.value,
+                'path': cookie.path,
+                'host': cookie.host,
+                'secure': cookie.isSecure,
+                'expiry': cookie.expires
+              });
+              break;
+            }
+            hostname = hostname.replace(/^.*?\./, '');
+          } while (hostname.indexOf('.') != -1);
+        }
+        return results;
+      case "Marionette:addCookie":
+        let cookieToAdd = message.json.value;
+        Services.cookies.add(cookieToAdd.domain, cookieToAdd.path, cookieToAdd.name,
+                             cookieToAdd.value, cookieToAdd.secure, false, false,
+                             cookieToAdd.expiry);
+        return true;
+      case "Marionette:deleteCookie":
+        let cookieToDelete = message.json.value;
+        cookieManager.remove(cookieToDelete.host, cookieToDelete.name,
+                             cookieToDelete.path, false);
+        return true;
       case "Marionette:register":
         // This code processes the content listener's registration information
         // and either accepts the listener, or ignores it
@@ -2701,6 +2857,7 @@ MarionetteServerConnection.prototype = {
           // is from a remote frame.
           this.curBrowser.frameManager.currentRemoteFrame.targetFrameId = this.generateFrameId(message.json.value);
           this.sendOk(this.command_id);
+          this.startHeartbeat();
         }
 
         let browserType;
@@ -2734,6 +2891,16 @@ MarionetteServerConnection.prototype = {
             this.newSessionCommandId = null;
           }
         }
+        if (this.curBrowser.frameRegsPending) {
+          if (this.curBrowser.frameRegsPending > 0) {
+            this.curBrowser.frameRegsPending -= 1;
+          }
+          if (this.curBrowser.frameRegsPending === 0) {
+            // In case of a freshly registered window, we're responsible here
+            // for sending the ack.
+            this.sendOk(this.command_id);
+          }
+        }
         return [reg, mainContent];
       case "Marionette:emitTouchEvent":
         let globalMessageManager = Cc["@mozilla.org/globalmessagemanager;1"]
@@ -2741,6 +2908,12 @@ MarionetteServerConnection.prototype = {
         globalMessageManager.broadcastAsyncMessage(
           "MarionetteMainListener:emitTouchEvent", message.json);
         return;
+      case "Marionette:pong":
+        this.frameHeartbeatLastPong = new Date().getTime();
+        break;
+      case "Marionette:startHeartbeat":
+        this.startHeartbeat();
+        break;
     }
   }
 };
@@ -2824,7 +2997,8 @@ MarionetteServerConnection.prototype.requestTypes = {
   "setScreenOrientation": MarionetteServerConnection.prototype.setScreenOrientation,
   "getWindowSize": MarionetteServerConnection.prototype.getWindowSize,
   "setWindowSize": MarionetteServerConnection.prototype.setWindowSize,
-  "maximizeWindow": MarionetteServerConnection.prototype.maximizeWindow
+  "maximizeWindow": MarionetteServerConnection.prototype.maximizeWindow,
+  "setFrameTimeout": MarionetteServerConnection.prototype.setFrameTimeout
 };
 
 /**
@@ -2846,7 +3020,7 @@ function BrowserObj(win, server) {
   this.startPage = "about:blank";
   this.mainContentId = null; // used in B2G to identify the homescreen content page
   this.newSession = true; //used to set curFrameId upon new session
-  this.elementManager = new ElementManager([SELECTOR, NAME, LINK_TEXT, PARTIAL_LINK_TEXT]);
+  this.elementManager = new ElementManager([NAME, LINK_TEXT, PARTIAL_LINK_TEXT]);
   this.setBrowser(win);
   this.frameManager = new FrameManager(server); //We should have one FM per BO so that we can handle modals in each Browser
 
@@ -2910,19 +3084,6 @@ BrowserObj.prototype = {
    */
   addTab: function BO_addTab(uri) {
     return this.browser.addTab(uri, true);
-  },
-
-  /**
-   * Loads content listeners if we don't already have them
-   *
-   * @param string script
-   *        path of script to load
-   * @param nsIDOMWindow frame
-   *        frame to load the script in
-   */
-  loadFrameScript: function BO_loadFrameScript(script, frame) {
-    frame.window.messageManager.loadFrameScript(script, true, true);
-    Services.prefs.setBoolPref("marionette.contentListener", true);
   },
 
   /**

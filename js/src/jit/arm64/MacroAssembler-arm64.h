@@ -194,6 +194,10 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         MacroAssemblerVIXL::Push(ScratchReg64);
     }
 
+    void pushReturnAddress() {
+        push(lr);
+    }
+
     void pop(const ValueOperand &v) {
         pop(v.valueReg());
     }
@@ -505,6 +509,9 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
     void jump(Label *label) {
         B(label);
+    }
+    void jump(JitCode *code) {
+        branch(code);
     }
     void jump(RepatchLabel *label) {
         MOZ_CRASH("jump (repatchlabel)");
@@ -1281,6 +1288,30 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         Condition c = testDouble(cond, address);
         B(label, c);
     }
+    void branchTestBoolean(Condition cond, const Address &address, Label *label) {
+        Condition c = testDouble(cond, address);
+        B(label, c);
+    }
+    void branchTestNull(Condition cond, const Address &address, Label *label) {
+        Condition c = testNull(cond, address);
+        B(label, c);
+    }
+    void branchTestString(Condition cond, const Address &address, Label *label) {
+        Condition c = testString(cond, address);
+        B(label, c);
+    }
+    void branchTestSymbol(Condition cond, const Address &address, Label *label) {
+        Condition c = testSymbol(cond, address);
+        B(label, c);
+    }
+    void branchTestObject(Condition cond, const Address &address, Label *label) {
+        Condition c = testObject(cond, address);
+        B(label, c);
+    }
+    void branchTestNumber(Condition cond, const Address &address, Label *label) {
+        Condition c = testNumber(cond, address);
+        B(label, c);
+    }
 
     // Perform a type-test on a full Value loaded into a register.
     // Clobbers the ScratchReg.
@@ -1970,6 +2001,13 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
 
     void callIonFromAsmJS(Register reg) {
         MOZ_CRASH("callIonFromAsmJS");
+    }
+
+    void callAndPushReturnAddress(Label *label) {
+        // FIXME: Jandem said he would refactor the code to avoid making
+        // this instruction required, but probably forgot about it.
+        // Instead of implementing this function, we should make it unnecessary.
+        MOZ_CRASH("callAndPushReturnAddress");
     }
 
   private:

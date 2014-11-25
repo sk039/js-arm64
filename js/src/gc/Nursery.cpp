@@ -393,8 +393,8 @@ GetObjectAllocKindForCopy(const Nursery &nursery, JSObject *obj)
     // Proxies have finalizers and are not nursery allocated.
     MOZ_ASSERT(!IsProxy(obj));
 
-    // Inlined opaque typed objects are followed by their data, so make sure we
-    // copy it all over to the new object.
+    // Inlined typed objects are followed by their data, so make sure we copy
+    // it all over to the new object.
     if (obj->is<InlineTypedObject>()) {
         // Figure out the size of this object, from the prototype's TypeDescr.
         // The objects we are traversing here are all tenured, so we don't need
@@ -429,27 +429,41 @@ js::Nursery::allocateFromTenured(Zone *zone, AllocKind thingKind)
 }
 
 void
-js::Nursery::setSlotsForwardingPointer(HeapSlot *oldSlots, HeapSlot *newSlots, uint32_t nslots)
+Nursery::setForwardingPointer(void *oldData, void *newData, bool direct)
 {
-    MOZ_ASSERT(nslots > 0);
-    MOZ_ASSERT(isInside(oldSlots));
-    MOZ_ASSERT(!isInside(newSlots));
-    *reinterpret_cast<HeapSlot **>(oldSlots) = newSlots;
+    MOZ_ASSERT(isInside(oldData));
+    MOZ_ASSERT(!isInside(newData));
+
+    if (direct) {
+        *reinterpret_cast<void **>(oldData) = newData;
+    } else {
+        if (!forwardedBuffers.initialized() && !forwardedBuffers.init())
+            CrashAtUnhandlableOOM("Nursery::setForwardingPointer");
+#ifdef DEBUG
+        if (ForwardedBufferMap::Ptr p = forwardedBuffers.lookup(oldData))
+            MOZ_ASSERT(p->value() == newData);
+#endif
+        if (!forwardedBuffers.put(oldData, newData))
+            CrashAtUnhandlableOOM("Nursery::setForwardingPointer");
+    }
 }
 
 void
-js::Nursery::setElementsForwardingPointer(ObjectElements *oldHeader, ObjectElements *newHeader,
-                                          uint32_t nelems)
+Nursery::setSlotsForwardingPointer(HeapSlot *oldSlots, HeapSlot *newSlots, uint32_t nslots)
 {
-    /*
-     * If the JIT has hoisted a zero length pointer, then we do not need to
-     * relocate it because reads and writes to/from this pointer are invalid.
-     */
-    if (nelems - ObjectElements::VALUES_PER_HEADER < 1)
-        return;
-    MOZ_ASSERT(isInside(oldHeader));
-    MOZ_ASSERT(!isInside(newHeader));
-    *reinterpret_cast<HeapSlot **>(oldHeader->elements()) = newHeader->elements();
+    // Slot arrays always have enough space for a forwarding pointer, since the
+    // number of slots is never zero.
+    MOZ_ASSERT(nslots > 0);
+    setForwardingPointer(oldSlots, newSlots, /* direct = */ true);
+}
+
+void
+Nursery::setElementsForwardingPointer(ObjectElements *oldHeader, ObjectElements *newHeader,
+                                      uint32_t nelems)
+{
+    // Only use a direct forwarding pointer if there is enough space for one.
+    setForwardingPointer(oldHeader->elements(), newHeader->elements(),
+                         nelems > ObjectElements::VALUES_PER_HEADER);
 }
 
 #ifdef DEBUG
@@ -469,15 +483,19 @@ js::Nursery::forwardBufferPointer(HeapSlot **pSlotsElems)
     if (!isInside(old))
         return;
 
-    /*
-     * If the elements buffer is zero length, the "first" item could be inside
-     * of the next object or past the end of the allocable area.  However,
-     * since we always store the runtime as the last word in the nursery,
-     * isInside will still be true, even if this zero-size allocation abuts the
-     * end of the allocable area. Thus, it is always safe to read the first
-     * word of |old| here.
-     */
-    *pSlotsElems = *reinterpret_cast<HeapSlot **>(old);
+    // The new location for this buffer is either stored inline with it or in
+    // the forwardedBuffers table.
+    do {
+        if (forwardedBuffers.initialized()) {
+            if (ForwardedBufferMap::Ptr p = forwardedBuffers.lookup(old)) {
+                *pSlotsElems = reinterpret_cast<HeapSlot *>(p->value());
+                break;
+            }
+        }
+
+        *pSlotsElems = *reinterpret_cast<HeapSlot **>(old);
+    } while (false);
+
     MOZ_ASSERT(!isInside(*pSlotsElems));
     MOZ_ASSERT(IsWriteableAddress(*pSlotsElems));
 }
@@ -585,7 +603,7 @@ js::Nursery::moveToTenured(MinorCollectionTracer *trc, JSObject *src)
     if (!dst)
         CrashAtUnhandlableOOM("Failed to allocate object while tenuring.");
 
-    trc->tenuredSize += moveObjectToTenured(dst, src, dstKind);
+    trc->tenuredSize += moveObjectToTenured(trc, dst, src, dstKind);
 
     RelocationOverlay *overlay = RelocationOverlay::fromCell(src);
     overlay->forwardTo(dst);
@@ -596,7 +614,8 @@ js::Nursery::moveToTenured(MinorCollectionTracer *trc, JSObject *src)
 }
 
 MOZ_ALWAYS_INLINE size_t
-js::Nursery::moveObjectToTenured(JSObject *dst, JSObject *src, AllocKind dstKind)
+js::Nursery::moveObjectToTenured(MinorCollectionTracer *trc,
+                                 JSObject *dst, JSObject *src, AllocKind dstKind)
 {
     size_t srcSize = Arena::thingSize(dstKind);
     size_t tenuredSize = srcSize;
@@ -620,43 +639,14 @@ js::Nursery::moveObjectToTenured(JSObject *dst, JSObject *src, AllocKind dstKind
         tenuredSize += moveElementsToTenured(ndst, nsrc, dstKind);
     }
 
-    if (src->is<TypedArrayObject>())
-        forwardTypedArrayPointers(&dst->as<TypedArrayObject>(), &src->as<TypedArrayObject>());
+    if (src->is<InlineTypedObject>())
+        InlineTypedObject::objectMovedDuringMinorGC(trc, dst, src);
 
     /* The shape's list head may point into the old object. */
     if (&src->shape_ == dst->shape_->listp)
         dst->shape_->listp = &dst->shape_;
 
     return tenuredSize;
-}
-
-void
-js::Nursery::forwardTypedArrayPointers(TypedArrayObject *dst, TypedArrayObject *src)
-{
-    /*
-     * Typed array data may be stored inline inside the object's fixed slots. If
-     * so, we need update the private pointer and leave a forwarding pointer at
-     * the start of the data.
-     */
-    if (src->buffer()) {
-        MOZ_ASSERT(!isInside(src->getPrivate()));
-        return;
-    }
-
-    void *srcData = src->fixedData(TypedArrayObject::FIXED_DATA_START);
-    void *dstData = dst->fixedData(TypedArrayObject::FIXED_DATA_START);
-    MOZ_ASSERT(src->getPrivate() == srcData);
-    dst->setPrivate(dstData);
-
-    /*
-     * We don't know the number of slots here, but
-     * TypedArrayObject::AllocKindForLazyBuffer ensures that it's always at
-     * least one.
-     */
-    size_t nslots = 1;
-    setSlotsForwardingPointer(reinterpret_cast<HeapSlot*>(srcData),
-                              reinterpret_cast<HeapSlot*>(dstData),
-                              nslots);
 }
 
 MOZ_ALWAYS_INLINE size_t
@@ -845,6 +835,7 @@ js::Nursery::collect(JSRuntime *rt, JS::gcreason::Reason reason, TypeObjectList 
     // Update any slot or element pointers whose destination has been tenured.
     TIME_START(updateJitActivations);
     js::jit::UpdateJitActivationsForMinorGC<Nursery>(&rt->mainThread, &trc);
+    forwardedBuffers.finish();
     TIME_END(updateJitActivations);
 
     // Resize the nursery.

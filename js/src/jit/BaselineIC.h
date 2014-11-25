@@ -380,6 +380,7 @@ class ICEntry
     _(Call_ScriptedApplyArguments) \
     _(Call_ScriptedFunCall)     \
     _(Call_StringSplit)         \
+    _(Call_IsSuspendedStarGenerator) \
                                 \
     _(GetElem_Fallback)         \
     _(GetElem_NativeSlot)       \
@@ -5903,20 +5904,23 @@ class ICCall_ClassHook : public ICMonitoredStub
     const Class *clasp_;
     void *native_;
     HeapPtrObject templateObject_;
+    uint32_t pcOffset_;
 
     ICCall_ClassHook(JitCode *stubCode, ICStub *firstMonitorStub,
-                     const Class *clasp, Native native, HandleObject templateObject);
+                     const Class *clasp, Native native, HandleObject templateObject,
+                     uint32_t pcOffset);
 
   public:
     static inline ICCall_ClassHook *New(ICStubSpace *space,
                                         JitCode *code, ICStub *firstMonitorStub,
                                         const Class *clasp, Native native,
-                                        HandleObject templateObject)
+                                        HandleObject templateObject,
+                                        uint32_t pcOffset)
     {
         if (!code)
             return nullptr;
         return space->allocate<ICCall_ClassHook>(code, firstMonitorStub,
-                                                 clasp, native, templateObject);
+                                                 clasp, native, templateObject, pcOffset);
     }
 
     static ICCall_ClassHook *Clone(JSContext *cx, ICStubSpace *space, ICStub *firstMonitorStub,
@@ -5938,6 +5942,9 @@ class ICCall_ClassHook : public ICMonitoredStub
     static size_t offsetOfNative() {
         return offsetof(ICCall_ClassHook, native_);
     }
+    static size_t offsetOfPCOffset() {
+        return offsetof(ICCall_ClassHook, pcOffset_);
+    }
 
     // Compiler for this stub kind.
     class Compiler : public ICCallStubCompiler {
@@ -5947,6 +5954,7 @@ class ICCall_ClassHook : public ICMonitoredStub
         const Class *clasp_;
         Native native_;
         RootedObject templateObject_;
+        uint32_t pcOffset_;
         bool generateStubCode(MacroAssembler &masm);
 
         virtual int32_t getKey() const {
@@ -5955,19 +5963,21 @@ class ICCall_ClassHook : public ICMonitoredStub
 
       public:
         Compiler(JSContext *cx, ICStub *firstMonitorStub,
-                 const Class *clasp, Native native, HandleObject templateObject,
+                 const Class *clasp, Native native,
+                 HandleObject templateObject, uint32_t pcOffset,
                  bool isConstructing)
           : ICCallStubCompiler(cx, ICStub::Call_ClassHook),
             firstMonitorStub_(firstMonitorStub),
             isConstructing_(isConstructing),
             clasp_(clasp),
             native_(native),
-            templateObject_(cx, templateObject)
+            templateObject_(cx, templateObject),
+            pcOffset_(pcOffset)
         { }
 
         ICStub *getStub(ICStubSpace *space) {
             return ICCall_ClassHook::New(space, getStubCode(), firstMonitorStub_,
-                                         clasp_, native_, templateObject_);
+                                         clasp_, native_, templateObject_, pcOffset_);
         }
     };
 };
@@ -6220,6 +6230,36 @@ class ICCall_StringSplit : public ICMonitoredStub
             return ICCall_StringSplit::New(space, getStubCode(), firstMonitorStub_,
                                            pcOffset_, expectedThis_, expectedArg_,
                                            templateObject_);
+        }
+   };
+};
+
+class ICCall_IsSuspendedStarGenerator : public ICStub
+{
+    friend class ICStubSpace;
+
+  protected:
+    explicit ICCall_IsSuspendedStarGenerator(JitCode *stubCode)
+      : ICStub(ICStub::Call_IsSuspendedStarGenerator, stubCode)
+    {}
+
+  public:
+    static inline ICCall_IsSuspendedStarGenerator *New(ICStubSpace *space, JitCode *code) {
+        if (!code)
+            return nullptr;
+        return space->allocate<ICCall_IsSuspendedStarGenerator>(code);
+    }
+
+    class Compiler : public ICStubCompiler {
+      protected:
+        bool generateStubCode(MacroAssembler &masm);
+
+      public:
+        explicit Compiler(JSContext *cx)
+          : ICStubCompiler(cx, ICStub::Call_IsSuspendedStarGenerator)
+        {}
+        ICStub *getStub(ICStubSpace *space) {
+            return ICCall_IsSuspendedStarGenerator::New(space, getStubCode());
         }
    };
 };

@@ -216,7 +216,7 @@ Assembler::bind(Label *label, BufferOffset targetOffset)
     // This instruction is the head of an implicit linked list of label uses.
     uint32_t branchOffset = label->offset();
 
-    while (branchOffset != LabelBase::INVALID_OFFSET) {
+    while ((int32_t)branchOffset != LabelBase::INVALID_OFFSET) {
         Instruction *link = getInstructionAt(BufferOffset(branchOffset));
 
         // Before overwriting the offset in this instruction, get the offset of

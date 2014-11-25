@@ -1764,7 +1764,7 @@ public:
     // Note that we don't need to check mDispatchInputEvent here.  We need
     // to check it only when the editor requests to dispatch the input event.
 
-    if (!mTarget->IsInDoc()) {
+    if (!mTarget->IsInComposedDoc()) {
       return NS_OK;
     }
 
@@ -4915,6 +4915,7 @@ nsEditor::IsAcceptableInputEvent(nsIDOMEvent* aEvent)
     case NS_COMPOSITION_END:
     case NS_COMPOSITION_UPDATE:
     case NS_COMPOSITION_CHANGE:
+    case NS_COMPOSITION_COMMIT_AS_IS:
       // Don't allow composition events whose internal event are not
       // WidgetCompositionEvent.
       widgetGUIEvent = aEvent->GetInternalNSEvent()->AsCompositionEvent();

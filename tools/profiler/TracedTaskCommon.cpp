@@ -12,7 +12,7 @@ namespace tasktracer {
 
 TracedTaskCommon::TracedTaskCommon()
   : mSourceEventId(0)
-  , mSourceEventType(SourceEventType::UNKNOWN)
+  , mSourceEventType(SourceEventType::Unknown)
 {
   Init();
 }
@@ -52,7 +52,7 @@ TracedTaskCommon::ClearTraceInfo()
   }
 
   info->mCurTraceSourceId = 0;
-  info->mCurTraceSourceType = SourceEventType::UNKNOWN;
+  info->mCurTraceSourceType = SourceEventType::Unknown;
   info->mCurTaskId = 0;
 }
 
@@ -162,10 +162,10 @@ CreateTracedTask(Task* aTask)
  * CreateFakeTracedTask() returns a FakeTracedTask tracking the event which is
  * not dispatched from its parent task directly, such as timer events.
  */
-FakeTracedTask*
+already_AddRefed<FakeTracedTask>
 CreateFakeTracedTask(int* aVptr)
 {
-  nsAutoPtr<FakeTracedTask> task(new FakeTracedTask(aVptr));
+  nsRefPtr<FakeTracedTask> task(new FakeTracedTask(aVptr));
   return task.forget();
 }
 

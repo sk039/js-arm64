@@ -18,8 +18,6 @@ const LOOP_SESSION_TYPE = {
 // See LOG_LEVELS in Console.jsm. Common examples: "All", "Info", "Warn", & "Error".
 const PREF_LOG_LEVEL = "loop.debug.loglevel";
 
-const EMAIL_OR_PHONE_RE = /^(:?\S+@\S+|\+\d+)$/;
-
 Cu.import("resource://gre/modules/Services.jsm");
 Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 Cu.import("resource://gre/modules/Promise.jsm");
@@ -81,6 +79,10 @@ XPCOMUtils.defineLazyServiceGetter(this, "gDNSService",
                                    "@mozilla.org/network/dns-service;1",
                                    "nsIDNSService");
 
+XPCOMUtils.defineLazyServiceGetter(this, "gWM",
+                                   "@mozilla.org/appshell/window-mediator;1",
+                                   "nsIWindowMediator");
+
 // Create a new instance of the ConsoleAPI so we can control the maxLogLevel with a pref.
 XPCOMUtils.defineLazyGetter(this, "log", () => {
   let ConsoleAPI = Cu.import("resource://gre/modules/devtools/Console.jsm", {}).ConsoleAPI;
@@ -102,7 +104,7 @@ function getJSONPref(aName) {
 }
 
 let gHawkClient = null;
-let gLocalizedStrings = null;
+let gLocalizedStrings = new Map();
 let gFxAEnabled = true;
 let gFxAOAuthClientPromise = null;
 let gFxAOAuthClient = null;
@@ -211,6 +213,7 @@ let MozLoopServiceInternal = {
    */
   set fxAOAuthProfile(aProfileData) {
     setJSONPref("loop.fxa_oauth.profile", aProfileData);
+    this.notifyStatusChanged(aProfileData ? "login" : undefined);
   },
 
   /**
@@ -246,9 +249,12 @@ let MozLoopServiceInternal = {
    *                           error of a type will be saved at a time. This value may be used to
    *                           determine user-facing (aka. friendly) strings.
    * @param {Object} error     an object describing the error in the format from Hawk errors
+   * @param {Function} [actionCallback] an object describing the label and callback function for error
+   *                                    bar's button e.g. to retry.
    */
-  setError: function(errorType, error) {
-    let messageString, detailsString, detailsButtonLabelString;
+  setError: function(errorType, error, actionCallback = null) {
+    log.debug("setError", errorType, error);
+    let messageString, detailsString, detailsButtonLabelString, detailsButtonCallback;
     const NETWORK_ERRORS = [
       Cr.NS_ERROR_CONNECTION_REFUSED,
       Cr.NS_ERROR_NET_INTERRUPT,
@@ -275,6 +281,7 @@ let MozLoopServiceInternal = {
         messageString = "could_not_authenticate"; // XXX: Bug 1076377
         detailsString = "password_changed_question";
         detailsButtonLabelString = "retry_button";
+        detailsButtonCallback = () => MozLoopService.logInToFxA();
       } else {
         messageString = "session_expired_error_description";
       }
@@ -286,21 +293,25 @@ let MozLoopServiceInternal = {
       messageString = "generic_failure_title";
     }
 
-    error.friendlyMessage = this.localizedStrings[messageString].textContent;
+    error.friendlyMessage = this.localizedStrings.get(messageString);
     error.friendlyDetails = detailsString ?
-                              this.localizedStrings[detailsString].textContent :
+                              this.localizedStrings.get(detailsString) :
                               null;
     error.friendlyDetailsButtonLabel = detailsButtonLabelString ?
-                                         this.localizedStrings[detailsButtonLabelString].textContent :
+                                         this.localizedStrings.get(detailsButtonLabelString) :
                                          null;
+
+    error.friendlyDetailsButtonCallback = actionCallback || detailsButtonCallback || null;
 
     gErrors.set(errorType, error);
     this.notifyStatusChanged();
   },
 
   clearError: function(errorType) {
-    gErrors.delete(errorType);
-    this.notifyStatusChanged();
+    if (gErrors.has(errorType)) {
+      gErrors.delete(errorType);
+      this.notifyStatusChanged();
+    }
   },
 
   get errors() {
@@ -309,12 +320,17 @@ let MozLoopServiceInternal = {
 
   /**
    * Get endpoints with the push server and register for notifications.
-   * For now we register as both a Guest and FxA user and all must succeed.
+   * This should only be called from promiseRegisteredWithServers to prevent reentrancy.
    *
+   * @param {LOOP_SESSION_TYPE} sessionType
    * @return {Promise} resolves with all push endpoints
    *                   rejects if any of the push registrations failed
    */
-  promiseRegisteredWithPushServer: function() {
+  promiseRegisteredWithPushServer: function(sessionType) {
+    if (!this.deferredRegistrations.has(sessionType)) {
+      return Promise.reject(new Error("promiseRegisteredWithPushServer must be called while there is a " +
+                            "deferred in deferredRegistrations in order to prevent reentrancy"));
+    }
     // Wrap push notification registration call-back in a Promise.
     function registerForNotification(channelID, onNotification) {
       log.debug("registerForNotification", channelID);
@@ -343,19 +359,23 @@ let MozLoopServiceInternal = {
     let options = this.mocks.webSocket ? { mockWebSocket: this.mocks.webSocket } : {};
     this.pushHandler.initialize(options);
 
-    let callsRegGuest = registerForNotification(MozLoopService.channelIDs.callsGuest,
+    if (sessionType == LOOP_SESSION_TYPE.GUEST) {
+      let callsRegGuest = registerForNotification(MozLoopService.channelIDs.callsGuest,
+                                                  LoopCalls.onNotification);
+
+      let roomsRegGuest = registerForNotification(MozLoopService.channelIDs.roomsGuest,
+                                                  roomsPushNotification);
+      return Promise.all([callsRegGuest, roomsRegGuest]);
+    } else if (sessionType == LOOP_SESSION_TYPE.FXA) {
+      let callsRegFxA = registerForNotification(MozLoopService.channelIDs.callsFxA,
                                                 LoopCalls.onNotification);
 
-    let roomsRegGuest = registerForNotification(MozLoopService.channelIDs.roomsGuest,
+      let roomsRegFxA = registerForNotification(MozLoopService.channelIDs.roomsFxA,
                                                 roomsPushNotification);
+      return Promise.all([callsRegFxA, roomsRegFxA]);
+    }
 
-    let callsRegFxA = registerForNotification(MozLoopService.channelIDs.callsFxA,
-                                              LoopCalls.onNotification);
-
-    let roomsRegFxA = registerForNotification(MozLoopService.channelIDs.roomsFxA,
-                                              roomsPushNotification);
-
-    return Promise.all([callsRegGuest, roomsRegGuest, callsRegFxA, roomsRegFxA]);
+    return Promise.reject(new Error("promiseRegisteredWithPushServer: Invalid sessionType"));
   },
 
   /**
@@ -380,7 +400,7 @@ let MozLoopServiceInternal = {
     // We grab the promise early in case one of the callers below delete it from the map.
     result = deferred.promise;
 
-    this.promiseRegisteredWithPushServer().then(() => {
+    this.promiseRegisteredWithPushServer(sessionType).then(() => {
       return this.registerWithLoopServer(sessionType);
     }).then(() => {
       deferred.resolve("registered to status:" + sessionType);
@@ -397,7 +417,8 @@ let MozLoopServiceInternal = {
   },
 
   /**
-   * Performs a hawk based request to the loop server.
+   * Performs a hawk based request to the loop server - there is no pre-registration
+   * for this request, if this is required, use hawkRequest.
    *
    * @param {LOOP_SESSION_TYPE} sessionType The type of session to use for the request.
    *                                        This is one of the LOOP_SESSION_TYPE members.
@@ -411,8 +432,7 @@ let MozLoopServiceInternal = {
    *        as JSON and contains an 'error' property, the promise will be
    *        rejected with this JSON-parsed response.
    */
-  hawkRequest: function(sessionType, path, method, payloadObj) {
-    log.debug("hawkRequest: " + path, sessionType);
+  hawkRequestInternal: function(sessionType, path, method, payloadObj) {
     if (!gHawkClient) {
       gHawkClient = new HawkClient(this.loopServerUri);
     }
@@ -454,6 +474,32 @@ let MozLoopServiceInternal = {
         }
       }
       throw error;
+    });
+  },
+
+  /**
+   * Performs a hawk based request to the loop server, registering if necessary.
+   *
+   * @param {LOOP_SESSION_TYPE} sessionType The type of session to use for the request.
+   *                                        This is one of the LOOP_SESSION_TYPE members.
+   * @param {String} path The path to make the request to.
+   * @param {String} method The request method, e.g. 'POST', 'GET'.
+   * @param {Object} payloadObj An object which is converted to JSON and
+   *                            transmitted with the request.
+   * @returns {Promise}
+   *        Returns a promise that resolves to the response of the API call,
+   *        or is rejected with an error.  If the server response can be parsed
+   *        as JSON and contains an 'error' property, the promise will be
+   *        rejected with this JSON-parsed response.
+   */
+  hawkRequest: function(sessionType, path, method, payloadObj) {
+    log.debug("hawkRequest: " + path, sessionType);
+    return new Promise((resolve, reject) => {
+      MozLoopService.promiseRegisteredWithServers(sessionType).then(() => {
+        this.hawkRequestInternal(sessionType, path, method, payloadObj).then(resolve, reject);
+      }, err => {
+        reject(err);
+      }).catch(reject);
     });
   },
 
@@ -547,7 +593,7 @@ let MozLoopServiceInternal = {
     }
 
     if (!callsPushURL || !roomsPushURL) {
-      return Promise.reject("Invalid sessionType or missing push URLs for registerWithLoopServer: " + sessionType);
+      return Promise.reject(new Error("Invalid sessionType or missing push URLs for registerWithLoopServer: " + sessionType));
     }
 
     // create a registration payload with a backwards compatible attribute (simplePushURL)
@@ -559,11 +605,11 @@ let MozLoopServiceInternal = {
           rooms: roomsPushURL,
         },
     };
-    return this.hawkRequest(sessionType, "/registration", "POST", msg)
+    return this.hawkRequestInternal(sessionType, "/registration", "POST", msg)
       .then((response) => {
         // If this failed we got an invalid token.
         if (!this.storeSessionToken(sessionType, response.headers)) {
-          return Promise.reject("session-token-wrong-size");
+          return Promise.reject(new Error("session-token-wrong-size"));
         }
 
         log.debug("Successfully registered with server for sessionType", sessionType);
@@ -580,7 +626,14 @@ let MozLoopServiceInternal = {
         }
 
         log.error("Failed to register with the loop server. Error: ", error);
-        this.setError("registration", error);
+        let deferred = Promise.defer();
+        deferred.promise.then(() => {
+          log.debug("registration retry succeeded");
+        },
+        error => {
+          log.debug("registration retry failed");
+        });
+        this.setError("registration", error, () => MozLoopService.delayedInitialize(deferred));
         throw error;
       }
     );
@@ -608,7 +661,7 @@ let MozLoopServiceInternal = {
     }
 
     let unregisterURL = "/registration?simplePushURL=" + encodeURIComponent(pushURL);
-    return this.hawkRequest(sessionType, unregisterURL, "DELETE")
+    return this.hawkRequestInternal(sessionType, unregisterURL, "DELETE")
       .then(() => {
         log.debug("Successfully unregistered from server for sessionType", sessionType);
       },
@@ -627,33 +680,22 @@ let MozLoopServiceInternal = {
    * A getter to obtain and store the strings for loop. This is structured
    * for use by l10n.js.
    *
-   * @returns {Object} a map of element ids with attributes to set.
+   * @returns {Map} a map of element ids with localized string values
    */
   get localizedStrings() {
-    if (gLocalizedStrings)
+    if (gLocalizedStrings.size)
       return gLocalizedStrings;
 
-    var stringBundle =
-      Services.strings.createBundle('chrome://browser/locale/loop/loop.properties');
+    let stringBundle =
+      Services.strings.createBundle("chrome://browser/locale/loop/loop.properties");
 
-    var map = {};
-    var enumerator = stringBundle.getSimpleEnumeration();
+    let enumerator = stringBundle.getSimpleEnumeration();
     while (enumerator.hasMoreElements()) {
-      var string = enumerator.getNext().QueryInterface(Ci.nsIPropertyElement);
-
-      // 'textContent' is the default attribute to set if none are specified.
-      var key = string.key, property = 'textContent';
-      var i = key.lastIndexOf('.');
-      if (i >= 0) {
-        property = key.substring(i + 1);
-        key = key.substring(0, i);
-      }
-      if (!(key in map))
-        map[key] = {};
-      map[key][property] = string.value;
+      let string = enumerator.getNext().QueryInterface(Ci.nsIPropertyElement);
+      gLocalizedStrings.set(string.key, string.value);
     }
 
-    return gLocalizedStrings = map;
+    return gLocalizedStrings;
   },
 
   /**
@@ -732,7 +774,14 @@ let MozLoopServiceInternal = {
   openChatWindow: function(conversationWindowData) {
     // So I guess the origin is the loop server!?
     let origin = this.loopServerUri;
-    let windowId = gLastWindowId++;
+    // Try getting a window ID that can (re-)identify this conversation, or resort
+    // to a globally unique one as a last resort.
+    // XXX We can clean this up once rooms and direct contact calling are the only
+    //     two modes left.
+    let windowId = ("contact" in conversationWindowData) ?
+                   conversationWindowData.contact._guid || gLastWindowId++ :
+                   conversationWindowData.roomToken || conversationWindowData.callId ||
+                   gLastWindowId++;
     // Store the id as a string, as that's what we use elsewhere.
     windowId = windowId.toString();
 
@@ -797,7 +846,7 @@ let MozLoopServiceInternal = {
    */
   promiseFxAOAuthParameters: function() {
     const SESSION_TYPE = LOOP_SESSION_TYPE.FXA;
-    return this.hawkRequest(SESSION_TYPE, "/fxa-oauth/params", "POST").then(response => {
+    return this.hawkRequestInternal(SESSION_TYPE, "/fxa-oauth/params", "POST").then(response => {
       if (!this.storeSessionToken(SESSION_TYPE, response.headers)) {
         throw new Error("Invalid FxA hawk token returned");
       }
@@ -936,9 +985,12 @@ this.MozLoopService = {
     };
   },
 
-
   set initializeTimerFunc(value) {
     gInitializeTimerFunc = value;
+  },
+
+  get roomsParticipantsCount() {
+    return LoopRooms.participantsCount;
   },
 
   /**
@@ -961,7 +1013,7 @@ this.MozLoopService = {
 
     // Don't do anything if loop is not enabled.
     if (!Services.prefs.getBoolPref("loop.enabled")) {
-      return Promise.reject("loop is not enabled");
+      return Promise.reject(new Error("loop is not enabled"));
     }
 
     if (Services.prefs.getPrefType("loop.fxa.enabled") == Services.prefs.PREF_BOOL) {
@@ -971,9 +1023,30 @@ this.MozLoopService = {
       }
     }
 
+    // The Loop toolbar button should change icon when the room participant count
+    // changes from 0 to something.
+    const onRoomsChange = () => {
+      MozLoopServiceInternal.notifyStatusChanged();
+    };
+    LoopRooms.on("add", onRoomsChange);
+    LoopRooms.on("update", onRoomsChange);
+    LoopRooms.on("joined", (e, roomToken, participant) => {
+      // Don't alert if we're in the doNotDisturb mode, or the participant
+      // is the owner - the content code deals with the rest of the sounds.
+      if (MozLoopServiceInternal.doNotDisturb || participant.owner) {
+        return;
+      }
+
+      let window = gWM.getMostRecentWindow("navigator:browser");
+      if (window) {
+        window.LoopUI.playSound("room-joined");
+      }
+    });
+
     // If expiresTime is not in the future and the user hasn't
     // previously authenticated then skip registration.
     if (!MozLoopServiceInternal.urlExpiryTimeIsInFuture() &&
+        !LoopRooms.getGuestCreatedRoom() &&
         !MozLoopServiceInternal.fxAOAuthTokenData) {
       return Promise.resolve("registration not needed");
     }
@@ -992,6 +1065,7 @@ this.MozLoopService = {
    * @param {Deferred} deferredInitialization
    */
   delayedInitialize: Task.async(function*(deferredInitialization) {
+    log.debug("delayedInitialize");
     // Set or clear an error depending on how deferredInitialization gets resolved.
     // We do this first so that it can handle the early returns below.
     let completedPromise = deferredInitialization.promise.then(result => {
@@ -1001,12 +1075,13 @@ this.MozLoopService = {
     error => {
       // If we get a non-object then setError was already called for a different error type.
       if (typeof(error) == "object") {
-        MozLoopServiceInternal.setError("initialization", error);
+        MozLoopServiceInternal.setError("initialization", error, () => MozLoopService.delayedInitialize(Promise.defer()));
       }
     });
 
     try {
-      if (MozLoopServiceInternal.urlExpiryTimeIsInFuture()) {
+      if (MozLoopServiceInternal.urlExpiryTimeIsInFuture() ||
+          LoopRooms.getGuestCreatedRoom()) {
         yield this.promiseRegisteredWithServers(LOOP_SESSION_TYPE.GUEST);
       } else {
         log.debug("delayedInitialize: URL expiry time isn't in the future so not registering as a guest");
@@ -1071,21 +1146,20 @@ this.MozLoopService = {
   },
 
   /**
-   * Returns the strings for the specified element. Designed for use
-   * with l10n.js.
+   * Returns the strings for the specified element. Designed for use with l10n.js.
    *
    * @param {key} The element id to get strings for.
-   * @return {String} A JSON string containing the localized
-   *                  attribute/value pairs for the element.
+   * @return {String} A JSON string containing the localized attribute/value pairs
+   *                  for the element.
    */
   getStrings: function(key) {
-      var stringData = MozLoopServiceInternal.localizedStrings;
-      if (!(key in stringData)) {
-        log.error("No string found for key: ", key);
-        return "";
-      }
+    var stringData = MozLoopServiceInternal.localizedStrings;
+    if (!stringData.has(key)) {
+      log.error("No string found for key: ", key);
+      return "";
+    }
 
-      return JSON.stringify(stringData[key]);
+    return JSON.stringify({ textContent: stringData.get(key) });
   },
 
   /**
@@ -1167,63 +1241,75 @@ this.MozLoopService = {
   },
 
   /**
-   * Set any character preference under "loop.".
+   * Set any preference under "loop.".
    *
-   * @param {String} prefName The name of the pref without the preceding "loop."
-   * @param {String} value The value to set.
+   * @param {String} prefSuffix The name of the pref without the preceding "loop."
+   * @param {*} value The value to set.
+   * @param {Enum} prefType Type of preference, defined at Ci.nsIPrefBranch. Optional.
    *
    * Any errors thrown by the Mozilla pref API are logged to the console.
    */
-  setLoopCharPref: function(prefName, value) {
+  setLoopPref: function(prefSuffix, value, prefType) {
+    let prefName = "loop." + prefSuffix;
     try {
-      Services.prefs.setCharPref("loop." + prefName, value);
+      if (!prefType) {
+        prefType = Services.prefs.getPrefType(prefName);
+      }
+      switch (prefType) {
+        case Ci.nsIPrefBranch.PREF_STRING:
+          Services.prefs.setCharPref(prefName, value);
+          break;
+        case Ci.nsIPrefBranch.PREF_INT:
+          Services.prefs.setIntPref(prefName, value);
+          break;
+        case Ci.nsIPrefBranch.PREF_BOOL:
+          Services.prefs.setBoolPref(prefName, value);
+          break;
+        default:
+          log.error("invalid preference type setting " + prefName);
+          break;
+      }
     } catch (ex) {
-      log.error("setLoopCharPref had trouble setting " + prefName +
+      log.error("setLoopPref had trouble setting " + prefName +
         "; exception: " + ex);
     }
   },
 
   /**
-   * Return any preference under "loop." that's coercible to a character
-   * preference.
+   * Return any preference under "loop.".
    *
    * @param {String} prefName The name of the pref without the preceding
    * "loop."
+   * @param {Enum} prefType Type of preference, defined at Ci.nsIPrefBranch. Optional.
    *
    * Any errors thrown by the Mozilla pref API are logged to the console
    * and cause null to be returned. This includes the case of the preference
    * not being found.
    *
-   * @return {String} on success, null on error
+   * @return {*} on success, null on error
    */
-  getLoopCharPref: function(prefName) {
+  getLoopPref: function(prefSuffix, prefType) {
+    let prefName = "loop." + prefSuffix;
     try {
-      return Services.prefs.getCharPref("loop." + prefName);
+      if (!prefType) {
+        prefType = Services.prefs.getPrefType(prefName);
+      } else if (prefType != Services.prefs.getPrefType(prefName)) {
+        log.error("invalid type specified for preference");
+        return null;
+      }
+      switch (prefType) {
+        case Ci.nsIPrefBranch.PREF_STRING:
+          return Services.prefs.getCharPref(prefName);
+        case Ci.nsIPrefBranch.PREF_INT:
+          return Services.prefs.getIntPref(prefName);
+        case Ci.nsIPrefBranch.PREF_BOOL:
+          return Services.prefs.getBoolPref(prefName);
+        default:
+          log.error("invalid preference type getting " + prefName);
+          return null;
+      }
     } catch (ex) {
-      log.error("getLoopCharPref had trouble getting " + prefName +
-        "; exception: " + ex);
-      return null;
-    }
-  },
-
-  /**
-   * Return any preference under "loop." that's coercible to a character
-   * preference.
-   *
-   * @param {String} prefName The name of the pref without the preceding
-   * "loop."
-   *
-   * Any errors thrown by the Mozilla pref API are logged to the console
-   * and cause null to be returned. This includes the case of the preference
-   * not being found.
-   *
-   * @return {String} on success, null on error
-   */
-  getLoopBoolPref: function(prefName) {
-    try {
-      return Services.prefs.getBoolPref("loop." + prefName);
-    } catch (ex) {
-      log.error("getLoopBoolPref had trouble getting " + prefName +
+      log.error("getLoopPref had trouble getting " + prefName +
         "; exception: " + ex);
       return null;
     }
@@ -1259,7 +1345,6 @@ this.MozLoopService = {
       });
       client.fetchProfile().then(result => {
         MozLoopServiceInternal.fxAOAuthProfile = result;
-        MozLoopServiceInternal.notifyStatusChanged("login");
       }, error => {
         log.error("Failed to retrieve profile", error);
         this.setError("profile", error);
@@ -1332,6 +1417,28 @@ this.MozLoopService = {
       win.switchToTabHavingURI(url.toString(), true);
     } catch (ex) {
       log.error("Error opening FxA settings", ex);
+    }
+  }),
+
+  /**
+   * Opens the Getting Started tour in the browser.
+   *
+   * @param {String} aSrc
+   *   - The UI element that the user used to begin the tour, optional.
+   */
+  openGettingStartedTour: Task.async(function(aSrc = null) {
+    try {
+      let urlStr = Services.prefs.getCharPref("loop.gettingStarted.url");
+      let url = new URL(Services.urlFormatter.formatURL(urlStr));
+      if (aSrc) {
+        url.searchParams.set("utm_source", "firefox-browser");
+        url.searchParams.set("utm_medium", "firefox-browser");
+        url.searchParams.set("utm_campaign", aSrc);
+      }
+      let win = Services.wm.getMostRecentWindow("navigator:browser");
+      win.switchToTabHavingURI(url, true, {replaceQueryString: true});
+    } catch (ex) {
+      log.error("Error opening Getting Started tour", ex);
     }
   }),
 

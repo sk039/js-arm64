@@ -579,6 +579,9 @@ class MacroAssemblerX86Shared : public Assembler
     void jump(Label *label) {
         jmp(label);
     }
+    void jump(JitCode *code) {
+        jmp(code);
+    }
     void jump(RepatchLabel *label) {
         jmp(label);
     }
@@ -841,8 +844,14 @@ class MacroAssemblerX86Shared : public Assembler
     void loadUnalignedInt32x4(const Address &src, FloatRegister dest) {
         movdqu(Operand(src), dest);
     }
+    void loadUnalignedInt32x4(const Operand &src, FloatRegister dest) {
+        movdqu(src, dest);
+    }
     void storeUnalignedInt32x4(FloatRegister src, const Address &dest) {
         movdqu(src, Operand(dest));
+    }
+    void storeUnalignedInt32x4(FloatRegister src, const Operand &dest) {
+        movdqu(src, dest);
     }
     void packedEqualInt32x4(const Operand &src, FloatRegister dest) {
         pcmpeqd(src, dest);
@@ -904,8 +913,14 @@ class MacroAssemblerX86Shared : public Assembler
     void loadUnalignedFloat32x4(const Address &src, FloatRegister dest) {
         movups(Operand(src), dest);
     }
+    void loadUnalignedFloat32x4(const Operand &src, FloatRegister dest) {
+        movups(src, dest);
+    }
     void storeUnalignedFloat32x4(FloatRegister src, const Address &dest) {
         movups(src, Operand(dest));
+    }
+    void storeUnalignedFloat32x4(FloatRegister src, const Operand &dest) {
+        movups(src, dest);
     }
     void packedAddFloat32(const Operand &src, FloatRegister dest) {
         addps(src, dest);
@@ -1198,6 +1213,9 @@ class MacroAssemblerX86Shared : public Assembler
     void call(AsmJSImmPtr target) {
         mov(target, eax);
         call(eax);
+    }
+    void callAndPushReturnAddress(Label *label) {
+        call(label);
     }
 
     void checkStackAlignment() {
