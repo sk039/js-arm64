@@ -152,12 +152,18 @@ Assembler::executableCopy(uint8_t *buffer)
 
         Instruction *target = (Instruction *)rp.target;
         Instruction *branch = (Instruction *)(buffer + toFinalOffset(rp.offset));
-        MOZ_ASSERT(branch->BranchType() != UnknownBranchType);
-
-        if (branch->IsTargetReachable(target)) {
-            branch->SetImmPCOffsetTarget(target);
+        if(branch->BranchType() != UnknownBranchType) {
+            if (branch->IsTargetReachable(target)) {
+                branch->SetImmPCOffsetTarget(target);
+            } else {
+                MOZ_CRASH("Implement extended jump table patching");
+            }
         } else {
-            MOZ_CRASH("Implement extended jump table patching");
+            // currently a nop, get the offset, and stick it in a cmp instruction
+            bl(branch, 0);
+            branch->SetImmPCOffsetTarget(target);
+            // Turn it off, don't bother duplicating the logic here.
+            ToggleCall(CodeLocationLabel((uint8_t*)branch), false);
         }
     }
 }
@@ -361,7 +367,35 @@ Assembler::ToggleToCmp(CodeLocationLabel inst_)
 void
 Assembler::ToggleCall(CodeLocationLabel inst_, bool enabled)
 {
-    MOZ_CRASH("ToggleCall()");
+    Instruction *i = (Instruction *)inst_.raw();
+    if (i->IsBL() == enabled)
+        return;
+
+    if (i->IsBL()) {
+        // There is no way that 26 bits are fitting into a nop
+        // The destination should be stored out of line, but there is presently
+        // no infrastructure for this.
+        MOZ_ASSERT( i->SignedBits(25, 0) ==  i->SignedBits(17, 0));
+        // now that the offset definitely fits into 18 bits, grab those 18 bits.
+        int imm26 = i->Bits(17, 0);
+        // 31 - 64-bit if set, 32-bit if unset. (OK!)
+        // 30 - sub if set, add if unset. (OK!)
+        // 29 - SetFlagsBit. Must be set.
+        // 22:23 - ShiftAddSub. (OK!)
+        // 10:21 - ImmAddSub. (OK!)
+        // 5:9 - First source register (Rn). (OK!)
+        // 0:4 - Destination Register. Must be xzr.
+
+        // From the above, there is a safe 19-bit contiguous region from 5:23.
+        Emit(i, ThirtyTwoBits | AddSubImmediateFixed | SUB | Flags(SetFlags) |
+             Rd(xzr) | (imm26 << Rn_offset));
+    } else {
+        // Refer to instruction layout in ToggleToCmp().
+        MOZ_ASSERT(i->IsAddSubImmediate());
+        int imm19 = (int)i->Bits(23, 5);
+        MOZ_ASSERT(is_int19(imm19));
+        bl(i, imm19);
+    }
 }
 
 class RelocationIterator
