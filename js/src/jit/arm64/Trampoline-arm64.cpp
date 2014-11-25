@@ -294,11 +294,12 @@ JitRuntime::generateArgumentsRectifier(JSContext *cx, ExecutionMode mode, void *
     // Now that the size of the stack frame sans the fixed frame has been loaded,
     // add that onto the stack pointer
     masm.Add(masm.GetStackPointer(), masm.GetStackPointer(), Operand(x4, LSR, FRAMESIZE_SHIFT));
-    // and make sure all of these are reflected in the real stack pointer
-    masm.syncStackPtr();
     // Do that return thing
     masm.Pop(lr);
+    // and make sure all of these are reflected in the real stack pointer
+    masm.syncStackPtr();
     masm.ret();
+
     Linker linker(masm);
     return linker.newCode<NoGC>(cx, OTHER_CODE);
 }
