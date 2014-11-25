@@ -707,7 +707,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
 
     void xorPtr(Register src, Register dest) {
-        Eor(ARMRegister(dest, 64), ARMRegister(dest, 64), Operand(ARMRegister(src, 32)));
+        Eor(ARMRegister(dest, 64), ARMRegister(dest, 64), Operand(ARMRegister(src, 64)));
     }
     void orPtr(ImmWord imm, Register dest) {
         Orr(ARMRegister(dest, 64), ARMRegister(dest, 64), Operand(imm.value));
