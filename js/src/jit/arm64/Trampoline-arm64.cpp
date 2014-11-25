@@ -232,9 +232,73 @@ JitRuntime::generateInvalidator(JSContext *cx)
 JitCode *
 JitRuntime::generateArgumentsRectifier(JSContext *cx, ExecutionMode mode, void **returnAddrOut)
 {
-    // FIXME: Actually implement.
     MacroAssembler masm;
-    masm.breakpoint();
+
+    // Save the return address for later
+    masm.push(lr);
+    // Load the information that the rectifier needs from the stack
+    masm.Ldr(w0, MemOperand(masm.GetStackPointer(), IonRectifierFrameLayout::offsetOfNumActualArgs()));
+    masm.Ldr(x1, MemOperand(masm.GetStackPointer(), IonRectifierFrameLayout::offsetOfCalleeToken()));
+    // Extract a JSFunction pointer from the callee token
+    masm.And(x6, x1, Operand(CalleeTokenMask));
+    // Get the arguments from the function object
+    masm.Ldrh(x6, MemOperand(x6, JSFunction::offsetOfNargs()));
+
+    // Calculate the number of undefineds that need to be pushed
+    masm.Sub(w2, w6, w8);
+    // Put an undefined in a register so it can be pushed
+    masm.moveValue(UndefinedValue(), r4);
+
+    // Calculate the position that our arguments are at before sp gets modified
+    masm.Add(x3, masm.GetStackPointer(), Operand(x8, LSL, 3));
+    masm.Add(x3, x3, Operand(sizeof(IonRectifierFrameLayout)));
+
+    // Push undefined N times
+    {
+        Label undefLoopTop;
+        masm.bind(&undefLoopTop);
+        masm.Push(r4);
+        masm.Subs(w2, w2, Operand(1));
+        masm.B(&undefLoopTop, Assembler::NonZero);
+    }
+
+    {
+        Label copyLoopTop;
+        masm.bind(&copyLoopTop);
+        masm.Ldr(x4, MemOperand(x3, -sizeof(Value), PostIndex));
+        masm.Push(r4);
+        masm.Subs(x8, x8, Operand(1));
+        masm.B(&copyLoopTop, Assembler::NotSigned);
+    }
+    // Fix up the size of the stack frame
+    masm.Add(x6, x6, Operand(1));
+    masm.Lsl(x6, x6, 3);
+
+    // Make that into a frame descriptor.
+    masm.makeFrameDescriptor(r6, JitFrame_Rectifier);
+
+    masm.push(r0); // number of actual arguments
+    masm.push(r1); // callee token
+    masm.push(r6); // frame descriptor
+
+    // Didn't we just compute this? can't we just stick that value in one of our 30 GPR's?
+    // Load the address of the code that is getting called
+    masm.And(x1, x1, Operand(CalleeTokenMask));
+    masm.Ldr(x3, MemOperand(x1, JSFunction::offsetOfNativeOrScript()));
+    masm.loadBaselineOrIonRaw(r3, r3, mode, nullptr);
+    masm.call(r3);
+
+    // Clean up!
+    // Get the size of the stack frame, and clean up the later fixed frame
+    masm.Ldr(x4, MemOperand(masm.GetStackPointer(), 24, PostIndex));
+    // Now that the size of the stack frame sans the fixed frame has been loaded,
+    // add that onto the stack pointer
+    masm.Add(masm.GetStackPointer(), masm.GetStackPointer(), Operand(x4, LSR, FRAMESIZE_SHIFT));
+    // and make sure all of these are reflected in the real stack pointer
+    masm.syncStackPtr();
+    // Do that return thing
+    masm.Pop(lr);
+    masm.ret();
     Linker linker(masm);
     return linker.newCode<NoGC>(cx, OTHER_CODE);
 }
