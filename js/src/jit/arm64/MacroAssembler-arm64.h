@@ -2130,11 +2130,22 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     // Emit a BLR or NOP instruction. ToggleCall can be used to patch
     // this instruction.
     CodeOffsetLabel toggledCall(JitCode *target, bool enabled) {
-        MOZ_CRASH("toggledCall()");
+        BufferOffset offset = nextOffset();
+        syncStackPtr();
+
+        addPendingJump(nextOffset(), ImmPtr(target->raw()), Relocation::JITCODE);
+        if (enabled)
+            bl(-1);
+        else
+            nop();
+        CodeOffsetLabel ret(offset.getOffset());
+        return ret;
     }
 
     static size_t ToggledCallSize(uint8_t *code) {
-        MOZ_CRASH("ToggledCallSize");
+        // the blr instruction is always 4 bytes.
+        // but there is also a 4-byte stack sync instruction :-(
+        return 8;
     }
 
     void checkARMRegAlignment(const ARMRegister &reg) {
