@@ -279,7 +279,17 @@ MacroAssemblerCompat::handleFailureWithHandlerTail()
     Br(x0);
 
     bind(&finally);
-    breakpoint(); // TODO: Unimplemented
+    ARMRegister exception = x1;
+    Ldr(exception, MemOperand(GetStackPointer(), offsetof(ResumeFromException, exception)));
+    Ldr(x0, MemOperand(GetStackPointer(), offsetof(ResumeFromException, target)));
+    Ldr(ARMRegister(BaselineFrameReg, 64),
+        MemOperand(GetStackPointer(), offsetof(ResumeFromException, framePointer)));
+    Ldr(GetStackPointer(), MemOperand(GetStackPointer(), offsetof(ResumeFromException, stackPointer)));
+    syncStackPtr();
+    pushValue(BooleanValue(true));
+    push(exception);
+    Br(x0);
+
 
     bind(&return_);
     breakpoint(); // TODO: Unimplemented
