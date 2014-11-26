@@ -349,7 +349,9 @@ Assembler::ToggleToCmp(CodeLocationLabel inst_)
     MOZ_ASSERT(i->IsCondB());
 
     int imm19 = i->ImmCondBranch();
-    MOZ_ASSERT(is_int19(imm19));
+    // bit 23 is reserved, and the simulator throws an assertion when this happens
+    // It'll be messy to decode, but we can steal bit 30 or bit 31.
+    MOZ_ASSERT(is_int18(imm19));
 
     // 31 - 64-bit if set, 32-bit if unset. (OK!)
     // 30 - sub if set, add if unset. (OK!)
@@ -392,7 +394,8 @@ Assembler::ToggleCall(CodeLocationLabel inst_, bool enabled)
     } else {
         // Refer to instruction layout in ToggleToCmp().
         MOZ_ASSERT(i->IsAddSubImmediate());
-        int imm19 = (int)i->Bits(23, 5);
+        
+        int imm19 = (int)i->SignedBits(22, 5);
         MOZ_ASSERT(is_int19(imm19));
         bl(i, imm19);
     }
