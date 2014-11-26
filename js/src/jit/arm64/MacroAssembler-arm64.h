@@ -1772,10 +1772,14 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         return testGCThing(cond, ScratchReg2);
     }
 
+    Condition testInt32Truthy(bool truthy, const ValueOperand &operand) {
+        ARMRegister payload32(operand.valueReg(), 32);
+        Tst(payload32, payload32);
+        return truthy ? NonZero : Zero;
+    }
     void branchTestInt32Truthy(bool truthy, const ValueOperand &operand, Label *label) {
-        ARMRegister payload(operand.valueReg(), 32);
-        Tst(payload, payload);
-        B(label, truthy ? NonZero : Zero);
+        Condition c = testInt32Truthy(truthy, operand);
+        B(label, c);
     }
 
     void branchTestDoubleTruthy(bool truthy, FloatRegister reg, Label *label) {
@@ -1795,22 +1799,26 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         }
     }
 
+    Condition testBooleanTruthy(bool truthy, const ValueOperand &operand) {
+        ARMRegister payload32(operand.valueReg(), 32);
+        Tst(payload32, payload32);
+        return truthy ? NonZero : Zero;
+    }
     void branchTestBooleanTruthy(bool truthy, const ValueOperand &operand, Label *label) {
-        ARMRegister payload(operand.valueReg(), 32);
-        Tst(payload, payload);
-        B(label, truthy ? NonZero : Zero);
+        Condition c = testBooleanTruthy(truthy, operand);
+        B(label, c);
     }
     Condition testStringTruthy(bool truthy, const ValueOperand &value) {
-        ARMRegister string(value.valueReg(), 64);
-        Ldr(ScratchReg64, MemOperand(string, JSString::offsetOfLength()));
-        Cmp(ScratchReg64, Operand(0));
-        return Condition::Zero;
+        unboxString(value, ScratchReg2);
+        Ldr(ScratchReg2_32, MemOperand(ScratchReg2_64, JSString::offsetOfLength()));
+        Cmp(ScratchReg2_32, Operand(0));
+        return truthy ? Condition::NonZero : Condition::Zero;
     }
     void branchTestStringTruthy(bool truthy, const ValueOperand &value, Label *label) {
-        ARMRegister string(value.valueReg(), 64);
-        Ldr(ScratchReg64, MemOperand(string, JSString::offsetOfLength()));
-        Cbnz(ScratchReg64, label);
+        Condition c = testStringTruthy(truthy, value);
+        B(label, c);
     }
+
     template <typename T>
     void loadUnboxedValue(const T &src, MIRType type, AnyRegister dest) {
         MOZ_CRASH("loadUnboxedValue");
