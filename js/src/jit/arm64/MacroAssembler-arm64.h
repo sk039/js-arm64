@@ -703,7 +703,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
 
     void xorPtr(Register src, Register dest) {
-        Eor(ARMRegister(dest, 64), ARMRegister(dest, 64), Operand(ARMRegister(src, 32)));
+        Eor(ARMRegister(dest, 64), ARMRegister(dest, 64), Operand(ARMRegister(src, 64)));
     }
     void orPtr(ImmWord imm, Register dest) {
         Orr(ARMRegister(dest, 64), ARMRegister(dest, 64), Operand(imm.value));
@@ -1029,7 +1029,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     void mul32(Register src1, Register src2, Register dest, Label *onOver, Label *onZero) {
         Smull(ARMRegister(dest, 64), ARMRegister(src1, 32), ARMRegister(src2, 32));
         if (onOver) {
-            Cmp(ARMRegister(dest, 64), Operand(ARMRegister(dest, 32), SXTX));
+            Cmp(ARMRegister(dest, 64), Operand(ARMRegister(dest, 32), SXTW));
             B(onOver, Overflow);
         }
         if (onZero) {
@@ -1179,11 +1179,11 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
     void branchPtr(Condition cond, Register lhs, ImmWord ptr, Label *label) {
         Mov(ScratchReg2_64, uint64_t(ptr.value));
-        branch(cond, label);
+        branchPtr(cond, lhs, ScratchReg2, label);
     }
     void branchPtr(Condition cond, Register lhs, ImmPtr rhs, Label *label) {
         Mov(ScratchReg2_64, uint64_t(rhs.value));
-        branch(cond, label);
+        branchPtr(cond, lhs, ScratchReg2, label);
     }
     void branchPtr(Condition cond, Register lhs, ImmGCPtr ptr, Label *label) {
         MOZ_CRASH("branchPtr");
