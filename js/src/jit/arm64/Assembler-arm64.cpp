@@ -436,8 +436,17 @@ static JitCode *
 CodeFromJump(JitCode *code, uint8_t *jump)
 {
     Instruction *branch = (Instruction *)jump;
-    uint8_t *target = (uint8_t *)branch->ImmPCOffsetTarget();
-
+    uint8_t *target;
+    // If this is a toggled branch, and is currently off, then we have some 'splainin
+    if (branch->BranchType() != UnknownBranchType) {
+        target = (uint8_t *)branch->ImmPCOffsetTarget();
+    } else {
+        CodeLocationLabel loc((uint8_t*)branch);
+        // we can probably just extract this directly, but I don't want to duplicate code that may be wrong.
+        Assembler::ToggleCall(loc, true);
+        target = (uint8_t *)branch->ImmPCOffsetTarget();
+        Assembler::ToggleCall(loc, false);
+    }
     // If the jump is within the code buffer, it uses the extended jump table.
     if (target >= code->raw() && target < code->raw() + code->instructionsSize()) {
         MOZ_ASSERT(target + Assembler::SizeOfJumpTableEntry <= code->raw() + code->instructionsSize());
