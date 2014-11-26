@@ -346,7 +346,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
 
     void boxValue(JSValueType type, Register src, Register dest) {
-        MOZ_CRASH("boxValue");
+        Orr(ARMRegister(dest, 64), ARMRegister(src, 64), Operand(ImmShiftedTag(type).value));
     }
     void splitTag(Register src, Register dest) {
         ubfx(ARMRegister(dest, 64), ARMRegister(src, 64), JSVAL_TAG_SHIFT, (64 - JSVAL_TAG_SHIFT));
@@ -1402,12 +1402,16 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         branchTestValue(cond, val, MagicValue(why), label);
     }
     void branchTestValue(Condition cond, const ValueOperand &value, const Value &v, Label *label) {
-        MOZ_CRASH("branchTestValue");
+        moveValue(v, ValueOperand(ScratchReg2));
+        Cmp(ARMRegister(value.valueReg(), 64), ScratchReg2_64);
+        B(label, cond);
     }
     void branchTestValue(Condition cond, const Address &valaddr, const ValueOperand &value,
                          Label *label)
     {
-        MOZ_CRASH("branchTestValue");
+        loadValue(valaddr, ScratchReg2);
+        Cmp(ARMRegister(value.valueReg(), 64), Operand(ScratchReg2_64));
+        B(label, cond);
     }
 
     void compareDouble(DoubleCondition cond, FloatRegister lhs, FloatRegister rhs) {
@@ -1467,7 +1471,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         Fmov(ARMRegister(dest.valueReg(), 64), ARMFPRegister(src, 64));
     }
     void boxNonDouble(JSValueType type, Register src, const ValueOperand &dest) {
-        MOZ_CRASH("boxNonDouble");
+        boxValue(type, src, dest.valueReg());
     }
 
     // Note that the |dest| register here may be ScratchReg, so we shouldn't use it.
@@ -2003,7 +2007,11 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         // FIXME: Jandem said he would refactor the code to avoid making
         // this instruction required, but probably forgot about it.
         // Instead of implementing this function, we should make it unnecessary.
-        MOZ_CRASH("callAndPushReturnAddress");
+        Label ret;
+        Adr(ScratchReg2_64, &ret);
+        Push(ScratchReg2);
+        Bl(label);
+        bind(&ret);
     }
 
   private:
@@ -2240,11 +2248,17 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         MOZ_CRASH("stackCheck");
     }
     void clampIntToUint8(Register reg) {
-        MOZ_CRASH("clampIntToUint8");
+        ARMRegister areg(reg, 32);
+        Cmp(areg, Operand(areg, UXTB));
+        Csel(areg, wzr, areg, Assembler::LessThan);
+        Mov(ScratchReg2_32, Operand(0xff));
+        Csel(areg, areg, ScratchReg2_32, Assembler::LessThanOrEqual);
     }
 
     void incrementInt32Value(const Address &addr) {
-        MOZ_CRASH("IncrementInt32Value");
+        load32(addr, ScratchReg2);
+        Add(ScratchReg2_32, ScratchReg2_32, Operand(1));
+        store32(ScratchReg2, addr);
     }
     void inc64(AbsoluteAddress dest) {
         MOZ_CRASH("inc64");
@@ -2279,7 +2293,12 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         Bfi(ARMRegister(dest, 64), ARMRegister(src, 64), 0, JSVAL_TAG_SHIFT);
     }
     void monoTagMove(ARMRegister dest, ARMRegister src) {
-        Bfi(dest, src, 0, JSVAL_TAG_SHIFT);
+        const ARMRegister csrc = src;
+        if (csrc.code() != 31) {
+            Bfi(dest, src, 0, JSVAL_TAG_SHIFT);
+        } else {
+            And(dest, src, Operand((1<<JSVAL_TAG_SHIFT) - 1));
+        }
     }
     // FIXME: Should be in Assembler?
     // FIXME: Should be const?
