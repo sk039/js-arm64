@@ -394,7 +394,7 @@ Assembler::ToggleCall(CodeLocationLabel inst_, bool enabled)
     } else {
         // Refer to instruction layout in ToggleToCmp().
         MOZ_ASSERT(i->IsAddSubImmediate());
-        
+
         int imm19 = (int)i->SignedBits(22, 5);
         MOZ_ASSERT(is_int19(imm19));
         bl(i, imm19);
