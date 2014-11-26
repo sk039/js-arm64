@@ -645,7 +645,7 @@ class PerThreadData : public PerThreadDataFriendFields
         {
             MOZ_ASSERT(!pt->runtime_);
             pt->runtime_ = rt;
-#if defined(JS_ARM_SIMULATOR) || defined(JS_MIPS_SIMULATOR)
+#if defined(JS_ARM_SIMULATOR) || defined(JS_ARM64_SIMULATOR) || defined(JS_MIPS_SIMULATOR)
             // The simulator has a pointer to its SimulatorRuntime, but helper threads
             // don't have a simulator as they don't run JIT code so this pointer need not
             // be updated. All the paths that the helper threads use access the
@@ -656,7 +656,7 @@ class PerThreadData : public PerThreadDataFriendFields
 
         ~AutoEnterRuntime() {
             pt->runtime_ = nullptr;
-#if defined(JS_ARM_SIMULATOR) || defined(JS_MIPS_SIMULATOR)
+#if defined(JS_ARM_SIMULATOR) || defined(JS_ARM64_SIMULATOR) || defined(JS_MIPS_SIMULATOR)
             // Check that helper threads have not run JIT code and/or added a simulator.
             MOZ_ASSERT(!pt->simulator_);
 #endif
