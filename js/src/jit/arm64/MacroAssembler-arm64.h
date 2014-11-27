@@ -901,7 +901,8 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         splitTag(dest, dest);
     }
     void splitTag(const BaseIndex &operand, Register dest) {
-        MOZ_CRASH("splitTag");
+        loadPtr(operand, dest);
+        splitTag(dest, dest);
     }
 
     // Extracts the tag of a value and places it in ScratchReg.
@@ -1732,43 +1733,43 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
 
     // BaseIndex-based tests.
     Condition testUndefined(Condition cond, const BaseIndex &src) {
-        loadPtr(src, ScratchReg2);
+        splitTag(src, ScratchReg2);
         return testUndefined(cond, ScratchReg2);
     }
     Condition testNull(Condition cond, const BaseIndex &src) {
-        loadPtr(src, ScratchReg2);
+        splitTag(src, ScratchReg2);
         return testNull(cond, ScratchReg2);
     }
     Condition testBoolean(Condition cond, const BaseIndex &src) {
-        loadPtr(src, ScratchReg2);
+        splitTag(src, ScratchReg2);
         return testBoolean(cond, ScratchReg2);
     }
     Condition testString(Condition cond, const BaseIndex &src) {
-        loadPtr(src, ScratchReg2);
+        splitTag(src, ScratchReg2);
         return testString(cond, ScratchReg2);
     }
     Condition testSymbol(Condition cond, const BaseIndex &src) {
-        loadPtr(src, ScratchReg2);
+        splitTag(src, ScratchReg2);
         return testSymbol(cond, ScratchReg2);
     }
     Condition testInt32(Condition cond, const BaseIndex &src) {
-        loadPtr(src, ScratchReg2);
+        splitTag(src, ScratchReg2);
         return testInt32(cond, ScratchReg2);
     }
     Condition testObject(Condition cond, const BaseIndex &src) {
-        loadPtr(src, ScratchReg2);
+        splitTag(src, ScratchReg2);
         return testObject(cond, ScratchReg2);
     }
     Condition testDouble(Condition cond, const BaseIndex &src) {
-        loadPtr(src, ScratchReg2);
+        splitTag(src, ScratchReg2);
         return testDouble(cond, ScratchReg2);
     }
     Condition testMagic(Condition cond, const BaseIndex &src) {
-        loadPtr(src, ScratchReg2);
+        splitTag(src, ScratchReg2);
         return testMagic(cond, ScratchReg2);
     }
     Condition testGCThing(Condition cond, const BaseIndex &src) {
-        loadPtr(src, ScratchReg2);
+        splitTag(src, ScratchReg2);
         return testGCThing(cond, ScratchReg2);
     }
 
