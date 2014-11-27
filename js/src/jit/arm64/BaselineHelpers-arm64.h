@@ -84,7 +84,7 @@ EmitTailCallVM(JitCode *target, MacroAssembler &masm, uint32_t argSize)
     // We assume that R0 has been pushed, and R2 is unused.
     MOZ_ASSERT(R2 == ValueOperand(r0));
 
-    // Compute frame size into w0. Used beflow in makeFrameDescriptor().
+    // Compute frame size into w0. Used below in makeFrameDescriptor().
     masm.Sub(x0, ARMRegister(BaselineFrameReg, 64), masm.GetStackPointer());
     masm.Add(w0, w0, Operand(BaselineFrame::FramePointerOffset));
 
