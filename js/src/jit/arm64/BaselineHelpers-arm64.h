@@ -81,21 +81,21 @@ EmitChangeICReturnAddress(MacroAssembler &masm, Register reg)
 inline void
 EmitTailCallVM(JitCode *target, MacroAssembler &masm, uint32_t argSize)
 {
-    // We assume that R0 and R1 have been pushed, and R2 is unused.
+    // We assume that R0 has been pushed, and R2 is unused.
     MOZ_ASSERT(R2 == ValueOperand(r0));
 
-    // Compute frame size.
-    masm.Sub(ScratchReg64, ARMRegister(BaselineFrameReg, 64), masm.GetStackPointer());
-    masm.Add(ScratchReg32, ScratchReg32, Operand(BaselineFrame::FramePointerOffset));
+    // Compute frame size into w0. Used beflow in makeFrameDescriptor().
+    masm.Sub(x0, ARMRegister(BaselineFrameReg, 64), masm.GetStackPointer());
+    masm.Add(w0, w0, Operand(BaselineFrame::FramePointerOffset));
 
     // Store frame size without VMFunction arguments for GC marking.
-    masm.Sub(w0, ScratchReg32, Operand(argSize));
-    masm.store32(r0, Address(BaselineFrameReg, BaselineFrame::reverseOffsetOfFrameSize()));
+    masm.Sub(ScratchReg2_32, w0, Operand(argSize));
+    masm.store32(ScratchReg2, Address(BaselineFrameReg, BaselineFrame::reverseOffsetOfFrameSize()));
 
     // Push frame descriptor (minus the return address) and perform the tail call.
     MOZ_ASSERT(BaselineTailCallReg == lr);
-    masm.makeFrameDescriptor(ScratchReg, JitFrame_BaselineJS);
-    masm.MacroAssemblerVIXL::Push(ScratchReg64);
+    masm.makeFrameDescriptor(r0, JitFrame_BaselineJS);
+    masm.MacroAssemblerVIXL::Push(x0);
 
     // The return address will be pushed by the VM wrapper, for compatibility
     // with direct calls. Refer to the top of generateVMWrapper().
