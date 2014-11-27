@@ -2305,7 +2305,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         if (csrc.code() != 31) {
             Bfi(dest, src, 0, JSVAL_TAG_SHIFT);
         } else {
-            And(dest, src, Operand((1<<JSVAL_TAG_SHIFT) - 1));
+            And(dest, src, Operand((int64_t(1) << JSVAL_TAG_SHIFT) - int64_t(1)));
         }
     }
     // FIXME: Should be in Assembler?
