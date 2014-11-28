@@ -595,29 +595,31 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
 
     void store8(Register src, const Address &address) {
-        MOZ_CRASH("store8");
+        Strb(ARMRegister(src, 32), MemOperand(ARMRegister(address.base, 64), address.offset));
     }
     void store8(Imm32 imm, const Address &address) {
-        MOZ_CRASH("store8");
+        move32(imm, ScratchReg2);
+        Strb(ScratchReg2_32, MemOperand(ARMRegister(address.base, 64), address.offset));
     }
     void store8(Register src, const BaseIndex &address) {
-        MOZ_CRASH("store8");
+        doBaseIndex(ARMRegister(src, 32), address, STRB_w);
     }
     void store8(Imm32 imm, const BaseIndex &address) {
-        MOZ_CRASH("store8");
+        MOZ_CRASH("store8"); // Careful -- doBaseIndex may use both scratch regs!
     }
 
     void store16(Register src, const Address &address) {
-        MOZ_CRASH("store16");
+        Strh(ARMRegister(src, 32), MemOperand(ARMRegister(address.base, 64), address.offset));
     }
     void store16(Imm32 imm, const Address &address) {
-        MOZ_CRASH("store16");
+        move32(imm, ScratchReg2);
+        Strh(ScratchReg2_32, MemOperand(ARMRegister(address.base, 64), address.offset));
     }
     void store16(Register src, const BaseIndex &address) {
-        MOZ_CRASH("store16");
+        doBaseIndex(ARMRegister(src, 32), address, STRH_w);
     }
     void store16(Imm32 imm, const BaseIndex &address) {
-        MOZ_CRASH("store16");
+        MOZ_CRASH("store16"); // Careful -- doBaseIndex may use both scratch regs!
     }
 
     void storePtr(ImmWord imm, const Address &address) {
@@ -663,8 +665,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         Str(ARMRegister(r, 32), MemOperand(ARMRegister(address.base, 64), address.offset));
     }
     void store32(Imm32 imm, const BaseIndex &address) {
-        Mov(ScratchReg2_32, uint64_t(imm.value));
-        doBaseIndex(ScratchReg2_32, address, STR_w);
+        MOZ_CRASH("store32"); // Careful -- doBaseIndex() may use both scratch regs!
     }
     void store32(Register r, const BaseIndex &address) {
         doBaseIndex(ARMRegister(r, 32), address, STR_w);
