@@ -286,6 +286,8 @@ inline void
 EmitPreBarrier(MacroAssembler &masm, const AddrType &addr, MIRType type)
 {
     // On ARM, lr is clobbered by patchableCallPreBarrier. Save it first.
+    // TODO: These pushes and pops should be inside the CallPreBarrier.
+    // TODO: We shouldn't have to hit stack on the fast case.
     masm.push(lr);
     masm.patchableCallPreBarrier(addr, type);
     masm.pop(lr);
