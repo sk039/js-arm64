@@ -34,8 +34,14 @@ static MOZ_CONSTEXPR_VAR ValueOperand R2(R2_);
 static MOZ_CONSTEXPR_VAR Register BaselineTailCallReg {Registers::x30};
 static MOZ_CONSTEXPR_VAR Register BaselineStubReg     {Registers::x9};
 
-static MOZ_CONSTEXPR_VAR Register ExtractTemp0        {Registers::x3};
-static MOZ_CONSTEXPR_VAR Register ExtractTemp1        {Registers::x4};
+// ExtractTemps must be callee-save registers:
+// ICSetProp_Native::Compiler::generateStubCode() stores the object
+// in ExtractTemp0, but then calls callTypeUpdateIC(), which clobbers
+// caller-save registers.
+// They should also not be the scratch registers ip0 or ip1,
+// since those get clobbered all the time.
+static MOZ_CONSTEXPR_VAR Register ExtractTemp0        { Registers::x24 };
+static MOZ_CONSTEXPR_VAR Register ExtractTemp1        { Registers::x25 };
 
 // Register used internally by MacroAssemblerARM64.
 static MOZ_CONSTEXPR_VAR Register BaselineSecondScratchReg {Registers::x6};
