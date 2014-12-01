@@ -797,7 +797,7 @@ class AssemblerVIXL : public AssemblerShared
 
     // Branch with link to register.
     void blr(const ARMRegister& xn);
-
+    static void blr(Instruction *at, const ARMRegister& xn);
     // Branch to register with return hint.
     void ret(const ARMRegister& xn = lr_64);
 
@@ -859,7 +859,7 @@ class AssemblerVIXL : public AssemblerShared
 
     // Calculate the address of a PC offset.
     void adr(const ARMRegister& rd, int imm21);
-    void adr(Instruction *at, const ARMRegister &rd, int imm21);
+    static void adr(Instruction *at, const ARMRegister &rd, int imm21);
 
     // Calculate the page address of a label.
     void adrp(const ARMRegister& rd, Label* label);
@@ -1246,7 +1246,7 @@ class AssemblerVIXL : public AssemblerShared
 
     // Load integer or FP register from pc + imm19 << 2.
     void ldr(const CPURegister& rt, int imm19);
-    void ldr(Instruction *at, const CPURegister& rt, int imm19);
+    static void ldr(Instruction *at, const CPURegister& rt, int imm19);
 
     // Load word with sign extension from pc + imm19 << 2.
     void ldrsw(const ARMRegister &rt, int imm19);
@@ -1370,7 +1370,7 @@ class AssemblerVIXL : public AssemblerShared
 
     // System hint.
     void hint(SystemHint code);
-
+    static void hint(Instruction *at, SystemHint code);
     // Clear exclusive monitor.
     void clrex(int imm4 = 0xf);
 
@@ -1388,7 +1388,7 @@ class AssemblerVIXL : public AssemblerShared
     void nop() {
         hint(NOP);
     }
-
+    static void nop(Instruction *at);
     // FP instructions.
     // Move double precision immediate to FP register.
     void fmov(const ARMFPRegister& fd, double imm);

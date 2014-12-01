@@ -1993,7 +1993,8 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     void call(JitCode *target) {
         syncStackPtr();
         addPendingJump(nextOffset(), ImmPtr(target->raw()), Relocation::JITCODE);
-        bl(-1);
+        immPool64(ScratchReg2_64, uint64_t(target->raw()));
+        blr(ScratchReg2_64);
     }
     // Call a target native function, which is neither traceable nor movable.
     void call(ImmPtr target) {
@@ -2186,10 +2187,13 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         syncStackPtr();
 
         addPendingJump(nextOffset(), ImmPtr(target->raw()), Relocation::JITCODE);
-        if (enabled)
-            bl(-1);
-        else
+        if (enabled) {
+            immPool64(ScratchReg2_64, uint64_t(target->raw()));
+            blr(ScratchReg2_64);
+        } else {
+            immPool64(ScratchReg2_64, uint64_t(target->raw()));
             nop();
+        }
         CodeOffsetLabel ret(offset.getOffset());
         return ret;
     }

@@ -497,6 +497,13 @@ AssemblerVIXL::blr(const ARMRegister& xn)
     // No need for EmitBranch(): no immediate offset needs fixing.
     Emit(BLR | Rn(xn));
 }
+void
+AssemblerVIXL::blr(Instruction *at, const ARMRegister& xn)
+{
+    MOZ_ASSERT(xn.Is64Bits());
+    // No need for EmitBranch(): no immediate offset needs fixing.
+    Emit(at, BLR | Rn(xn));
+}
 
 void
 AssemblerVIXL::ret(const ARMRegister& xn)
@@ -1604,6 +1611,11 @@ AssemblerVIXL::hint(SystemHint code)
 {
     Emit(HINT | ImmHint(code) | Rt(xzr));
 }
+void
+AssemblerVIXL::hint(Instruction *at, SystemHint code)
+{
+    Emit(at, HINT | ImmHint(code) | Rt(xzr));
+}
 
 void
 AssemblerVIXL::clrex(int imm4)
@@ -2069,6 +2081,12 @@ AssemblerVIXL::svc(Instruction *at, int code)
 {
     MOZ_ASSERT(is_uint16(code));
     Emit(at, SVC | ImmException(code));
+}
+
+void
+AssemblerVIXL::nop(Instruction *at)
+{
+    hint(at, NOP);
 }
 
 void

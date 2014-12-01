@@ -159,11 +159,8 @@ Assembler::executableCopy(uint8_t *buffer)
                 MOZ_CRASH("Implement extended jump table patching");
             }
         } else {
-            // currently a nop, get the offset, and stick it in a cmp instruction
-            bl(branch, 0);
-            branch->SetImmPCOffsetTarget(target);
-            // Turn it off, don't bother duplicating the logic here.
-            ToggleCall(CodeLocationLabel((uint8_t*)branch), false);
+            // Currently a two-instruction call, it should be possible to optimize this
+            // into a single instruction call + nop in some instances, but this will work.
         }
     }
 }
@@ -369,35 +366,37 @@ Assembler::ToggleToCmp(CodeLocationLabel inst_)
 void
 Assembler::ToggleCall(CodeLocationLabel inst_, bool enabled)
 {
-    Instruction *i = (Instruction *)inst_.raw();
-    if (i->IsBL() == enabled)
+    Instruction *load = (Instruction *)inst_.raw();
+    Instruction *call = load + kInstructionSize;
+    printf("Toggling: %p and %p\n", load, call);
+    if (call->IsBL() == enabled) {
+        printf("Not actually toggling");
         return;
-
-    if (i->IsBL()) {
-        // There is no way that 26 bits are fitting into a nop
-        // The destination should be stored out of line, but there is presently
-        // no infrastructure for this.
-        MOZ_ASSERT( i->SignedBits(25, 0) ==  i->SignedBits(17, 0));
-        // now that the offset definitely fits into 18 bits, grab those 18 bits.
-        int imm26 = i->Bits(17, 0);
-        // 31 - 64-bit if set, 32-bit if unset. (OK!)
-        // 30 - sub if set, add if unset. (OK!)
-        // 29 - SetFlagsBit. Must be set.
-        // 22:23 - ShiftAddSub. (OK!)
-        // 10:21 - ImmAddSub. (OK!)
-        // 5:9 - First source register (Rn). (OK!)
-        // 0:4 - Destination Register. Must be xzr.
-
-        // From the above, there is a safe 19-bit contiguous region from 5:23.
-        Emit(i, ThirtyTwoBits | AddSubImmediateFixed | SUB | Flags(SetFlags) |
-             Rd(xzr) | (imm26 << Rn_offset));
+    }
+    if (call->IsBL()) {
+        printf("Already call, turning off\n");
+        // if the second instruction is blr(), then wehave:
+        // ldr x17, [pc, offset]
+        // blr x17
+        // we want to transform this to:
+        // adr xzr, [pc, offset]
+        // nop
+        int32_t offset = load->ImmLLiteral();
+        adr(load, xzr, int32_t(offset));
+        nop(call);
     } else {
-        // Refer to instruction layout in ToggleToCmp().
-        MOZ_ASSERT(i->IsAddSubImmediate());
+        printf("Already nop, turning on\n");
 
-        int imm19 = (int)i->SignedBits(22, 5);
-        MOZ_ASSERT(is_int19(imm19));
-        bl(i, imm19);
+        // we have adr xzr, [pc, offset]
+        // nop
+        // transform this to
+        // ldr x17, [pc, offset]
+        // blr x17
+
+        int32_t offset = (int)load->ImmLLiteral();
+        MOZ_ASSERT(is_int19(offset));
+        ldr(load, ScratchReg2_64, int32_t(offset));
+        blr(call, ScratchReg2_64);
     }
 }
 
@@ -438,14 +437,10 @@ CodeFromJump(JitCode *code, uint8_t *jump)
     Instruction *branch = (Instruction *)jump;
     uint8_t *target;
     // If this is a toggled branch, and is currently off, then we have some 'splainin
-    if (branch->BranchType() != UnknownBranchType) {
-        target = (uint8_t *)branch->ImmPCOffsetTarget();
+    if (branch->BranchType() == UnknownBranchType) {
+        target = (uint8_t *)branch->Literal64();
     } else {
-        CodeLocationLabel loc((uint8_t*)branch);
-        // we can probably just extract this directly, but I don't want to duplicate code that may be wrong.
-        Assembler::ToggleCall(loc, true);
         target = (uint8_t *)branch->ImmPCOffsetTarget();
-        Assembler::ToggleCall(loc, false);
     }
     // If the jump is within the code buffer, it uses the extended jump table.
     if (target >= code->raw() && target < code->raw() + code->instructionsSize()) {
