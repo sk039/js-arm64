@@ -124,15 +124,23 @@ ICBinaryArith_Int32::Compiler::generateStubCode(MacroAssembler &masm)
       case JSOP_MOD: {
 
         // Check for INT_MIN / -1, it results in a double.
+        Label check2;
         masm.Cmp(W0, Operand(INT_MIN));
-        masm.Ccmp(W0, Operand(-1), NoFlag, Assembler::Equal);
+        masm.B(&check2, Assembler::NotEqual);
+        masm.Cmp(W1, Operand(-1));
         masm.j(Assembler::Equal, &failure);
-
+        masm.bind(&check2);
+        Label no_fail;
         // Check for both division by zero and 0 / X with X < 0 (results in -0).
         masm.Cmp(W1, Operand(0));
-        masm.Ccmp(W0, Operand(0), NoFlag, Assembler::LessThan);
-        masm.j(Assembler::Equal, &failure);
-
+        // If x > 0, then it can't be bad.
+        masm.B(&no_fail, Assembler::GreaterThan);
+        // if x == 0, then ignore any comparison, and force
+        // it to fail, if x < 0 (the only other case)
+        // then do the comparison, and fail if y == 0
+        masm.Ccmp(W0, Operand(0), ZFlag, Assembler::NotEqual);
+        masm.B(&failure, Assembler::Equal);
+        masm.bind(&no_fail);
         masm.Sdiv(Wscratch, W0, W1);
         // Start calculating the remainder, x - (x / y) * y.
         masm.mul(WTemp, W1, Wscratch);
