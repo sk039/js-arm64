@@ -1032,7 +1032,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         Smull(ARMRegister(dest, 64), ARMRegister(src1, 32), ARMRegister(src2, 32));
         if (onOver) {
             Cmp(ARMRegister(dest, 64), Operand(ARMRegister(dest, 32), SXTW));
-            B(onOver, Overflow);
+            B(onOver, NotEqual);
         }
         if (onZero) {
             Cbz(ARMRegister(dest, 32), onZero);
