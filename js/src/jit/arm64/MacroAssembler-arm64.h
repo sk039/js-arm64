@@ -1037,6 +1037,9 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         if (onZero) {
             Cbz(ARMRegister(dest, 32), onZero);
         }
+
+        // Clear upper 32 bits.
+        Mov(ARMRegister(dest, 32), ARMRegister(dest, 32));
     }
     void ret() {
         syncStackPtr(); // SP is always used to transmit the stack between calls.
