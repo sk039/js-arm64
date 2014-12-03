@@ -276,6 +276,9 @@ MacroAssemblerCompat::handleFailureWithHandlerTail()
     syncStackPtr();
     Br(x0);
 
+    // If we found a finally block, this must be a baseline frame.
+    // Push two values expected by JSOP_RETSUB: BooleanValue(true)
+    // and the exception.
     bind(&finally);
     ARMRegister exception = x1;
     Ldr(exception, MemOperand(GetStackPointer(), offsetof(ResumeFromException, exception)));
@@ -288,10 +291,18 @@ MacroAssemblerCompat::handleFailureWithHandlerTail()
     push(exception);
     Br(x0);
 
-
+    // Only used in debug mode. Return BaselineFrame->returnValue() to the caller.
     bind(&return_);
-    breakpoint(); // TODO: Unimplemented
+    loadPtr(Address(r28, offsetof(ResumeFromException, framePointer)), BaselineFrameReg);
+    loadPtr(Address(r28, offsetof(ResumeFromException, stackPointer)), r28);
+    loadValue(Address(BaselineFrameReg, BaselineFrame::reverseOffsetOfReturnValue()),
+              JSReturnOperand);
+    movePtr(BaselineFrameReg, r28);
+    pop(BaselineFrameReg);
+    ret();
 
+    // If we are bailing out to baseline to handle an exception,
+    // jump to the bailout tail stub.
     bind(&bailout);
     breakpoint(); // TODO: Unimplemented
 }
