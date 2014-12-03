@@ -265,8 +265,6 @@ MacroAssemblerCompat::handleFailureWithHandlerTail()
     bind(&entryFrame);
     moveValue(MagicValue(JS_ION_ERROR), JSReturnOperand);
     loadPtr(Address(r28, offsetof(ResumeFromException, stackPointer)), r28);
-    syncStackPtr();
-    // TODO: Note that retn() un-syncs the stack register due to the pop.
     retn(Imm32(1 * sizeof(void *))); // Pop from stack and return.
 
     // If we found a catch handler, this must be a baseline frame. Restore state
