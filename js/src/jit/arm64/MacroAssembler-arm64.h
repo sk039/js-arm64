@@ -1180,12 +1180,12 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         branchPtr(cond, ScratchReg2, ptr, label);
     }
     void branchPtr(Condition cond, Register lhs, ImmWord ptr, Label *label) {
-        Mov(ScratchReg2_64, uint64_t(ptr.value));
-        branchPtr(cond, lhs, ScratchReg2, label);
+        cmpPtr(lhs, ptr);
+        B(label, cond);
     }
     void branchPtr(Condition cond, Register lhs, ImmPtr rhs, Label *label) {
-        Mov(ScratchReg2_64, uint64_t(rhs.value));
-        branchPtr(cond, lhs, ScratchReg2, label);
+        cmpPtr(lhs, rhs);
+        B(label, cond);
     }
     void branchPtr(Condition cond, Register lhs, ImmGCPtr ptr, Label *label) {
         MOZ_CRASH("branchPtr");
