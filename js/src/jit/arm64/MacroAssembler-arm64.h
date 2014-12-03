@@ -2267,7 +2267,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     void clampIntToUint8(Register reg) {
         ARMRegister areg(reg, 32);
         Cmp(areg, Operand(areg, UXTB));
-        Csel(areg, wzr, areg, Assembler::LessThan);
+        Csel(areg, areg, wzr, Assembler::GreaterThanOrEqual);
         Mov(ScratchReg2_32, Operand(0xff));
         Csel(areg, areg, ScratchReg2_32, Assembler::LessThanOrEqual);
     }

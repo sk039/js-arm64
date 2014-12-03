@@ -187,9 +187,9 @@ MacroAssembler::clampDoubleToUint8(FloatRegister input, Register output)
 {
     ARMRegister dest(output, 32);
     fcvtas(dest, ARMFPRegister(input, 64));
-    Mov(ScratchReg64, Operand(255));
-    Cmp(dest, ScratchReg64);
-    csel(dest, dest, ScratchReg64, LessThan);
+    Mov(ScratchReg2_32, Operand(255));
+    Cmp(dest, ScratchReg2_32);
+    csel(dest, dest, ScratchReg2_32, LessThan);
     Cmp(dest, Operand(0));
     csel(dest, wzr, dest, LessThan);
 }
