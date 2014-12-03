@@ -13,7 +13,9 @@ namespace js {
 namespace jit {
 
 // Must be a callee-saved register for preservation around generateEnterJIT().
+// TODO: Use = {} instead of {} so ctags picks this up.
 static MOZ_CONSTEXPR_VAR Register BaselineFrameReg {Registers::x23};
+static MOZ_CONSTEXPR_VAR ARMRegister BaselineFrameReg64 = { BaselineFrameReg, 64 };
 
 // The BaselineStackReg cannot be sp, because that register is treated
 // as xzr/wzr during load/store operations.

@@ -45,10 +45,12 @@ JitRuntime::generateEnterJIT(JSContext *cx, EnterJitType type)
     // FIXME: Probably use x8 or something.
     MOZ_ASSERT(OsrFrameReg == IntArgReg3);
 
-    // TODO: Save old stack frame pointer, set new stack frame pointer.
-
     // During the pushes below, use the normal stack pointer.
     masm.SetStackPointer(sp);
+
+    // Save old frame pointer and return address; set new frame pointer.
+    masm.MacroAssemblerVIXL::Push(x29, x30);
+    masm.Add(x29, masm.GetStackPointer(), Operand(0));
 
     // Save callee-save integer registers.
     // Also save x7 (reg_vp) and x30 (lr), for use later.
@@ -81,6 +83,9 @@ JitRuntime::generateEnterJIT(JSContext *cx, EnterJitType type)
 
     // Push the EnterJIT SPS mark.
     masm.spsMarkJit(&cx->runtime()->spsProfiler, PseudoStackPointer, r20);
+
+    // Save the stack pointer at this point for Baseline OSR.
+    masm.Mov(BaselineFrameReg64, PseudoStackPointer64);
 
     // Remember stack depth without padding and arguments.
     masm.Mov(x19, PseudoStackPointer64);
@@ -160,17 +165,71 @@ JitRuntime::generateEnterJIT(JSContext *cx, EnterJitType type)
     masm.makeFrameDescriptor(r19, JitFrame_Entry);
     masm.Push(r19);
 
+    Label osrReturnPoint;
     if (type == EnterJitBaseline) {
+        // Check for OSR.
         Label notOsr;
         masm.branchTestPtr(Assembler::Zero, OsrFrameReg, OsrFrameReg, &notOsr);
-        masm.breakpoint(); // TODO: Handle Baseline with OSR, which is complicated.
+
+        // Push return address and previous frame pointer.
+        masm.Adr(ScratchReg2_64, &osrReturnPoint);
+        masm.MacroAssemblerVIXL::Push(ScratchReg2_64, BaselineFrameReg64);
+
+        // Reserve frame.
+        masm.Sub(masm.GetStackPointer(), masm.GetStackPointer(), Operand(BaselineFrame::Size()));
+        masm.Mov(BaselineFrameReg64, masm.GetStackPointer());
+
+        // Reserve space for locals and stack values.
+        masm.Lsl(w19, ARMRegister(reg_osrNStack, 32), 3); // w19 = num_stack_values * sizeof(Value).
+        masm.Sub(masm.GetStackPointer(), masm.GetStackPointer(), x19);
+        masm.Add(sp, masm.GetStackPointer(), Operand(0));
+
+        // Enter exit frame.
+        masm.addPtr(Imm32(BaselineFrame::Size() + BaselineFrame::FramePointerOffset), r19);
+        masm.makeFrameDescriptor(r19, JitFrame_BaselineJS);
+        masm.MacroAssemblerVIXL::Push(x19, xzr); // Push xzr for a fake return address.
+        // No GC things to mark: push a bare token.
+        masm.enterFakeExitFrame(IonExitFrameLayout::BareToken());
+
+        masm.MacroAssemblerVIXL::Push(BaselineFrameReg64, ARMRegister(reg_code, 64));
+
+        // Initialize the frame, including filling in the slots.
+        masm.setupUnalignedABICall(3, r19);
+        masm.passABIArg(BaselineFrameReg); // BaselineFrame.
+        masm.passABIArg(reg_osrFrame); // InterpreterFrame.
+        masm.passABIArg(reg_osrNStack);
+        masm.callWithABI(JS_FUNC_TO_DATA_PTR(void *, jit::InitBaselineFrameForOsr));
+
+        masm.MacroAssemblerVIXL::Pop(x19, BaselineFrameReg64);
+
+        MOZ_ASSERT(r19 != ReturnReg);
+
+        masm.addPtr(Imm32(IonExitFrameLayout::SizeWithFooter()), PseudoStackPointer);
+        masm.addPtr(Imm32(BaselineFrame::Size()), BaselineFrameReg);
+
+        Label error;
+        masm.branchIfFalseBool(ReturnReg, &error);
+
+        masm.jump(r19);
+
+        // OOM: load error value, discard return address and previous frame
+        // pointer, and return.
+        masm.bind(&error);
+        masm.Add(masm.GetStackPointer(), BaselineFrameReg64, Operand(2 * sizeof(uintptr_t)));
+        masm.moveValue(MagicValue(JS_ION_ERROR), JSReturnOperand);
+        masm.B(&osrReturnPoint);
+
         masm.bind(&notOsr);
-        masm.movePtr(reg_scope, R1_);
+        masm.movePtr(reg_scope, R1_); // TODO: Why?
     }
 
     // Call function.
     // Since AArch64 doesn't have the pc register available, the callee must push lr.
     masm.Blr(ARMRegister(reg_code, 64));
+
+    // Baseline OSR will return here.
+    if (type == EnterJitBaseline)
+        masm.bind(&osrReturnPoint);
 
     masm.Pop(r19);
     masm.Add(PseudoStackPointer64, PseudoStackPointer64, Operand(x19, LSR, FRAMESIZE_SHIFT));
@@ -205,6 +264,9 @@ JitRuntime::generateEnterJIT(JSContext *cx, EnterJitType type)
 
     // Store return value (in JSReturnReg = x2 to just-popped reg_vp).
     masm.storeValue(JSReturnOperand, Address(reg_vp, 0));
+
+    // Restore old frame pointer.
+    masm.MacroAssemblerVIXL::Pop(x30, x29);
 
     // Return using the value popped into x30.
     masm.ret();
