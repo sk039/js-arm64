@@ -593,7 +593,28 @@ JitCode *
 JitRuntime::generatePreBarrier(JSContext *cx, MIRType type)
 {
     MacroAssembler masm(cx);
-    masm.breakpoint();
+
+    RegisterSet regs = RegisterSet(GeneralRegisterSet(Registers::VolatileMask),
+                                   FloatRegisterSet(FloatRegisters::VolatileMask));
+
+    // Also preserve the return address.
+    regs.add(lr);
+
+    masm.PushRegsInMask(regs);
+
+    MOZ_ASSERT(PreBarrierReg == r1);
+    masm.movePtr(ImmPtr(cx->runtime()), r3);
+
+    masm.setupUnalignedABICall(2, r0);
+    masm.passABIArg(r3);
+    masm.passABIArg(PreBarrierReg);
+    masm.callWithABI(IonMarkFunction(type));
+
+    // Pop the volatile regs and restore LR.
+    masm.PopRegsInMask(regs);
+
+    masm.ret();
+
     Linker linker(masm);
     return linker.newCode<NoGC>(cx, OTHER_CODE);
 }
