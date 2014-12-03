@@ -1992,8 +1992,8 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     // Call a target JitCode, which must be traceable, and may be movable.
     void call(JitCode *target) {
         syncStackPtr();
-        addPendingJump(nextOffset(), ImmPtr(target->raw()), Relocation::JITCODE);
-        immPool64(ScratchReg2_64, uint64_t(target->raw()));
+        BufferOffset off = immPool64(ScratchReg2_64, uint64_t(target->raw()));
+        addPendingJump(off, ImmPtr(target->raw()), Relocation::JITCODE);
         blr(ScratchReg2_64);
     }
     // Call a target native function, which is neither traceable nor movable.
