@@ -2204,7 +2204,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     static size_t ToggledCallSize(uint8_t *code) {
         // the blr instruction is always 4 bytes.
         // but there is also a 4-byte stack sync instruction :-(
-        return 8;
+        return 12;
     }
 
     void checkARMRegAlignment(const ARMRegister &reg) {
