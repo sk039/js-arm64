@@ -562,17 +562,17 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     void neg32(Register reg) {
         Neg(ARMRegister(reg, 32), Operand(ARMRegister(reg, 32)));
     }
-
+    
     void loadPtr(AsmJSAbsoluteAddress address, Register dest) {
         movePtr(AsmJSImmPtr(address.kind()), ScratchReg);
-        ldr(ARMRegister(dest, 64), MemOperand(ScratchReg64));
+        Ldr(ARMRegister(dest, 64), MemOperand(ScratchReg64));
     }
     void loadPtr(AbsoluteAddress address, Register dest) {
         movePtr(ImmWord((uintptr_t)address.addr), ScratchReg);
-        ldr(ARMRegister(dest, 64), MemOperand(ScratchReg64));
+        Ldr(ARMRegister(dest, 64), MemOperand(ScratchReg64));
     }
     void loadPtr(const Address &address, Register dest) {
-        ldr(ARMRegister(dest, 64), MemOperand(address));
+        Ldr(ARMRegister(dest, 64), MemOperand(address));
     }
     void loadPtr(const BaseIndex &src, Register dest) {
         Register base = src.base;
@@ -2267,7 +2267,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     void clampIntToUint8(Register reg) {
         ARMRegister areg(reg, 32);
         Cmp(areg, Operand(areg, UXTB));
-        Csel(areg, wzr, areg, Assembler::LessThan);
+        Csel(areg, areg, wzr, Assembler::GreaterThanOrEqual);
         Mov(ScratchReg2_32, Operand(0xff));
         Csel(areg, areg, ScratchReg2_32, Assembler::LessThanOrEqual);
     }
