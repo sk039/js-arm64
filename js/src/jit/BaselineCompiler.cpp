@@ -3566,6 +3566,7 @@ BaselineCompiler::emit_JSOP_RESUME()
     masm.push(BaselineFrameReg);
     masm.movePtr(BaselineStackReg, BaselineFrameReg);
     masm.subPtr(Imm32(BaselineFrame::Size()), BaselineStackReg);
+    masm.syncStackPtr();
     masm.checkStackAlignment();
 
     // Store flags and scope chain.
