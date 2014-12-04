@@ -276,6 +276,10 @@ class Instruction {
     return Mask(UnconditionalBranchMask) == (UnconditionalBranchFixed | BL);
   }
 
+  inline bool IsBLR() const {
+    return Mask(UnconditionalBranchToRegisterMask) == (UnconditionalBranchToRegisterFixed | BLR);
+  }
+
   // Test branch helpers.
   inline bool IsTBZ() const {
     return Mask(TestBranchMask) == TBZ;

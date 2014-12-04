@@ -2187,16 +2187,17 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     // this instruction.
     CodeOffsetLabel toggledCall(JitCode *target, bool enabled) {
         BufferOffset offset = nextOffset();
+        BufferOffset poolOffset;
         syncStackPtr();
 
-        addPendingJump(nextOffset(), ImmPtr(target->raw()), Relocation::JITCODE);
         if (enabled) {
-            immPool64(ScratchReg2_64, uint64_t(target->raw()));
+            poolOffset = immPool64(ScratchReg2_64, uint64_t(target->raw()));
             blr(ScratchReg2_64);
         } else {
-            immPool64(ScratchReg2_64, uint64_t(target->raw()));
+            poolOffset = immPool64(ScratchReg2_64, uint64_t(target->raw()));
             nop();
         }
+        addPendingJump(poolOffset, ImmPtr(target->raw()), Relocation::JITCODE);
         CodeOffsetLabel ret(offset.getOffset());
         return ret;
     }

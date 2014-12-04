@@ -368,13 +368,11 @@ Assembler::ToggleCall(CodeLocationLabel inst_, bool enabled)
 {
     Instruction *load = (Instruction *)inst_.raw();
     Instruction *call = load + kInstructionSize;
-    printf("Toggling: %p and %p\n", load, call);
-    if (call->IsBL() == enabled) {
-        printf("Not actually toggling");
+
+    if (call->IsBLR() == enabled)
         return;
-    }
-    if (call->IsBL()) {
-        printf("Already call, turning off\n");
+
+    if (call->IsBLR()) {
         // if the second instruction is blr(), then wehave:
         // ldr x17, [pc, offset]
         // blr x17
@@ -385,8 +383,6 @@ Assembler::ToggleCall(CodeLocationLabel inst_, bool enabled)
         adr(load, xzr, int32_t(offset));
         nop(call);
     } else {
-        printf("Already nop, turning on\n");
-
         // we have adr xzr, [pc, offset]
         // nop
         // transform this to
