@@ -3649,7 +3649,12 @@ BaselineCompiler::emit_JSOP_RESUME()
         // YIELD. The frame iteration code relies on this address to determine
         // where we threw the exception.
         masm.push(scratch3);
+        // If the link register is used, the callee will execute the push.
+#ifdef JS_USE_LINK_REGISTER
+        masm.movePtr(scratch1, lr);
+#else
         masm.push(scratch1);
+#endif
         masm.jump(code);
         regs.add(scratch3);
     }
