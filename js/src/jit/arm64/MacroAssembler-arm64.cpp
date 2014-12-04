@@ -298,8 +298,9 @@ MacroAssemblerCompat::handleFailureWithHandlerTail()
     loadValue(Address(BaselineFrameReg, BaselineFrame::reverseOffsetOfReturnValue()),
               JSReturnOperand);
     movePtr(BaselineFrameReg, r28);
-    pop(BaselineFrameReg);
-    ret();
+    MacroAssemblerVIXL::Pop(ARMRegister(BaselineFrameReg, 64), lr_64);
+    syncStackPtr();
+    MacroAssemblerVIXL::Ret(lr_64);
 
     // If we are bailing out to baseline to handle an exception,
     // jump to the bailout tail stub.
