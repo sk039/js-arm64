@@ -626,9 +626,54 @@ JitCode *
 JitRuntime::generateDebugTrapHandler(JSContext *cx)
 {
     MacroAssembler masm(cx);
-    masm.breakpoint();
+
+    Register scratch1 = r0;
+    Register scratch2 = r1;
+
+    // Load BaselineFrame pointer into scratch1.
+    masm.movePtr(BaselineFrameReg, scratch1);
+    masm.subPtr(Imm32(BaselineFrame::Size()), scratch1);
+
+    // Enter a stub frame and call the HandleDebugTrap VM function. Ensure the
+    // stub frame has a nullptr ICStub pointer, since this pointer is marked
+    // during GC.
+    masm.movePtr(ImmPtr(nullptr), BaselineStubReg);
+    EmitEnterStubFrame(masm, scratch2);
+
+    JitCode *code = cx->runtime()->jitRuntime()->getVMWrapper(HandleDebugTrapInfo);
+    if (!code)
+        return nullptr;
+
+    masm.MacroAssemblerVIXL::Push(lr_64, ARMRegister(scratch1, 64));
+    EmitCallVM(code, masm);
+
+    EmitLeaveStubFrame(masm);
+
+    // If the stub returns |true|, we have to perform a forced return (return
+    // from the JS frame). If the stub returns |false|, just return from the
+    // trap stub so that execution continues at the current pc.
+    Label forcedReturn;
+    masm.branchTest32(Assembler::NonZero, ReturnReg, ReturnReg, &forcedReturn);
+    masm.syncStackPtr();
+    masm.Ret(lr_64);
+
+    masm.bind(&forcedReturn);
+    masm.loadValue(Address(BaselineFrameReg, BaselineFrame::reverseOffsetOfReturnValue()),
+                   JSReturnOperand);
+    masm.Add(masm.GetStackPointer(), ARMRegister(BaselineFrameReg, 64), Operand(0));
+
+    masm.MacroAssemblerVIXL::Pop(ARMRegister(BaselineFrameReg, 64), lr_64);
+    masm.syncStackPtr();
+    masm.Ret(lr_64);
+
     Linker linker(masm);
-    return linker.newCode<NoGC>(cx, OTHER_CODE);
+    JitCode *codeDbg = linker.newCode<NoGC>(cx, OTHER_CODE);
+
+#ifdef JS_ION_PERF
+    writePerfSpewerJitCodeProfile(codeDbg, "DebugTrapHandler");
+#endif
+
+    return codeDbg;
 }
 
 JitCode *
