@@ -2187,17 +2187,24 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     // this instruction.
     CodeOffsetLabel toggledCall(JitCode *target, bool enabled) {
         BufferOffset offset = nextOffset();
-        BufferOffset poolOffset;
+        BufferOffset loadOffset;
         syncStackPtr();
 
+        // TODO: Random-ass pool insertion between instructions below is terrible.
+        // Unfortunately, we can't forbid pool prevention, because we're trying
+        // to add an entry to a pool. So as a temporary fix, just flush the pool
+        // now, so that it won't add later. If you're changing this, also
+        // check ToggleCall(), which will probably break.
+        armbuffer_.flushPool();
+
         if (enabled) {
-            poolOffset = immPool64(ScratchReg2_64, uint64_t(target->raw()));
+            loadOffset = immPool64(ScratchReg2_64, uint64_t(target->raw()));
             blr(ScratchReg2_64);
         } else {
-            poolOffset = immPool64(ScratchReg2_64, uint64_t(target->raw()));
+            loadOffset = immPool64(ScratchReg2_64, uint64_t(target->raw()));
             nop();
         }
-        addPendingJump(poolOffset, ImmPtr(target->raw()), Relocation::JITCODE);
+        addPendingJump(loadOffset, ImmPtr(target->raw()), Relocation::JITCODE);
         CodeOffsetLabel ret(offset.getOffset());
         return ret;
     }
