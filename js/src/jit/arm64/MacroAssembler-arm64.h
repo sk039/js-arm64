@@ -562,7 +562,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     void neg32(Register reg) {
         Neg(ARMRegister(reg, 32), Operand(ARMRegister(reg, 32)));
     }
-    
+
     void loadPtr(AsmJSAbsoluteAddress address, Register dest) {
         movePtr(AsmJSImmPtr(address.kind()), ScratchReg);
         Ldr(ARMRegister(dest, 64), MemOperand(ScratchReg64));
