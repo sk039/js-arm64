@@ -15,6 +15,7 @@ pref("browser.chromeURL", "chrome://b2g/content/");
 // so that it can't be set a just a string.
 // data: url is a workaround this.
 pref("browser.startup.homepage", "data:text/plain,browser.startup.homepage=chrome://b2g/content/shell.html");
+pref("b2g.is_mulet", true);
 // Prevent having the firstrun page
 pref("startup.homepage_welcome_url", "");
 pref("browser.shell.checkDefaultBrowser", false);
@@ -329,10 +330,14 @@ pref("media.video-queue.default-size", 3);
 // optimize images' memory usage
 pref("image.mem.decodeondraw", true);
 pref("image.mem.allow_locking_in_content_processes", false); /* don't allow image locking */
-pref("image.mem.min_discard_timeout_ms", 86400000); /* 24h, we rely on the out of memory hook */
-pref("image.mem.max_decoded_image_kb", 30000); /* 30MB seems reasonable */
-// 65MB seems reasonable and layout/reftests/bugs/370629-1.html requires more than 62MB
-pref("image.mem.hard_limit_decoded_image_kb", 66560);
+// Limit the surface cache to 1/8 of main memory or 128MB, whichever is smaller.
+// Almost everything that was factored into 'max_decoded_image_kb' is now stored
+// in the surface cache.  1/8 of main memory is 32MB on a 256MB device, which is
+// about the same as the old 'max_decoded_image_kb'.
+pref("image.mem.surfacecache.max_size_kb", 131072);  // 128MB
+pref("image.mem.surfacecache.size_factor", 8);  // 1/8 of main memory
+pref("image.mem.surfacecache.discard_factor", 2);  // Discard 1/2 of the surface cache at a time.
+pref("image.mem.surfacecache.min_expiration_ms", 86400000); // 24h, we rely on the out of memory hook
 pref("image.onload.decode.limit", 24); /* don't decode more than 24 images eagerly */
 
 // XXX this isn't a good check for "are touch events supported", but
@@ -1055,3 +1060,13 @@ pref("dom.udpsocket.enabled", true);
 
 // Enable TV Manager API
 pref("dom.tv.enabled", true);
+
+pref("dom.mozSettings.SettingsDB.debug.enabled", true);
+pref("dom.mozSettings.SettingsManager.debug.enabled", true);
+pref("dom.mozSettings.SettingsRequestManager.debug.enabled", true);
+pref("dom.mozSettings.SettingsService.debug.enabled", true);
+
+pref("dom.mozSettings.SettingsDB.verbose.enabled", false);
+pref("dom.mozSettings.SettingsManager.verbose.enabled", false);
+pref("dom.mozSettings.SettingsRequestManager.verbose.enabled", false);
+pref("dom.mozSettings.SettingsService.verbose.enabled", false);

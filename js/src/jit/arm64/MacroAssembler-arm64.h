@@ -36,7 +36,7 @@
 #include "jit/arm64/vixl/VIXL-Globals-vixl.h"
 
 #include "jit/AtomicOp.h"
-#include "jit/IonFrames.h"
+#include "jit/JitFrames.h"
 #include "jit/MoveResolver.h"
 
 class Operand {
@@ -1959,7 +1959,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         MOZ_CRASH("callWithExitFrame");
     }
 
-    void callIon(Register callee) {
+    void callJit(Register callee) {
         // AArch64 cannot read from the PC, so pushing must be handled callee-side.
         syncStackPtr();
         Blr(ARMRegister(callee, 64));
@@ -2012,7 +2012,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         MOZ_CRASH("callExit");
     }
 
-    void callIonFromAsmJS(Register reg) {
+    void callJitFromAsmJS(Register reg) {
         MOZ_CRASH("callIonFromAsmJS");
     }
 

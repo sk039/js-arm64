@@ -4509,6 +4509,12 @@
     "n_values": 100,
     "description": "Security UI Telemetry"
   },
+  "JS_TELEMETRY_ADDON_EXCEPTIONS" : {
+    "expires_in_version" : "never",
+    "kind": "count",
+    "keyed" : true,
+    "description" : "Exceptions thrown by add-ons"
+  },
   "SEARCH_COUNTS": {
     "expires_in_version": "never",
     "kind": "count",
@@ -6455,7 +6461,8 @@
   },
   "SSL_WEAK_CIPHERS_FALLBACK": {
     "expires_in_version": "never",
-    "kind": "boolean",
+    "kind": "enumerated",
+    "n_values": 64,
     "description": "Fallback attempted when server did not support any strong cipher suites"
   },
   "SSL_CIPHER_SUITE_FULL": {

@@ -7,7 +7,7 @@
 #ifndef jit_arm64_BaselineRegisters_arm64_h
 #define jit_arm64_BaselineRegisters_arm64_h
 
-#include "jit/IonMacroAssembler.h"
+#include "jit/MacroAssembler.h"
 
 namespace js {
 namespace jit {

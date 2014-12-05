@@ -89,6 +89,7 @@ NfcContentHelper.prototype = {
 
   _window: null,
   _requestMap: null,
+  _rfState: null,
   eventListener: null,
 
   init: function init(aWindow) {
@@ -107,6 +108,13 @@ NfcContentHelper.prototype = {
         updateDebug();
       };
     }
+
+    let info = cpmm.sendSyncMessage("NFC:QueryInfo")[0];
+    this._rfState = info.rfState;
+  },
+
+  queryRFState: function queryRFState() {
+    return this._rfState;
   },
 
   encodeNDEFRecords: function encodeNDEFRecords(records) {
@@ -121,21 +129,6 @@ NfcContentHelper.prototype = {
       });
     }
     return encodedRecords;
-  },
-
-  // NFC interface:
-  checkSessionToken: function checkSessionToken(sessionToken, isP2P) {
-    if (sessionToken == null) {
-      throw Components.Exception("No session token!",
-                                  Cr.NS_ERROR_UNEXPECTED);
-      return false;
-    }
-    // Report session to Nfc.js only.
-    let val = cpmm.sendSyncMessage("NFC:CheckSessionToken", {
-      sessionToken: sessionToken,
-      isP2P: isP2P
-    });
-    return (val[0] === NFC.NFC_GECKO_SUCCESS);
   },
 
   // NFCTag interface
@@ -318,6 +311,10 @@ NfcContentHelper.prototype = {
             break;
           case NFC.TAG_EVENT_LOST:
             this.eventListener.notifyTagLost(result.sessionToken);
+            break;
+          case NFC.RF_EVENT_STATE_CHANGE:
+            this._rfState = result.rfState;
+            this.eventListener.notifyRFStateChange(this._rfState);
             break;
         }
         break;
