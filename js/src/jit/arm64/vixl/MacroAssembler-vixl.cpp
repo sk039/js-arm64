@@ -582,6 +582,12 @@ MacroAssemblerVIXL::TryOneInstrMoveImmediate(const ARMRegister &dst, int64_t imm
     unsigned n, imm_s, imm_r;
     int reg_size = dst.size();
 
+    if (imm == 0 && !dst.IsSP()) {
+        // Zero is always held in the zero register.
+        mov(dst, AppropriateZeroRegFor(dst));
+        return true;
+    }
+
     if (IsImmMovz(imm, reg_size) && !dst.IsSP()) {
         // Immediate can be represented in a move zero instruction. Movz can't write
         // to the stack pointer.
