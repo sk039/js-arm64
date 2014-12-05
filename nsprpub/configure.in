@@ -117,6 +117,9 @@ case "$target_cpu" in
 arm)
     android_version=5
     ;;
+aarch64)
+    android_version=L
+    ;;
 i?86|mipsel)
     android_version=9
     ;;
@@ -135,6 +138,9 @@ AC_ARG_WITH(android-platform,
 case "$target" in
 arm-linux*-android*|*-linuxandroid*)
     android_tool_prefix="arm-linux-androideabi"
+    ;;
+aarch64-linux*-android*)
+    android_tool_prefix="aarch64-linux-android"
     ;;
 i?86-*android*)
     android_tool_prefix="i686-linux-android"
@@ -209,10 +215,12 @@ case "$target" in
 
     if test -z "$android_platform" ; then
         AC_MSG_CHECKING([for android platform directory])
-
         case "$target_cpu" in
         arm)
             target_name=arm
+            ;;
+        aarch64)
+            target_name=arm64
             ;;
         i?86)
             target_name=x86
@@ -223,6 +231,7 @@ case "$target" in
         esac
 
         android_platform="$android_ndk"/platforms/android-"$android_version"/arch-"$target_name"
+        echo "android_platform: ($android_platform)"
 
         if test -d "$android_platform" ; then
             AC_MSG_RESULT([$android_platform])

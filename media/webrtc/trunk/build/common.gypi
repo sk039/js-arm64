@@ -1027,6 +1027,10 @@
                   }],
                 ],
               }],
+              ['target_arch=="aarch64"', {
+                'android_app_abi%': 'arm64',
+                'android_ndk_sysroot%': '<(android_ndk_root)/platforms/android-L/arch-arm64',
+              }]
             ],
           },
           'android_ndk_root%': '<(android_ndk_root)',
