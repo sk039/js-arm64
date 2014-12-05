@@ -160,20 +160,36 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         MacroAssemblerVIXL::Push(ARMFPRegister(f, 64));
     }
     void push(Imm32 imm) {
-        move32(imm, ScratchReg);
-        MacroAssemblerVIXL::Push(ScratchReg64);
+        if (imm.value == 0) {
+            MacroAssemblerVIXL::Push(xzr);
+        } else {
+            move32(imm, ScratchReg);
+            MacroAssemblerVIXL::Push(ScratchReg64);
+        }
     }
     void push(ImmWord imm) {
-        Mov(ScratchReg64, imm.value);
-        MacroAssemblerVIXL::Push(ScratchReg64);
+        if (imm.value == 0) {
+            MacroAssemblerVIXL::Push(xzr);
+        } else {
+            Mov(ScratchReg64, imm.value);
+            MacroAssemblerVIXL::Push(ScratchReg64);
+        }
     }
     void push(ImmPtr imm) {
-        movePtr(imm, ScratchReg);
-        MacroAssemblerVIXL::Push(ScratchReg64);
+        if (imm.value == nullptr) {
+            MacroAssemblerVIXL::Push(xzr);
+        } else {
+            movePtr(imm, ScratchReg);
+            MacroAssemblerVIXL::Push(ScratchReg64);
+        }
     }
     void push(ImmGCPtr imm) {
-        movePtr(imm, ScratchReg);
-        MacroAssemblerVIXL::Push(ScratchReg64);
+        if (imm.value == nullptr) {
+            MacroAssemblerVIXL::Push(xzr);
+        } else {
+            movePtr(imm, ScratchReg);
+            MacroAssemblerVIXL::Push(ScratchReg64);
+        }
     }
     void push(ImmMaybeNurseryPtr imm) {
         push(noteMaybeNurseryPtr(imm));
