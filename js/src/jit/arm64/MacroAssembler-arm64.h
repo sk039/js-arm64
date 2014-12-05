@@ -1034,9 +1034,8 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
             Cmp(ARMRegister(dest, 64), Operand(ARMRegister(dest, 32), SXTW));
             B(onOver, NotEqual);
         }
-        if (onZero) {
+        if (onZero)
             Cbz(ARMRegister(dest, 32), onZero);
-        }
 
         // Clear upper 32 bits.
         Mov(ARMRegister(dest, 32), ARMRegister(dest, 32));
