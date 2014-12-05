@@ -5,9 +5,9 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "jit/Bailouts.h"
-#include "jit/IonFrames.h"
-#include "jit/IonLinker.h"
+#include "jit/Linker.h"
 #include "jit/JitCompartment.h"
+#include "jit/JitFrames.h"
 #ifdef JS_ION_PERF
 # include "jit/PerfSpewer.h"
 #endif
@@ -94,7 +94,7 @@ JitRuntime::generateEnterJIT(JSContext *cx, EnterJitType type)
     if (type == EnterJitBaseline)
         masm.movePtr(PseudoStackPointer, BaselineFrameReg); // x11
 
-    // IonJSFrameLayout is as follows (higher is higher in memory):
+    // JitFrameLayout is as follows (higher is higher in memory):
     //  N*8  - [ JS argument vector ] (base 16-byte aligned)
     //  8    - numActualArgs
     //  8    - calleeToken (16-byte aligned)
@@ -189,7 +189,7 @@ JitRuntime::generateEnterJIT(JSContext *cx, EnterJitType type)
         masm.makeFrameDescriptor(r19, JitFrame_BaselineJS);
         masm.MacroAssemblerVIXL::Push(x19, xzr); // Push xzr for a fake return address.
         // No GC things to mark: push a bare token.
-        masm.enterFakeExitFrame(IonExitFrameLayout::BareToken());
+        masm.enterFakeExitFrame(ExitFrameLayout::BareToken());
 
         masm.MacroAssemblerVIXL::Push(BaselineFrameReg64, ARMRegister(reg_code, 64));
 
@@ -204,7 +204,7 @@ JitRuntime::generateEnterJIT(JSContext *cx, EnterJitType type)
 
         MOZ_ASSERT(r19 != ReturnReg);
 
-        masm.addPtr(Imm32(IonExitFrameLayout::SizeWithFooter()), PseudoStackPointer);
+        masm.addPtr(Imm32(ExitFrameLayout::SizeWithFooter()), PseudoStackPointer);
         masm.addPtr(Imm32(BaselineFrame::Size()), BaselineFrameReg);
 
         Label error;
@@ -299,8 +299,8 @@ JitRuntime::generateArgumentsRectifier(JSContext *cx, ExecutionMode mode, void *
     // Save the return address for later
     masm.push(lr);
     // Load the information that the rectifier needs from the stack
-    masm.Ldr(w0, MemOperand(masm.GetStackPointer(), IonRectifierFrameLayout::offsetOfNumActualArgs()));
-    masm.Ldr(x1, MemOperand(masm.GetStackPointer(), IonRectifierFrameLayout::offsetOfCalleeToken()));
+    masm.Ldr(w0, MemOperand(masm.GetStackPointer(), RectifierFrameLayout::offsetOfNumActualArgs()));
+    masm.Ldr(x1, MemOperand(masm.GetStackPointer(), RectifierFrameLayout::offsetOfCalleeToken()));
     // Extract a JSFunction pointer from the callee token
     masm.And(x6, x1, Operand(CalleeTokenMask));
     // Get the arguments from the function object
@@ -313,7 +313,7 @@ JitRuntime::generateArgumentsRectifier(JSContext *cx, ExecutionMode mode, void *
 
     // Calculate the position that our arguments are at before sp gets modified
     masm.Add(x3, masm.GetStackPointer(), Operand(x8, LSL, 3));
-    masm.Add(x3, x3, Operand(sizeof(IonRectifierFrameLayout)));
+    masm.Add(x3, x3, Operand(sizeof(RectifierFrameLayout)));
 
     // Push undefined N times
     {
@@ -437,7 +437,7 @@ JitRuntime::generateVMWrapper(JSContext *cx, const VMFunction &f)
         argsBase = r8;
         regs.take(argsBase);
         masm.Add(ARMRegister(argsBase, 64), masm.GetStackPointer(),
-                 Operand(IonExitFrameLayout::SizeWithFooter()));
+                 Operand(ExitFrameLayout::SizeWithFooter()));
     }
 
     // Reserve space for any outparameter.
@@ -568,7 +568,7 @@ JitRuntime::generateVMWrapper(JSContext *cx, const VMFunction &f)
     }
 
     masm.leaveExitFrame();
-    masm.retn(Imm32(sizeof(IonExitFrameLayout) +
+    masm.retn(Imm32(sizeof(ExitFrameLayout) +
               f.explicitStackSlots() * sizeof(void *) +
               f.extraValuesToPop * sizeof(Value)));
 

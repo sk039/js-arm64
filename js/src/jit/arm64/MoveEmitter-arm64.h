@@ -8,7 +8,7 @@
 #define jit_arm64_MoveEmitter_arm64_h
 
 #include "jit/arm64/Assembler-arm64.h"
-#include "jit/IonMacroAssembler.h"
+#include "jit/MacroAssembler.h"
 #include "jit/MoveResolver.h"
 
 namespace js {

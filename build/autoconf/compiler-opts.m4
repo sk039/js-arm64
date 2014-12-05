@@ -225,11 +225,7 @@ if test "$GNU_CC" -a -n "$MOZ_FORCE_GOLD"; then
         /*)
             ;;
         *)
-            if test -z "$CROSS_COMPILE"; then
-                GOLD=$(which $GOLD)
-            else
-                GOLD=""
-            fi
+            GOLD=$(which $GOLD)
             ;;
         esac
         if test -n "$GOLD"; then

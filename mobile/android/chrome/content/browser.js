@@ -870,6 +870,10 @@ var BrowserApp = {
       Services.prefs.setBoolPref("searchActivity.default.migrated", true);
       SearchEngines.migrateSearchActivityDefaultPref();
     }
+
+    if (this._startupStatus === "upgrade") {
+      Reader.migrateCache().catch(e => Cu.reportError("Error migrating Reader cache: " + e));
+    }
   },
 
   // This function returns false during periods where the browser displayed document is
@@ -6810,9 +6814,6 @@ var IdentityHandler = {
 
       return result;
     }
-    
-    // Otherwise, we don't know the cert owner
-    result.owner = Strings.browser.GetStringFromName("identity.ownerUnknown3");
 
     // Cache the override service the first time we need to check it
     if (!this._overrideService)
@@ -7294,7 +7295,7 @@ var RemoteDebugger = {
   _start: function rd_start() {
     try {
       if (!DebuggerServer.initialized) {
-        DebuggerServer.init(this._showConnectionPrompt.bind(this));
+        DebuggerServer.init();
         DebuggerServer.addBrowserActors();
         DebuggerServer.registerModule("resource://gre/modules/dbg-browser-actors.js");
       }
@@ -7302,7 +7303,8 @@ var RemoteDebugger = {
       let pathOrPort = this._getPath();
       if (!pathOrPort)
         pathOrPort = this._getPort();
-      DebuggerServer.openListener(pathOrPort);
+      let listener = DebuggerServer.openListener(pathOrPort);
+      listener.allowConnection = this._showConnectionPrompt.bind(this);
       dump("Remote debugger listening at path " + pathOrPort);
     } catch(e) {
       dump("Remote debugger didn't start: " + e);

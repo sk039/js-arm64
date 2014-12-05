@@ -3251,7 +3251,8 @@ Parser<FullParseHandler>::makeSetCall(ParseNode *pn, unsigned msg)
     MOZ_ASSERT(pn->isKind(PNK_CALL));
     MOZ_ASSERT(pn->isArity(PN_LIST));
     MOZ_ASSERT(pn->isOp(JSOP_CALL) || pn->isOp(JSOP_SPREADCALL) ||
-               pn->isOp(JSOP_EVAL) || pn->isOp(JSOP_SPREADEVAL) ||
+               pn->isOp(JSOP_EVAL) || pn->isOp(JSOP_STRICTEVAL) ||
+               pn->isOp(JSOP_SPREADEVAL) || pn->isOp(JSOP_STRICTSPREADEVAL) ||
                pn->isOp(JSOP_FUNCALL) || pn->isOp(JSOP_FUNAPPLY));
 
     if (!report(ParseStrictError, pc->sc->strict, pn, msg))
@@ -3659,7 +3660,10 @@ Parser<ParseHandler>::letBlock(LetContext letContext)
         if (!expr)
             return null();
         MUST_MATCH_TOKEN(TOK_RC, JSMSG_CURLY_AFTER_LET);
+
         sawDeprecatedLetBlock = true;
+        if (!report(ParseWarning, pc->sc->strict, expr, JSMSG_DEPRECATED_LET_BLOCK))
+            return null();
     } else {
         MOZ_ASSERT(letContext == LetExpression);
         expr = assignExpr();
@@ -6251,7 +6255,8 @@ Parser<FullParseHandler>::checkAndMarkAsIncOperand(ParseNode *kid, TokenKind tt,
         !kid->isKind(PNK_ELEM) &&
         !(kid->isKind(PNK_CALL) &&
           (kid->isOp(JSOP_CALL) || kid->isOp(JSOP_SPREADCALL) ||
-           kid->isOp(JSOP_EVAL) || kid->isOp(JSOP_SPREADEVAL) ||
+           kid->isOp(JSOP_EVAL) || kid->isOp(JSOP_STRICTEVAL) ||
+           kid->isOp(JSOP_SPREADEVAL) || kid->isOp(JSOP_STRICTSPREADEVAL) ||
            kid->isOp(JSOP_FUNCALL) ||
            kid->isOp(JSOP_FUNAPPLY))))
     {
@@ -7534,7 +7539,7 @@ Parser<ParseHandler>::memberExpr(TokenKind tt, bool allowCallSyntax)
             if (JSAtom *atom = handler.isName(lhs)) {
                 if (tt == TOK_LP && atom == context->names().eval) {
                     /* Select JSOP_EVAL and flag pc as heavyweight. */
-                    op = JSOP_EVAL;
+                    op = pc->sc->strict ? JSOP_STRICTEVAL : JSOP_EVAL;
                     pc->sc->setBindingsAccessedDynamically();
 
                     /*
@@ -7562,8 +7567,14 @@ Parser<ParseHandler>::memberExpr(TokenKind tt, bool allowCallSyntax)
                 bool isSpread = false;
                 if (!argumentList(nextMember, &isSpread))
                     return null();
-                if (isSpread)
-                    op = (op == JSOP_EVAL ? JSOP_SPREADEVAL : JSOP_SPREADCALL);
+                if (isSpread) {
+                    if (op == JSOP_EVAL)
+                        op = JSOP_SPREADEVAL;
+                    else if (op == JSOP_STRICTEVAL)
+                        op = JSOP_STRICTSPREADEVAL;
+                    else
+                        op = JSOP_SPREADCALL;
+                }
             } else {
                 if (!taggedTemplate(nextMember, tt))
                     return null();
@@ -8322,9 +8333,6 @@ Parser<ParseHandler>::accumulateTelemetry()
     JSContext* cx = context->maybeJSContext();
     if (!cx)
         return;
-    JSAccumulateTelemetryDataCallback cb = cx->runtime()->telemetryCallback;
-    if (!cb)
-        return;
     const char* filename = getFilename();
     if (!filename)
         return;
@@ -8350,17 +8358,17 @@ Parser<ParseHandler>::accumulateTelemetry()
 
     // Call back into Firefox's Telemetry reporter.
     if (sawDeprecatedForEach)
-        (*cb)(JS_TELEMETRY_DEPRECATED_LANGUAGE_EXTENSIONS_IN_CONTENT, DeprecatedForEach);
+         cx->runtime()->addTelemetry(JS_TELEMETRY_DEPRECATED_LANGUAGE_EXTENSIONS_IN_CONTENT, DeprecatedForEach);
     if (sawDeprecatedDestructuringForIn)
-        (*cb)(JS_TELEMETRY_DEPRECATED_LANGUAGE_EXTENSIONS_IN_CONTENT, DeprecatedDestructuringForIn);
+         cx->runtime()->addTelemetry(JS_TELEMETRY_DEPRECATED_LANGUAGE_EXTENSIONS_IN_CONTENT, DeprecatedDestructuringForIn);
     if (sawDeprecatedLegacyGenerator)
-        (*cb)(JS_TELEMETRY_DEPRECATED_LANGUAGE_EXTENSIONS_IN_CONTENT, DeprecatedLegacyGenerator);
+        cx->runtime()->addTelemetry(JS_TELEMETRY_DEPRECATED_LANGUAGE_EXTENSIONS_IN_CONTENT, DeprecatedLegacyGenerator);
     if (sawDeprecatedExpressionClosure)
-        (*cb)(JS_TELEMETRY_DEPRECATED_LANGUAGE_EXTENSIONS_IN_CONTENT, DeprecatedExpressionClosure);
+         cx->runtime()->addTelemetry(JS_TELEMETRY_DEPRECATED_LANGUAGE_EXTENSIONS_IN_CONTENT, DeprecatedExpressionClosure);
     if (sawDeprecatedLetBlock)
-        (*cb)(JS_TELEMETRY_DEPRECATED_LANGUAGE_EXTENSIONS_IN_CONTENT, DeprecatedLetBlock);
+         cx->runtime()->addTelemetry(JS_TELEMETRY_DEPRECATED_LANGUAGE_EXTENSIONS_IN_CONTENT, DeprecatedLetBlock);
     if (sawDeprecatedLetExpression)
-        (*cb)(JS_TELEMETRY_DEPRECATED_LANGUAGE_EXTENSIONS_IN_CONTENT, DeprecatedLetExpression);
+         cx->runtime()->addTelemetry(JS_TELEMETRY_DEPRECATED_LANGUAGE_EXTENSIONS_IN_CONTENT, DeprecatedLetExpression);
 }
 
 template class Parser<FullParseHandler>;

@@ -13,8 +13,8 @@
 #include "jsnum.h"
 
 #include "jit/CodeGenerator.h"
-#include "jit/IonFrames.h"
 #include "jit/JitCompartment.h"
+#include "jit/JitFrames.h"
 #include "jit/MIR.h"
 #include "jit/MIRGraph.h"
 #include "vm/Shape.h"
@@ -461,7 +461,7 @@ CodeGeneratorARM64::toMoveOperand(const LAllocation *a) const
 class js::jit::OutOfLineTableSwitch : public OutOfLineCodeBase<CodeGeneratorARM64>
 {
     MTableSwitch *mir_;
-    Vector<CodeLabel, 8, IonAllocPolicy> codeLabels_;
+    Vector<CodeLabel, 8, JitAllocPolicy> codeLabels_;
 
     bool accept(CodeGeneratorARM64 *codegen) {
         return codegen->visitOutOfLineTableSwitch(this);

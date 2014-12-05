@@ -365,7 +365,7 @@ js::IsInNonStrictPropertySet(JSContext *cx)
 {
     jsbytecode *pc;
     JSScript *script = cx->currentScript(&pc, JSContext::ALLOW_CROSS_COMPARTMENT);
-    return script && !script->strict() && (js_CodeSpec[*pc].format & JOF_SET);
+    return script && !IsStrictSetPC(pc) && (js_CodeSpec[*pc].format & JOF_SET);
 }
 
 JS_FRIEND_API(bool)
@@ -681,7 +681,7 @@ js::StringToLinearStringSlow(JSContext *cx, JSString *str)
 JS_FRIEND_API(void)
 JS_SetAccumulateTelemetryCallback(JSRuntime *rt, JSAccumulateTelemetryDataCallback callback)
 {
-    rt->telemetryCallback = callback;
+    rt->setTelemetryCallback(rt, callback);
 }
 
 JS_FRIEND_API(JSObject *)

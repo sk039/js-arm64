@@ -437,3 +437,9 @@ LIRGeneratorARM64::visitCompareExchangeTypedArrayElement(MCompareExchangeTypedAr
 {
     MOZ_CRASH("NYI");
 }
+
+bool
+LIRGeneratorARM64::visitSubstr(MSubstr *ins)
+{
+    MOZ_CRASH("NYI");
+}

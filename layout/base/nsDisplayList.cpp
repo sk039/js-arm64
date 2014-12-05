@@ -533,7 +533,7 @@ nsDisplayListBuilder::nsDisplayListBuilder(nsIFrame* aReferenceFrame,
       mCurrentTableItem(nullptr),
       mCurrentFrame(aReferenceFrame),
       mCurrentReferenceFrame(aReferenceFrame),
-      mCurrentAnimatedGeometryRoot(aReferenceFrame),
+      mCurrentAnimatedGeometryRoot(nullptr),
       mWillChangeBudgetCalculated(false),
       mDirtyRect(-1,-1,-1,-1),
       mGlassDisplayItem(nullptr),
@@ -562,6 +562,7 @@ nsDisplayListBuilder::nsDisplayListBuilder(nsIFrame* aReferenceFrame,
   MOZ_COUNT_CTOR(nsDisplayListBuilder);
   PL_InitArenaPool(&mPool, "displayListArena", 1024,
                    std::max(NS_ALIGNMENT_OF(void*),NS_ALIGNMENT_OF(double))-1);
+  RecomputeCurrentAnimatedGeometryRoot();
 
   nsPresContext* pc = aReferenceFrame->PresContext();
   nsIPresShell *shell = pc->PresShell();
@@ -1949,11 +1950,13 @@ nsDisplaySolidColor::Paint(nsDisplayListBuilder* aBuilder,
 
 #ifdef MOZ_DUMP_PAINTING
 void
-nsDisplaySolidColor::WriteDebugInfo(nsACString& aTo)
+nsDisplaySolidColor::WriteDebugInfo(std::stringstream& aStream)
 {
-  aTo += nsPrintfCString(" (rgba %d,%d,%d,%d)",
-                 NS_GET_R(mColor), NS_GET_G(mColor),
-                 NS_GET_B(mColor), NS_GET_A(mColor));
+  aStream << " (rgba "
+          << (int)NS_GET_R(mColor) << ","
+          << (int)NS_GET_G(mColor) << ","
+          << (int)NS_GET_B(mColor) << ","
+          << (int)NS_GET_A(mColor) << ")";
 }
 #endif
 
@@ -2663,9 +2666,9 @@ nsDisplayThemedBackground::~nsDisplayThemedBackground()
 
 #ifdef MOZ_DUMP_PAINTING
 void
-nsDisplayThemedBackground::WriteDebugInfo(nsACString& aTo)
+nsDisplayThemedBackground::WriteDebugInfo(std::stringstream& aStream)
 {
-  aTo += nsPrintfCString(" (themed, appearance:%d)", mAppearance);
+  aStream << " (themed, appearance:" << (int)mAppearance << ")";
 }
 #endif
 
@@ -2868,11 +2871,10 @@ nsDisplayBackgroundColor::HitTest(nsDisplayListBuilder* aBuilder,
 
 #ifdef MOZ_DUMP_PAINTING
 void
-nsDisplayBackgroundColor::WriteDebugInfo(nsACString& aTo)
+nsDisplayBackgroundColor::WriteDebugInfo(std::stringstream& aStream)
 {
-  aTo += nsPrintfCString(" (rgba %f,%f,%f,%f)",
-          mColor.r, mColor.g,
-          mColor.b, mColor.a);
+  aStream << " (rgba " << mColor.r << "," << mColor.g << ","
+          << mColor.b << "," << mColor.a << ")";
 }
 #endif
 
@@ -2957,6 +2959,9 @@ nsDisplayLayerEventRegions::AddFrame(nsDisplayListBuilder* aBuilder,
   if (pointerEvents == NS_STYLE_POINTER_EVENTS_NONE) {
     return;
   }
+  if (!aFrame->StyleVisibility()->IsVisible()) {
+    return;
+  }
   // XXX handle other pointerEvents values for SVG
   // XXX Do something clever here for the common case where the border box
   // is obviously entirely inside mHitRegion.
@@ -2986,6 +2991,22 @@ nsDisplayLayerEventRegions::AddInactiveScrollPort(const nsRect& aRect)
 {
   mDispatchToContentHitRegion.Or(mDispatchToContentHitRegion, aRect);
 }
+
+#ifdef MOZ_DUMP_PAINTING
+void
+nsDisplayLayerEventRegions::WriteDebugInfo(std::stringstream& aStream)
+{
+  if (!mHitRegion.IsEmpty()) {
+    AppendToString(aStream, mHitRegion, " (hitRegion ", ")");
+  }
+  if (!mMaybeHitRegion.IsEmpty()) {
+    AppendToString(aStream, mMaybeHitRegion, " (maybeHitRegion ", ")");
+  }
+  if (!mDispatchToContentHitRegion.IsEmpty()) {
+    AppendToString(aStream, mDispatchToContentHitRegion, " (dispatchToContentRegion ", ")");
+  }
+}
+#endif
 
 nsDisplayCaret::nsDisplayCaret(nsDisplayListBuilder* aBuilder,
                                nsIFrame* aCaretFrame)
@@ -3462,6 +3483,13 @@ nsDisplayWrapList::SetVisibleRect(const nsRect& aRect)
   mVisibleRect = aRect;
 }
 
+void
+nsDisplayWrapList::SetReferenceFrame(const nsIFrame* aFrame)
+{
+  mReferenceFrame = aFrame;
+  mToReferenceFrame = mFrame->GetOffsetToCrossDoc(mReferenceFrame);
+}
+
 static nsresult
 WrapDisplayList(nsDisplayListBuilder* aBuilder, nsIFrame* aFrame,
                 nsDisplayList* aList, nsDisplayWrapper* aWrapper) {
@@ -3678,9 +3706,9 @@ bool nsDisplayOpacity::TryMerge(nsDisplayListBuilder* aBuilder, nsDisplayItem* a
 
 #ifdef MOZ_DUMP_PAINTING
 void
-nsDisplayOpacity::WriteDebugInfo(nsACString& aTo)
+nsDisplayOpacity::WriteDebugInfo(std::stringstream& aStream)
 {
-  aTo += nsPrintfCString(" (opacity %f)", mOpacity);
+  aStream << " (opacity " << mOpacity << ")";
 }
 #endif
 
@@ -4443,10 +4471,10 @@ nsDisplayScrollLayer::GetScrollLayerCount()
 
 #ifdef MOZ_DUMP_PAINTING
 void
-nsDisplayScrollLayer::WriteDebugInfo(nsACString& aTo)
+nsDisplayScrollLayer::WriteDebugInfo(std::stringstream& aStream)
 {
-  aTo += nsPrintfCString(" (scrollframe %p scrolledframe %p)",
-                         mScrollFrame, mScrolledFrame);
+  aStream << " (scrollframe " << mScrollFrame
+          << " scrolledFrame " << mScrolledFrame << ")";
 }
 #endif
 
@@ -5631,11 +5659,9 @@ bool nsDisplayTransform::UntransformVisibleRect(nsDisplayListBuilder* aBuilder,
 
 #ifdef MOZ_DUMP_PAINTING
 void
-nsDisplayTransform::WriteDebugInfo(nsACString& aTo)
+nsDisplayTransform::WriteDebugInfo(std::stringstream& aStream)
 {
-  std::stringstream ss;
-  AppendToString(ss, GetTransform());
-  aTo += ss.str().c_str();
+  AppendToString(aStream, GetTransform());
 }
 #endif
 

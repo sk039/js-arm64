@@ -138,6 +138,7 @@ JSRuntime::JSRuntime(JSRuntime *parentRuntime)
     parentRuntime(parentRuntime),
     interrupt_(false),
     interruptPar_(false),
+    telemetryCallback(nullptr),
     handlingSignal(false),
     interruptCallback(nullptr),
     exclusiveAccessLock(nullptr),
@@ -195,7 +196,6 @@ JSRuntime::JSRuntime(JSRuntime *parentRuntime)
     DOMcallbacks(nullptr),
     destroyPrincipals(nullptr),
     structuredCloneCallbacks(nullptr),
-    telemetryCallback(nullptr),
     errorReporter(nullptr),
     linkedAsmJSModules(nullptr),
     propertyRemovals(0),
@@ -455,6 +455,19 @@ JSRuntime::~JSRuntime()
     if (ownerThreadNative_)
         CloseHandle((HANDLE)ownerThreadNative_);
 #endif
+}
+
+void
+JSRuntime::addTelemetry(int id, uint32_t sample, const char *key)
+{
+    if (telemetryCallback)
+        (*telemetryCallback)(id, sample, key);
+}
+
+void
+JSRuntime::setTelemetryCallback(JSRuntime *rt, JSAccumulateTelemetryDataCallback callback)
+{
+    rt->telemetryCallback = callback;
 }
 
 void

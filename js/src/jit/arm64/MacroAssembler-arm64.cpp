@@ -28,7 +28,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "jit/arm64/MoveEmitter-arm64.h"
-#include "jit/IonMacroAssembler.h"
+#include "jit/MacroAssembler.h"
 
 namespace js {
 namespace jit {
@@ -236,7 +236,7 @@ MacroAssemblerCompat::handleFailureWithHandler(void *handler)
     passABIArg(r0);
     callWithABI(handler);
 
-    JitCode *excTail = GetIonContext()->runtime->jitRuntime()->getExceptionTail();
+    JitCode *excTail = GetJitContext()->runtime->jitRuntime()->getExceptionTail();
     branch(excTail);
 }
 
@@ -554,7 +554,7 @@ void MacroAssemblerCompat::branchPtrInNurseryRange(Condition cond, Register ptr,
     MOZ_ASSERT(ptr != ScratchReg && ptr != ScratchReg2); // Both may be used internally.
     MOZ_ASSERT(temp != ScratchReg && temp != ScratchReg2);
 
-    const Nursery &nursery = GetIonContext()->runtime->gcNursery();
+    const Nursery &nursery = GetJitContext()->runtime->gcNursery();
     movePtr(ImmWord(-ptrdiff_t(nursery.start())), temp);
     addPtr(ptr, temp);
     branchPtr(cond == Assembler::Equal ? Assembler::Below : Assembler::AboveOrEqual,
@@ -571,7 +571,7 @@ MacroAssemblerCompat::branchValueIsNurseryObject(Condition cond, ValueOperand va
     MOZ_ASSERT(temp != ScratchReg && temp != ScratchReg2); // Both may be used internally.
 
     // 'Value' representing the start of the nursery tagged as a JSObject
-    const Nursery &nursery = GetIonContext()->runtime->gcNursery();
+    const Nursery &nursery = GetJitContext()->runtime->gcNursery();
     Value start = ObjectValue(*reinterpret_cast<JSObject *>(nursery.start()));
 
     movePtr(ImmWord(-ptrdiff_t(start.asRawBits())), temp);

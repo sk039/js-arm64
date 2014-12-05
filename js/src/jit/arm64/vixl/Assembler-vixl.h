@@ -701,8 +701,8 @@ class AssemblerVIXL : public AssemblerShared
     // System functions.
 
     // Helper function for use with the ARMBuffer.
-    // We need to wait until an AutoIonContextAlloc is created by the
-    // IonMacroAssembler before allocating any space.
+    // We need to wait until an AutoJitContextAlloc is created by the
+    // MacroAssembler before allocating any space.
     void initWithAllocator() {
         armbuffer_.initWithAllocator();
     }

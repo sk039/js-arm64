@@ -36,13 +36,8 @@
 #include "jit/arm64/vixl/VIXL-Globals-vixl.h"
 
 #include "jit/AtomicOp.h"
-#include "jit/IonFrames.h"
+#include "jit/JitFrames.h"
 #include "jit/MoveResolver.h"
-
-class Operand {
-    // lolwut? it looks like CodeGenerator is accessing this directly?
-    // That should probably be changed
-};
 
 namespace js {
 namespace jit {
@@ -165,20 +160,36 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         MacroAssemblerVIXL::Push(ARMFPRegister(f, 64));
     }
     void push(Imm32 imm) {
-        move32(imm, ScratchReg);
-        MacroAssemblerVIXL::Push(ScratchReg64);
+        if (imm.value == 0) {
+            MacroAssemblerVIXL::Push(xzr);
+        } else {
+            move32(imm, ScratchReg);
+            MacroAssemblerVIXL::Push(ScratchReg64);
+        }
     }
     void push(ImmWord imm) {
-        Mov(ScratchReg64, imm.value);
-        MacroAssemblerVIXL::Push(ScratchReg64);
+        if (imm.value == 0) {
+            MacroAssemblerVIXL::Push(xzr);
+        } else {
+            Mov(ScratchReg64, imm.value);
+            MacroAssemblerVIXL::Push(ScratchReg64);
+        }
     }
     void push(ImmPtr imm) {
-        movePtr(imm, ScratchReg);
-        MacroAssemblerVIXL::Push(ScratchReg64);
+        if (imm.value == nullptr) {
+            MacroAssemblerVIXL::Push(xzr);
+        } else {
+            movePtr(imm, ScratchReg);
+            MacroAssemblerVIXL::Push(ScratchReg64);
+        }
     }
     void push(ImmGCPtr imm) {
-        movePtr(imm, ScratchReg);
-        MacroAssemblerVIXL::Push(ScratchReg64);
+        if (imm.value == nullptr) {
+            MacroAssemblerVIXL::Push(xzr);
+        } else {
+            movePtr(imm, ScratchReg);
+            MacroAssemblerVIXL::Push(ScratchReg64);
+        }
     }
     void push(ImmMaybeNurseryPtr imm) {
         push(noteMaybeNurseryPtr(imm));
@@ -1034,9 +1045,8 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
             Cmp(ARMRegister(dest, 64), Operand(ARMRegister(dest, 32), SXTW));
             B(onOver, NotEqual);
         }
-        if (onZero) {
+        if (onZero)
             Cbz(ARMRegister(dest, 32), onZero);
-        }
 
         // Clear upper 32 bits.
         Mov(ARMRegister(dest, 32), ARMRegister(dest, 32));
@@ -1960,7 +1970,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         MOZ_CRASH("callWithExitFrame");
     }
 
-    void callIon(Register callee) {
+    void callJit(Register callee) {
         // AArch64 cannot read from the PC, so pushing must be handled callee-side.
         syncStackPtr();
         Blr(ARMRegister(callee, 64));
@@ -2013,7 +2023,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         MOZ_CRASH("callExit");
     }
 
-    void callIonFromAsmJS(Register reg) {
+    void callJitFromAsmJS(Register reg) {
         MOZ_CRASH("callIonFromAsmJS");
     }
 

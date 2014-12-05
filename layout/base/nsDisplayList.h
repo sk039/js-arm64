@@ -1345,7 +1345,7 @@ public:
    */
   virtual const char* Name() = 0;
 
-  virtual void WriteDebugInfo(nsACString& aTo) {}
+  virtual void WriteDebugInfo(std::stringstream& aStream) {}
 #endif
 
   nsDisplayItem* GetAbove() { return mAbove; }
@@ -2165,7 +2165,7 @@ public:
   }
 
 #ifdef MOZ_DUMP_PAINTING
-  virtual void WriteDebugInfo(nsACString& aTo) MOZ_OVERRIDE;
+  virtual void WriteDebugInfo(std::stringstream& aStream) MOZ_OVERRIDE;
 #endif
 
   NS_DISPLAY_DECL_NAME("SolidColor", TYPE_SOLID_COLOR)
@@ -2326,7 +2326,7 @@ public:
                                          nsRegion* aInvalidRegion) MOZ_OVERRIDE;
 
 #ifdef MOZ_DUMP_PAINTING
-  virtual void WriteDebugInfo(nsACString& aTo) MOZ_OVERRIDE;
+  virtual void WriteDebugInfo(std::stringstream& aStream) MOZ_OVERRIDE;
 #endif
 protected:
   nsRect GetBoundsInternal();
@@ -2389,7 +2389,7 @@ public:
 
   NS_DISPLAY_DECL_NAME("BackgroundColor", TYPE_BACKGROUND_COLOR)
 #ifdef MOZ_DUMP_PAINTING
-  virtual void WriteDebugInfo(nsACString& aTo) MOZ_OVERRIDE;
+  virtual void WriteDebugInfo(std::stringstream& aStream) MOZ_OVERRIDE;
 #endif
 
 protected:
@@ -2600,12 +2600,12 @@ public:
   nsDisplayLayerEventRegions(nsDisplayListBuilder* aBuilder, nsIFrame* aFrame)
     : nsDisplayItem(aBuilder, aFrame)
   {
-    MOZ_COUNT_CTOR(nsDisplayEventReceiver);
+    MOZ_COUNT_CTOR(nsDisplayLayerEventRegions);
     AddFrame(aBuilder, aFrame);
   }
 #ifdef NS_BUILD_REFCNT_LOGGING
   virtual ~nsDisplayLayerEventRegions() {
-    MOZ_COUNT_DTOR(nsDisplayEventReceiver);
+    MOZ_COUNT_DTOR(nsDisplayLayerEventRegions);
   }
 #endif
   virtual nsRect GetBounds(nsDisplayListBuilder* aBuilder, bool* aSnap) MOZ_OVERRIDE
@@ -2628,6 +2628,10 @@ public:
   const nsRegion& HitRegion() { return mHitRegion; }
   const nsRegion& MaybeHitRegion() { return mMaybeHitRegion; }
   const nsRegion& DispatchToContentHitRegion() { return mDispatchToContentHitRegion; }
+
+#ifdef MOZ_DUMP_PAINTING
+  virtual void WriteDebugInfo(std::stringstream& aStream) MOZ_OVERRIDE;
+#endif
 
 private:
   // Relative to aFrame's reference frame.
@@ -2739,6 +2743,8 @@ public:
 
   void SetVisibleRect(const nsRect& aRect);
 
+  void SetReferenceFrame(const nsIFrame* aFrame);
+
   /**
    * This creates a copy of this item, but wrapping aItem instead of
    * our existing list. Only gets called if this item returned nullptr
@@ -2834,7 +2840,7 @@ public:
   bool NeedsActiveLayer(nsDisplayListBuilder* aBuilder);
   NS_DISPLAY_DECL_NAME("Opacity", TYPE_OPACITY)
 #ifdef MOZ_DUMP_PAINTING
-  virtual void WriteDebugInfo(nsACString& aTo) MOZ_OVERRIDE;
+  virtual void WriteDebugInfo(std::stringstream& aStream) MOZ_OVERRIDE;
 #endif
 
   bool CanUseAsyncAnimations(nsDisplayListBuilder* aBuilder) MOZ_OVERRIDE;
@@ -3132,7 +3138,7 @@ public:
   virtual nsIFrame* GetScrolledFrame() { return mScrolledFrame; }
 
 #ifdef MOZ_DUMP_PAINTING
-  virtual void WriteDebugInfo(nsACString& aTo) MOZ_OVERRIDE;
+  virtual void WriteDebugInfo(std::stringstream& aStream) MOZ_OVERRIDE;
 #endif
 
   bool IsDisplayPortOpaque() { return mDisplayPortContentsOpaque; }
@@ -3543,7 +3549,7 @@ public:
   bool ShouldPrerender(nsDisplayListBuilder* aBuilder);
 
 #ifdef MOZ_DUMP_PAINTING
-  virtual void WriteDebugInfo(nsACString& aTo) MOZ_OVERRIDE;
+  virtual void WriteDebugInfo(std::stringstream& aStream) MOZ_OVERRIDE;
 #endif
 
 private:

@@ -19,7 +19,7 @@
 
 #include "gc/GCInternals.h"
 #include "gc/Memory.h"
-#include "jit/IonFrames.h"
+#include "jit/JitFrames.h"
 #include "vm/ArrayObject.h"
 #include "vm/Debugger.h"
 #if defined(DEBUG)
@@ -763,6 +763,8 @@ js::Nursery::collect(JSRuntime *rt, JS::gcreason::Reason reason, TypeObjectList 
     TIME_START(total);
 
     AutoStopVerifyingBarriers av(rt, false);
+
+    gcstats::AutoPhase ap(rt->gc.stats, gcstats::PHASE_MINOR_GC);
 
     // Move objects pointed to by roots from the nursery to the major heap.
     MinorCollectionTracer trc(rt, this);

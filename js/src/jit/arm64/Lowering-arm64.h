@@ -111,6 +111,7 @@ class LIRGeneratorARM64 : public LIRGeneratorShared
     bool visitSimdValueX4(MSimdValueX4 *ins);
     bool visitAtomicTypedArrayElementBinop(MAtomicTypedArrayElementBinop *ins);
     bool visitCompareExchangeTypedArrayElement(MCompareExchangeTypedArrayElement *ins);
+    bool visitSubstr(MSubstr *ins);
 
     static bool allowFloat32Optimizations() {
         return true;
