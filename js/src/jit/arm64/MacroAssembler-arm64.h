@@ -39,11 +39,6 @@
 #include "jit/JitFrames.h"
 #include "jit/MoveResolver.h"
 
-class Operand {
-    // lolwut? it looks like CodeGenerator is accessing this directly?
-    // That should probably be changed
-};
-
 namespace js {
 namespace jit {
 
