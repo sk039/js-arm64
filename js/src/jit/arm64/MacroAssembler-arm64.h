@@ -2210,9 +2210,19 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
 
     static size_t ToggledCallSize(uint8_t *code) {
-        // the blr instruction is always 4 bytes.
-        // but there is also a 4-byte stack sync instruction :-(
-        return 12;
+        // start it off as an 8 byte sequence
+        int ret = 8;
+        Instruction *cur = (Instruction*)code;
+        uint32_t *curw = (uint32_t*)code;
+        // oh god, this is bad, just hard-code the stack sync instruction
+        if (*curw == 0x9100039f) {
+            ret += 4;
+            cur += 4;
+        }
+        if (cur->IsUncondB()) {
+            ret += cur->ImmPCRawOffset() << kInstructionSizeLog2;
+        }
+        return ret;
     }
 
     void checkARMRegAlignment(const ARMRegister &reg) {
