@@ -27,7 +27,11 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#include "jit/arm64/MacroAssembler-arm64.h"
+
+#include "jit/arm64/BaselineRegisters-arm64.h"
 #include "jit/arm64/MoveEmitter-arm64.h"
+#include "jit/BaselineFrame.h"
 #include "jit/MacroAssembler.h"
 
 namespace js {
@@ -37,10 +41,6 @@ namespace jit {
 void
 MacroAssembler::PushRegsInMask(RegisterSet set, FloatRegisterSet simdSet)
 {
-    // FIXME: Are we storing the full 128 bits or what?
-    int32_t diffF = set.fpus().size() * sizeof(double);
-    int32_t diffG = set.gprs().size() * sizeof(intptr_t);
-
     // TODO: Clean up this function using helpers. Should be easy.
     for (GeneralRegisterBackwardIterator iter(set.gprs()); iter.more(); ) {
         CPURegister src0 = NoCPUReg;

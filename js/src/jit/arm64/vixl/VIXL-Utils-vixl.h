@@ -168,7 +168,6 @@ int CountLeadingSignBits(int64_t value, int width);
 int CountTrailingZeros(uint64_t value, int width);
 int CountSetBits(uint64_t value, int width);
 uint64_t LowestSetBit(uint64_t value);
-bool IsPowerOf2(int64_t value);
 
 // Pointer alignment
 // TODO: rename/refactor to make it specific to instructions.

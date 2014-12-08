@@ -29,6 +29,8 @@
 
 #include "jit/arm64/vixl/Cpu-vixl.h"
 
+#include "jsutil.h"
+
 #include "jit/arm64/vixl/VIXL-Utils-vixl.h"
 
 namespace js {
@@ -96,8 +98,8 @@ void CPU::EnsureIAndDCacheCoherency(void *address, size_t length) {
   uintptr_t iline = start & ~(isize - 1);
 
   // Cache line sizes are always a power of 2.
-  MOZ_ASSERT(IsPowerOf2(dsize));
-  MOZ_ASSERT(IsPowerOf2(isize));
+  MOZ_ASSERT(IsPowerOfTwo(dsize));
+  MOZ_ASSERT(IsPowerOfTwo(isize));
   uintptr_t end = start + length;
 
   do {
