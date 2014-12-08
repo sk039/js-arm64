@@ -1922,26 +1922,26 @@ class ICNewObject_Fallback : public ICFallbackStub
 {
     friend class ICStubSpace;
 
-    HeapPtrNativeObject templateObject_;
+    HeapPtrPlainObject templateObject_;
 
-    ICNewObject_Fallback(JitCode *stubCode, NativeObject *templateObject)
+    ICNewObject_Fallback(JitCode *stubCode, PlainObject *templateObject)
       : ICFallbackStub(ICStub::NewObject_Fallback, stubCode), templateObject_(templateObject)
     {}
 
   public:
     static inline ICNewObject_Fallback *New(ICStubSpace *space, JitCode *code,
-                                            NativeObject *templateObject) {
+                                            PlainObject *templateObject) {
         if (!code)
             return nullptr;
         return space->allocate<ICNewObject_Fallback>(code, templateObject);
     }
 
     class Compiler : public ICStubCompiler {
-        RootedNativeObject templateObject;
+        RootedPlainObject templateObject;
         bool generateStubCode(MacroAssembler &masm);
 
       public:
-        Compiler(JSContext *cx, NativeObject *templateObject)
+        Compiler(JSContext *cx, PlainObject *templateObject)
           : ICStubCompiler(cx, ICStub::NewObject_Fallback),
             templateObject(cx, templateObject)
         {}
@@ -1951,7 +1951,7 @@ class ICNewObject_Fallback : public ICFallbackStub
         }
     };
 
-    HeapPtrNativeObject &templateObject() {
+    HeapPtrPlainObject &templateObject() {
         return templateObject_;
     }
 };
@@ -3849,7 +3849,7 @@ class ICIn_Fallback : public ICFallbackStub
 };
 
 // GetName
-//      JSOP_NAME
+//      JSOP_GETNAME
 //      JSOP_GETGNAME
 class ICGetName_Fallback : public ICMonitoredFallbackStub
 {
@@ -6366,10 +6366,10 @@ class ICCall_StringSplit : public ICMonitoredStub
     uint32_t pcOffset_;
     HeapPtrString expectedThis_;
     HeapPtrString expectedArg_;
-    HeapPtrNativeObject templateObject_;
+    HeapPtrArrayObject templateObject_;
 
     ICCall_StringSplit(JitCode *stubCode, ICStub *firstMonitorStub, uint32_t pcOffset, HandleString thisString,
-                       HandleString argString, HandleNativeObject templateObject)
+                       HandleString argString, HandleArrayObject templateObject)
       : ICMonitoredStub(ICStub::Call_StringSplit, stubCode, firstMonitorStub),
         pcOffset_(pcOffset), expectedThis_(thisString), expectedArg_(argString),
         templateObject_(templateObject)
@@ -6378,7 +6378,7 @@ class ICCall_StringSplit : public ICMonitoredStub
   public:
     static inline ICCall_StringSplit *New(ICStubSpace *space, JitCode *code,
                                           ICStub *firstMonitorStub, uint32_t pcOffset, HandleString thisString,
-                                          HandleString argString, HandleNativeObject templateObject)
+                                          HandleString argString, HandleArrayObject templateObject)
     {
         if (!code)
             return nullptr;
@@ -6406,7 +6406,7 @@ class ICCall_StringSplit : public ICMonitoredStub
         return expectedArg_;
     }
 
-    HeapPtrNativeObject &templateObject() {
+    HeapPtrArrayObject &templateObject() {
         return templateObject_;
     }
 
@@ -6416,7 +6416,7 @@ class ICCall_StringSplit : public ICMonitoredStub
         uint32_t pcOffset_;
         RootedString expectedThis_;
         RootedString expectedArg_;
-        RootedNativeObject templateObject_;
+        RootedArrayObject templateObject_;
 
         bool generateStubCode(MacroAssembler &masm);
 
@@ -6432,7 +6432,7 @@ class ICCall_StringSplit : public ICMonitoredStub
             pcOffset_(pcOffset),
             expectedThis_(cx, thisString),
             expectedArg_(cx, argString),
-            templateObject_(cx, &templateObject.toObject().as<NativeObject>())
+            templateObject_(cx, &templateObject.toObject().as<ArrayObject>())
         { }
 
         ICStub *getStub(ICStubSpace *space) {

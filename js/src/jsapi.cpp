@@ -2472,7 +2472,7 @@ JS_NewObject(JSContext *cx, const JSClass *jsclasp, HandleObject proto, HandleOb
 
     const Class *clasp = Valueify(jsclasp);
     if (!clasp)
-        clasp = &JSObject::class_;    /* default class is Object */
+        clasp = &PlainObject::class_;    /* default class is Object */
 
     MOZ_ASSERT(clasp != &JSFunction::class_);
     MOZ_ASSERT(!(clasp->flags & JSCLASS_IS_GLOBAL));
@@ -2492,7 +2492,7 @@ JS_NewObjectWithGivenProto(JSContext *cx, const JSClass *jsclasp, HandleObject p
 
     const Class *clasp = Valueify(jsclasp);
     if (!clasp)
-        clasp = &JSObject::class_;    /* default class is Object */
+        clasp = &PlainObject::class_;    /* default class is Object */
 
     MOZ_ASSERT(clasp != &JSFunction::class_);
     MOZ_ASSERT(!(clasp->flags & JSCLASS_IS_GLOBAL));
@@ -3198,7 +3198,7 @@ JS_DefineObject(JSContext *cx, HandleObject obj, const char *name, const JSClass
 
     const Class *clasp = Valueify(jsclasp);
     if (!clasp)
-        clasp = &JSObject::class_;    /* default class is Object */
+        clasp = &PlainObject::class_;    /* default class is Object */
 
     RootedObject nobj(cx, NewObjectWithClassProto(cx, clasp, proto, obj));
     if (!nobj)
@@ -5045,20 +5045,6 @@ JS_RestoreFrameChain(JSContext *cx)
     CHECK_REQUEST(cx);
     cx->restoreFrameChain();
 }
-
-#ifdef MOZ_TRACE_JSCALLS
-JS_PUBLIC_API(void)
-JS_SetFunctionCallback(JSContext *cx, JSFunctionCallback fcb)
-{
-    cx->functionCallback = fcb;
-}
-
-JS_PUBLIC_API(JSFunctionCallback)
-JS_GetFunctionCallback(JSContext *cx)
-{
-    return cx->functionCallback;
-}
-#endif
 
 /************************************************************************/
 JS_PUBLIC_API(JSString *)

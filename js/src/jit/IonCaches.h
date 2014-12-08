@@ -49,7 +49,7 @@ class IonCacheVisitor
 {
   public:
 #define VISIT_INS(op)                                               \
-    virtual bool visit##op##IC(CodeGenerator *codegen) {            \
+    virtual void visit##op##IC(CodeGenerator *codegen) {            \
         MOZ_CRASH("NYI: " #op "IC");                                \
     }
 
@@ -155,7 +155,7 @@ class IonCache
 
     virtual Kind kind() const = 0;
 
-    virtual bool accept(CodeGenerator *codegen, IonCacheVisitor *visitor) = 0;
+    virtual void accept(CodeGenerator *codegen, IonCacheVisitor *visitor) = 0;
 
   public:
 
@@ -519,8 +519,8 @@ class DispatchIonCache : public IonCache
         return IonCache::Cache_##ickind;                            \
     }                                                               \
                                                                     \
-    bool accept(CodeGenerator *codegen, IonCacheVisitor *visitor) { \
-        return visitor->visit##ickind##IC(codegen);                 \
+    void accept(CodeGenerator *codegen, IonCacheVisitor *visitor) { \
+        visitor->visit##ickind##IC(codegen);                        \
     }                                                               \
                                                                     \
     static const VMFunction UpdateInfo;

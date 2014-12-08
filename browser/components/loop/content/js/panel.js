@@ -537,6 +537,12 @@ loop.panel = (function(_, mozL10n) {
       return {edit: false, text: this.props.text};
     },
 
+    componentWillReceiveProps: function(nextProps) {
+      if (nextProps.text !== this.props.text) {
+        this.setState({text: nextProps.text});
+      }
+    },
+
     handleTextClick: function(event) {
       event.stopPropagation();
       event.preventDefault();
@@ -752,7 +758,7 @@ loop.panel = (function(_, mozL10n) {
             }, this)
           ), 
           React.DOM.p(null, 
-            React.DOM.button({className: "btn btn-info", 
+            React.DOM.button({className: "btn btn-info new-room-button", 
                     onClick: this.handleCreateButtonClick, 
                     disabled: this._hasPendingOperation()}, 
               mozL10n.get("rooms_new_room_button_label")

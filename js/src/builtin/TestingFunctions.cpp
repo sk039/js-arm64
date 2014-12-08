@@ -63,6 +63,9 @@ GetBuildConfiguration(JSContext *cx, unsigned argc, jsval *vp)
     if (!JS_SetProperty(cx, info, "exact-rooting", TrueHandleValue))
         return false;
 
+    if (!JS_SetProperty(cx, info, "trace-jscalls-api", FalseHandleValue))
+        return false;
+
     RootedValue value(cx);
 #ifdef DEBUG
     value = BooleanValue(true);
@@ -150,14 +153,6 @@ GetBuildConfiguration(JSContext *cx, unsigned argc, jsval *vp)
     value = BooleanValue(false);
 #endif
     if (!JS_SetProperty(cx, info, "dtrace", value))
-        return false;
-
-#ifdef MOZ_TRACE_JSCALLS
-    value = BooleanValue(true);
-#else
-    value = BooleanValue(false);
-#endif
-    if (!JS_SetProperty(cx, info, "trace-jscalls-api", value))
         return false;
 
 #ifdef JSGC_INCREMENTAL
@@ -1225,7 +1220,7 @@ js::testingFunc_inParallelSection(JSContext *cx, unsigned argc, jsval *vp)
 static bool
 ShellObjectMetadataCallback(JSContext *cx, JSObject **pmetadata)
 {
-    RootedObject obj(cx, NewBuiltinClassInstance(cx, &JSObject::class_));
+    RootedObject obj(cx, NewBuiltinClassInstance<PlainObject>(cx));
     if (!obj)
         return false;
 
@@ -2038,7 +2033,7 @@ FindPath(JSContext *cx, unsigned argc, jsval *vp)
     // array in start-to-target order.
     for (size_t i = 0; i < length; i++) {
         // Build an object describing the node and edge.
-        RootedObject obj(cx, NewBuiltinClassInstance<JSObject>(cx));
+        RootedObject obj(cx, NewBuiltinClassInstance<PlainObject>(cx));
         if (!obj)
             return false;
 

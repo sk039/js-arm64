@@ -7,8 +7,8 @@
 package org.mozilla.gecko.widget;
 
 import org.mozilla.gecko.GeckoApplication;
-import org.mozilla.gecko.LightweightTheme;
 import org.mozilla.gecko.R;
+import org.mozilla.gecko.lwt.LightweightTheme;
 
 import android.content.Context;
 import android.content.res.TypedArray;
@@ -146,5 +146,9 @@ public class ThemedTextSwitcher extends android.widget.TextSwitcher
 
     public ColorDrawable getColorDrawable(int id) {
         return new ColorDrawable(getResources().getColor(id));
+    }
+
+    protected LightweightTheme getTheme() {
+        return mTheme;
     }
 }
