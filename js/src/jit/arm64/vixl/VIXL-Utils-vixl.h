@@ -30,9 +30,7 @@
 #ifndef VIXL_UTILS_H
 #define VIXL_UTILS_H
 
-// TODO: Get rid of stdlib.
-#include <math.h>
-#include <string.h>
+#include "mozilla/FloatingPoint.h"
 
 #include "jit/arm64/vixl/VIXL-Globals-vixl.h"
 
@@ -115,7 +113,7 @@ double rawbits_to_double(uint64_t bits);
 inline bool IsSignallingNaN(double num) {
   const uint64_t kFP64QuietNaNMask = UINT64_C(0x0008000000000000);
   uint64_t raw = double_to_rawbits(num);
-  if (isnan(num) && ((raw & kFP64QuietNaNMask) == 0)) {
+  if (mozilla::IsNaN(num) && ((raw & kFP64QuietNaNMask) == 0)) {
     return true;
   }
   return false;
@@ -125,7 +123,7 @@ inline bool IsSignallingNaN(double num) {
 inline bool IsSignallingNaN(float num) {
   const uint32_t kFP32QuietNaNMask = 0x00400000;
   uint32_t raw = float_to_rawbits(num);
-  if (isnan(num) && ((raw & kFP32QuietNaNMask) == 0)) {
+  if (mozilla::IsNaN(num) && ((raw & kFP32QuietNaNMask) == 0)) {
     return true;
   }
   return false;
@@ -134,21 +132,21 @@ inline bool IsSignallingNaN(float num) {
 
 template <typename T>
 inline bool IsQuietNaN(T num) {
-  return isnan(num) && !IsSignallingNaN(num);
+  return mozilla::IsNaN(num) && !IsSignallingNaN(num);
 }
 
 
 // Convert the NaN in 'num' to a quiet NaN.
 inline double ToQuietNaN(double num) {
   const uint64_t kFP64QuietNaNMask = UINT64_C(0x0008000000000000);
-  MOZ_ASSERT(isnan(num));
+  MOZ_ASSERT(mozilla::IsNaN(num));
   return rawbits_to_double(double_to_rawbits(num) | kFP64QuietNaNMask);
 }
 
 
 inline float ToQuietNaN(float num) {
   const uint32_t kFP32QuietNaNMask = 0x00400000;
-  MOZ_ASSERT(isnan(num));
+  MOZ_ASSERT(mozilla::IsNaN(num));
   return rawbits_to_float(float_to_rawbits(num) | kFP32QuietNaNMask);
 }
 

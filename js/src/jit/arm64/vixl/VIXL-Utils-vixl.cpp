@@ -29,6 +29,8 @@
 
 #include "jit/arm64/vixl/VIXL-Utils-vixl.h"
 
+#include "mozilla/MathAlgorithms.h"
+
 #include <stdio.h>
 
 namespace js {
@@ -95,39 +97,11 @@ int CountTrailingZeros(uint64_t value, int width) {
 
 
 int CountSetBits(uint64_t value, int width) {
-  // TODO: Other widths could be added here, as the implementation already
-  // supports them.
   MOZ_ASSERT((width == 32) || (width == 64));
 
-  // Mask out unused bits to ensure that they are not counted.
-  value &= (UINT64_C(0xffffffffffffffff) >> (64-width));
-
-  // Add up the set bits.
-  // The algorithm works by adding pairs of bit fields together iteratively,
-  // where the size of each bit field doubles each time.
-  // An example for an 8-bit value:
-  // Bits:  h  g  f  e  d  c  b  a
-  //         \ |   \ |   \ |   \ |
-  // value = h+g   f+e   d+c   b+a
-  //            \    |      \    |
-  // value =   h+g+f+e     d+c+b+a
-  //                  \          |
-  // value =       h+g+f+e+d+c+b+a
-  const uint64_t kMasks[] = {
-    UINT64_C(0x5555555555555555),
-    UINT64_C(0x3333333333333333),
-    UINT64_C(0x0f0f0f0f0f0f0f0f),
-    UINT64_C(0x00ff00ff00ff00ff),
-    UINT64_C(0x0000ffff0000ffff),
-    UINT64_C(0x00000000ffffffff),
-  };
-
-  for (unsigned i = 0; i < (sizeof(kMasks) / sizeof(kMasks[0])); i++) {
-    int shift = 1 << i;
-    value = ((value >> shift) & kMasks[i]) + (value & kMasks[i]);
-  }
-
-  return value;
+  if (width == 32)
+    return mozilla::CountPopulation32(uint32_t(value));
+  return mozilla::CountPopulation64(value);
 }
 
 uint64_t LowestSetBit(uint64_t value) {
