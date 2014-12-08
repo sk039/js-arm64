@@ -29,6 +29,8 @@
 
 #include "jit/arm64/vixl/MacroAssembler-vixl.h"
 
+#include <ctype.h>
+
 namespace js {
 namespace jit {
 

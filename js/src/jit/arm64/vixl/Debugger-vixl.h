@@ -30,11 +30,7 @@
 #ifndef VIXL_A64_DEBUGGER_A64_H_
 #define VIXL_A64_DEBUGGER_A64_H_
 
-// TODO: Remove use of stdlib.
-#include <ctype.h>
-#include <errno.h>
-#include <limits.h>
-#include <vector>
+#include "js-config.h" // For JS_ARM64_SIMULATOR.
 
 #include "jit/arm64/vixl/Constants-vixl.h"
 #include "jit/arm64/vixl/Simulator-vixl.h"

@@ -27,11 +27,14 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
 // EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "js-config.h"
+#include "jit/arm64/vixl/Debugger-vixl.h"
+
+#include <ctype.h>
+#include <errno.h>
+#include <limits.h>
+#include <vector>
 
 #ifdef JS_ARM64_SIMULATOR
-
-#include "jit/arm64/vixl/Debugger-vixl.h"
 
 namespace js {
 namespace jit {
