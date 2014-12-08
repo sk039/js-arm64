@@ -316,18 +316,11 @@ BaselineCompiler::emitPrologue()
 #endif
 
     masm.push(BaselineFrameReg);
-#ifdef JS_ARM64_SIMULATOR
-    masm.DisableInvariant(checkFrameSizeID);
-#endif
     masm.movePtr(BaselineStackReg, BaselineFrameReg);
 
     // TODO: subStackPtr()?
     masm.subPtr(Imm32(BaselineFrame::Size()), BaselineStackReg);
     masm.syncStackPtr();
-
-#ifdef JS_ARM64_SIMULATOR
-    masm.EnableInvariant(checkFrameSizeID);
-#endif
 
     // Initialize BaselineFrame. For eval scripts, the scope chain
     // is passed in R1, so we have to be careful not to clobber
@@ -451,16 +444,8 @@ BaselineCompiler::emitEpilogue()
     // Pop SPS frame if necessary
     emitSPSPop();
 
-#ifdef JS_ARM64_SIMULATOR
-    masm.DisableInvariant(checkFrameSizeID);
-#endif
-
     masm.movePtr(BaselineFrameReg, BaselineStackReg);
     masm.pop(BaselineFrameReg);
-
-#ifdef JS_ARM64_SIMULATOR
-    masm.EnableInvariant(checkFrameSizeID);
-#endif
 
 #ifdef JS_CODEGEN_ARM64
     // Pop into lr: RET uses lr if no register is specified.

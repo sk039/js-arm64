@@ -37,14 +37,11 @@
 #include "jit/arm64/vixl/VIXL-Globals-vixl.h"
 #include "jit/arm64/vixl/VIXL-Utils-vixl.h"
 
+#ifdef JS_ARM64_SIMULATOR
+
 namespace js {
 namespace jit {
-class DebuggerARM64;
-typedef bool (*InvariantChecker) (DebuggerARM64* sim);
-struct Invariant {
-  InvariantChecker check;
-  const char *name;
-};
+
 // Debug instructions.
 //
 // VIXL's macro-assembler and debugger support a few pseudo instructions to
@@ -108,7 +105,8 @@ enum DebugParameters {
   DBG_ACTIVE = 1 << 0,  // The debugger is active.
   DBG_BREAK  = 1 << 1   // The debugger is at a breakpoint.
 };
-#ifdef JS_ARM64_SIMULATOR
+
+
 // Forward declarations.
 class DebugCommand;
 class Token;
@@ -141,6 +139,7 @@ class DebuggerARM64 : public Simulator {
 
     update_pending_request();
   }
+
   virtual void enable_debugger() {
     set_debug_parameters(DBG_ACTIVE);
   }
@@ -187,7 +186,6 @@ class DebuggerARM64 : public Simulator {
   void DoUnreachable(Instruction* instr);
   void DoTrace(Instruction* instr);
   void DoLog(Instruction* instr);
-  void DoInvariants(Instruction *instr);
   int  log_parameters_;
   int  debug_parameters_;
   bool pending_request_;
@@ -195,24 +193,14 @@ class DebuggerARM64 : public Simulator {
   DebugCommand* last_command_;
   PrintDisassembler* disasm_;
   Decoder* printer_;
-  uint64_t active_invariants;
-  void enableInvariant(int index) {
-    active_invariants |= 1ull << index;
-  }
-  void disableInvariant(int index) {
-    active_invariants &= ~(1ull << index);
-  }
-  void CheckInvariants();
-  static Invariant invariant_checkers[64];
-  static int32_t num_invariants;
- public:
-  static int registerInvariant(InvariantChecker c, const char *name);
- private:
+
   // Length of the biggest command line accepted by the debugger shell.
   static const int kMaxDebugShellLine = 256;
 };
-#endif  // JS_ARM64_SIMULATOR
+
+
 } // namespace jit
 } // namespace js
 
+#endif  // JS_ARM64_SIMULATOR
 #endif  // VIXL_A64_DEBUGGER_A64_H_

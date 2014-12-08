@@ -541,8 +541,6 @@ DebuggerARM64::DebuggerARM64(Decoder* decoder, FILE* stream)
   disasm_ = new PrintDisassembler(stdout);
   printer_ = new Decoder();
   printer_->AppendVisitor(disasm_);
-
-  active_invariants = 0x0;
 }
 
 
@@ -553,8 +551,6 @@ void DebuggerARM64::Run() {
       LogProcessorState();
       RunDebuggerShell();
     }
-    CheckInvariants();
-
     ExecuteInstruction();
   }
 }
@@ -671,9 +667,6 @@ void DebuggerARM64::VisitException(Instruction* instr) {
           return;
         case kLogOpcode:
           DoLog(instr);
-          return;
-        case kInvariantOpcode:
-          DoInvariants(instr);
           return;
       }
       // Fall through
@@ -842,47 +835,8 @@ void DebuggerARM64::DoLog(Instruction* instr) {
 
   set_pc(instr->InstructionAtOffset(kLogLength));
 }
-Invariant DebuggerARM64::invariant_checkers[64];
-int
-DebuggerARM64::num_invariants = 0;
-int
-DebuggerARM64::registerInvariant(InvariantChecker c, const char *name) {
-  invariant_checkers[num_invariants].check = c;
-  invariant_checkers[num_invariants].name = name;
-  return num_invariants++;
-}
 
-void DebuggerARM64::DoInvariants(Instruction* instr) {
-  MOZ_ASSERT((instr->Mask(ExceptionMask) == HLT) &&
-              (instr->ImmException() == kInvariantOpcode));
 
-  // Read the arguments encoded inline in the instruction stream.
-  uint32_t command;
-
-  JS_STATIC_ASSERT(sizeof(*instr) == 1);
-  memcpy(&command, instr + kInvariantCommandOffset, sizeof(command));
-  bool enable = command >> 31;
-  uint32_t index = command & 63;
-  if (enable) {
-    enableInvariant(index);
-  } else {
-    disableInvariant(index);
-  }
-  set_pc(instr->InstructionAtOffset(kInvariantLength));
-}
-void DebuggerARM64::CheckInvariants() {
-  if (active_invariants == 0) {
-    return;
-  }
-  for (uint32_t i = 0; i < num_invariants; i++) {
-    if ((active_invariants & (1ull << i)) == 0)
-      continue;
-    if(!invariant_checkers[i].check(this)) {
-      printf("Invariant check failed: %s\n", invariant_checkers[i].name);
-      set_debug_parameters(debug_parameters() | DBG_BREAK | DBG_ACTIVE);
-    }
-  }
-}
 static bool StringToUInt64(uint64_t* value, const char* line, int base = 10) {
   char* endptr = NULL;
   errno = 0;  // Reset errors.
