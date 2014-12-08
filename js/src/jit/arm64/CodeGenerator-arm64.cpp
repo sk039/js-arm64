@@ -40,92 +40,15 @@ CodeGeneratorARM64::CodeGeneratorARM64(MIRGenerator *gen, LIRGraph *graph, Macro
 bool
 CodeGeneratorARM64::generatePrologue()
 {
-    masm.push(lr);
-    return false;
-}
-
-bool
-CodeGeneratorARM64::generateAsmJSPrologue(Label *stackOverflowLabel)
-{
-    masm.push(lr);
-    return false;
+    MOZ_CRASH("generatePrologue");
 }
 
 bool
 CodeGeneratorARM64::generateEpilogue()
 {
-    masm.pop(lr);
-    return false;
+    MOZ_CRASH("generateEpilogue");
 }
 
-void
-CodeGeneratorARM64::emitBranch(Assembler::Condition cond, MBasicBlock *mirTrue, MBasicBlock *mirFalse)
-{
-    if (isNextBlock(mirFalse->lir())) {
-        jumpToBlock(mirTrue, cond);
-    } else {
-        jumpToBlock(mirFalse, Assembler::InvertCondition(cond));
-        jumpToBlock(mirTrue);
-    }
-}
-
-
-bool
-OutOfLineBailout::accept(CodeGeneratorARM64 *codegen)
-{
-    MOZ_CRASH("CodeGeneratorARM64::accept");
-    return false;
-}
-
-bool
-CodeGeneratorARM64::visitTestIAndBranch(LTestIAndBranch *test)
-{
-    const LAllocation *opd = test->getOperand(0);
-    MBasicBlock *ifTrue = test->ifTrue();
-    MBasicBlock *ifFalse = test->ifFalse();
-
-    // Test the operand
-    masm.cmp32(ToRegister(opd), Imm32(0));
-
-    if (isNextBlock(ifFalse->lir())) {
-        jumpToBlock(ifTrue, Assembler::NonZero);
-    } else if (isNextBlock(ifTrue->lir())) {
-        jumpToBlock(ifFalse, Assembler::Zero);
-    } else {
-        jumpToBlock(ifFalse, Assembler::Zero);
-        jumpToBlock(ifTrue);
-    }
-    return true;
-}
-
-bool
-CodeGeneratorARM64::visitCompare(LCompare *comp)
-{
-    Assembler::Condition cond = JSOpToCondition(comp->mir()->compareType(), comp->jsop());
-    const LAllocation *left = comp->getOperand(0);
-    const LAllocation *right = comp->getOperand(1);
-    const LDefinition *def = comp->getDef(0);
-
-    if (right->isConstant())
-        masm.cmp32(ToRegister(left), Imm32(ToInt32(right)));
-    else
-        masm.cmp32(ToRegister(left), ToRegister(right));
-    masm.emitSet(cond, ToRegister(def));
-    return true;
-}
-
-bool
-CodeGeneratorARM64::visitCompareAndBranch(LCompareAndBranch *comp)
-{
-    Assembler::Condition cond = JSOpToCondition(comp->cmpMir()->compareType(), comp->jsop());
-    if (comp->right()->isConstant())
-        masm.cmp32(ToRegister(comp->left()), Imm32(ToInt32(comp->right())));
-    else
-        masm.cmp32(ToRegister(comp->left()), ToRegister(comp->right()));
-    emitBranch(cond, comp->ifTrue(), comp->ifFalse());
-
-    return false;
-}
 
 bool
 CodeGeneratorARM64::generateOutOfLineCode()
@@ -143,38 +66,103 @@ CodeGeneratorARM64::generateOutOfLineCode()
         JitCode *handler = gen->jitRuntime()->getGenericBailoutHandler(gen->info().executionMode());
         masm.branch(handler);
     }
+
     return true;
 }
 
-bool
+void
+CodeGeneratorARM64::emitBranch(Assembler::Condition cond, MBasicBlock *mirTrue, MBasicBlock *mirFalse)
+{
+    if (isNextBlock(mirFalse->lir())) {
+        jumpToBlock(mirTrue, cond);
+    } else {
+        jumpToBlock(mirFalse, Assembler::InvertCondition(cond));
+        jumpToBlock(mirTrue);
+    }
+}
+
+
+void 
+OutOfLineBailout::accept(CodeGeneratorARM64 *codegen)
+{
+    MOZ_CRASH("OutOfLineBailout::accept");
+}
+
+void 
+CodeGeneratorARM64::visitTestIAndBranch(LTestIAndBranch *test)
+{
+    const LAllocation *opd = test->getOperand(0);
+    MBasicBlock *ifTrue = test->ifTrue();
+    MBasicBlock *ifFalse = test->ifFalse();
+
+    // Test the operand
+    masm.cmp32(ToRegister(opd), Imm32(0));
+
+    if (isNextBlock(ifFalse->lir())) {
+        jumpToBlock(ifTrue, Assembler::NonZero);
+    } else if (isNextBlock(ifTrue->lir())) {
+        jumpToBlock(ifFalse, Assembler::Zero);
+    } else {
+        jumpToBlock(ifFalse, Assembler::Zero);
+        jumpToBlock(ifTrue);
+    }
+}
+
+void 
+CodeGeneratorARM64::visitCompare(LCompare *comp)
+{
+    Assembler::Condition cond = JSOpToCondition(comp->mir()->compareType(), comp->jsop());
+    const LAllocation *left = comp->getOperand(0);
+    const LAllocation *right = comp->getOperand(1);
+    const LDefinition *def = comp->getDef(0);
+
+    if (right->isConstant())
+        masm.cmp32(ToRegister(left), Imm32(ToInt32(right)));
+    else
+        masm.cmp32(ToRegister(left), ToRegister(right));
+    masm.emitSet(cond, ToRegister(def));
+
+    MOZ_CRASH("visitCompare (validate)");
+}
+
+void 
+CodeGeneratorARM64::visitCompareAndBranch(LCompareAndBranch *comp)
+{
+    Assembler::Condition cond = JSOpToCondition(comp->cmpMir()->compareType(), comp->jsop());
+    if (comp->right()->isConstant())
+        masm.cmp32(ToRegister(comp->left()), Imm32(ToInt32(comp->right())));
+    else
+        masm.cmp32(ToRegister(comp->left()), ToRegister(comp->right()));
+    emitBranch(cond, comp->ifTrue(), comp->ifFalse());
+
+    MOZ_CRASH("visitCompareAndBranch (validate)");
+}
+
+void 
 CodeGeneratorARM64::bailoutIf(Assembler::Condition condition, LSnapshot *snapshot)
 {
     MOZ_CRASH("CodeGeneratorARM64::bailoutIf");
-    return false;
 }
 
-bool
+void 
 CodeGeneratorARM64::bailoutFrom(Label *label, LSnapshot *snapshot)
 {
     MOZ_CRASH("CodeGeneratorARM64::bailoutFrom");
-    return false;
 }
 
-bool
+void 
 CodeGeneratorARM64::bailout(LSnapshot *snapshot)
 {
     MOZ_CRASH("CodeGeneratorARM64::bailout");
-    return false;
 }
 
-bool
+void 
 CodeGeneratorARM64::visitOutOfLineBailout(OutOfLineBailout *ool)
 {
     MOZ_CRASH("CodeGeneratorARM64::visitOutOfLineBailout");
-    return false;
 }
 
-bool
+void 
 CodeGeneratorARM64::visitMinMaxD(LMinMaxD *ins)
 {
     ARMFPRegister lhs(ToFloatRegister(ins->first()), 64);
@@ -184,41 +172,36 @@ CodeGeneratorARM64::visitMinMaxD(LMinMaxD *ins)
         masm.Fmax(output, lhs, rhs);
     else
         masm.Fmin(output, lhs, rhs);
-    return true;
 }
 
-bool
+void 
 CodeGeneratorARM64::visitAbsD(LAbsD *ins)
 {
     ARMFPRegister input(ToFloatRegister(ins->input()), 64);
     masm.Fabs(input, input);
-    return true;
 }
 
-bool
+void 
 CodeGeneratorARM64::visitAbsF(LAbsF *ins)
 {
     ARMFPRegister input(ToFloatRegister(ins->input()), 32);
     masm.Fabs(input, input);
-    return true;
 }
 
-bool
+void 
 CodeGeneratorARM64::visitSqrtD(LSqrtD *ins)
 {
     ARMFPRegister input(ToFloatRegister(ins->input()), 64);
     ARMFPRegister output(ToFloatRegister(ins->output()), 64);
     masm.Fsqrt(output, input);
-    return true;
 }
 
-bool
+void 
 CodeGeneratorARM64::visitSqrtF(LSqrtF *ins)
 {
     ARMFPRegister input(ToFloatRegister(ins->input()), 32);
     ARMFPRegister output(ToFloatRegister(ins->output()), 32);
     masm.Fsqrt(output, input);
-    return true;
 }
 
 template<typename T>
@@ -236,7 +219,7 @@ js::jit::Operand toWOperand(const LAllocation *a)
         return js::jit::Operand(ToInt32(a));
     return js::jit::Operand(toWRegister(a));
 }
-bool
+void 
 CodeGeneratorARM64::visitAddI(LAddI *ins)
 {
     const LAllocation *lhs = ins->getOperand(0);
@@ -244,16 +227,13 @@ CodeGeneratorARM64::visitAddI(LAddI *ins)
     const LDefinition *dest = ins->getDef(0);
     if (ins->snapshot()) {
         masm.Adds(toWRegister(dest), toWRegister(lhs), toWOperand(rhs));
-        if (!bailoutIf(Assembler::Overflow, ins->snapshot()))
-            return false;
-
+        bailoutIf(Assembler::Overflow, ins->snapshot());
     } else {
         masm.Add(toWRegister(dest), toWRegister(lhs), toWOperand(rhs));
     }
-    return true;
 }
 
-bool
+void 
 CodeGeneratorARM64::visitSubI(LSubI *ins)
 {
     const LAllocation *lhs = ins->getOperand(0);
@@ -261,16 +241,13 @@ CodeGeneratorARM64::visitSubI(LSubI *ins)
     const LDefinition *dest = ins->getDef(0);
     if (ins->snapshot()) {
         masm.Subs(toWRegister(dest), toWRegister(lhs), toWOperand(rhs));
-        if (!bailoutIf(Assembler::Overflow, ins->snapshot()))
-            return false;
-
+        bailoutIf(Assembler::Overflow, ins->snapshot());
     } else {
         masm.Sub(toWRegister(dest), toWRegister(lhs), toWOperand(rhs));
     }
-    return true;
 }
 
-bool
+void 
 CodeGeneratorARM64::visitMulI(LMulI *ins)
 {
     const LAllocation *lhs = ins->getOperand(0);
@@ -284,8 +261,7 @@ CodeGeneratorARM64::visitMulI(LMulI *ins)
             Assembler::Condition bailoutCond = (constant == 0) ? Assembler::LessThan : Assembler::Equal;
             // N.B. A cbz/cbnz can be used here , if we're ok ith an OOL bailout. I think this is fine.
             masm.Cmp(toWRegister(lhs), Operand(0));
-            if (!bailoutIf(bailoutCond, ins->snapshot()))
-                return false;
+            bailoutIf(bailoutCond, ins->snapshot());
             masm.move32(Imm32(constant), ScratchReg);
             rhs_reg = ScratchReg;
         }
@@ -293,6 +269,7 @@ CodeGeneratorARM64::visitMulI(LMulI *ins)
     } else {
         rhs_reg = ToRegister(rhs);
     }
+
     if (mul->canOverflow()) {
         MOZ_CRASH("TODO: Handle overflow");
         // I should /really/ be able to just bail-out directly from the macro assembler.
@@ -301,71 +278,61 @@ CodeGeneratorARM64::visitMulI(LMulI *ins)
     } else {
         masm.mul32(ToRegister(lhs), rhs_reg, ToRegister(dest), nullptr, nullptr);
     }
-    return true;
-
 }
 
-bool
+void 
 CodeGeneratorARM64::divICommon(MDiv *mir, Register lhs, Register rhs, Register output,
                              LSnapshot *snapshot, Label &done)
 {
     MOZ_CRASH("CodeGeneratorARM64::divICommon");
-    return false;
 }
 
-bool
+void 
 CodeGeneratorARM64::visitDivI(LDivI *ins)
 {
     MOZ_CRASH("CodeGeneratorARM64::visitDivI");
-    return false;
 }
 
-bool
+void 
 CodeGeneratorARM64::visitDivPowTwoI(LDivPowTwoI *ins)
 {
     MOZ_CRASH("CodeGeneratorARM64::visitDivPowTwoI");
-    return false;
 }
 
-bool
+void 
 CodeGeneratorARM64::modICommon(MMod *mir, Register lhs, Register rhs, Register output,
                                LSnapshot *snapshot, Label &done)
 {
     MOZ_CRASH("CodeGeneratorARM64::modICommon");
-    return false;
 }
 
-bool
+void 
 CodeGeneratorARM64::visitModI(LModI *ins)
 {
     MOZ_CRASH("CodeGeneratorARM64::visitModI");
-    return false;
 }
 
-bool
+void 
 CodeGeneratorARM64::visitModPowTwoI(LModPowTwoI *ins)
 {
     MOZ_CRASH("CodeGeneratorARM64::visitModPowTwoI");
-    return false;
 }
 
-bool
+void 
 CodeGeneratorARM64::visitModMaskI(LModMaskI *ins)
 {
     MOZ_CRASH("CodeGeneratorARM64::visitModMaskI");
-    return false;
 }
 
-bool
+void 
 CodeGeneratorARM64::visitBitNotI(LBitNotI *ins)
 {
     const LAllocation *input = ins->getOperand(0);
     const LDefinition *output = ins->getDef(0);
     masm.Mvn(toWRegister(output), toWOperand(input));
-    return true;
 }
 
-bool
+void 
 CodeGeneratorARM64::visitBitOpI(LBitOpI *ins)
 {
     const LAllocation *lhs = ins->getOperand(0);
@@ -387,11 +354,9 @@ CodeGeneratorARM64::visitBitOpI(LBitOpI *ins)
       default:
         MOZ_CRASH("unexpected binary opcode");
     }
-
-    return true;
 }
 
-bool
+void 
 CodeGeneratorARM64::visitShiftI(LShiftI *ins)
 {
     ARMRegister lhs = toWRegister(ins->lhs());
@@ -429,21 +394,18 @@ CodeGeneratorARM64::visitShiftI(LShiftI *ins)
             MOZ_CRASH("Unexpected shift opcode");
         }
     }
-    return true;
 }
 
-bool
+void 
 CodeGeneratorARM64::visitUrshD(LUrshD *ins)
 {
     MOZ_CRASH("CodeGeneratorARM64::visitUrshD");
-    return false;
 }
 
-bool
+void 
 CodeGeneratorARM64::visitPowHalfD(LPowHalfD *ins)
 {
     MOZ_CRASH("CodeGeneratorARM64::visitPowHalfD");
-    return false;
 }
 
 MoveOperand
@@ -463,8 +425,8 @@ class js::jit::OutOfLineTableSwitch : public OutOfLineCodeBase<CodeGeneratorARM6
     MTableSwitch *mir_;
     Vector<CodeLabel, 8, JitAllocPolicy> codeLabels_;
 
-    bool accept(CodeGeneratorARM64 *codegen) {
-        return codegen->visitOutOfLineTableSwitch(this);
+    void accept(CodeGeneratorARM64 *codegen) {
+        codegen->visitOutOfLineTableSwitch(this);
     }
 
   public:
@@ -485,74 +447,64 @@ class js::jit::OutOfLineTableSwitch : public OutOfLineCodeBase<CodeGeneratorARM6
     }
 };
 
-bool
+void 
 CodeGeneratorARM64::visitOutOfLineTableSwitch(OutOfLineTableSwitch *ool)
 {
     MOZ_CRASH("CodeGeneratorARM64::visitOutOfLineTableSwitch");
-    return false;
 }
 
-bool
+void 
 CodeGeneratorARM64::emitTableSwitchDispatch(MTableSwitch *mir, Register index, Register base)
 {
     MOZ_CRASH("CodeGeneratorARM64::emitTableSwitchDispatch");
-    return false;
 }
 
-bool
+void 
 CodeGeneratorARM64::visitMathD(LMathD *math)
 {
     MOZ_CRASH("CodeGeneratorARM64::visitMathD");
-    return false;
 }
 
-bool
+void 
 CodeGeneratorARM64::visitMathF(LMathF *math)
 {
     MOZ_CRASH("CodeGeneratorARM64::visitMathF");
-    return false;
 }
 
-bool
+void 
 CodeGeneratorARM64::visitFloor(LFloor *lir)
 {
     MOZ_CRASH("CodeGeneratorARM64::visitFloor");
-    return false;
 }
 
-bool
+void 
 CodeGeneratorARM64::visitFloorF(LFloorF *lir)
 {
     MOZ_CRASH("CodeGeneratorARM64::visitFloorF");
-    return false;
 }
 
-bool
+void 
 CodeGeneratorARM64::visitCeil(LCeil *lir)
 {
     MOZ_CRASH("CodeGeneratorARM64::visitCeil");
-    return false;
 }
 
-bool
+void 
 CodeGeneratorARM64::visitCeilF(LCeilF *lir)
 {
     MOZ_CRASH("CodeGeneratorARM64::visitCeilF");
-    return false;
 }
 
-bool
+void 
 CodeGeneratorARM64::visitRound(LRound *lir)
 {
     MOZ_CRASH("CodeGeneratorARM64::visitRound");
-    return false;
 }
 
-bool
+void 
 CodeGeneratorARM64::visitRoundF(LRoundF *lir)
 {
     MOZ_CRASH("CodeGeneratorARM64::visitRoundF");
-    return false;
 }
 
 void
@@ -561,18 +513,16 @@ CodeGeneratorARM64::emitRoundDouble(FloatRegister src, Register dest, Label *fai
     MOZ_CRASH("CodeGeneratorARM64::emitRoundDouble");
 }
 
-bool
+void 
 CodeGeneratorARM64::visitTruncateDToInt32(LTruncateDToInt32 *ins)
 {
     MOZ_CRASH("CodeGeneratorARM64::visitTruncateDToInt32");
-    return false;
 }
 
-bool
+void 
 CodeGeneratorARM64::visitTruncateFToInt32(LTruncateFToInt32 *ins)
 {
     MOZ_CRASH("CodeGeneratorARM64::visitTruncateFToInt32");
-    return false;
 }
 
 static const uint32_t FrameSizes[] = { 128, 256, 512, 1024 };
@@ -613,39 +563,34 @@ CodeGeneratorARM64::ToTempValue(LInstruction *ins, size_t pos)
     MOZ_CRASH("CodeGeneratorARM64::ToTempValue");
 }
 
-bool
+void 
 CodeGeneratorARM64::visitValue(LValue *value)
 {
     MOZ_CRASH("CodeGeneratorARM64::visitValue");
-    return false;
 }
 
-bool
+void 
 CodeGeneratorARM64::visitBox(LBox *box)
 {
     MOZ_CRASH("CodeGeneratorARM64::visitBox");
-    return false;
 }
 
-bool
+void 
 CodeGeneratorARM64::visitUnbox(LUnbox *unbox)
 {
     MOZ_CRASH("CodeGeneratorARM64::visitUnbox");
-    return false;
 }
 
-bool
+void 
 CodeGeneratorARM64::visitDouble(LDouble *ins)
 {
     MOZ_CRASH("CodeGeneratorARM64::visitDouble");
-    return false;
 }
 
-bool
+void 
 CodeGeneratorARM64::visitFloat32(LFloat32 *ins)
 {
     MOZ_CRASH("CodeGeneratorARM64::visitFloat32");
-    return false;
 }
 
 Register
@@ -655,105 +600,92 @@ CodeGeneratorARM64::splitTagForTest(const ValueOperand &value)
     return InvalidReg;
 }
 
-bool
+void 
 CodeGeneratorARM64::visitTestDAndBranch(LTestDAndBranch *test)
 {
     MOZ_CRASH("CodeGeneratorARM64::visitTestDAndBranch");
-    return false;
 }
 
-bool
+void 
 CodeGeneratorARM64::visitTestFAndBranch(LTestFAndBranch *test)
 {
     MOZ_CRASH("CodeGeneratorARM64::visitTestFAndBranch");
-    return false;
 }
 
-bool
+void 
 CodeGeneratorARM64::visitCompareD(LCompareD *comp)
 {
     MOZ_CRASH("CodeGeneratorARM64::visitCompareD");
-    return false;
 }
 
-bool
+void 
 CodeGeneratorARM64::visitCompareF(LCompareF *comp)
 {
     MOZ_CRASH("CodeGeneratorARM64::visitCompareF");
-    return false;
 }
 
-bool
+void 
 CodeGeneratorARM64::visitCompareDAndBranch(LCompareDAndBranch *comp)
 {
     MOZ_CRASH("CodeGeneratorARM64::visitCompareDAndBranch");
-    return false;
 }
 
-bool
+void 
 CodeGeneratorARM64::visitCompareFAndBranch(LCompareFAndBranch *comp)
 {
     MOZ_CRASH("CodeGeneratorARM64::visitCompareFAndBranch");
-    return false;
 }
 
-bool
+void 
 CodeGeneratorARM64::visitCompareB(LCompareB *lir)
 {
     MOZ_CRASH("CodeGeneratorARM64::visitCompareB");
-    return false;
 }
 
-bool
+void 
 CodeGeneratorARM64::visitCompareBAndBranch(LCompareBAndBranch *lir)
 {
     MOZ_CRASH("CodeGeneratorARM64::visitCompareBAndBranch");
-    return false;
 }
 
-bool
+void 
 CodeGeneratorARM64::visitCompareV(LCompareV *lir)
 {
     MOZ_CRASH("CodeGeneratorARM64::visitCompareV");
-    return false;
 }
 
-bool
+void 
 CodeGeneratorARM64::visitCompareVAndBranch(LCompareVAndBranch *lir)
 {
     MOZ_CRASH("CodeGeneratorARM64::visitCompareVAndBranch");
-    return false;
 }
 
-bool
+void 
 CodeGeneratorARM64::visitBitAndAndBranch(LBitAndAndBranch *baab)
 {
     MOZ_CRASH("CodeGeneratorARM64::visitBitAndAndBranch");
-    return false;
 }
 
-bool
+void 
 CodeGeneratorARM64::visitAsmJSUInt32ToDouble(LAsmJSUInt32ToDouble *lir)
 {
     MOZ_CRASH("CodeGeneratorARM64::visitAsmJSUInt32ToDouble");
-    return false;
 }
 
-bool
+void 
 CodeGeneratorARM64::visitAsmJSUInt32ToFloat32(LAsmJSUInt32ToFloat32 *lir)
 {
     MOZ_CRASH("CodeGeneratorARM64::visitAsmJSUInt32ToFloat32");
-    return false;
 }
 
-bool
+void 
 CodeGeneratorARM64::visitNotI(LNotI *ins)
 {
     ARMRegister input = toWRegister(ins->input());
     ARMRegister output = toWRegister(ins->output());
     masm.Cmp(input, ZeroRegister32);
     masm.Cset(output, Assembler::NonZero);
-    return false;
+    MOZ_CRASH("visitNotI (validate)");
 }
 
 //        NZCV
@@ -761,7 +693,7 @@ CodeGeneratorARM64::visitNotI(LNotI *ins)
 // ==  -> 0110
 // <   -> 1000
 // >   -> 0010
-bool
+void 
 CodeGeneratorARM64::visitNotD(LNotD *ins)
 {
     ARMFPRegister input(ToFloatRegister(ins->input()), 64);
@@ -771,10 +703,9 @@ CodeGeneratorARM64::visitNotD(LNotD *ins)
     // dest is 1 iff input == 0, 0 otherwise
     // make it 1 if overflow was set.
     masm.Csneg(output, output, ZeroRegister32, Assembler::Overflow);
-    return true;
 }
 
-bool
+void 
 CodeGeneratorARM64::visitNotF(LNotF *ins)
 {
     ARMFPRegister input(ToFloatRegister(ins->input()), 32);
@@ -784,35 +715,30 @@ CodeGeneratorARM64::visitNotF(LNotF *ins)
     // dest is 1 iff input == 0, 0 otherwise
     // make it 1 if overflow was set.
     masm.Csneg(output, output, ZeroRegister32, Assembler::Overflow);
-    return true;
 }
 
-bool
+void 
 CodeGeneratorARM64::visitLoadSlotV(LLoadSlotV *load)
 {
     MOZ_CRASH("CodeGeneratorARM64::visitLoadSlotV");
-    return false;
 }
 
-bool
+void 
 CodeGeneratorARM64::visitLoadSlotT(LLoadSlotT *load)
 {
     MOZ_CRASH("CodeGeneratorARM64::visitLoadSlotT");
-    return false;
 }
 
-bool
+void 
 CodeGeneratorARM64::visitStoreSlotT(LStoreSlotT *store)
 {
     MOZ_CRASH("CodeGeneratorARM64::visitStoreSlotT");
-    return false;
 }
 
-bool
+void 
 CodeGeneratorARM64::visitLoadElementT(LLoadElementT *load)
 {
     MOZ_CRASH("CodeGeneratorARM64::visitLoadElementT");
-    return false;
 }
 
 void
@@ -822,39 +748,34 @@ CodeGeneratorARM64::storeElementTyped(const LAllocation *value, MIRType valueTyp
     MOZ_CRASH("CodeGeneratorARM64::storeElementTyped");
 }
 
-bool
+void 
 CodeGeneratorARM64::visitGuardShape(LGuardShape *guard)
 {
     MOZ_CRASH("CodeGeneratorARM64::visitGuardShape");
-    return false;
 }
 
-bool
+void 
 CodeGeneratorARM64::visitGuardObjectType(LGuardObjectType *guard)
 {
     MOZ_CRASH("CodeGeneratorARM64::visitGuardObjectType");
-    return false;
 }
 
-bool
+void 
 CodeGeneratorARM64::visitGuardClass(LGuardClass *guard)
 {
     MOZ_CRASH("CodeGeneratorARM64::visitGuardClass");
-    return false;
 }
 
-bool
+void 
 CodeGeneratorARM64::visitInterruptCheck(LInterruptCheck *lir)
 {
     MOZ_CRASH("CodeGeneratorARM64::visitInterruptCheck");
-    return false;
 }
 
-bool
+void 
 CodeGeneratorARM64::generateInvalidateEpilogue()
 {
     MOZ_CRASH("CodeGeneratorARM64::generateInvalidateEpilogue");
-    return false;
 }
 
 void
@@ -874,81 +795,73 @@ getBase(U *mir)
     return InvalidReg;
 }
 
-bool
+void 
 CodeGeneratorARM64::visitLoadTypedArrayElementStatic(LLoadTypedArrayElementStatic *ins)
 {
     MOZ_CRASH("CodeGeneratorARM64::visitLoadTypedArrayElementStatic");
-    return false;
 }
 
-bool
+void 
 CodeGeneratorARM64::visitStoreTypedArrayElementStatic(LStoreTypedArrayElementStatic *ins)
 {
     MOZ_CRASH("CodeGeneratorARM64::visitStoreTypedArrayElementStatic");
-    return false;
 }
 
-bool
+void 
 CodeGeneratorARM64::visitAsmJSCall(LAsmJSCall *ins)
 {
     MOZ_CRASH("visitAsmJSCall");
 }
 
-bool
+void 
 CodeGeneratorARM64::visitAsmJSLoadHeap(LAsmJSLoadHeap *ins)
 {
     MOZ_CRASH("CodeGeneratorARM64::visitAsmJSLoadHeap");
-    return false;
 }
 
-bool
+void 
 CodeGeneratorARM64::visitAsmJSStoreHeap(LAsmJSStoreHeap *ins)
 {
     MOZ_CRASH("CodeGeneratorARM64::visitAsmJSStoreHeap");
-    return false;
 }
 
-bool
+void 
 CodeGeneratorARM64::visitAsmJSCompareExchangeHeap(LAsmJSCompareExchangeHeap *ins)
 {
     MOZ_CRASH("visitAsmJSCompareExchangeHeap");
 }
 
-bool
+void 
 CodeGeneratorARM64::visitAsmJSAtomicBinopHeap(LAsmJSAtomicBinopHeap *ins)
 {
     MOZ_CRASH("visitAsmJSAtomicBinopHeap");
 }
 
-bool
+void 
 CodeGeneratorARM64::visitAsmJSPassStackArg(LAsmJSPassStackArg *ins)
 {
     MOZ_CRASH("CodeGeneratorARM64::visitAsmJSPassStackArg");
-    return false;
 }
 
-bool
+void 
 CodeGeneratorARM64::visitUDiv(LUDiv *ins)
 {
     MOZ_CRASH("CodeGeneratorARM64::visitUDiv");
-    return false;
 }
 
-bool
+void 
 CodeGeneratorARM64::visitUMod(LUMod *ins)
 {
     MOZ_CRASH("CodeGeneratorARM64::visitUMod");
-    return false;
 }
 
-bool
+void 
 CodeGeneratorARM64::visitSoftUDivOrMod(LSoftUDivOrMod *ins)
 {
     MOZ_CRASH("CodeGeneratorARM64::visitSoftUDivOrMod");
-    return false;
 }
 
-bool
+void 
 CodeGeneratorARM64::visitEffectiveAddress(LEffectiveAddress *ins)
 {
     const MEffectiveAddress *mir = ins->mir();
@@ -957,65 +870,57 @@ CodeGeneratorARM64::visitEffectiveAddress(LEffectiveAddress *ins)
     ARMRegister output = toXRegister(ins->output());
     masm.Add(output, base, Operand(index, LSL, mir->scale()));
     masm.Add(output, output, Operand(mir->displacement()));
-    return true;
 }
 
-bool
+void 
 CodeGeneratorARM64::visitAsmJSLoadGlobalVar(LAsmJSLoadGlobalVar *ins)
 {
     MOZ_CRASH("CodeGeneratorARM64::visitAsmJSLoadGlobalVar");
-    return false;
 }
 
-bool
+void 
 CodeGeneratorARM64::visitAsmJSStoreGlobalVar(LAsmJSStoreGlobalVar *ins)
 {
     MOZ_CRASH("CodeGeneratorARM64::visitAsmJSStoreGlobalVar");
-    return false;
 }
 
-bool
+void 
 CodeGeneratorARM64::visitAsmJSLoadFuncPtr(LAsmJSLoadFuncPtr *ins)
 {
     MOZ_CRASH("CodeGeneratorARM64::visitAsmJSLoadFuncPtr");
-    return false;
 }
 
-bool
+void 
 CodeGeneratorARM64::visitAsmJSLoadFFIFunc(LAsmJSLoadFFIFunc *ins)
 {
     MOZ_CRASH("CodeGeneratorARM64::visitAsmJSLoadFFIFunc");
-    return false;
 }
 
-bool
+void 
 CodeGeneratorARM64::visitNegI(LNegI *ins)
 {
     ARMRegister input = toWRegister(ins->input());
     ARMRegister output = toWRegister(ins->output());
     masm.Neg(output, input);
-    return true;
 }
 
-bool
+void 
 CodeGeneratorARM64::visitNegD(LNegD *ins)
 {
     ARMFPRegister input(ToFloatRegister(ins->input()), 64);
     ARMFPRegister output(ToFloatRegister(ins->output()), 64);
     masm.Fneg(output, input);
-    return false;
 }
 
-bool
+void 
 CodeGeneratorARM64::visitNegF(LNegF *ins)
 {
     ARMFPRegister input(ToFloatRegister(ins->input()), 32);
     ARMFPRegister output(ToFloatRegister(ins->output()), 32);
     masm.Fneg(output, input);
-    return true;
 }
 
-bool
+void 
 CodeGeneratorARM64::visitForkJoinGetSlice(LForkJoinGetSlice *ins)
 {
     MOZ_CRASH("NYI");
