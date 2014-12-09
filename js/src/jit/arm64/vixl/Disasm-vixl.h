@@ -1,5 +1,5 @@
-// -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 2 -*-
-// vim: set ts=8 sts=2 et sw=2 tw=99:
+// -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+// vim: set ts=8 sts=4 et sw=4 tw=99:
 //
 // Copyright 2013, ARM Limited
 // All rights reserved.
@@ -38,90 +38,78 @@
 namespace js {
 namespace jit {
 
-class Disassembler: public DecoderVisitor {
- public:
-  Disassembler();
-  Disassembler(char* text_buffer, int buffer_size);
-  virtual ~Disassembler();
-  char* GetOutput();
+class Disassembler : public DecoderVisitor
+{
+  public:
+    Disassembler();
+    Disassembler(char* text_buffer, int buffer_size);
+    virtual ~Disassembler();
+    char* GetOutput();
 
-  // Declare all Visitor functions.
-  #define DECLARE(A)  void Visit##A(Instruction* instr);
-  VISITOR_LIST(DECLARE)
-  #undef DECLARE
+    // Declare all Visitor functions.
+    #define DECLARE(A)  void Visit##A(Instruction* instr);
+    VISITOR_LIST(DECLARE)
+    #undef DECLARE
 
- protected:
-  virtual void ProcessOutput(Instruction* instr);
+  protected:
+    virtual void ProcessOutput(Instruction* instr);
 
- private:
-  void Format(Instruction* instr, const char* mnemonic, const char* format);
-  void Substitute(Instruction* instr, const char* string);
-  int SubstituteField(Instruction* instr, const char* format);
-  int SubstituteRegisterField(Instruction* instr, const char* format);
-  int SubstituteImmediateField(Instruction* instr, const char* format);
-  int SubstituteLiteralField(Instruction* instr, const char* format);
-  int SubstituteBitfieldImmediateField(Instruction* instr, const char* format);
-  int SubstituteShiftField(Instruction* instr, const char* format);
-  int SubstituteExtendField(Instruction* instr, const char* format);
-  int SubstituteConditionField(Instruction* instr, const char* format);
-  int SubstitutePCRelAddressField(Instruction* instr, const char* format);
-  int SubstituteBranchTargetField(Instruction* instr, const char* format);
-  int SubstituteLSRegOffsetField(Instruction* instr, const char* format);
-  int SubstitutePrefetchField(Instruction* instr, const char* format);
-  int SubstituteBarrierField(Instruction* instr, const char* format);
+  private:
+    void Format(Instruction* instr, const char* mnemonic, const char* format);
+    void Substitute(Instruction* instr, const char* string);
+    int SubstituteField(Instruction* instr, const char* format);
+    int SubstituteRegisterField(Instruction* instr, const char* format);
+    int SubstituteImmediateField(Instruction* instr, const char* format);
+    int SubstituteLiteralField(Instruction* instr, const char* format);
+    int SubstituteBitfieldImmediateField(Instruction* instr, const char* format);
+    int SubstituteShiftField(Instruction* instr, const char* format);
+    int SubstituteExtendField(Instruction* instr, const char* format);
+    int SubstituteConditionField(Instruction* instr, const char* format);
+    int SubstitutePCRelAddressField(Instruction* instr, const char* format);
+    int SubstituteBranchTargetField(Instruction* instr, const char* format);
+    int SubstituteLSRegOffsetField(Instruction* instr, const char* format);
+    int SubstitutePrefetchField(Instruction* instr, const char* format);
+    int SubstituteBarrierField(Instruction* instr, const char* format);
 
-  inline bool RdIsZROrSP(Instruction* instr) const {
-    return (instr->Rd() == kZeroRegCode);
-  }
+    inline bool RdIsZROrSP(Instruction* instr) const {
+        return (instr->Rd() == kZeroRegCode);
+    }
 
-  inline bool RnIsZROrSP(Instruction* instr) const {
-    return (instr->Rn() == kZeroRegCode);
-  }
+    inline bool RnIsZROrSP(Instruction* instr) const {
+        return (instr->Rn() == kZeroRegCode);
+    }
 
-  inline bool RmIsZROrSP(Instruction* instr) const {
-    return (instr->Rm() == kZeroRegCode);
-  }
+    inline bool RmIsZROrSP(Instruction* instr) const {
+        return (instr->Rm() == kZeroRegCode);
+    }
 
-  inline bool RaIsZROrSP(Instruction* instr) const {
-    return (instr->Ra() == kZeroRegCode);
-  }
+    inline bool RaIsZROrSP(Instruction* instr) const {
+        return (instr->Ra() == kZeroRegCode);
+    }
 
-  bool IsMovzMovnImm(unsigned reg_size, uint64_t value);
+    bool IsMovzMovnImm(unsigned reg_size, uint64_t value);
 
-  void ResetOutput();
-  void AppendToOutput(const char* string, ...) PRINTF_CHECK(2, 3);
+    void ResetOutput();
+    void AppendToOutput(const char* string, ...) PRINTF_CHECK(2, 3);
 
-  char* buffer_;
-  uint32_t buffer_pos_;
-  uint32_t buffer_size_;
-  bool own_buffer_;
+    char* buffer_;
+    uint32_t buffer_pos_;
+    uint32_t buffer_size_;
+    bool own_buffer_;
 };
 
+class PrintDisassembler : public Disassembler
+{
+  public:
+    explicit PrintDisassembler(FILE* stream) : stream_(stream) { }
+    ~PrintDisassembler() { }
 
-class PrintDisassembler: public Disassembler {
- public:
-  explicit PrintDisassembler(FILE* stream) : stream_(stream) { }
-  ~PrintDisassembler() { }
+  protected:
+    virtual void ProcessOutput(Instruction* instr);
 
- protected:
-  virtual void ProcessOutput(Instruction* instr);
-
- private:
-  FILE *stream_;
+  private:
+    FILE *stream_;
 };
-
-#if 0
-// FIXME: Remove this.
-static void Disassemble(Instruction *ptr, uint32_t count) {
-  Decoder decoder;
-  Disassembler disasm;
-  decoder.AppendVisitor(&disasm);
-  for (uint32_t i = 0; i < count; i++) {
-    decoder.Decode(&ptr[i*4]);
-    printf("[%p]    %s\n", &ptr[i], disasm.GetOutput());
-  }
-}
-#endif
 
 } // namespace jit
 } // namespace js
