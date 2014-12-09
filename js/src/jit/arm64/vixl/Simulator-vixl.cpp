@@ -99,10 +99,7 @@ Simulator::init(Decoder* decoder, FILE* stream)
     // Ensure that shift operations act as the simulator expects.
     MOZ_ASSERT((static_cast<int32_t>(-1) >> 1) == -1);
     MOZ_ASSERT((static_cast<uint32_t>(-1) >> 1) == 0x7FFFFFFF);
-    // TODO: Can we get rid of fds?
-#ifdef DEBUG
-    pipe(fds);
-#endif
+
     // Set up the decoder.
     decoder_ = decoder;
     decoder_->AppendVisitor(this);

@@ -261,11 +261,6 @@ class Simulator : public DecoderVisitor
     explicit Simulator(Decoder* decoder, FILE* stream = stdout);
     ~Simulator();
 
-#ifdef DEBUG
-    // TODO: Get rid of fds.
-    int fds[2];
-#endif
-
     void ResetState();
 
     void init(Decoder* decoder, FILE* stream = stdout);
