@@ -988,12 +988,16 @@ bool TabParent::SendMouseWheelEvent(WidgetWheelEvent& event)
   if (mIsDestroyed) {
     return false;
   }
-  nsEventStatus status = MaybeForwardEventToRenderFrame(event, nullptr, nullptr);
+
+  ScrollableLayerGuid guid;
+  uint64_t blockId;
+  nsEventStatus status = MaybeForwardEventToRenderFrame(event, &guid, &blockId);
   if (status == nsEventStatus_eConsumeNoDefault ||
-      !MapEventCoordinatesForChildProcess(&event)) {
+      !MapEventCoordinatesForChildProcess(&event))
+  {
     return false;
   }
-  return PBrowserParent::SendMouseWheelEvent(event);
+  return PBrowserParent::SendMouseWheelEvent(event, guid, blockId);
 }
 
 static void
@@ -2140,12 +2144,12 @@ TabParent::RecvUpdateZoomConstraints(const uint32_t& aPresShellId,
 }
 
 bool
-TabParent::RecvContentReceivedTouch(const ScrollableLayerGuid& aGuid,
-                                    const uint64_t& aInputBlockId,
-                                    const bool& aPreventDefault)
+TabParent::RecvContentReceivedInputBlock(const ScrollableLayerGuid& aGuid,
+                                         const uint64_t& aInputBlockId,
+                                         const bool& aPreventDefault)
 {
   if (RenderFrameParent* rfp = GetRenderFrame()) {
-    rfp->ContentReceivedTouch(aGuid, aInputBlockId, aPreventDefault);
+    rfp->ContentReceivedInputBlock(aGuid, aInputBlockId, aPreventDefault);
   }
   return true;
 }
