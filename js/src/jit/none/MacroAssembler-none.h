@@ -27,6 +27,7 @@ static MOZ_CONSTEXPR_VAR FloatRegister ScratchFloat32Reg = { 0 };
 static MOZ_CONSTEXPR_VAR FloatRegister ScratchDoubleReg = { 0 };
 static MOZ_CONSTEXPR_VAR FloatRegister ScratchSimdReg = { 0 };
 static MOZ_CONSTEXPR_VAR FloatRegister InvalidFloatReg = { 0 };
+static MOZ_CONSTEXPR_VAR Register RegExpStackPointer = { 0 };
 
 static MOZ_CONSTEXPR_VAR Register OsrFrameReg = { 0 };
 static MOZ_CONSTEXPR_VAR Register ArgumentsRectifierReg = { 0 };

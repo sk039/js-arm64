@@ -51,6 +51,8 @@ static MOZ_CONSTEXPR_VAR FloatRegister ScratchDoubleReg = xmm7;
 static MOZ_CONSTEXPR_VAR FloatRegister ReturnSimdReg = xmm0;
 static MOZ_CONSTEXPR_VAR FloatRegister ScratchSimdReg = xmm7;
 
+static MOZ_CONSTEXPR_VAR Register RegExpStackPointer = esp;
+
 // Avoid ebp, which is the FramePointer, which is unavailable in some modes.
 static MOZ_CONSTEXPR_VAR Register ArgumentsRectifierReg = esi;
 static MOZ_CONSTEXPR_VAR Register CallTempReg0 = edi;

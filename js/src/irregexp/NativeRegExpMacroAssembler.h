@@ -208,7 +208,7 @@ class MOZ_STACK_CLASS NativeRegExpMacroAssembler : public RegExpMacroAssembler
     // The frame_pointer-relative location of a regexp register.
     jit::Address register_location(int register_index) {
         checkRegister(register_index);
-        return jit::Address(jit::StackPointer, register_offset(register_index));
+        return jit::Address(jit::RegExpStackPointer, register_offset(register_index));
     }
 
     int32_t register_offset(int register_index) {

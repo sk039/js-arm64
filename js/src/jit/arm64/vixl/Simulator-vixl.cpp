@@ -236,24 +236,39 @@ Simulator::call(uint8_t* entry, int argument_count, ...)
     va_start(parameters, argument_count);
 
     // First eight arguments passed in registers.
-    MOZ_ASSERT(argument_count == 8);
+    MOZ_ASSERT(argument_count <= 8);
 
     // Argument 0: EnterJitData::jitcode.
-    set_xreg(0, va_arg(parameters, int64_t));
+    if (argument_count >= 1)
+        set_xreg(0, va_arg(parameters, int64_t));
+
     // Argument 1: EnterJitData::maxArgc.
-    set_xreg(1, va_arg(parameters, unsigned));
+    if (argument_count >= 2)
+        set_xreg(1, va_arg(parameters, unsigned));
+
     // Argument 2: EnterJitData::maxArgv.
-    set_xreg(2, va_arg(parameters, int64_t));
+    if (argument_count >= 3)
+        set_xreg(2, va_arg(parameters, int64_t));
+
     // Argument 3: EnterJitData::osrFrame.
-    set_xreg(3, va_arg(parameters, int64_t));
+    if (argument_count >= 4)
+        set_xreg(3, va_arg(parameters, int64_t));
+
     // Argument 4: EnterJitData::calleeToken.
-    set_xreg(4, va_arg(parameters, int64_t));
+    if (argument_count >= 5)
+        set_xreg(4, va_arg(parameters, int64_t));
+
     // Argument 5: EnterJitData::scopeChain.
-    set_xreg(5, va_arg(parameters, int64_t));
+    if (argument_count >= 6)
+        set_xreg(5, va_arg(parameters, int64_t));
+
     // Argument 6: EnterJitData::osrNumStackValues.
-    set_xreg(6, va_arg(parameters, unsigned));
+    if (argument_count >= 7)
+        set_xreg(6, va_arg(parameters, unsigned));
+
     // Argument 7: Address of EnterJitData::result.
-    set_xreg(7, va_arg(parameters, int64_t));
+    if (argument_count >= 8)
+        set_xreg(7, va_arg(parameters, int64_t));
 
     va_end(parameters);
 

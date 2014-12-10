@@ -2258,7 +2258,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
 
     void abiret() {
-        MOZ_CRASH("abiret");
+        MacroAssemblerVIXL::Ret(lr_64);
     }
 
     void mulBy3(Register src, Register dest) {

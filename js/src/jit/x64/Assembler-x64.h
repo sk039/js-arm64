@@ -70,6 +70,8 @@ static MOZ_CONSTEXPR_VAR Register JSReturnReg = rcx;
 static MOZ_CONSTEXPR_VAR Register JSReturnReg_Type = JSReturnReg;
 static MOZ_CONSTEXPR_VAR Register JSReturnReg_Data = JSReturnReg;
 
+static MOZ_CONSTEXPR_VAR Register RegExpStackPointer = rsp;
+
 static MOZ_CONSTEXPR_VAR Register ReturnReg = rax;
 static MOZ_CONSTEXPR_VAR Register ScratchReg = r11;
 static MOZ_CONSTEXPR_VAR Register HeapReg = r15;
