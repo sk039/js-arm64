@@ -1950,10 +1950,8 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         MOZ_CRASH("memIntToValue");
     }
 
-#ifdef JSGC_GENERATIONAL
     void branchPtrInNurseryRange(Condition cond, Register ptr, Register temp, Label *label);
     void branchValueIsNurseryObject(Condition cond, ValueOperand value, Register temp, Label *label);
-#endif
 
     // Builds an exit frame on the stack, with a return address to an internal
     // non-function. Returns offset to be passed to markSafepointAt().

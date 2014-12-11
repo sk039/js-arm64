@@ -546,12 +546,14 @@ FinalizeTypedArenas(FreeOp *fop,
     if (!fop->onBackgroundThread())
         maybeLock.emplace(fop->runtime());
 
-    /*
-     * During parallel sections, we sometimes finalize the parallel arenas,
-     * but in that case, we want to hold on to the memory in our arena
-     * lists, not offer it up for reuse.
-     */
-    MOZ_ASSERT_IF(InParallelSection(), keepArenas);
+    // During background sweeping free arenas are released later on in
+    // sweepBackgroundThings().
+    MOZ_ASSERT_IF(fop->onBackgroundThread(), keepArenas == ArenaLists::KEEP_ARENAS);
+
+    // During parallel sections, we sometimes finalize the parallel arenas, but
+    // in that case, we want to hold on to the memory in our arena lists, not
+    // offer it up for reuse.
+    MOZ_ASSERT_IF(InParallelSection(), keepArenas == ArenaLists::KEEP_ARENAS);
 
     size_t thingSize = Arena::thingSize(thingKind);
     size_t thingsPerArena = Arena::thingsPerArena(thingSize);
@@ -561,18 +563,12 @@ FinalizeTypedArenas(FreeOp *fop,
         size_t nmarked = aheader->getArena()->finalize<T>(fop, thingKind, thingSize);
         size_t nfree = thingsPerArena - nmarked;
 
-        if (nmarked) {
+        if (nmarked)
             dest.insertAt(aheader, nfree);
-        } else if (keepArenas == ArenaLists::KEEP_ARENAS) {
+        else if (keepArenas == ArenaLists::KEEP_ARENAS)
             aheader->chunk()->recycleArena(aheader, dest, thingKind, thingsPerArena);
-        } else if (fop->onBackgroundThread()) {
-            // When background sweeping, take the lock around each release so
-            // that we do not block the foreground for extended periods.
-            AutoLockGC lock(fop->runtime());
-            fop->runtime()->gc.releaseArena(aheader, lock);
-        } else {
+        else
             fop->runtime()->gc.releaseArena(aheader, maybeLock.ref());
-        }
 
         budget.step(thingsPerArena);
         if (budget.isOverBudget())
@@ -1106,10 +1102,8 @@ GCRuntime::releaseArena(ArenaHeader *aheader, const AutoLockGC &lock)
 GCRuntime::GCRuntime(JSRuntime *rt) :
     rt(rt),
     systemZone(nullptr),
-#ifdef JSGC_GENERATIONAL
     nursery(rt),
     storeBuffer(rt, nursery),
-#endif
     stats(rt),
     marker(rt),
     usage(nullptr),
@@ -1126,10 +1120,8 @@ GCRuntime::GCRuntime(JSRuntime *rt) :
     grayBitsValid(false),
     majorGCRequested(0),
     majorGCTriggerReason(JS::gcreason::NO_REASON),
-#ifdef JSGC_GENERATIONAL
     minorGCRequested(false),
     minorGCTriggerReason(JS::gcreason::NO_REASON),
-#endif
     majorGCNumber(0),
     jitReleaseNumber(0),
     number(0),
@@ -1219,7 +1211,6 @@ GCRuntime::setZeal(uint8_t zeal, uint32_t frequency)
     if (verifyPostData)
         VerifyBarriers(rt, PostBarrierVerifier);
 
-#ifdef JSGC_GENERATIONAL
     if (zealMode == ZealGenerationalGCValue) {
         evictNursery(JS::gcreason::DEBUG_GC);
         nursery.leaveZealMode();
@@ -1227,7 +1218,6 @@ GCRuntime::setZeal(uint8_t zeal, uint32_t frequency)
 
     if (zeal == ZealGenerationalGCValue)
         nursery.enterZealMode();
-#endif
 
     bool schedule = zeal >= js::gc::ZealAllocValue;
     zealMode = zeal;
@@ -1299,7 +1289,6 @@ GCRuntime::init(uint32_t maxbytes, uint32_t maxNurseryBytes)
 
     jitReleaseNumber = majorGCNumber + JIT_SCRIPT_RELEASE_TYPES_PERIOD;
 
-#ifdef JSGC_GENERATIONAL
     if (!nursery.init(maxNurseryBytes))
         return false;
 
@@ -1311,7 +1300,6 @@ GCRuntime::init(uint32_t maxbytes, uint32_t maxNurseryBytes)
         if (!storeBuffer.enable())
             return false;
     }
-#endif
 
 #ifdef JS_GC_ZEAL
     const char *zealSpec = getenv("JS_GC_ZEAL");
@@ -3040,7 +3028,6 @@ GCRuntime::refillFreeListFromMainThread(JSContext *cx, AllocKind thingKind)
             // instead of reporting it.
             if (!allowGC) {
                 MOZ_ASSERT(!mustCollectNow);
-                js_ReportOutOfMemory(cx);
                 return nullptr;
             }
 
@@ -3447,11 +3434,10 @@ void
 GCRuntime::sweepBackgroundThings(ZoneList &zones, ThreadType threadType)
 {
     // We must finalize thing kinds in the order specified by BackgroundFinalizePhases.
+    ArenaHeader *emptyArenas = nullptr;
     FreeOp fop(rt, threadType);
-    while (!zones.isEmpty()) {
-        Zone *zone = zones.front();
-        ArenaHeader *emptyArenas = nullptr;
-        for (unsigned phase = 0 ; phase < ArrayLength(BackgroundFinalizePhases) ; ++phase) {
+    for (unsigned phase = 0 ; phase < ArrayLength(BackgroundFinalizePhases) ; ++phase) {
+        for (Zone *zone = zones.front(); zone; zone = zone->nextZone()) {
             for (unsigned index = 0 ; index < BackgroundFinalizePhases[phase].length ; ++index) {
                 AllocKind kind = BackgroundFinalizePhases[phase].kinds[index];
                 ArenaHeader *arenas = zone->allocator.arenas.arenaListsToSweep[kind];
@@ -3459,11 +3445,12 @@ GCRuntime::sweepBackgroundThings(ZoneList &zones, ThreadType threadType)
                     ArenaLists::backgroundFinalize(&fop, arenas, &emptyArenas);
             }
         }
-
-        AutoLockGC lock(rt);
-        ReleaseArenaList(rt, emptyArenas, lock);
-        zones.removeFront();
     }
+
+    AutoLockGC lock(rt);
+    ReleaseArenaList(rt, emptyArenas, lock);
+    while (!zones.isEmpty())
+        zones.removeFront();
 }
 
 void
@@ -5657,9 +5644,7 @@ AutoTraceSession::AutoTraceSession(JSRuntime *rt, js::HeapState heapState)
     MOZ_ASSERT(rt->gc.isAllocAllowed());
     MOZ_ASSERT(rt->gc.heapState == Idle);
     MOZ_ASSERT(heapState != Idle);
-#ifdef JSGC_GENERATIONAL
     MOZ_ASSERT_IF(heapState == MajorCollecting, rt->gc.nursery.isEmpty());
-#endif
 
     // Threads with an exclusive context can hit refillFreeList while holding
     // the exclusive access lock. To avoid deadlocking when we try to acquire
@@ -6064,7 +6049,6 @@ GCRuntime::budgetIncrementalGC(SliceBudget &budget)
 
 namespace {
 
-#ifdef JSGC_GENERATIONAL
 class AutoDisableStoreBuffer
 {
     StoreBuffer &sb;
@@ -6080,12 +6064,6 @@ class AutoDisableStoreBuffer
             sb.enable();
     }
 };
-#else
-struct AutoDisableStoreBuffer
-{
-    AutoDisableStoreBuffer(GCRuntime *gc) {}
-};
-#endif
 
 } /* anonymous namespace */
 
@@ -6271,8 +6249,6 @@ GCRuntime::collect(bool incremental, SliceBudget &budget, JSGCInvocationKind gck
     if (deterministicOnly && !IsDeterministicGCReason(reason))
         return;
 #endif
-
-    MOZ_ASSERT_IF(!incremental || !budget.isUnlimited(), JSGC_INCREMENTAL);
 
     AutoStopVerifyingBarriers av(rt, reason == JS::gcreason::SHUTDOWN_CC ||
                                      reason == JS::gcreason::DESTROY_RUNTIME);
@@ -6476,13 +6452,11 @@ GCRuntime::onOutOfMallocMemory(const AutoLockGC &lock)
 void
 GCRuntime::minorGC(JS::gcreason::Reason reason)
 {
-#ifdef JSGC_GENERATIONAL
     minorGCRequested = false;
     TraceLogger *logger = TraceLoggerForMainThread(rt);
     AutoTraceLog logMinorGC(logger, TraceLogger::MinorGC);
     nursery.collect(rt, reason, nullptr);
     MOZ_ASSERT_IF(!rt->mainThread.suppressGC, nursery.isEmpty());
-#endif
 }
 
 void
@@ -6490,7 +6464,6 @@ GCRuntime::minorGC(JSContext *cx, JS::gcreason::Reason reason)
 {
     // Alternate to the runtime-taking form above which allows marking type
     // objects as needing pretenuring.
-#ifdef JSGC_GENERATIONAL
     minorGCRequested = false;
     TraceLogger *logger = TraceLoggerForMainThread(rt);
     AutoTraceLog logMinorGC(logger, TraceLogger::MinorGC);
@@ -6501,19 +6474,16 @@ GCRuntime::minorGC(JSContext *cx, JS::gcreason::Reason reason)
             pretenureTypes[i]->setShouldPreTenure(cx);
     }
     MOZ_ASSERT_IF(!rt->mainThread.suppressGC, nursery.isEmpty());
-#endif
 }
 
 void
 GCRuntime::disableGenerationalGC()
 {
-#ifdef JSGC_GENERATIONAL
     if (isGenerationalGCEnabled()) {
         minorGC(JS::gcreason::API);
         nursery.disable();
         storeBuffer.disable();
     }
-#endif
     ++rt->gc.generationalDisabled;
 }
 
@@ -6522,12 +6492,10 @@ GCRuntime::enableGenerationalGC()
 {
     MOZ_ASSERT(generationalDisabled > 0);
     --generationalDisabled;
-#ifdef JSGC_GENERATIONAL
     if (generationalDisabled == 0) {
         nursery.enable();
         storeBuffer.enable();
     }
-#endif
 }
 
 bool
@@ -6535,14 +6503,12 @@ GCRuntime::gcIfNeeded(JSContext *cx /* = nullptr */)
 {
     // This method returns whether a major GC was performed.
 
-#ifdef JSGC_GENERATIONAL
     if (minorGCRequested) {
         if (cx)
             minorGC(cx, minorGCTriggerReason);
         else
             minorGC(minorGCTriggerReason);
     }
-#endif
 
     if (majorGCRequested) {
         gcSlice(GC_NORMAL, rt->gc.majorGCTriggerReason);
@@ -6779,13 +6745,11 @@ void PreventGCDuringInteractiveDebug()
 void
 js::ReleaseAllJITCode(FreeOp *fop)
 {
-#ifdef JSGC_GENERATIONAL
     /*
      * Scripts can entrain nursery things, inserting references to the script
      * into the store buffer. Clear the store buffer before discarding scripts.
      */
     fop->runtime()->gc.evictNursery();
-#endif
 
     for (ZonesIter zone(fop->runtime(), SkipAtoms); !zone.done(); zone.next()) {
         if (!zone->jitZone())

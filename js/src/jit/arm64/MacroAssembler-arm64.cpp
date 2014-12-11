@@ -545,7 +545,6 @@ MacroAssemblerCompat::callWithABI(Address fun, MoveOp::Type result)
     callWithABIPost(stackAdjust, result);
 }
 
-#ifdef JSGC_GENERATIONAL
 void MacroAssemblerCompat::branchPtrInNurseryRange(Condition cond, Register ptr, Register temp,
                                                    Label *label)
 {
@@ -560,9 +559,7 @@ void MacroAssemblerCompat::branchPtrInNurseryRange(Condition cond, Register ptr,
     branchPtr(cond == Assembler::Equal ? Assembler::Below : Assembler::AboveOrEqual,
               temp, ImmWord(nursery.nurserySize()), label);
 }
-#endif // JSGC_GENERATIONAL
 
-#ifdef JSGC_GENERATIONAL
 void
 MacroAssemblerCompat::branchValueIsNurseryObject(Condition cond, ValueOperand value, Register temp,
                                                  Label *label)
@@ -579,7 +576,6 @@ MacroAssemblerCompat::branchValueIsNurseryObject(Condition cond, ValueOperand va
     branchPtr(cond == Assembler::Equal ? Assembler::Below : Assembler::AboveOrEqual,
               temp, ImmWord(nursery.nurserySize()), label);
 }
-#endif // JSGC_GENERATIONAL
 
 // FIXME: Probably just call Brk() in the header.
 void

@@ -182,8 +182,6 @@ JSCompartment::ensureJitCompartmentExists(JSContext *cx)
     return true;
 }
 
-#ifdef JSGC_GENERATIONAL
-
 /*
  * This class is used to add a post barrier on the crossCompartmentWrappers map,
  * as the key is calculated based on objects which may be moved by generational
@@ -238,8 +236,6 @@ JSCompartment::checkWrapperMapAfterMovingGC()
 }
 #endif
 
-#endif
-
 bool
 JSCompartment::putWrapper(JSContext *cx, const CrossCompartmentKey &wrapped, const js::Value &wrapper)
 {
@@ -251,7 +247,6 @@ JSCompartment::putWrapper(JSContext *cx, const CrossCompartmentKey &wrapped, con
     MOZ_ASSERT_IF(wrapped.kind != CrossCompartmentKey::StringWrapper, wrapper.isObject());
     bool success = crossCompartmentWrappers.put(wrapped, ReadBarriered<Value>(wrapper));
 
-#ifdef JSGC_GENERATIONAL
     /* There's no point allocating wrappers in the nursery since we will tenure them anyway. */
     MOZ_ASSERT(!IsInsideNursery(static_cast<gc::Cell *>(wrapper.toGCThing())));
 
@@ -259,7 +254,6 @@ JSCompartment::putWrapper(JSContext *cx, const CrossCompartmentKey &wrapped, con
         WrapperMapRef ref(&crossCompartmentWrappers, wrapped);
         cx->runtime()->gc.storeBuffer.putGeneric(ref);
     }
-#endif
 
     return success;
 }
@@ -566,12 +560,7 @@ void
 JSCompartment::sweepGlobalObject(FreeOp *fop)
 {
     if (global_.unbarrieredGet() && IsObjectAboutToBeFinalizedFromAnyThread(global_.unsafeGet())) {
-        // For main thread compartments, the invariant is that debug mode
-        // implies having at least one Debugger still attached. However, for
-        // off-thread compartments, which are used in off-thread parsing, they
-        // may be isDebuggee() without there being any Debuggers to prohibit
-        // asm.js.
-        if (isDebuggee() && !global_->compartment()->options().invisibleToDebugger())
+        if (isDebuggee())
             Debugger::detachAllDebuggersFromGlobal(fop, global_);
         global_.set(nullptr);
     }

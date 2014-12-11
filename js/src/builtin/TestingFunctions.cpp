@@ -66,6 +66,12 @@ GetBuildConfiguration(JSContext *cx, unsigned argc, jsval *vp)
     if (!JS_SetProperty(cx, info, "trace-jscalls-api", FalseHandleValue))
         return false;
 
+    if (!JS_SetProperty(cx, info, "incremental-gc", TrueHandleValue))
+        return false;
+
+    if (!JS_SetProperty(cx, info, "generational-gc", TrueHandleValue))
+        return false;
+
     RootedValue value(cx);
 #ifdef DEBUG
     value = BooleanValue(true);
@@ -153,22 +159,6 @@ GetBuildConfiguration(JSContext *cx, unsigned argc, jsval *vp)
     value = BooleanValue(false);
 #endif
     if (!JS_SetProperty(cx, info, "dtrace", value))
-        return false;
-
-#ifdef JSGC_INCREMENTAL
-    value = BooleanValue(true);
-#else
-    value = BooleanValue(false);
-#endif
-    if (!JS_SetProperty(cx, info, "incremental-gc", value))
-        return false;
-
-#ifdef JSGC_GENERATIONAL
-    value = BooleanValue(true);
-#else
-    value = BooleanValue(false);
-#endif
-    if (!JS_SetProperty(cx, info, "generational-gc", value))
         return false;
 
 #ifdef MOZ_VALGRIND
@@ -277,12 +267,10 @@ static bool
 MinorGC(JSContext *cx, unsigned argc, jsval *vp)
 {
     CallArgs args = CallArgsFromVp(argc, vp);
-#ifdef JSGC_GENERATIONAL
     if (args.get(0) == BooleanValue(true))
         cx->runtime()->gc.storeBuffer.setAboutToOverflow();
 
     cx->minorGC(JS::gcreason::API);
-#endif
     args.rval().setUndefined();
     return true;
 }
@@ -962,13 +950,10 @@ OOMAfterAllocations(JSContext *cx, unsigned argc, jsval *vp)
 
 static const js::Class FakePromiseClass = {
     "Promise", JSCLASS_IS_ANONYMOUS,
-    JS_PropertyStub,       /* addProperty */
-    JS_DeletePropertyStub, /* delProperty */
+    nullptr,               /* addProperty */
+    nullptr,               /* delProperty */
     JS_PropertyStub,       /* getProperty */
-    JS_StrictPropertyStub, /* setProperty */
-    JS_EnumerateStub,
-    JS_ResolveStub,
-    JS_ConvertStub
+    JS_StrictPropertyStub  /* setProperty */
 };
 
 static bool
@@ -1014,13 +999,13 @@ finalize_counter_finalize(JSFreeOp *fop, JSObject *obj)
 
 static const JSClass FinalizeCounterClass = {
     "FinalizeCounter", JSCLASS_IS_ANONYMOUS,
-    JS_PropertyStub,       /* addProperty */
-    JS_DeletePropertyStub, /* delProperty */
+    nullptr,               /* addProperty */
+    nullptr,               /* delProperty */
     JS_PropertyStub,       /* getProperty */
     JS_StrictPropertyStub, /* setProperty */
-    JS_EnumerateStub,
-    JS_ResolveStub,
-    JS_ConvertStub,
+    nullptr,               /* enumerate */
+    nullptr,               /* resolve */
+    nullptr,               /* convert */
     finalize_counter_finalize
 };
 
@@ -1556,13 +1541,13 @@ class CloneBufferObject : public NativeObject {
 
 const Class CloneBufferObject::class_ = {
     "CloneBuffer", JSCLASS_HAS_RESERVED_SLOTS(CloneBufferObject::NUM_SLOTS),
-    JS_PropertyStub,       /* addProperty */
-    JS_DeletePropertyStub, /* delProperty */
+    nullptr,               /* addProperty */
+    nullptr,               /* delProperty */
     JS_PropertyStub,       /* getProperty */
     JS_StrictPropertyStub, /* setProperty */
-    JS_EnumerateStub,
-    JS_ResolveStub,
-    JS_ConvertStub,
+    nullptr,               /* enumerate */
+    nullptr,               /* resolve */
+    nullptr,               /* convert */
     Finalize,
     nullptr,                  /* call */
     nullptr,                  /* hasInstance */
