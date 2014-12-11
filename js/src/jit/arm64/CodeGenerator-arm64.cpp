@@ -40,15 +40,43 @@ CodeGeneratorARM64::CodeGeneratorARM64(MIRGenerator *gen, LIRGraph *graph, Macro
 bool
 CodeGeneratorARM64::generatePrologue()
 {
-    MOZ_CRASH("generatePrologue");
+    MOZ_ASSERT(masm.framePushed() == 0);
+    MOZ_ASSERT(!gen->compilingAsmJS());
+
+    // FIXME: Uh, doesn't this break frameSize() and the alignment?
+#ifdef JS_USE_LINK_REGISTER
+    masm.pushReturnAddress();
+#endif
+
+    // Note that this automatically sets MacroAssembler::framePushed().
+    masm.reserveStack(frameSize());
+    masm.checkStackAlignment();
+    return true;
 }
 
 bool
 CodeGeneratorARM64::generateEpilogue()
 {
-    MOZ_CRASH("generateEpilogue");
-}
+    MOZ_ASSERT(!gen->compilingAsmJS());
+    masm.bind(&returnLabel_);
 
+#ifdef JS_TRACE_LOGGING
+    if (gen->info().executionMode() == SequentialExecution) {
+        if (!emitTracelogStopEvent(TraceLogger::IonMonkey))
+            return false;
+        if (!emitTracelogScriptStop())
+            return false;
+    }
+#endif
+
+    masm.freeStack(frameSize());
+    // FIXME: This probably doesn't work with the push(lr) in the prologue...
+    MOZ_ASSERT(masm.framePushed() == 0);
+    masm.pop(lr);
+    masm.MacroAssemblerVIXL::Ret(lr_64);
+    masm.flushBuffer();
+    return true;
+}
 
 bool
 CodeGeneratorARM64::generateOutOfLineCode()
