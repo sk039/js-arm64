@@ -400,6 +400,12 @@ LIRGeneratorARM64::visitForkJoinGetSlice(MForkJoinGetSlice *ins)
 }
 
 void
+LIRGeneratorARM64::visitSimdBinaryArith(MSimdBinaryArith *ins)
+{
+    MOZ_CRASH("NYI");
+}
+
+void
 LIRGeneratorARM64::visitSimdTernaryBitwise(MSimdTernaryBitwise *ins)
 {
     MOZ_CRASH("NYI");
