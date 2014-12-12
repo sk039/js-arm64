@@ -1051,10 +1051,6 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         // Clear upper 32 bits.
         Mov(ARMRegister(dest, 32), ARMRegister(dest, 32));
     }
-    void ret() {
-        syncStackPtr(); // SP is always used to transmit the stack between calls.
-        Ret(lr_64); // Branches to lr with a return hint.
-    }
 
     void retn(Imm32 n) {
         // ip0 <- [sp]; sp += n; ret ip0
