@@ -2252,6 +2252,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
 
     void abiret() {
+        syncStackPtr();
         MacroAssemblerVIXL::Ret(lr_64);
     }
 

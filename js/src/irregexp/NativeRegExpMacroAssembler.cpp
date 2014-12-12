@@ -381,7 +381,6 @@ NativeRegExpMacroAssembler::GenerateCode(JSContext *cx, bool match_only)
     for (GeneralRegisterBackwardIterator iter(savedNonVolatileRegisters); iter.more(); ++iter)
         masm.Pop(*iter);
 
-    masm.syncStackPtr();
     masm.abiret();
 
     // Backtrack code (branch target for conditional backtracks).
@@ -435,7 +434,6 @@ NativeRegExpMacroAssembler::GenerateCode(JSContext *cx, bool match_only)
 
         // Resume execution in calling code.
         masm.bind(&return_from_overflow_handler);
-        masm.syncStackPtr();
         masm.abiret();
     }
 
