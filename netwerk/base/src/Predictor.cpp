@@ -374,6 +374,13 @@ Predictor::GetIgnoreIdle(bool *ignoreIdle)
 }
 
 NS_IMETHODIMP
+Predictor::GetIgnorePossibleSpdyConnections(bool *ignorePossibleSpdyConnections)
+{
+  *ignorePossibleSpdyConnections = true;
+  return NS_OK;
+}
+
+NS_IMETHODIMP
 Predictor::GetParallelSpeculativeConnectLimit(
     uint32_t *parallelSpeculativeConnectLimit)
 {
@@ -409,8 +416,6 @@ class NuwaMarkPredictorThreadRunner : public nsRunnable
   NS_IMETHODIMP Run() MOZ_OVERRIDE
   {
     if (IsNuwaProcess()) {
-      NS_ASSERTION(NuwaMarkCurrentThread != nullptr,
-                   "NuwaMarkCurrentThread is undefined!");
       NuwaMarkCurrentThread(nullptr, nullptr);
     }
     return NS_OK;
