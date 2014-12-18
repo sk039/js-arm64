@@ -1926,8 +1926,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         MOZ_CRASH("labelForPatch");
     }
 
-    void handleFailureWithHandler(void *handler);
-    void handleFailureWithHandlerTail();
+    void handleFailureWithHandlerTail(void *handler);
 
     // FIXME: This is the same on all platforms. Can be common code?
     void makeFrameDescriptor(Register frameSizeReg, FrameType type) {
@@ -1950,10 +1949,8 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         MOZ_CRASH("memIntToValue");
     }
 
-#ifdef JSGC_GENERATIONAL
     void branchPtrInNurseryRange(Condition cond, Register ptr, Register temp, Label *label);
     void branchValueIsNurseryObject(Condition cond, ValueOperand value, Register temp, Label *label);
-#endif
 
     // Builds an exit frame on the stack, with a return address to an internal
     // non-function. Returns offset to be passed to markSafepointAt().
@@ -2258,7 +2255,8 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
 
     void abiret() {
-        MOZ_CRASH("abiret");
+        syncStackPtr();
+        MacroAssemblerVIXL::Ret(lr_64);
     }
 
     void mulBy3(Register src, Register dest) {

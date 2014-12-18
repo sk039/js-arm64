@@ -1,5 +1,5 @@
-// -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 2 -*-
-// vim: set ts=8 sts=2 et sw=2 tw=99:
+// -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+// vim: set ts=8 sts=4 et sw=4 tw=99:
 //
 // Copyright 2013, ARM Limited
 // All rights reserved.
@@ -29,6 +29,8 @@
 
 #include "jit/arm64/vixl/Cpu-vixl.h"
 
+#include "jsutil.h"
+
 #include "jit/arm64/vixl/VIXL-Utils-vixl.h"
 
 namespace js {
@@ -38,129 +40,133 @@ namespace jit {
 unsigned CPU::dcache_line_size_ = 1;
 unsigned CPU::icache_line_size_ = 1;
 
-
 // Currently computes I and D cache line size.
-void CPU::SetUp() {
-  uint32_t cache_type_register = GetCacheType();
+void
+CPU::SetUp()
+{
+    uint32_t cache_type_register = GetCacheType();
 
-  // The cache type register holds information about the caches, including I
-  // D caches line size.
-  static const int kDCacheLineSizeShift = 16;
-  static const int kICacheLineSizeShift = 0;
-  static const uint32_t kDCacheLineSizeMask = 0xf << kDCacheLineSizeShift;
-  static const uint32_t kICacheLineSizeMask = 0xf << kICacheLineSizeShift;
+    // The cache type register holds information about the caches, including I
+    // D caches line size.
+    static const int kDCacheLineSizeShift = 16;
+    static const int kICacheLineSizeShift = 0;
+    static const uint32_t kDCacheLineSizeMask = 0xf << kDCacheLineSizeShift;
+    static const uint32_t kICacheLineSizeMask = 0xf << kICacheLineSizeShift;
 
-  // The cache type register holds the size of the I and D caches in words as
-  // a power of two.
-  uint32_t dcache_line_size_power_of_two =
-      (cache_type_register & kDCacheLineSizeMask) >> kDCacheLineSizeShift;
-  uint32_t icache_line_size_power_of_two =
-      (cache_type_register & kICacheLineSizeMask) >> kICacheLineSizeShift;
+    // The cache type register holds the size of the I and D caches in words as
+    // a power of two.
+    uint32_t dcache_line_size_power_of_two =
+        (cache_type_register & kDCacheLineSizeMask) >> kDCacheLineSizeShift;
+    uint32_t icache_line_size_power_of_two =
+        (cache_type_register & kICacheLineSizeMask) >> kICacheLineSizeShift;
 
-  dcache_line_size_ = 4 << dcache_line_size_power_of_two;
-  icache_line_size_ = 4 << icache_line_size_power_of_two;
+    dcache_line_size_ = 4 << dcache_line_size_power_of_two;
+    icache_line_size_ = 4 << icache_line_size_power_of_two;
 }
 
-
-uint32_t CPU::GetCacheType() {
+uint32_t
+CPU::GetCacheType()
+{
 #ifdef JS_ARM64_SIMULATOR
-  // This will lead to a cache with 1 byte long lines, which is fine since the
-  // simulator will not need this information.
-  return 0;
+    // This will lead to a cache with 1 byte long lines, which is fine since the
+    // simulator will not need this information.
+    return 0;
 #else
-  uint32_t cache_type_register;
-  // Copy the content of the cache type register to a core register.
-  __asm__ __volatile__ ("mrs %[ctr], ctr_el0"  // NOLINT
-                        : [ctr] "=r" (cache_type_register));
-  return cache_type_register;
+    uint32_t cache_type_register;
+    // Copy the content of the cache type register to a core register.
+    __asm__ __volatile__ ("mrs %[ctr], ctr_el0"  // NOLINT
+                          : [ctr] "=r" (cache_type_register));
+    return cache_type_register;
 #endif
 }
 
 
-void CPU::EnsureIAndDCacheCoherency(void *address, size_t length) {
+void
+CPU::EnsureIAndDCacheCoherency(void *address, size_t length)
+{
 #ifdef JS_ARM64_SIMULATOR
-  USEARG(address);
-  USEARG(length);
+    USEARG(address);
+    USEARG(length);
 #else
-  if (length == 0) {
-    return;
-  }
-  // The code below assumes user space cache operations are allowed.
+    if (length == 0)
+        return;
 
-  // Work out the line sizes for each cache, and use them to determine the
-  // start addresses.
-  uintptr_t start = reinterpret_cast<uintptr_t>(address);
-  uintptr_t dsize = static_cast<uintptr_t>(dcache_line_size_);
-  uintptr_t isize = static_cast<uintptr_t>(icache_line_size_);
-  uintptr_t dline = start & ~(dsize - 1);
-  uintptr_t iline = start & ~(isize - 1);
+    // The code below assumes user space cache operations are allowed.
 
-  // Cache line sizes are always a power of 2.
-  MOZ_ASSERT(IsPowerOf2(dsize));
-  MOZ_ASSERT(IsPowerOf2(isize));
-  uintptr_t end = start + length;
+    // Work out the line sizes for each cache, and use them to determine the
+    // start addresses.
+    uintptr_t start = reinterpret_cast<uintptr_t>(address);
+    uintptr_t dsize = static_cast<uintptr_t>(dcache_line_size_);
+    uintptr_t isize = static_cast<uintptr_t>(icache_line_size_);
+    uintptr_t dline = start & ~(dsize - 1);
+    uintptr_t iline = start & ~(isize - 1);
 
-  do {
+    // Cache line sizes are always a power of 2.
+    MOZ_ASSERT(IsPowerOfTwo(dsize));
+    MOZ_ASSERT(IsPowerOfTwo(isize));
+    uintptr_t end = start + length;
+
+    do {
+        __asm__ __volatile__ (
+                // Clean each line of the D cache containing the target data.
+                //
+                // dc       : Data Cache maintenance
+                //     c    : Clean
+                //      va  : by (Virtual) Address
+                //        u : to the point of Unification
+                // The point of unification for a processor is the point by which the
+                // instruction and data caches are guaranteed to see the same copy of a
+                // memory location. See ARM DDI 0406B page B2-12 for more information.
+                "   dc    cvau, %[dline]\n"
+                :
+                : [dline] "r" (dline)
+                // This code does not write to memory, but the "memory" dependency
+                // prevents GCC from reordering the code.
+                : "memory");
+        dline += dsize;
+    } while (dline < end);
+
     __asm__ __volatile__ (
-      // Clean each line of the D cache containing the target data.
-      //
-      // dc       : Data Cache maintenance
-      //     c    : Clean
-      //      va  : by (Virtual) Address
-      //        u : to the point of Unification
-      // The point of unification for a processor is the point by which the
-      // instruction and data caches are guaranteed to see the same copy of a
-      // memory location. See ARM DDI 0406B page B2-12 for more information.
-      "   dc    cvau, %[dline]\n"
-      :
-      : [dline] "r" (dline)
-      // This code does not write to memory, but the "memory" dependency
-      // prevents GCC from reordering the code.
-      : "memory");
-    dline += dsize;
-  } while (dline < end);
+        // Make sure that the data cache operations (above) complete before the
+        // instruction cache operations (below).
+        //
+        // dsb      : Data Synchronisation Barrier
+        //      ish : Inner SHareable domain
+        //
+        // The point of unification for an Inner Shareable shareability domain is
+        // the point by which the instruction and data caches of all the processors
+        // in that Inner Shareable shareability domain are guaranteed to see the
+        // same copy of a memory location.  See ARM DDI 0406B page B2-12 for more
+        // information.
+        "   dsb   ish\n"
+        : : : "memory");
 
-  __asm__ __volatile__ (
-    // Make sure that the data cache operations (above) complete before the
-    // instruction cache operations (below).
-    //
-    // dsb      : Data Synchronisation Barrier
-    //      ish : Inner SHareable domain
-    //
-    // The point of unification for an Inner Shareable shareability domain is
-    // the point by which the instruction and data caches of all the processors
-    // in that Inner Shareable shareability domain are guaranteed to see the
-    // same copy of a memory location.  See ARM DDI 0406B page B2-12 for more
-    // information.
-    "   dsb   ish\n"
-    : : : "memory");
+    do {
+        __asm__ __volatile__ (
+            // Invalidate each line of the I cache containing the target data.
+            //
+            // ic      : Instruction Cache maintenance
+            //    i    : Invalidate
+            //     va  : by Address
+            //       u : to the point of Unification
+            "   ic   ivau, %[iline]\n"
+            :
+            : [iline] "r" (iline)
+            : "memory");
+        iline += isize;
+    } while (iline < end);
 
-  do {
     __asm__ __volatile__ (
-      // Invalidate each line of the I cache containing the target data.
-      //
-      // ic      : Instruction Cache maintenance
-      //    i    : Invalidate
-      //     va  : by Address
-      //       u : to the point of Unification
-      "   ic   ivau, %[iline]\n"
-      :
-      : [iline] "r" (iline)
-      : "memory");
-    iline += isize;
-  } while (iline < end);
+        // Make sure that the instruction cache operations (above) take effect
+        // before the isb (below).
+        "   dsb  ish\n"
 
-  __asm__ __volatile__ (
-    // Make sure that the instruction cache operations (above) take effect
-    // before the isb (below).
-    "   dsb  ish\n"
-
-    // Ensure that any instructions already in the pipeline are discarded and
-    // reloaded from the new data.
-    // isb : Instruction Synchronisation Barrier
-    "   isb\n"
-    : : : "memory");
-#endif
+        // Ensure that any instructions already in the pipeline are discarded and
+        // reloaded from the new data.
+        // isb : Instruction Synchronisation Barrier
+        "   isb\n"
+        : : : "memory");
+#endif // JS_ARM64_SIMULATOR
 }
 
 } // namespace jit

@@ -29,6 +29,8 @@
 
 #include "jit/arm64/vixl/MacroAssembler-vixl.h"
 
+#include <ctype.h>
+
 namespace js {
 namespace jit {
 
@@ -1407,57 +1409,6 @@ MacroAssemblerVIXL::Log(TraceParameters parameters)
 
     //MOZ_ASSERT(SizeOfCodeGeneratedSince(&start) == kLogParamsOffset);
     dc32(parameters);
-#else
-    // Emit nothing on real hardware.
-#endif
-}
-
-void
-MacroAssemblerVIXL::EnableInvariant(int idx)
-{
-#ifdef JS_ARM64_SIMULATOR
-    // FIXME: This is hacky.
-    if (!getenv("CHECK_INVARIANTS"))
-        return;
-
-    // The arguments to the log pseudo instruction need to be contiguous in
-    // memory, so make sure we don't try to emit a literal pool.
-    InstructionAccurateScope scope(this, kLogLength / kInstructionSize);
-
-    Label start;
-    bind(&start);
-
-    // Refer to instructions-a64.h for a description of the marker and its
-    // arguments.
-    hlt(kInvariantOpcode);
-
-    //MOZ_ASSERT(SizeOfCodeGeneratedSince(&start) == kLogParamsOffset);
-    dc32(idx | 0x80000000);
-#else
-    // Emit nothing on real hardware.
-#endif
-}
-void
-MacroAssemblerVIXL::DisableInvariant(int idx)
-{
-#ifdef JS_ARM64_SIMULATOR
-    // FIXME: This is hacky.
-    if (!getenv("CHECK_INVARIANTS"))
-        return;
-
-    // The arguments to the log pseudo instruction need to be contiguous in
-    // memory, so make sure we don't try to emit a literal pool.
-    InstructionAccurateScope scope(this, kLogLength / kInstructionSize);
-
-    Label start;
-    bind(&start);
-
-    // Refer to instructions-a64.h for a description of the marker and its
-    // arguments.
-    hlt(kInvariantOpcode);
-
-    //MOZ_ASSERT(SizeOfCodeGeneratedSince(&start) == kLogParamsOffset);
-    dc32(idx);
 #else
     // Emit nothing on real hardware.
 #endif

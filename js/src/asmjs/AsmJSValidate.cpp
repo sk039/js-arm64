@@ -87,13 +87,6 @@ UnaryKid(ParseNode *pn)
 }
 
 static inline ParseNode *
-ReturnExpr(ParseNode *pn)
-{
-    MOZ_ASSERT(pn->isKind(PNK_RETURN));
-    return UnaryKid(pn);
-}
-
-static inline ParseNode *
 BinaryRight(ParseNode *pn)
 {
     MOZ_ASSERT(pn->isArity(PN_BINARY));
@@ -105,6 +98,13 @@ BinaryLeft(ParseNode *pn)
 {
     MOZ_ASSERT(pn->isArity(PN_BINARY));
     return pn->pn_left;
+}
+
+static inline ParseNode *
+ReturnExpr(ParseNode *pn)
+{
+    MOZ_ASSERT(pn->isKind(PNK_RETURN));
+    return BinaryLeft(pn);
 }
 
 static inline ParseNode *
@@ -2757,7 +2757,7 @@ class FunctionCompiler
         curBlock_->setSlot(info().localSlot(local.slot), def);
     }
 
-    MDefinition *loadHeap(AsmJSHeapAccess::ViewType vt, MDefinition *ptr, NeedsBoundsCheck chk)
+    MDefinition *loadHeap(Scalar::Type vt, MDefinition *ptr, NeedsBoundsCheck chk)
     {
         if (inDeadCode())
             return nullptr;
@@ -2768,8 +2768,7 @@ class FunctionCompiler
         return load;
     }
 
-    void storeHeap(AsmJSHeapAccess::ViewType vt, MDefinition *ptr, MDefinition *v,
-                   NeedsBoundsCheck chk)
+    void storeHeap(Scalar::Type vt, MDefinition *ptr, MDefinition *v, NeedsBoundsCheck chk)
     {
         if (inDeadCode())
             return;
@@ -2787,7 +2786,7 @@ class FunctionCompiler
         curBlock_->add(ins);
     }
 
-    MDefinition *atomicLoadHeap(AsmJSHeapAccess::ViewType vt, MDefinition *ptr, NeedsBoundsCheck chk)
+    MDefinition *atomicLoadHeap(Scalar::Type vt, MDefinition *ptr, NeedsBoundsCheck chk)
     {
         if (inDeadCode())
             return nullptr;
@@ -2799,8 +2798,7 @@ class FunctionCompiler
         return load;
     }
 
-    void atomicStoreHeap(AsmJSHeapAccess::ViewType vt, MDefinition *ptr, MDefinition *v,
-                         NeedsBoundsCheck chk)
+    void atomicStoreHeap(Scalar::Type vt, MDefinition *ptr, MDefinition *v, NeedsBoundsCheck chk)
     {
         if (inDeadCode())
             return;
@@ -2811,28 +2809,26 @@ class FunctionCompiler
         curBlock_->add(store);
     }
 
-    MDefinition *atomicCompareExchangeHeap(AsmJSHeapAccess::ViewType vt, MDefinition *ptr,
-                                           MDefinition *oldv, MDefinition *newv, NeedsBoundsCheck chk)
+    MDefinition *atomicCompareExchangeHeap(Scalar::Type vt, MDefinition *ptr, MDefinition *oldv,
+                                           MDefinition *newv, NeedsBoundsCheck chk)
     {
         if (inDeadCode())
             return nullptr;
 
-        // The code generator requires explicit bounds checking for compareExchange.
-        bool needsBoundsCheck = true;
+        bool needsBoundsCheck = chk == NEEDS_BOUNDS_CHECK;
         MAsmJSCompareExchangeHeap *cas =
             MAsmJSCompareExchangeHeap::New(alloc(), vt, ptr, oldv, newv, needsBoundsCheck);
         curBlock_->add(cas);
         return cas;
     }
 
-    MDefinition *atomicBinopHeap(js::jit::AtomicOp op, AsmJSHeapAccess::ViewType vt,
-                                 MDefinition *ptr, MDefinition *v, NeedsBoundsCheck chk)
+    MDefinition *atomicBinopHeap(js::jit::AtomicOp op, Scalar::Type vt, MDefinition *ptr,
+                                 MDefinition *v, NeedsBoundsCheck chk)
     {
         if (inDeadCode())
             return nullptr;
 
-        // The code generator requires explicit bounds checking for the binops.
-        bool needsBoundsCheck = true;
+        bool needsBoundsCheck = chk == NEEDS_BOUNDS_CHECK;
         MAsmJSAtomicBinopHeap *binop =
             MAsmJSAtomicBinopHeap::New(alloc(), op, vt, ptr, v, needsBoundsCheck);
         curBlock_->add(binop);
@@ -4170,7 +4166,7 @@ static bool
 CheckFinalReturn(FunctionCompiler &f, ParseNode *stmt, RetType *retType)
 {
     if (stmt && stmt->isKind(PNK_RETURN)) {
-        if (ParseNode *coercionNode = UnaryKid(stmt)) {
+        if (ParseNode *coercionNode = BinaryLeft(stmt)) {
             AsmJSNumLit lit;
             if (IsLiteralOrConst(f, coercionNode, &lit)) {
                 switch (lit.which()) {
@@ -4454,7 +4450,7 @@ CheckLoadArray(FunctionCompiler &f, ParseNode *elem, MDefinition **def, Type *ty
     if (!CheckArrayAccess(f, ElemBase(elem), ElemIndex(elem), &viewType, &pointerDef, &needsBoundsCheck))
         return false;
 
-    *def = f.loadHeap(AsmJSHeapAccess::ViewType(viewType), pointerDef, needsBoundsCheck);
+    *def = f.loadHeap(viewType, pointerDef, needsBoundsCheck);
     *type = TypedArrayLoadType(viewType);
     return true;
 }
@@ -4548,7 +4544,7 @@ CheckStoreArray(FunctionCompiler &f, ParseNode *lhs, ParseNode *rhs, MDefinition
         MOZ_CRASH("Unexpected view type");
     }
 
-    f.storeHeap(AsmJSHeapAccess::ViewType(viewType), pointerDef, rhsDef, needsBoundsCheck);
+    f.storeHeap(viewType, pointerDef, rhsDef, needsBoundsCheck);
 
     *def = rhsDef;
     *type = rhsType;
@@ -4816,7 +4812,7 @@ CheckAtomicsLoad(FunctionCompiler &f, ParseNode *call, MDefinition **def, Type *
     if (!CheckSharedArrayAtomicAccess(f, arrayArg, indexArg, &viewType, &pointerDef, &needsBoundsCheck))
         return false;
 
-    *def = f.atomicLoadHeap(AsmJSHeapAccess::ViewType(viewType), pointerDef, needsBoundsCheck);
+    *def = f.atomicLoadHeap(viewType, pointerDef, needsBoundsCheck);
     *type = Type::Signed;
     return true;
 }
@@ -4845,7 +4841,7 @@ CheckAtomicsStore(FunctionCompiler &f, ParseNode *call, MDefinition **def, Type 
     if (!rhsType.isIntish())
         return f.failf(arrayArg, "%s is not a subtype of intish", rhsType.toChars());
 
-    f.atomicStoreHeap(AsmJSHeapAccess::ViewType(viewType), pointerDef, rhsDef, needsBoundsCheck);
+    f.atomicStoreHeap(viewType, pointerDef, rhsDef, needsBoundsCheck);
 
     *def = rhsDef;
     *type = Type::Signed;
@@ -4876,8 +4872,7 @@ CheckAtomicsBinop(FunctionCompiler &f, ParseNode *call, MDefinition **def, Type 
     if (!valueArgType.isIntish())
         return f.failf(valueArg, "%s is not a subtype of intish", valueArgType.toChars());
 
-    *def = f.atomicBinopHeap(op, AsmJSHeapAccess::ViewType(viewType), pointerDef, valueArgDef,
-                             needsBoundsCheck);
+    *def = f.atomicBinopHeap(op, viewType, pointerDef, valueArgDef, needsBoundsCheck);
     *type = Type::Signed;
     return true;
 }
@@ -4915,8 +4910,8 @@ CheckAtomicsCompareExchange(FunctionCompiler &f, ParseNode *call, MDefinition **
     if (!newValueArgType.isIntish())
         return f.failf(newValueArg, "%s is not a subtype of intish", newValueArgType.toChars());
 
-    *def = f.atomicCompareExchangeHeap(AsmJSHeapAccess::ViewType(viewType), pointerDef,
-                                       oldValueArgDef, newValueArgDef, needsBoundsCheck);
+    *def = f.atomicCompareExchangeHeap(viewType, pointerDef, oldValueArgDef, newValueArgDef,
+                                       needsBoundsCheck);
     *type = Type::Signed;
     return true;
 }
@@ -5382,7 +5377,7 @@ class CheckSimdScalarArgs
     Type formalType_;
 
   public:
-    CheckSimdScalarArgs(AsmJSSimdType simdType)
+    explicit CheckSimdScalarArgs(AsmJSSimdType simdType)
       : simdType_(simdType), formalType_(SimdToCoercedScalarType(simdType))
     {}
 
@@ -5616,26 +5611,26 @@ CheckSimdShuffle(FunctionCompiler &f, ParseNode *call, AsmJSSimdType opType, MDe
 
 static bool
 CheckSimdLoadStoreArgs(FunctionCompiler &f, ParseNode *call, AsmJSSimdType opType,
-                       AsmJSHeapAccess::ViewType *viewType, MDefinition **index,
+                       Scalar::Type *viewType, MDefinition **index,
                        NeedsBoundsCheck *needsBoundsCheck)
 {
     ParseNode *view = CallArgList(call);
     if (!view->isKind(PNK_NAME))
-        return f.fail(view, "expected Uint8Array view as SIMD.*.store first argument");
+        return f.fail(view, "expected Uint8Array view as SIMD.*.load/store first argument");
 
     const ModuleCompiler::Global *global = f.lookupGlobal(view->name());
     if (!global ||
         global->which() != ModuleCompiler::Global::ArrayView ||
         global->viewType() != Scalar::Uint8)
     {
-        return f.fail(view, "expected Uint8Array view as SIMD.*.store first argument");
+        return f.fail(view, "expected Uint8Array view as SIMD.*.load/store first argument");
     }
 
     *needsBoundsCheck = NEEDS_BOUNDS_CHECK;
 
     switch (opType) {
-      case AsmJSSimdType_int32x4:   *viewType = AsmJSHeapAccess::Int32x4;   break;
-      case AsmJSSimdType_float32x4: *viewType = AsmJSHeapAccess::Float32x4; break;
+      case AsmJSSimdType_int32x4:   *viewType = Scalar::Int32x4;   break;
+      case AsmJSSimdType_float32x4: *viewType = Scalar::Float32x4; break;
     }
 
     ParseNode *indexExpr = NextNode(view);
@@ -5675,7 +5670,7 @@ CheckSimdLoad(FunctionCompiler &f, ParseNode *call, AsmJSSimdType opType, MDefin
     if (numArgs != 2)
         return f.failf(call, "expected 2 arguments to SIMD load, got %u", numArgs);
 
-    AsmJSHeapAccess::ViewType viewType;
+    Scalar::Type viewType;
     MDefinition *index;
     NeedsBoundsCheck needsBoundsCheck;
     if (!CheckSimdLoadStoreArgs(f, call, opType, &viewType, &index, &needsBoundsCheck))
@@ -5691,9 +5686,9 @@ CheckSimdStore(FunctionCompiler &f, ParseNode *call, AsmJSSimdType opType, MDefi
 {
     unsigned numArgs = CallArgListLength(call);
     if (numArgs != 3)
-        return f.failf(call, "expected 3 arguments to SIMD load, got %u", numArgs);
+        return f.failf(call, "expected 3 arguments to SIMD store, got %u", numArgs);
 
-    AsmJSHeapAccess::ViewType viewType;
+    Scalar::Type viewType;
     MDefinition *index;
     NeedsBoundsCheck needsBoundsCheck;
     if (!CheckSimdLoadStoreArgs(f, call, opType, &viewType, &index, &needsBoundsCheck))
@@ -5778,11 +5773,11 @@ CheckSimdOperationCall(FunctionCompiler &f, ParseNode *call, const ModuleCompile
       case AsmJSSimdOperation_fromFloat32x4Bits:
         return CheckSimdCast<MSimdReinterpretCast>(f, call, AsmJSSimdType_float32x4, opType, def, type);
 
-      case AsmJSSimdOperation_shiftLeft:
+      case AsmJSSimdOperation_shiftLeftByScalar:
         return CheckSimdBinary(f, call, opType, MSimdShift::lsh, def, type);
-      case AsmJSSimdOperation_shiftRight:
+      case AsmJSSimdOperation_shiftRightArithmeticByScalar:
         return CheckSimdBinary(f, call, opType, MSimdShift::rsh, def, type);
-      case AsmJSSimdOperation_shiftRightLogical:
+      case AsmJSSimdOperation_shiftRightLogicalByScalar:
         return CheckSimdBinary(f, call, opType, MSimdShift::ursh, def, type);
 
       case AsmJSSimdOperation_abs:
@@ -6219,9 +6214,12 @@ CheckConditional(FunctionCompiler &f, ParseNode *ternary, MDefinition **def, Typ
         *type = Type::Double;
     } else if (thenType.isFloat() && elseType.isFloat()) {
         *type = Type::Float;
+    } else if (elseType.isSimd() && thenType <= elseType && elseType <= thenType) {
+        *type = thenType;
     } else {
-        return f.failf(ternary, "then/else branches of conditional must both produce int or double, "
-                       "current types are %s and %s", thenType.toChars(), elseType.toChars());
+        return f.failf(ternary, "then/else branches of conditional must both produce int, float, "
+                       "double or SIMD types, current types are %s and %s",
+                       thenType.toChars(), elseType.toChars());
     }
 
     if (!f.joinIfElse(thenBlocks, elseExpr))
@@ -9170,9 +9168,6 @@ EstablishPreconditions(ExclusiveContext *cx, AsmJSParser &parser)
 
     if (parser.pc->isArrowFunction())
         return Warn(parser, JSMSG_USE_ASM_TYPE_FAIL, "Disabled by arrow function context");
-
-    if (ParallelCompilationEnabled(cx))
-        EnsureHelperThreadsInitialized(cx);
 
     return true;
 }

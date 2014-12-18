@@ -27,6 +27,13 @@ loop.conversationViews = (function(mozL10n) {
     return contact.email.find(e => e.pref) || contact.email[0];
   }
 
+  function _getContactDisplayName(contact) {
+    if (contact.name && contact.name[0]) {
+      return contact.name[0];
+    }
+    return _getPreferredEmail(contact).value;
+  }
+
   /**
    * Displays information about the call
    * Caller avatar, name & conversation creation date
@@ -107,14 +114,7 @@ loop.conversationViews = (function(mozL10n) {
     },
 
     render: function() {
-      var contactName;
-
-      if (this.props.contact.name &&
-          this.props.contact.name[0]) {
-        contactName = this.props.contact.name[0];
-      } else {
-        contactName = _getPreferredEmail(this.props.contact).value;
-      }
+      var contactName = _getContactDisplayName(this.props.contact);
 
       document.title = contactName;
 
@@ -193,7 +193,11 @@ loop.conversationViews = (function(mozL10n) {
    * Call failed view. Displayed when a call fails.
    */
   var CallFailedView = React.createClass({
-    mixins: [Backbone.Events, sharedMixins.AudioMixin],
+    mixins: [
+      Backbone.Events,
+      sharedMixins.AudioMixin,
+      sharedMixins.WindowCloseMixin
+    ],
 
     propTypes: {
       dispatcher: React.PropTypes.instanceOf(loop.Dispatcher).isRequired,
@@ -227,7 +231,7 @@ loop.conversationViews = (function(mozL10n) {
       var emailLink = this.props.store.getStoreState("emailLink");
       var contactEmail = _getPreferredEmail(this.props.contact).value;
       sharedUtils.composeCallUrlEmail(emailLink, contactEmail);
-      window.close();
+      this.closeWindow();
     },
 
     _onEmailLinkError: function() {
@@ -258,7 +262,10 @@ loop.conversationViews = (function(mozL10n) {
         emailLinkButtonDisabled: true
       });
 
-      this.props.dispatcher.dispatch(new sharedActions.FetchEmailLink());
+      this.props.dispatcher.dispatch(new sharedActions.FetchRoomEmailLink({
+        roomOwner: navigator.mozLoop.userProfile.email,
+        roomName: _getContactDisplayName(this.props.contact)
+      }));
     },
 
     render: function() {

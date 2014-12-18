@@ -27,7 +27,11 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#include "jit/arm64/MacroAssembler-arm64.h"
+
+#include "jit/arm64/BaselineRegisters-arm64.h"
 #include "jit/arm64/MoveEmitter-arm64.h"
+#include "jit/BaselineFrame.h"
 #include "jit/MacroAssembler.h"
 
 namespace js {
@@ -37,10 +41,6 @@ namespace jit {
 void
 MacroAssembler::PushRegsInMask(RegisterSet set, FloatRegisterSet simdSet)
 {
-    // FIXME: Are we storing the full 128 bits or what?
-    int32_t diffF = set.fpus().size() * sizeof(double);
-    int32_t diffG = set.gprs().size() * sizeof(intptr_t);
-
     // TODO: Clean up this function using helpers. Should be easy.
     for (GeneralRegisterBackwardIterator iter(set.gprs()); iter.more(); ) {
         CPURegister src0 = NoCPUReg;
@@ -221,7 +221,7 @@ MacroAssemblerCompat::movePatchablePtr(ImmPtr ptr, Register dest)
 }
 
 void
-MacroAssemblerCompat::handleFailureWithHandler(void *handler)
+MacroAssemblerCompat::handleFailureWithHandlerTail(void *handler)
 {
     // Reserve space for exception information.
     int64_t size = (sizeof(ResumeFromException) + 7) & ~7;
@@ -231,18 +231,11 @@ MacroAssemblerCompat::handleFailureWithHandler(void *handler)
 
     Add(x0, GetStackPointer(), Operand(0));
 
-    // Ask for an exception handler.
+    // Call the handler.
     setupUnalignedABICall(1, r1);
     passABIArg(r0);
     callWithABI(handler);
 
-    JitCode *excTail = GetJitContext()->runtime->jitRuntime()->getExceptionTail();
-    branch(excTail);
-}
-
-void
-MacroAssemblerCompat::handleFailureWithHandlerTail()
-{
     Label entryFrame;
     Label catch_;
     Label finally;
@@ -545,7 +538,6 @@ MacroAssemblerCompat::callWithABI(Address fun, MoveOp::Type result)
     callWithABIPost(stackAdjust, result);
 }
 
-#ifdef JSGC_GENERATIONAL
 void MacroAssemblerCompat::branchPtrInNurseryRange(Condition cond, Register ptr, Register temp,
                                                    Label *label)
 {
@@ -560,9 +552,7 @@ void MacroAssemblerCompat::branchPtrInNurseryRange(Condition cond, Register ptr,
     branchPtr(cond == Assembler::Equal ? Assembler::Below : Assembler::AboveOrEqual,
               temp, ImmWord(nursery.nurserySize()), label);
 }
-#endif // JSGC_GENERATIONAL
 
-#ifdef JSGC_GENERATIONAL
 void
 MacroAssemblerCompat::branchValueIsNurseryObject(Condition cond, ValueOperand value, Register temp,
                                                  Label *label)
@@ -579,7 +569,6 @@ MacroAssemblerCompat::branchValueIsNurseryObject(Condition cond, ValueOperand va
     branchPtr(cond == Assembler::Equal ? Assembler::Below : Assembler::AboveOrEqual,
               temp, ImmWord(nursery.nurserySize()), label);
 }
-#endif // JSGC_GENERATIONAL
 
 // FIXME: Probably just call Brk() in the header.
 void

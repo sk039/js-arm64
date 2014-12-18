@@ -398,7 +398,8 @@ class MacroAssemblerARM : public Assembler
     BufferOffset ma_vstr(VFPRegister src, VFPAddr addr, Condition cc = Always);
     BufferOffset ma_vstr(VFPRegister src, const Operand &addr, Condition cc = Always);
 
-    BufferOffset ma_vstr(VFPRegister src, Register base, Register index, int32_t shift = defaultShift, Condition cc = Always);
+    BufferOffset ma_vstr(VFPRegister src, Register base, Register index, int32_t shift,
+                         int32_t offset, Condition cc = Always);
     // Calls an Ion function, assumes that the stack is untouched (8 byte
     // aligned).
     void ma_callJit(const Register reg);
@@ -1100,6 +1101,11 @@ class MacroAssemblerARMCompat : public MacroAssemblerARM
         ma_cmp(secondScratchReg_, rhs);
         ma_b(label, cond);
     }
+    void branch32(Condition cond, AsmJSAbsoluteAddress addr, Imm32 imm, Label *label) {
+        loadPtr(addr, ScratchRegister);
+        ma_cmp(ScratchRegister, imm);
+        ma_b(label, cond);
+    }
 
     void loadUnboxedValue(Address address, MIRType type, AnyRegister dest) {
         if (dest.isFloat())
@@ -1219,8 +1225,7 @@ class MacroAssemblerARMCompat : public MacroAssemblerARM
         ma_orr(Imm32(type), frameSizeReg);
     }
 
-    void handleFailureWithHandler(void *handler);
-    void handleFailureWithHandlerTail();
+    void handleFailureWithHandlerTail(void *handler);
 
     /////////////////////////////////////////////////////////////////
     // Common interface.
@@ -1286,7 +1291,7 @@ class MacroAssemblerARMCompat : public MacroAssemblerARM
 
     // Builds an exit frame on the stack, with a return address to an internal
     // non-function. Returns offset to be passed to markSafepointAt().
-    bool buildFakeExitFrame(Register scratch, uint32_t *offset);
+    void buildFakeExitFrame(Register scratch, uint32_t *offset);
 
     void callWithExitFrame(Label *target);
     void callWithExitFrame(JitCode *target);
@@ -1415,10 +1420,8 @@ class MacroAssemblerARMCompat : public MacroAssemblerARM
         ma_vstr(src, Operand(addr));
     }
     void storeDouble(FloatRegister src, BaseIndex addr) {
-        // Harder cases not handled yet.
-        MOZ_ASSERT(addr.offset == 0);
         uint32_t scale = Imm32::ShiftOf(addr.scale).value;
-        ma_vstr(src, addr.base, addr.index, scale);
+        ma_vstr(src, addr.base, addr.index, scale, addr.offset);
     }
     void moveDouble(FloatRegister src, FloatRegister dest) {
         ma_vmov(src, dest);
@@ -1428,10 +1431,8 @@ class MacroAssemblerARMCompat : public MacroAssemblerARM
         ma_vstr(VFPRegister(src).singleOverlay(), Operand(addr));
     }
     void storeFloat32(FloatRegister src, BaseIndex addr) {
-        // Harder cases not handled yet.
-        MOZ_ASSERT(addr.offset == 0);
         uint32_t scale = Imm32::ShiftOf(addr.scale).value;
-        ma_vstr(VFPRegister(src).singleOverlay(), addr.base, addr.index, scale);
+        ma_vstr(VFPRegister(src).singleOverlay(), addr.base, addr.index, scale, addr.offset);
     }
 
   private:
@@ -1824,10 +1825,8 @@ class MacroAssemblerARMCompat : public MacroAssemblerARM
         as_vmov(VFPRegister(dest).singleOverlay(), VFPRegister(src).singleOverlay());
     }
 
-#ifdef JSGC_GENERATIONAL
     void branchPtrInNurseryRange(Condition cond, Register ptr, Register temp, Label *label);
     void branchValueIsNurseryObject(Condition cond, ValueOperand value, Register temp, Label *label);
-#endif
 
     void loadAsmJSActivation(Register dest) {
         loadPtr(Address(GlobalReg, AsmJSActivationGlobalDataOffset - AsmJSGlobalRegBias), dest);

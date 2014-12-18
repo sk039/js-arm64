@@ -190,7 +190,7 @@ AppendToString(std::stringstream& aStream, const FrameMetrics& m,
     AppendToString(aStream, m.GetRootCompositionSize(), " rcs=");
     AppendToString(aStream, m.GetViewport(), " v=");
     aStream << nsPrintfCString(" z=(ld=%.3f r=%.3f cr=%.3f z=%.3f er=%.3f)",
-            m.mDevPixelsPerCSSPixel.scale, m.mPresShellResolution,
+            m.GetDevPixelsPerCSSPixel().scale, m.mPresShellResolution,
             m.mCumulativeResolution.scale, m.GetZoom().scale,
             m.GetExtraResolution().scale).get();
     aStream << nsPrintfCString(" u=(%d %d %lu)",
@@ -327,17 +327,9 @@ print_stderr(std::stringstream& aStr)
   // we usually use std::stringstream to build up giant multi-line gobs
   // of output. So to avoid the truncation we find the newlines and
   // print the lines individually.
-  char line[1024];
-  while (!aStr.eof()) {
-    aStr.getline(line, sizeof(line));
-    if (!aStr.eof() || strlen(line) > 0) {
-      printf_stderr("%s\n", line);
-    }
-    if (aStr.fail()) {
-      // line was too long, skip to next newline
-      aStr.clear();
-      aStr.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-    }
+  std::string line;
+  while (std::getline(aStr, line)) {
+    printf_stderr("%s\n", line.c_str());
   }
 #else
   printf_stderr("%s", aStr.str().c_str());

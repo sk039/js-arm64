@@ -147,7 +147,7 @@ loop.standaloneRoomViews = (function(mozL10n) {
       return (
         <header>
           <h1>{mozL10n.get("clientShortname2")}</h1>
-          <a target="_blank" href={loop.config.roomsSupportUrl}>
+          <a target="_blank" href={loop.config.generalSupportUrl}>
             <i className="icon icon-help"></i>
           </a>
         </header>
@@ -351,6 +351,7 @@ loop.standaloneRoomViews = (function(mozL10n) {
 
       return (
         <div className="room-conversation-wrapper">
+          <div className="beta-logo" />
           <StandaloneRoomHeader />
           <StandaloneRoomInfoArea roomState={this.state.roomState}
                                   failureReason={this.state.failureReason}

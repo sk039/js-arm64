@@ -234,8 +234,8 @@ public:
   // The following metrics are all in widget space/device pixels.
   //
 
-  // This is the area within the widget that we're compositing to. It is relative
-  // to the layer tree origin.
+  // This is the area within the widget that we're compositing to. It is in the
+  // same coordinate space as the reference frame for the scrolled frame.
   //
   // This is useful because, on mobile, the viewport and composition dimensions
   // are not always the same. In this case, we calculate the displayport using
@@ -256,11 +256,8 @@ public:
   // space, so each is explained separately.
   //
 
-  // The area of a frame's contents that has been painted, relative to the
-  // viewport. It is in the same coordinate space as |mViewport|. For example,
-  // if it is at 0,0, then it's at the same place at the viewport, which is at
-  // the top-left in the layer, and at the same place as the scroll offset of
-  // the document.
+  // The area of a frame's contents that has been painted, relative to
+  // mCompositionBounds.
   //
   // Note that this is structured in such a way that it doesn't depend on the
   // method layout uses to scroll content.
@@ -312,13 +309,17 @@ public:
   // resolution. This information is provided by Gecko at layout/paint time.
   LayoutDeviceToLayerScale mCumulativeResolution;
 
-  // The conversion factor between CSS pixels and device pixels for this frame.
-  // This can vary based on a variety of things, such as reflowing-zoom. The
-  // conversion factor for device pixels to layers pixels is just the
-  // resolution.
-  CSSToLayoutDeviceScale mDevPixelsPerCSSPixel;
-
 public:
+  void SetDevPixelsPerCSSPixel(const CSSToLayoutDeviceScale& aDevPixelsPerCSSPixel)
+  {
+    mDevPixelsPerCSSPixel = aDevPixelsPerCSSPixel;
+  }
+
+  CSSToLayoutDeviceScale GetDevPixelsPerCSSPixel() const
+  {
+    return mDevPixelsPerCSSPixel;
+  }
+
   void SetIsRoot(bool aIsRoot)
   {
     mIsRoot = aIsRoot;
@@ -530,7 +531,13 @@ private:
   // New fields from now on should be made private and old fields should
   // be refactored to be private.
 
-  // Whether or not this frame may have a touch listeners.
+  // The conversion factor between CSS pixels and device pixels for this frame.
+  // This can vary based on a variety of things, such as reflowing-zoom. The
+  // conversion factor for device pixels to layers pixels is just the
+  // resolution.
+  CSSToLayoutDeviceScale mDevPixelsPerCSSPixel;
+
+  // Whether or not this frame may have touch or scroll wheel listeners.
   bool mMayHaveTouchListeners;
 
   // Whether or not this frame may have a touch caret.
@@ -640,7 +647,6 @@ struct ScrollableLayerGuid {
     , mPresShellId(0)
     , mScrollId(0)
   {
-    MOZ_COUNT_CTOR(ScrollableLayerGuid);
   }
 
   ScrollableLayerGuid(uint64_t aLayersId, uint32_t aPresShellId,
@@ -649,7 +655,6 @@ struct ScrollableLayerGuid {
     , mPresShellId(aPresShellId)
     , mScrollId(aScrollId)
   {
-    MOZ_COUNT_CTOR(ScrollableLayerGuid);
   }
 
   ScrollableLayerGuid(uint64_t aLayersId, const FrameMetrics& aMetrics)
@@ -657,7 +662,6 @@ struct ScrollableLayerGuid {
     , mPresShellId(aMetrics.GetPresShellId())
     , mScrollId(aMetrics.GetScrollId())
   {
-    MOZ_COUNT_CTOR(ScrollableLayerGuid);
   }
 
   ScrollableLayerGuid(const ScrollableLayerGuid& other)
@@ -665,12 +669,10 @@ struct ScrollableLayerGuid {
     , mPresShellId(other.mPresShellId)
     , mScrollId(other.mScrollId)
   {
-    MOZ_COUNT_CTOR(ScrollableLayerGuid);
   }
 
   ~ScrollableLayerGuid()
   {
-    MOZ_COUNT_DTOR(ScrollableLayerGuid);
   }
 
   bool operator==(const ScrollableLayerGuid& other) const

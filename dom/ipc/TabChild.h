@@ -324,7 +324,8 @@ public:
                           PRenderFrameChild* aRenderFrame) MOZ_OVERRIDE;
     virtual bool RecvUpdateDimensions(const nsIntRect& rect,
                                       const nsIntSize& size,
-                                      const ScreenOrientation& orientation) MOZ_OVERRIDE;
+                                      const ScreenOrientation& orientation,
+                                      const nsIntPoint& chromeDisp) MOZ_OVERRIDE;
     virtual bool RecvUpdateFrame(const mozilla::layers::FrameMetrics& aFrameMetrics) MOZ_OVERRIDE;
     virtual bool RecvAcknowledgeScrollUpdate(const ViewID& aScrollId,
                                              const uint32_t& aScrollGeneration) MOZ_OVERRIDE;
@@ -352,7 +353,9 @@ public:
     virtual bool RecvRealMouseEvent(const mozilla::WidgetMouseEvent& event) MOZ_OVERRIDE;
     virtual bool RecvRealKeyEvent(const mozilla::WidgetKeyboardEvent& event,
                                   const MaybeNativeKeyBinding& aBindings) MOZ_OVERRIDE;
-    virtual bool RecvMouseWheelEvent(const mozilla::WidgetWheelEvent& event) MOZ_OVERRIDE;
+    virtual bool RecvMouseWheelEvent(const mozilla::WidgetWheelEvent& event,
+                                     const ScrollableLayerGuid& aGuid,
+                                     const uint64_t& aInputBlockId) MOZ_OVERRIDE;
     virtual bool RecvRealTouchEvent(const WidgetTouchEvent& aEvent,
                                     const ScrollableLayerGuid& aGuid,
                                     const uint64_t& aInputBlockId) MOZ_OVERRIDE;
@@ -493,6 +496,8 @@ public:
     bool DeallocPPluginWidgetChild(PPluginWidgetChild* aActor) MOZ_OVERRIDE;
     already_AddRefed<nsIWidget> CreatePluginWidget(nsIWidget* aParent);
 
+    nsIntPoint GetChromeDisplacement() { return mChromeDisp; };
+
 protected:
     virtual ~TabChild();
 
@@ -578,6 +583,22 @@ private:
     void SendPendingTouchPreventedResponse(bool aPreventDefault,
                                            const ScrollableLayerGuid& aGuid);
 
+    // Adds the scrollable layer target to the target list, and returns whether
+    // or not the caller should wait for a refresh to send a target
+    // notification.
+    bool PrepareForSetTargetAPZCNotification(const ScrollableLayerGuid& aGuid,
+                                             const uint64_t& aInputBlockId,
+                                             nsIFrame* aRootFrame,
+                                             const nsIntPoint& aRefPoint,
+                                             nsTArray<ScrollableLayerGuid>* aTargets);
+
+    // Sends a SetTarget notification for APZC, given one or more previous
+    // calls to PrepareForAPZCSetTargetNotification().
+    void SendSetTargetAPZCNotification(nsIPresShell* aShell,
+                                       const uint64_t& aInputBlockId,
+                                       const nsTArray<ScrollableLayerGuid>& aTargets,
+                                       bool aWaitForRefresh);
+
     void SendSetTargetAPZCNotification(const WidgetTouchEvent& aEvent,
                                        const mozilla::layers::ScrollableLayerGuid& aGuid,
                                        const uint64_t& aInputBlockId);
@@ -635,7 +656,11 @@ private:
     nsRefPtr<ActiveElementManager> mActiveElementManager;
     bool mHasValidInnerSize;
     bool mDestroyed;
+    // Position of tab, relative to parent widget (typically the window)
+    nsIntPoint mChromeDisp;
     TabId mUniqueId;
+    float mDPI;
+    double mDefaultScale;
 
     DISALLOW_EVIL_CONSTRUCTORS(TabChild);
 };

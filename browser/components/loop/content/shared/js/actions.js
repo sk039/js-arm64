@@ -76,10 +76,12 @@ loop.shared.actions = (function() {
     }),
 
     /**
-     * Fetch a new call url from the server, intended to be sent over email when
+     * Fetch a new room url from the server, intended to be sent over email when
      * a contact can't be reached.
      */
-    FetchEmailLink: Action.define("fetchEmailLink", {
+    FetchRoomEmailLink: Action.define("fetchRoomEmailLink", {
+      roomOwner: String,
+      roomName: String
     }),
 
     /**
@@ -260,6 +262,14 @@ loop.shared.actions = (function() {
     RenameRoom: Action.define("renameRoom", {
       roomToken: String,
       newRoomName: String
+    }),
+
+    /**
+     * Renaming a room error.
+     * XXX: should move to some roomActions module - refs bug 1079284
+     */
+    RenameRoomError: Action.define("renameRoomError", {
+      error: [Error, Object]
     }),
 
     /**

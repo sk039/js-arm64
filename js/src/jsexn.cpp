@@ -65,13 +65,13 @@ static const JSFunctionSpec exception_methods[] = {
         JSCLASS_IMPLEMENTS_BARRIERS | \
         JSCLASS_HAS_CACHED_PROTO(JSProto_##name) | \
         JSCLASS_HAS_RESERVED_SLOTS(ErrorObject::RESERVED_SLOTS), \
-        JS_PropertyStub,         /* addProperty */ \
-        JS_DeletePropertyStub,   /* delProperty */ \
-        JS_PropertyStub,         /* getProperty */ \
-        JS_StrictPropertyStub,   /* setProperty */ \
-        JS_EnumerateStub, \
-        JS_ResolveStub, \
-        JS_ConvertStub, \
+        nullptr,                 /* addProperty */ \
+        nullptr,                 /* delProperty */ \
+        nullptr,                 /* getProperty */ \
+        nullptr,                 /* setProperty */ \
+        nullptr,                 /* enumerate */ \
+        nullptr,                 /* resolve */ \
+        nullptr,                 /* convert */ \
         exn_finalize, \
         nullptr,                 /* call        */ \
         nullptr,                 /* hasInstance */ \
@@ -95,13 +95,13 @@ ErrorObject::classes[JSEXN_LIMIT] = {
         JSCLASS_IMPLEMENTS_BARRIERS |
         JSCLASS_HAS_CACHED_PROTO(JSProto_Error) |
         JSCLASS_HAS_RESERVED_SLOTS(ErrorObject::RESERVED_SLOTS),
-        JS_PropertyStub,         /* addProperty */
-        JS_DeletePropertyStub,   /* delProperty */
-        JS_PropertyStub,         /* getProperty */
-        JS_StrictPropertyStub,   /* setProperty */
-        JS_EnumerateStub,
-        JS_ResolveStub,
-        JS_ConvertStub,
+        nullptr,                 /* addProperty */
+        nullptr,                 /* delProperty */
+        nullptr,                 /* getProperty */
+        nullptr,                 /* setProperty */
+        nullptr,                 /* enumerate */
+        nullptr,                 /* resolve */
+        nullptr,                 /* convert */
         exn_finalize,
         nullptr,                 /* call        */
         nullptr,                 /* hasInstance */
@@ -508,11 +508,8 @@ ErrorObject::createProto(JSContext *cx, JSProtoKey key)
     // instance properties.
     RootedPropertyName name(cx, ClassName(key, cx));
     RootedValue nameValue(cx, StringValue(name));
-    if (!JSObject::defineProperty(cx, err, cx->names().name, nameValue,
-                                  JS_PropertyStub, JS_StrictPropertyStub, 0))
-    {
+    if (!JSObject::defineProperty(cx, err, cx->names().name, nameValue, nullptr, nullptr, 0))
         return nullptr;
-    }
 
     return errorProto;
 }

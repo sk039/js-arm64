@@ -63,7 +63,6 @@
 #include "nsIWebBrowserSetup.h"
 #include "nsIWebProgress.h"
 #include "nsIXULRuntime.h"
-#include "nsInterfaceHashtable.h"
 #include "nsPIDOMWindow.h"
 #include "nsPIWindowRoot.h"
 #include "nsLayoutUtils.h"
@@ -246,11 +245,11 @@ TabChildBase::InitializeRootMetrics()
       ParentLayerPoint(),
       ParentLayerSize(ViewAs<ParentLayerPixel>(mInnerSize, PixelCastJustification::ScreenIsParentLayerForRoot)));
   mLastRootMetrics.SetZoom(mLastRootMetrics.CalculateIntrinsicScale());
-  mLastRootMetrics.mDevPixelsPerCSSPixel = WebWidget()->GetDefaultScale();
+  mLastRootMetrics.SetDevPixelsPerCSSPixel(WebWidget()->GetDefaultScale());
   // We use ParentLayerToLayerScale(1) below in order to turn the
   // async zoom amount into the gecko zoom amount.
   mLastRootMetrics.mCumulativeResolution =
-    mLastRootMetrics.GetZoom() / mLastRootMetrics.mDevPixelsPerCSSPixel * ParentLayerToLayerScale(1);
+    mLastRootMetrics.GetZoom() / mLastRootMetrics.GetDevPixelsPerCSSPixel() * ParentLayerToLayerScale(1);
   // This is the root layer, so the cumulative resolution is the same
   // as the resolution.
   mLastRootMetrics.mPresShellResolution = mLastRootMetrics.mCumulativeResolution.scale;
@@ -385,7 +384,7 @@ TabChildBase::HandlePossibleViewportChange(const ScreenIntSize& aOldScreenSize)
       ParentLayerPoint(),
       ParentLayerSize(ViewAs<ParentLayerPixel>(mInnerSize, PixelCastJustification::ScreenIsParentLayerForRoot)));
   metrics.SetRootCompositionSize(
-      ScreenSize(mInnerSize) * ScreenToLayoutDeviceScale(1.0f) / metrics.mDevPixelsPerCSSPixel);
+      ScreenSize(mInnerSize) * ScreenToLayoutDeviceScale(1.0f) / metrics.GetDevPixelsPerCSSPixel());
 
   // This change to the zoom accounts for all types of changes I can conceive:
   // 1. screen size changes, CSS viewport does not (pages with no meta viewport
@@ -426,13 +425,13 @@ TabChildBase::HandlePossibleViewportChange(const ScreenIntSize& aOldScreenSize)
 
   if (nsIPresShell* shell = document->GetShell()) {
     if (nsPresContext* context = shell->GetPresContext()) {
-      metrics.mDevPixelsPerCSSPixel = CSSToLayoutDeviceScale(
-        (float)nsPresContext::AppUnitsPerCSSPixel() / context->AppUnitsPerDevPixel());
+      metrics.SetDevPixelsPerCSSPixel(CSSToLayoutDeviceScale(
+        (float)nsPresContext::AppUnitsPerCSSPixel() / context->AppUnitsPerDevPixel()));
     }
   }
 
   metrics.mCumulativeResolution = metrics.GetZoom()
-                                / metrics.mDevPixelsPerCSSPixel
+                                / metrics.GetDevPixelsPerCSSPixel()
                                 * ParentLayerToLayerScale(1);
   // This is the root layer, so the cumulative resolution is the same
   // as the resolution.
@@ -469,7 +468,7 @@ TabChildBase::HandlePossibleViewportChange(const ScreenIntSize& aOldScreenSize)
   if (viewportInfo.IsZoomAllowed() && scrollIdentifiersValid) {
     // If the CSS viewport is narrower than the screen (i.e. width <= device-width)
     // then we disable double-tap-to-zoom behaviour.
-    bool allowDoubleTapZoom = (viewport.width > screenW / metrics.mDevPixelsPerCSSPixel.scale);
+    bool allowDoubleTapZoom = (viewport.width > screenW / metrics.GetDevPixelsPerCSSPixel().scale);
     if (allowDoubleTapZoom != viewportInfo.IsDoubleTapZoomAllowed()) {
       viewportInfo.SetAllowDoubleTapZoom(allowDoubleTapZoom);
 
@@ -759,7 +758,7 @@ class TabChild::DelayedDeleteRunnable MOZ_FINAL
     nsRefPtr<TabChild> mTabChild;
 
 public:
-    DelayedDeleteRunnable(TabChild* aTabChild)
+    explicit DelayedDeleteRunnable(TabChild* aTabChild)
       : mTabChild(aTabChild)
     {
         MOZ_ASSERT(NS_IsMainThread());
@@ -890,6 +889,8 @@ TabChild::TabChild(nsIContentChild* aManager,
   , mHasValidInnerSize(false)
   , mDestroyed(false)
   , mUniqueId(aTabId)
+  , mDPI(0)
+  , mDefaultScale(0)
 {
   if (!sActiveDurationMsSet) {
     Preferences::AddIntVarCache(&sActiveDurationMs,
@@ -1581,7 +1582,7 @@ TabChild::SendPendingTouchPreventedResponse(bool aPreventDefault,
 {
   if (mPendingTouchPreventedResponse) {
     MOZ_ASSERT(aGuid == mPendingTouchPreventedGuid);
-    SendContentReceivedTouch(mPendingTouchPreventedGuid, mPendingTouchPreventedBlockId, aPreventDefault);
+    SendContentReceivedInputBlock(mPendingTouchPreventedGuid, mPendingTouchPreventedBlockId, aPreventDefault);
     mPendingTouchPreventedResponse = false;
   }
 }
@@ -1882,7 +1883,7 @@ TabChild::DoFakeShow(const ScrollingBehavior& aScrolling,
                      const uint64_t& aLayersId,
                      PRenderFrameChild* aRenderFrame)
 {
-  ShowInfo info(EmptyString(), false, false);
+  ShowInfo info(EmptyString(), false, false, 0, 0);
   RecvShow(nsIntSize(0, 0), info, aScrolling, aTextureFactoryIdentifier, aLayersId, aRenderFrame);
   mDidFakeShow = true;
 }
@@ -1910,6 +1911,8 @@ TabChild::ApplyShowInfo(const ShowInfo& aInfo)
       }
     }
   }
+  mDPI = aInfo.dpi();
+  mDefaultScale = aInfo.defaultScale();
 }
 
 #ifdef MOZ_WIDGET_GONK
@@ -2011,13 +2014,15 @@ TabChild::RecvShow(const nsIntSize& aSize,
 }
 
 bool
-TabChild::RecvUpdateDimensions(const nsIntRect& rect, const nsIntSize& size, const ScreenOrientation& orientation)
+TabChild::RecvUpdateDimensions(const nsIntRect& rect, const nsIntSize& size,
+                               const ScreenOrientation& orientation, const nsIntPoint& chromeDisp)
 {
     if (!mRemoteFrame) {
         return true;
     }
 
     mOuterRect = rect;
+    mChromeDisp = chromeDisp;
 
     bool initialSizing = !HasValidInnerSize()
                       && (size.width != 0 && size.height != 0);
@@ -2102,6 +2107,15 @@ TabChild::RecvHandleSingleTap(const CSSPoint& aPoint, const ScrollableLayerGuid&
   }
 
   LayoutDevicePoint currentPoint = APZCCallbackHelper::ApplyCallbackTransform(aPoint, aGuid) * mWidget->GetDefaultScale();;
+  if (!mActiveElementManager->ActiveElementUsesStyle()) {
+    // If the active element isn't visually affected by the :active style, we
+    // have no need to wait the extra sActiveDurationMs to make the activation
+    // visually obvious to the user.
+    FireSingleTapEvent(currentPoint);
+    return true;
+  }
+
+  TABC_LOG("Active element uses style, scheduling timer for click event\n");
   nsCOMPtr<nsITimer> timer = do_CreateInstance(NS_TIMER_CONTRACTID);
   nsRefPtr<DelayedFireSingleTapEvent> callback =
     new DelayedFireSingleTapEvent(this, currentPoint, timer);
@@ -2161,7 +2175,7 @@ TabChild::RecvHandleLongTap(const CSSPoint& aPoint, const ScrollableLayerGuid& a
     TABC_LOG("MOZLONGTAP event handled: %d\n", eventHandled);
   }
 
-  SendContentReceivedTouch(aGuid, aInputBlockId, eventHandled);
+  SendContentReceivedInputBlock(aGuid, aInputBlockId, eventHandled);
 
   return true;
 }
@@ -2288,11 +2302,31 @@ TabChild::RecvRealMouseEvent(const WidgetMouseEvent& event)
 }
 
 bool
-TabChild::RecvMouseWheelEvent(const WidgetWheelEvent& event)
+TabChild::RecvMouseWheelEvent(const WidgetWheelEvent& aEvent,
+                              const ScrollableLayerGuid& aGuid,
+                              const uint64_t& aInputBlockId)
 {
-  WidgetWheelEvent localEvent(event);
-  localEvent.widget = mWidget;
-  DispatchWidgetEvent(localEvent);
+  if (IsAsyncPanZoomEnabled()) {
+    nsCOMPtr<nsIDocument> document(GetDocument());
+    if (nsIPresShell* shell = document->GetShell()) {
+      if (nsIFrame* rootFrame = shell->GetRootFrame()) {
+        nsTArray<ScrollableLayerGuid> targets;
+        nsIntPoint refPoint(aEvent.refPoint.x, aEvent.refPoint.y);
+        bool waitForRefresh =
+          PrepareForSetTargetAPZCNotification(aGuid, aInputBlockId, rootFrame, refPoint, &targets);
+
+        SendSetTargetAPZCNotification(shell, aInputBlockId, targets, waitForRefresh);
+      }
+    }
+  }
+
+  WidgetWheelEvent event(aEvent);
+  event.widget = mWidget;
+  DispatchWidgetEvent(event);
+
+  if (IsAsyncPanZoomEnabled()) {
+    SendContentReceivedInputBlock(aGuid, aInputBlockId, event.mFlags.mDefaultPrevented);
+  }
   return true;
 }
 
@@ -2512,6 +2546,62 @@ private:
   nsTArray<ScrollableLayerGuid> mTargets;
 };
 
+bool
+TabChild::PrepareForSetTargetAPZCNotification(const ScrollableLayerGuid& aGuid,
+                                              const uint64_t& aInputBlockId,
+                                              nsIFrame* aRootFrame,
+                                              const nsIntPoint& aRefPoint,
+                                              nsTArray<ScrollableLayerGuid>* aTargets)
+{
+  ScrollableLayerGuid guid(aGuid.mLayersId, 0, FrameMetrics::NULL_SCROLL_ID);
+  nsPoint point =
+    nsLayoutUtils::GetEventCoordinatesRelativeTo(WebWidget(), aRefPoint, aRootFrame);
+  nsIFrame* target =
+    nsLayoutUtils::GetFrameForPoint(aRootFrame, point, nsLayoutUtils::IGNORE_ROOT_SCROLL_FRAME);
+  nsIScrollableFrame* scrollAncestor = GetScrollableAncestorFrame(target);
+  nsCOMPtr<dom::Element> dpElement = GetDisplayportElementFor(scrollAncestor);
+
+  nsAutoString dpElementDesc;
+  if (dpElement) {
+    dpElement->Describe(dpElementDesc);
+  }
+  TABC_LOG("For input block %" PRIu64 " found scrollable element %p (%s)\n",
+      aInputBlockId, dpElement.get(),
+      NS_LossyConvertUTF16toASCII(dpElementDesc).get());
+
+  bool guidIsValid = APZCCallbackHelper::GetOrCreateScrollIdentifiers(
+    dpElement, &(guid.mPresShellId), &(guid.mScrollId));
+  aTargets->AppendElement(guid);
+
+  if (!guidIsValid || nsLayoutUtils::GetDisplayPort(dpElement, nullptr)) {
+    return false;
+  }
+
+  TABC_LOG("%p didn't have a displayport, so setting one...\n", dpElement.get());
+  return nsLayoutUtils::CalculateAndSetDisplayPortMargins(
+      scrollAncestor, nsLayoutUtils::RepaintMode::Repaint);
+}
+
+void
+TabChild::SendSetTargetAPZCNotification(nsIPresShell* aShell,
+                                        const uint64_t& aInputBlockId,
+                                        const nsTArray<ScrollableLayerGuid>& aTargets,
+                                        bool aWaitForRefresh)
+{
+  bool waitForRefresh = aWaitForRefresh;
+  if (waitForRefresh) {
+    TABC_LOG("At least one target got a new displayport, need to wait for refresh\n");
+    waitForRefresh = aShell->AddPostRefreshObserver(
+      new DisplayportSetListener(this, aShell, aInputBlockId, aTargets));
+  }
+  if (!waitForRefresh) {
+    TABC_LOG("Sending target APZCs for input block %" PRIu64 "\n", aInputBlockId);
+    SendSetTargetAPZC(aInputBlockId, aTargets);
+  } else {
+    TABC_LOG("Successfully registered post-refresh observer\n");
+  }
+}
+
 void
 TabChild::SendSetTargetAPZCNotification(const WidgetTouchEvent& aEvent,
                                         const ScrollableLayerGuid& aGuid,
@@ -2530,43 +2620,10 @@ TabChild::SendSetTargetAPZCNotification(const WidgetTouchEvent& aEvent,
   bool waitForRefresh = false;
   nsTArray<ScrollableLayerGuid> targets;
   for (size_t i = 0; i < aEvent.touches.Length(); i++) {
-    ScrollableLayerGuid guid(aGuid.mLayersId, 0, FrameMetrics::NULL_SCROLL_ID);
-    nsPoint touchPoint = nsLayoutUtils::GetEventCoordinatesRelativeTo(
-      WebWidget(), aEvent.touches[i]->mRefPoint, rootFrame);
-    nsIFrame* target = nsLayoutUtils::GetFrameForPoint(rootFrame, touchPoint,
-      nsLayoutUtils::IGNORE_ROOT_SCROLL_FRAME);
-    nsIScrollableFrame* scrollAncestor = GetScrollableAncestorFrame(target);
-    nsCOMPtr<dom::Element> dpElement = GetDisplayportElementFor(scrollAncestor);
-
-    nsAutoString dpElementDesc;
-    if (dpElement) {
-      dpElement->Describe(dpElementDesc);
-    }
-    TABC_LOG("For input block %" PRIu64 " found scrollable element %p (%s)\n",
-        aInputBlockId, dpElement.get(),
-        NS_LossyConvertUTF16toASCII(dpElementDesc).get());
-
-    bool guidIsValid = APZCCallbackHelper::GetOrCreateScrollIdentifiers(
-      dpElement, &(guid.mPresShellId), &(guid.mScrollId));
-    targets.AppendElement(guid);
-
-    if (guidIsValid && !nsLayoutUtils::GetDisplayPort(dpElement, nullptr)) {
-      TABC_LOG("%p didn't have a displayport, so setting one...\n", dpElement.get());
-      waitForRefresh |= nsLayoutUtils::CalculateAndSetDisplayPortMargins(
-        scrollAncestor, nsLayoutUtils::RepaintMode::Repaint);
-    }
+    waitForRefresh |= PrepareForSetTargetAPZCNotification(aGuid, aInputBlockId,
+        rootFrame, aEvent.touches[i]->mRefPoint, &targets);
   }
-  if (waitForRefresh) {
-    TABC_LOG("At least one target got a new displayport, need to wait for refresh\n");
-    waitForRefresh = shell->AddPostRefreshObserver(
-      new DisplayportSetListener(this, shell, aInputBlockId, targets));
-  }
-  if (!waitForRefresh) {
-    TABC_LOG("Sending target APZCs for input block %" PRIu64 "\n", aInputBlockId);
-    SendSetTargetAPZC(aInputBlockId, targets);
-  } else {
-    TABC_LOG("Successfully registered post-refresh observer\n");
-  }
+  SendSetTargetAPZCNotification(shell, aInputBlockId, targets, waitForRefresh);
 }
 
 bool
@@ -2606,11 +2663,11 @@ TabChild::RecvRealTouchEvent(const WidgetTouchEvent& aEvent,
     if (mPendingTouchPreventedResponse) {
       // We can enter here if we get two TOUCH_STARTs in a row and didn't
       // respond to the first one. Respond to it now.
-      SendContentReceivedTouch(mPendingTouchPreventedGuid, mPendingTouchPreventedBlockId, false);
+      SendContentReceivedInputBlock(mPendingTouchPreventedGuid, mPendingTouchPreventedBlockId, false);
       mPendingTouchPreventedResponse = false;
     }
     if (isTouchPrevented) {
-      SendContentReceivedTouch(aGuid, aInputBlockId, isTouchPrevented);
+      SendContentReceivedInputBlock(aGuid, aInputBlockId, isTouchPrevented);
     } else {
       mPendingTouchPreventedResponse = true;
       mPendingTouchPreventedGuid = aGuid;
@@ -3132,6 +3189,12 @@ TabChild::GetDPI(float* aDPI)
         return;
     }
 
+    if (mDPI > 0) {
+      *aDPI = mDPI;
+      return;
+    }
+
+    // Fallback to a sync call if needed.
     SendGetDPI(aDPI);
 }
 
@@ -3143,6 +3206,12 @@ TabChild::GetDefaultScale(double* aScale)
         return;
     }
 
+    if (mDefaultScale > 0) {
+      *aScale = mDefaultScale;
+      return;
+    }
+
+    // Fallback to a sync call if needed.
     SendGetDefaultScale(aScale);
 }
 
@@ -3224,6 +3293,15 @@ void
 TabChild::SendRequestFocus(bool aCanFocus)
 {
   PBrowserChild::SendRequestFocus(aCanFocus);
+}
+
+void
+TabChild::EnableDisableCommands(const nsAString& aAction,
+                                nsTArray<nsCString>& aEnabledCommands,
+                                nsTArray<nsCString>& aDisabledCommands)
+{
+  PBrowserChild::SendEnableDisableCommands(PromiseFlatString(aAction),
+                                           aEnabledCommands, aDisabledCommands);
 }
 
 bool
@@ -3333,6 +3411,8 @@ TabChild::RecvRequestNotifyAfterRemotePaint()
 bool
 TabChild::RecvUIResolutionChanged()
 {
+  mDPI = 0;
+  mDefaultScale = 0;
   static_cast<PuppetWidget*>(mWidget.get())->ClearBackingScaleCache();
   nsCOMPtr<nsIDocument> document(GetDocument());
   nsCOMPtr<nsIPresShell> presShell = document->GetShell();

@@ -129,11 +129,7 @@ ReturnZeroSize(const void *p)
 }
 
 JSRuntime::JSRuntime(JSRuntime *parentRuntime)
-  : JS::shadow::Runtime(
-#ifdef JSGC_GENERATIONAL
-        &gc.storeBuffer
-#endif
-    ),
+  : JS::shadow::Runtime(&gc.storeBuffer),
     mainThread(this),
     parentRuntime(parentRuntime),
     interrupt_(false),
@@ -281,6 +277,9 @@ JSRuntime::init(uint32_t maxbytes, uint32_t maxNurseryBytes)
 
     if (!threadPool.init())
         return false;
+
+    if (CanUseExtraThreads())
+        EnsureHelperThreadsInitialized();
 
     if (!gc.init(maxbytes, maxNurseryBytes))
         return false;
@@ -437,10 +436,8 @@ JSRuntime::~JSRuntime()
 
     js_delete(ionPcScriptCache);
 
-#ifdef JSGC_GENERATIONAL
     gc.storeBuffer.disable();
     gc.nursery.disable();
-#endif
 
 #if defined(JS_ARM_SIMULATOR) || defined(JS_ARM64_SIMULATOR) || defined(JS_MIPS_SIMULATOR)
     js::jit::DestroySimulatorRuntime(simulatorRuntime_);
@@ -473,7 +470,6 @@ JSRuntime::setTelemetryCallback(JSRuntime *rt, JSAccumulateTelemetryDataCallback
 void
 NewObjectCache::clearNurseryObjects(JSRuntime *rt)
 {
-#ifdef JSGC_GENERATIONAL
     for (unsigned i = 0; i < mozilla::ArrayLength(entries); ++i) {
         Entry &e = entries[i];
         NativeObject *obj = reinterpret_cast<NativeObject *>(&e.templateObject);
@@ -484,7 +480,6 @@ NewObjectCache::clearNurseryObjects(JSRuntime *rt)
             PodZero(&e);
         }
     }
-#endif
 }
 
 void
@@ -529,12 +524,10 @@ JSRuntime::addSizeOfIncludingThis(mozilla::MallocSizeOf mallocSizeOf, JS::Runtim
         jitRuntime()->ionAlloc(this)->addSizeOfCode(&rtSizes->code);
 
     rtSizes->gc.marker += gc.marker.sizeOfExcludingThis(mallocSizeOf);
-#ifdef JSGC_GENERATIONAL
     rtSizes->gc.nurseryCommitted += gc.nursery.sizeOfHeapCommitted();
     rtSizes->gc.nurseryDecommitted += gc.nursery.sizeOfHeapDecommitted();
     rtSizes->gc.nurseryHugeSlots += gc.nursery.sizeOfHugeSlots(mallocSizeOf);
     gc.storeBuffer.addSizeOfExcludingThis(mallocSizeOf, &rtSizes->gc);
-#endif
 }
 
 static bool

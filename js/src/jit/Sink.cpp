@@ -46,6 +46,7 @@ bool
 Sink(MIRGenerator *mir, MIRGraph &graph)
 {
     TempAllocator &alloc = graph.alloc();
+    bool sinkEnabled = mir->optimizationInfo().sinkEnabled();
 
     for (PostorderIterator block = graph.poBegin(); block != graph.poEnd(); block++) {
         if (mir->shouldCancel("Sink"))
@@ -106,6 +107,13 @@ Sink(MIRGenerator *mir, MIRGraph &graph)
                 continue;
             }
 
+            // This guard is temporarly moved here as the above code deals with
+            // Dead Code elimination, which got moved into this Sink phase, as
+            // the Dead Code elimination used to move instructions with no-live
+            // uses to the bailout path.
+            if (!sinkEnabled)
+                continue;
+
             // If all the uses are under a loop, we might not want to work
             // against LICM by moving everything back into the loop, but if the
             // loop is it-self inside an if, then we still want to move the
@@ -144,6 +152,13 @@ Sink(MIRGenerator *mir, MIRGraph &graph)
             // can clone the instruction for all non-dominated uses and move the
             // instruction into the block which is dominating all live uses.
             if (!ins->canClone())
+                continue;
+
+            // If the block is a split-edge block, which is created for folding
+            // test conditions, then the block has no resume point and has
+            // multiple predecessors.  In such case, we cannot safely move
+            // bailing instruction to these blocks as we have no way to bailout.
+            if (!usesDominator->entryResumePoint() && usesDominator->numPredecessors() != 1)
                 continue;
 
             JitSpewDef(JitSpew_Sink, "  Can Clone & Recover, sink instruction\n", ins);

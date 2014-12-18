@@ -347,10 +347,8 @@ class NewObjectCache
 
     static void copyCachedToObject(JSObject *dst, JSObject *src, gc::AllocKind kind) {
         js_memcpy(dst, src, gc::Arena::thingSize(kind));
-#ifdef JSGC_GENERATIONAL
         Shape::writeBarrierPost(dst->shape_, &dst->shape_);
         types::TypeObject::writeBarrierPost(dst->type_, &dst->type_);
-#endif
     }
 };
 
@@ -432,13 +430,13 @@ struct WellKnownSymbols
 {
     js::ImmutableSymbolPtr iterator;
 
-    ImmutableSymbolPtr &get(size_t u) {
+    const ImmutableSymbolPtr &get(size_t u) const {
         MOZ_ASSERT(u < JS::WellKnownSymbolLimit);
-        ImmutableSymbolPtr *symbols = reinterpret_cast<ImmutableSymbolPtr *>(this);
+        const ImmutableSymbolPtr *symbols = reinterpret_cast<const ImmutableSymbolPtr *>(this);
         return symbols[u];
     }
 
-    ImmutableSymbolPtr &get(JS::SymbolCode code) {
+    const ImmutableSymbolPtr &get(JS::SymbolCode code) const {
         return get(size_t(code));
     }
 };
@@ -810,7 +808,7 @@ struct JSRuntime : public JS::shadow::Runtime,
     size_t              numCompartments;
 
     /* Locale-specific callbacks for string conversion. */
-    JSLocaleCallbacks *localeCallbacks;
+    const JSLocaleCallbacks *localeCallbacks;
 
     /* Default locale for Internationalization API */
     char *defaultLocale;
@@ -849,6 +847,9 @@ struct JSRuntime : public JS::shadow::Runtime,
      * runtime if there is one.
      */
     js::NativeObject *selfHostingGlobal_;
+
+    static js::GlobalObject *
+    createSelfHostingGlobal(JSContext *cx);
 
     /* Space for interpreter frames. */
     js::InterpreterStack interpreterStack_;

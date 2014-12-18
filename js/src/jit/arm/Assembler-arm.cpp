@@ -1295,10 +1295,10 @@ Assembler::oom() const
            preBarriers_.oom();
 }
 
-bool
+void
 Assembler::addCodeLabel(CodeLabel label)
 {
-    return codeLabels_.append(label);
+    propagateOOM(codeLabels_.append(label));
 }
 
 // Size of the instruction stream, in bytes. Including pools. This function
@@ -2215,8 +2215,7 @@ Assembler::as_vxfer(Register vt1, Register vt2, VFPRegister vm, FloatToCore_ f2c
         MOZ_ASSERT(idx == 0 || idx == 1);
         // If we are transferring a single half of the double then it must be
         // moving a VFP reg to a core reg.
-        if (vt2 == InvalidReg)
-            MOZ_ASSERT(f2c == FloatToCore);
+        MOZ_ASSERT_IF(vt2 == InvalidReg, f2c == FloatToCore);
         idx = idx << 21;
     } else {
         MOZ_ASSERT(idx == 0);

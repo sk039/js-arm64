@@ -1207,6 +1207,19 @@ MTypeBarrier::printOpcode(FILE *fp) const
     getOperand(0)->printName(fp);
 }
 
+bool
+MTypeBarrier::congruentTo(const MDefinition *def) const
+{
+    if (!def->isTypeBarrier())
+        return false;
+    const MTypeBarrier *other = def->toTypeBarrier();
+    if (barrierKind() != other->barrierKind() || isGuard() != other->isGuard())
+        return false;
+    if (!resultTypeSet()->equals(other->resultTypeSet()))
+        return false;
+    return congruentIfOperandsEqual(other);
+}
+
 #ifdef DEBUG
 void
 MPhi::assertLoopPhi() const
@@ -3374,7 +3387,7 @@ MBeta::printOpcode(FILE *fp) const
 bool
 MNewObject::shouldUseVM() const
 {
-    NativeObject *obj = templateObject();
+    PlainObject *obj = templateObject();
     return obj->hasSingletonType() || obj->hasDynamicSlots();
 }
 
@@ -3391,7 +3404,7 @@ MObjectState::MObjectState(MDefinition *obj)
     // This instruction is only used as a summary for bailout paths.
     setResultType(MIRType_Object);
     setRecoveredOnBailout();
-    NativeObject *templateObject = nullptr;
+    PlainObject *templateObject = nullptr;
     if (obj->isNewObject())
         templateObject = obj->toNewObject()->templateObject();
     else
@@ -3741,6 +3754,23 @@ MLoadTypedArrayElementStatic::length() const
     return AnyTypedArrayByteLength(someTypedArray_);
 }
 
+bool
+MLoadTypedArrayElementStatic::congruentTo(const MDefinition *ins) const
+{
+    if (!ins->isLoadTypedArrayElementStatic())
+        return false;
+    const MLoadTypedArrayElementStatic *other = ins->toLoadTypedArrayElementStatic();
+    if (offset() != other->offset())
+        return false;
+    if (needsBoundsCheck() != other->needsBoundsCheck())
+        return false;
+    if (viewType() != other->viewType())
+        return false;
+    if (base() != other->base())
+        return false;
+    return congruentIfOperandsEqual(other);
+}
+
 void *
 MStoreTypedArrayElementStatic::base() const
 {
@@ -3977,10 +4007,10 @@ jit::ElementAccessIsAnyTypedArray(MDefinition *obj, MDefinition *id,
         return false;
 
     *arrayType = types->getTypedArrayType();
-    if (*arrayType != Scalar::TypeMax)
+    if (*arrayType != Scalar::MaxTypedArrayViewType)
         return true;
     *arrayType = types->getSharedTypedArrayType();
-    return *arrayType != Scalar::TypeMax;
+    return *arrayType != Scalar::MaxTypedArrayViewType;
 }
 
 bool
@@ -4340,11 +4370,8 @@ TryAddTypeBarrierForWrite(TempAllocator &alloc, types::CompilerConstraintList *c
         if (!aggregateProperty) {
             aggregateProperty.emplace(property);
         } else {
-            if (!aggregateProperty->maybeTypes()->isSubset(property.maybeTypes()) ||
-                !property.maybeTypes()->isSubset(aggregateProperty->maybeTypes()))
-            {
+            if (!aggregateProperty->maybeTypes()->equals(property.maybeTypes()))
                 return false;
-            }
         }
     }
 

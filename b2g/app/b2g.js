@@ -99,6 +99,7 @@ pref("network.predictor.preserve", 50); // percentage of predictor data to keep 
 /* session history */
 pref("browser.sessionhistory.max_total_viewers", 1);
 pref("browser.sessionhistory.max_entries", 50);
+pref("browser.sessionhistory.contentViewerTimeout", 360);
 
 /* session store */
 pref("browser.sessionstore.resume_session_once", false);
@@ -609,6 +610,9 @@ pref("app.update.log", true);
 pref("shutdown.watchdog.timeoutSecs", -1);
 #endif
 
+// Allow webapps update checking
+pref("webapps.update.enabled", true);
+
 // Check daily for apps updates.
 pref("webapps.update.interval", 86400);
 
@@ -673,11 +677,7 @@ pref("javascript.options.mem.gc_low_frequency_heap_growth", 120);
 pref("javascript.options.mem.high_water_mark", 6);
 pref("javascript.options.mem.gc_allocation_threshold_mb", 1);
 pref("javascript.options.mem.gc_decommit_threshold_mb", 1);
-#ifdef JSGC_GENERATIONAL
 pref("javascript.options.mem.gc_min_empty_chunk_count", 1);
-#else
-pref("javascript.options.mem.gc_min_empty_chunk_count", 0);
-#endif
 pref("javascript.options.mem.gc_max_empty_chunk_count", 2);
 
 // Show/Hide scrollbars when active/inactive
@@ -1037,6 +1037,9 @@ pref("browser.autofocus", false);
 // Enable wakelock
 pref("dom.wakelock.enabled", true);
 
+// Enable webapps add-ons
+pref("dom.apps.customization.enabled", true);
+
 // Enable touch caret by default
 pref("touchcaret.enabled", true);
 
@@ -1070,3 +1073,8 @@ pref("dom.mozSettings.SettingsDB.verbose.enabled", false);
 pref("dom.mozSettings.SettingsManager.verbose.enabled", false);
 pref("dom.mozSettings.SettingsRequestManager.verbose.enabled", false);
 pref("dom.mozSettings.SettingsService.verbose.enabled", false);
+
+// Controlling whether we want to allow forcing some Settings
+// IndexedDB transactions to be opened as readonly or keep everything as
+// readwrite.
+pref("dom.mozSettings.allowForceReadOnly", false);

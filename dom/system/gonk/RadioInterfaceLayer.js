@@ -103,9 +103,10 @@ const RIL_IPC_ICCMANAGER_MSG_NAMES = [
   "RIL:SendStkMenuSelection",
   "RIL:SendStkTimerExpiration",
   "RIL:SendStkEventDownload",
-  "RIL:GetCardLockState",
+  "RIL:GetCardLockEnabled",
   "RIL:UnlockCardLock",
-  "RIL:SetCardLock",
+  "RIL:SetCardLockEnabled",
+  "RIL:ChangeCardLockPassword",
   "RIL:GetCardLockRetryCount",
   "RIL:IccOpenChannel",
   "RIL:IccExchangeAPDU",
@@ -493,17 +494,11 @@ XPCOMUtils.defineLazyGetter(this, "gRadioEnabledController", function() {
     _getNumCards: function() {
       let numCards = 0;
       for (let i = 0, N = _ril.numRadioInterfaces; i < N; ++i) {
-        if (this._isCardPresentAtClient(i)) {
+        if (_ril.getRadioInterface(i).isCardPresent()) {
           numCards++;
         }
       }
       return numCards;
-    },
-
-    _isCardPresentAtClient: function(clientId) {
-      let cardState = _ril.getRadioInterface(clientId).rilContext.cardState;
-      return cardState !== Ci.nsIIccProvider.CARD_STATE_UNDETECTED &&
-             cardState !== Ci.nsIIccProvider.CARD_STATE_UNKNOWN;
     },
 
     _isRadioAbleToEnableAtClient: function(clientId, numCards) {
@@ -515,7 +510,7 @@ XPCOMUtils.defineLazyGetter(this, "gRadioEnabledController", function() {
       // 1. a SIM card is presented or
       // 2. it is the default clientId and there is no any SIM card at any client.
 
-      if (this._isCardPresentAtClient(clientId)) {
+      if (_ril.getRadioInterface(clientId).isCardPresent()) {
         return true;
       }
 
@@ -1510,12 +1505,15 @@ RadioInterfaceLayer.prototype = {
   },
 
   getClientIdForEmergencyCall: function() {
+    // Select the client with sim card first.
     for (let cid = 0; cid < this.numRadioInterfaces; ++cid) {
-      if (gRadioEnabledController._isRadioAbleToEnableAtClient(cid)) {
+      if (this.getRadioInterface(cid).isCardPresent()) {
         return cid;
       }
     }
-    return -1;
+
+    // Use the defualt client if no card presents.
+    return HW_DEFAULT_CLIENT_ID;
   },
 
   setMicrophoneMuted: function(muted) {
@@ -1823,6 +1821,12 @@ RadioInterface.prototype = {
     return false;
   },
 
+  isCardPresent: function() {
+    let cardState = this.rilContext.cardState;
+    return cardState !== Ci.nsIIccProvider.CARD_STATE_UNDETECTED &&
+      cardState !== Ci.nsIIccProvider.CARD_STATE_UNKNOWN;
+  },
+
   /**
    * Process a message from the content process.
    */
@@ -1831,16 +1835,20 @@ RadioInterface.prototype = {
       case "RIL:GetRilContext":
         // This message is sync.
         return this.rilContext;
-      case "RIL:GetCardLockState":
-        this.workerMessenger.sendWithIPCMessage(msg, "iccGetCardLockState",
+      case "RIL:GetCardLockEnabled":
+        this.workerMessenger.sendWithIPCMessage(msg, "iccGetCardLockEnabled",
                                                 "RIL:GetCardLockResult");
         break;
       case "RIL:UnlockCardLock":
         this.workerMessenger.sendWithIPCMessage(msg, "iccUnlockCardLock",
                                                 "RIL:SetUnlockCardLockResult");
         break;
-      case "RIL:SetCardLock":
-        this.workerMessenger.sendWithIPCMessage(msg, "iccSetCardLock",
+      case "RIL:SetCardLockEnabled":
+        this.workerMessenger.sendWithIPCMessage(msg, "iccSetCardLockEnabled",
+                                                "RIL:SetUnlockCardLockResult");
+        break;
+      case "RIL:ChangeCardLockPassword":
+        this.workerMessenger.sendWithIPCMessage(msg, "iccChangeCardLockPassword",
                                                 "RIL:SetUnlockCardLockResult");
         break;
       case "RIL:GetCardLockRetryCount":
@@ -1931,7 +1939,8 @@ RadioInterface.prototype = {
         break;
       case "emergencyCbModeChange":
         gMobileConnectionService.notifyEmergencyCallbackModeChanged(this.clientId,
-                                                                    message);
+                                                                    message.active,
+                                                                    message.timeoutMs);
         break;
       case "networkinfochanged":
         gMobileConnectionService.notifyNetworkInfoChanged(this.clientId,

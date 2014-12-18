@@ -102,6 +102,8 @@ static MOZ_CONSTEXPR_VAR FloatRegister ScratchSimdReg = InvalidFloatReg;
 static MOZ_CONSTEXPR_VAR FloatRegister ScratchUIntReg = { FloatRegisters::d15, VFPRegister::UInt };
 static MOZ_CONSTEXPR_VAR FloatRegister ScratchIntReg = { FloatRegisters::d15, VFPRegister::Int };
 
+static MOZ_CONSTEXPR_VAR Register RegExpStackPointer = sp;
+
 // A bias applied to the GlobalReg to allow the use of instructions with small
 // negative immediate offsets which doubles the range of global data that can be
 // accessed with a single instruction.
@@ -1274,7 +1276,7 @@ class Assembler : public AssemblerShared
     void copyDataRelocationTable(uint8_t *dest);
     void copyPreBarrierTable(uint8_t *dest);
 
-    bool addCodeLabel(CodeLabel label);
+    void addCodeLabel(CodeLabel label);
     size_t numCodeLabels() const {
         return codeLabels_.length();
     }

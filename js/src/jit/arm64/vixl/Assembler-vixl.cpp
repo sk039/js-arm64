@@ -29,6 +29,8 @@
 
 #include "jit/arm64/vixl/Assembler-vixl.h"
 
+#include "jsutil.h"
+
 #include <cmath>
 
 namespace js {
@@ -2496,7 +2498,7 @@ AssemblerVIXL::IsImmLogical(uint64_t value, unsigned width, unsigned* n,
     }
 
     // If the repeat period d is not a power of two, it can't be encoded.
-    if (!IsPowerOf2(d)) {
+    if (!IsPowerOfTwo(d)) {
         return false;
     }
 
