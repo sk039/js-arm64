@@ -221,7 +221,7 @@ MacroAssemblerCompat::movePatchablePtr(ImmPtr ptr, Register dest)
 }
 
 void
-MacroAssemblerCompat::handleFailureWithHandler(void *handler)
+MacroAssemblerCompat::handleFailureWithHandlerTail(void *handler)
 {
     // Reserve space for exception information.
     int64_t size = (sizeof(ResumeFromException) + 7) & ~7;
@@ -231,18 +231,11 @@ MacroAssemblerCompat::handleFailureWithHandler(void *handler)
 
     Add(x0, GetStackPointer(), Operand(0));
 
-    // Ask for an exception handler.
+    // Call the handler.
     setupUnalignedABICall(1, r1);
     passABIArg(r0);
     callWithABI(handler);
 
-    JitCode *excTail = GetJitContext()->runtime->jitRuntime()->getExceptionTail();
-    branch(excTail);
-}
-
-void
-MacroAssemblerCompat::handleFailureWithHandlerTail()
-{
     Label entryFrame;
     Label catch_;
     Label finally;

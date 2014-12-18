@@ -1926,8 +1926,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         MOZ_CRASH("labelForPatch");
     }
 
-    void handleFailureWithHandler(void *handler);
-    void handleFailureWithHandlerTail();
+    void handleFailureWithHandlerTail(void *handler);
 
     // FIXME: This is the same on all platforms. Can be common code?
     void makeFrameDescriptor(Register frameSizeReg, FrameType type) {
