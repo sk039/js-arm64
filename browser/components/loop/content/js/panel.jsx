@@ -166,11 +166,14 @@ loop.panel = (function(_, mozL10n) {
   });
 
   var GettingStartedView = React.createClass({
+    mixins: [sharedMixins.WindowCloseMixin],
+
     handleButtonClick: function() {
       navigator.mozLoop.openGettingStartedTour("getting-started");
       navigator.mozLoop.setLoopPref("gettingStarted.seen", true);
       var event = new CustomEvent("GettingStartedSeen");
       window.dispatchEvent(event);
+      this.closeWindow();
     },
 
     render: function() {
@@ -194,11 +197,16 @@ loop.panel = (function(_, mozL10n) {
 
   var ToSView = React.createClass({
     getInitialState: function() {
-      return {seenToS: navigator.mozLoop.getLoopPref("seenToS")};
+      var getPref = navigator.mozLoop.getLoopPref.bind(navigator.mozLoop);
+
+      return {
+        seenToS: getPref("seenToS"),
+        gettingStartedSeen: getPref("gettingStarted.seen")
+      };
     },
 
     render: function() {
-      if (this.state.seenToS == "unseen") {
+      if (!this.state.gettingStartedSeen || this.state.seenToS == "unseen") {
         var locale = mozL10n.getLanguage();
         var terms_of_use_url = navigator.mozLoop.getLoopPref('legal.ToS_url');
         var privacy_notice_url = navigator.mozLoop.getLoopPref('legal.privacy_url');
@@ -264,7 +272,7 @@ loop.panel = (function(_, mozL10n) {
    * Panel settings (gear) menu.
    */
   var SettingsDropdown = React.createClass({
-    mixins: [sharedMixins.DropdownMenuMixin],
+    mixins: [sharedMixins.DropdownMenuMixin, sharedMixins.WindowCloseMixin],
 
     handleClickSettingsEntry: function() {
       // XXX to be implemented at the same time as unhiding the entry
@@ -295,6 +303,7 @@ loop.panel = (function(_, mozL10n) {
 
     openGettingStartedTour: function() {
       navigator.mozLoop.openGettingStartedTour("settings-menu");
+      this.closeWindow();
     },
 
     render: function() {
@@ -686,7 +695,7 @@ loop.panel = (function(_, mozL10n) {
               title={mozL10n.get("rooms_list_delete_tooltip")}
               onClick={this.handleDeleteButtonClick} />
           </h2>
-          <p><a href="#">{room.roomUrl}</a></p>
+          <p><a className="room-url-link" href="#">{room.roomUrl}</a></p>
         </div>
       );
     }

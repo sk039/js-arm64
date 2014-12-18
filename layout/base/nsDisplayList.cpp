@@ -758,13 +758,13 @@ nsDisplayScrollLayer::ComputeFrameMetrics(nsIFrame* aForFrame,
     * nsLayoutUtils::GetTransformToAncestorScale(aScrollFrame ? aScrollFrame : aForFrame).width);
   metrics.SetExtraResolution(metrics.mCumulativeResolution / resolutionToScreen);
 
-  metrics.mDevPixelsPerCSSPixel = CSSToLayoutDeviceScale(
-    (float)nsPresContext::AppUnitsPerCSSPixel() / auPerDevPixel);
+  metrics.SetDevPixelsPerCSSPixel(CSSToLayoutDeviceScale(
+    (float)nsPresContext::AppUnitsPerCSSPixel() / auPerDevPixel));
 
   // Initially, AsyncPanZoomController should render the content to the screen
   // at the painted resolution.
   const LayerToParentLayerScale layerToParentLayerScale(1.0f);
-  metrics.SetZoom(metrics.mCumulativeResolution * metrics.mDevPixelsPerCSSPixel
+  metrics.SetZoom(metrics.mCumulativeResolution * metrics.GetDevPixelsPerCSSPixel()
                   * layerToParentLayerScale);
 
   if (presShell) {
@@ -1503,23 +1503,25 @@ already_AddRefed<LayerManager> nsDisplayList::PaintRoot(nsDisplayListBuilder* aB
   root->SetPostScale(1.0f/containerParameters.mXScale,
                      1.0f/containerParameters.mYScale);
 
-  bool isRoot = presContext->IsRootContentDocument();
+  if (gfxPrefs::LayoutUseContainersForRootFrames()) {
+    bool isRoot = presContext->IsRootContentDocument();
 
-  nsIFrame* rootScrollFrame = presShell->GetRootScrollFrame();
+    nsIFrame* rootScrollFrame = presShell->GetRootScrollFrame();
 
-  nsRect viewport(aBuilder->ToReferenceFrame(frame), frame->GetSize());
+    nsRect viewport(aBuilder->ToReferenceFrame(frame), frame->GetSize());
 
-  root->SetFrameMetrics(
-    nsDisplayScrollLayer::ComputeFrameMetrics(frame, rootScrollFrame,
-                       aBuilder->FindReferenceFrameFor(frame),
-                       root, FrameMetrics::NULL_SCROLL_ID, viewport,
-                       !isRoot, isRoot, containerParameters));
+    root->SetFrameMetrics(
+      nsDisplayScrollLayer::ComputeFrameMetrics(frame, rootScrollFrame,
+                         aBuilder->FindReferenceFrameFor(frame),
+                         root, FrameMetrics::NULL_SCROLL_ID, viewport,
+                         !isRoot, isRoot, containerParameters));
+  }
 
   // NS_WARNING is debug-only, so don't even bother checking the conditions in
   // a release build.
 #ifdef DEBUG
   bool usingDisplayport = false;
-  if (rootScrollFrame) {
+  if (nsIFrame* rootScrollFrame = presShell->GetRootScrollFrame()) {
     nsIContent* content = rootScrollFrame->GetContent();
     if (content) {
       usingDisplayport = nsLayoutUtils::GetDisplayPort(content, nullptr);

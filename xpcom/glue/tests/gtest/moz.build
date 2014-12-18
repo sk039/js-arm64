@@ -5,6 +5,10 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 UNIFIED_SOURCES += [
+    'TestArray.cpp',
+    'TestCRT.cpp',
+    'TestEncoding.cpp',
+    'TestExpirationTracker.cpp',
     'TestFileUtils.cpp',
     'TestGCPostBarriers.cpp',
     'TestStrings.cpp',

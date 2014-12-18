@@ -87,13 +87,6 @@ UnaryKid(ParseNode *pn)
 }
 
 static inline ParseNode *
-ReturnExpr(ParseNode *pn)
-{
-    MOZ_ASSERT(pn->isKind(PNK_RETURN));
-    return UnaryKid(pn);
-}
-
-static inline ParseNode *
 BinaryRight(ParseNode *pn)
 {
     MOZ_ASSERT(pn->isArity(PN_BINARY));
@@ -105,6 +98,13 @@ BinaryLeft(ParseNode *pn)
 {
     MOZ_ASSERT(pn->isArity(PN_BINARY));
     return pn->pn_left;
+}
+
+static inline ParseNode *
+ReturnExpr(ParseNode *pn)
+{
+    MOZ_ASSERT(pn->isKind(PNK_RETURN));
+    return BinaryLeft(pn);
 }
 
 static inline ParseNode *
@@ -4166,7 +4166,7 @@ static bool
 CheckFinalReturn(FunctionCompiler &f, ParseNode *stmt, RetType *retType)
 {
     if (stmt && stmt->isKind(PNK_RETURN)) {
-        if (ParseNode *coercionNode = UnaryKid(stmt)) {
+        if (ParseNode *coercionNode = BinaryLeft(stmt)) {
             AsmJSNumLit lit;
             if (IsLiteralOrConst(f, coercionNode, &lit)) {
                 switch (lit.which()) {
@@ -9168,9 +9168,6 @@ EstablishPreconditions(ExclusiveContext *cx, AsmJSParser &parser)
 
     if (parser.pc->isArrowFunction())
         return Warn(parser, JSMSG_USE_ASM_TYPE_FAIL, "Disabled by arrow function context");
-
-    if (ParallelCompilationEnabled(cx))
-        EnsureHelperThreadsInitialized(cx);
 
     return true;
 }

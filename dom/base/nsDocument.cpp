@@ -1440,6 +1440,8 @@ nsDOMStyleSheetSetList::nsDOMStyleSheetSetList(nsIDocument* aDocument)
 void
 nsDOMStyleSheetSetList::EnsureFresh()
 {
+  MOZ_ASSERT(NS_IsMainThread());
+
   mNames.Clear();
 
   if (!mDocument) {
@@ -1993,6 +1995,7 @@ NS_IMPL_CYCLE_COLLECTION_TRAVERSE_BEGIN_INTERNAL(nsDocument)
   NS_IMPL_CYCLE_COLLECTION_TRAVERSE(mStateObjectCached)
   NS_IMPL_CYCLE_COLLECTION_TRAVERSE(mUndoManager)
   NS_IMPL_CYCLE_COLLECTION_TRAVERSE(mAnimationTimeline)
+  NS_IMPL_CYCLE_COLLECTION_TRAVERSE(mPendingPlayerTracker)
   NS_IMPL_CYCLE_COLLECTION_TRAVERSE(mTemplateContentsOwner)
   NS_IMPL_CYCLE_COLLECTION_TRAVERSE(mChildrenCollection)
   NS_IMPL_CYCLE_COLLECTION_TRAVERSE(mRegistry)
@@ -2076,6 +2079,7 @@ NS_IMPL_CYCLE_COLLECTION_UNLINK_BEGIN(nsDocument)
   NS_IMPL_CYCLE_COLLECTION_UNLINK(mCachedEncoder)
   NS_IMPL_CYCLE_COLLECTION_UNLINK(mUndoManager)
   NS_IMPL_CYCLE_COLLECTION_UNLINK(mAnimationTimeline)
+  NS_IMPL_CYCLE_COLLECTION_UNLINK(mPendingPlayerTracker)
   NS_IMPL_CYCLE_COLLECTION_UNLINK(mTemplateContentsOwner)
   NS_IMPL_CYCLE_COLLECTION_UNLINK(mChildrenCollection)
   NS_IMPL_CYCLE_COLLECTION_UNLINK(mRegistry)
@@ -2983,6 +2987,33 @@ nsDocument::InitCSP(nsIChannel* aChannel)
       // stop!  ERROR page!
       aChannel->Cancel(NS_ERROR_CSP_FRAME_ANCESTOR_VIOLATION);
     }
+  }
+
+  // ----- Set up any Referrer Policy specified by CSP
+  bool hasReferrerPolicy = false;
+  uint32_t referrerPolicy = mozilla::net::RP_Default;
+  rv = csp->GetReferrerPolicy(&referrerPolicy, &hasReferrerPolicy);
+  NS_ENSURE_SUCCESS(rv, rv);
+  if (hasReferrerPolicy) {
+    // Referrer policy spec (section 6.1) says that once the referrer policy
+    // is set, any future attempts to change it result in No-Referrer.
+    if (!mReferrerPolicySet) {
+      mReferrerPolicy = static_cast<ReferrerPolicy>(referrerPolicy);
+      mReferrerPolicySet = true;
+    } else if (mReferrerPolicy != referrerPolicy) {
+      mReferrerPolicy = mozilla::net::RP_No_Referrer;
+#ifdef PR_LOGGING
+      {
+        PR_LOG(gCspPRLog, PR_LOG_DEBUG, ("%s %s",
+                "CSP wants to set referrer, but nsDocument"
+                "already has it set. No referrers will be sent"));
+      }
+#endif
+    }
+
+    // Referrer Policy is set separately for the speculative parser in
+    // nsHTMLDocument::StartDocumentLoad() so there's nothing to do here for
+    // speculative loads.
   }
 
   rv = principal->SetCsp(csp);
@@ -5237,7 +5268,7 @@ nsIDocument::RemoveAnonymousContent(AnonymousContent& aContent,
                                     ErrorResult& aRv)
 {
   nsIPresShell* shell = GetShell();
-  if (!shell) {
+  if (!shell || !shell->GetCanvasFrame()) {
     aRv.Throw(NS_ERROR_UNEXPECTED);
     return;
   }
@@ -7360,6 +7391,16 @@ nsDocument::GetAnimationController()
   }
 
   return mAnimationController;
+}
+
+PendingPlayerTracker*
+nsDocument::GetOrCreatePendingPlayerTracker()
+{
+  if (!mPendingPlayerTracker) {
+    mPendingPlayerTracker = new PendingPlayerTracker();
+  }
+
+  return mPendingPlayerTracker;
 }
 
 /**

@@ -623,6 +623,9 @@ MediaDecoderStateMachine::DecodeVideo()
     mVideoDecodeStartTime = TimeStamp::Now();
   }
 
+  SAMPLE_LOG("DecodeVideo() queued=%i, decoder-queued=%o, skip=%i, time=%lld",
+             VideoQueue().GetSize(), mReader->SizeOfVideoQueueInFrames(), skipToNextKeyFrame, currentTime);
+
   mReader->RequestVideoData(skipToNextKeyFrame, currentTime)
          ->Then(DecodeTaskQueue(), __func__, this,
                 &MediaDecoderStateMachine::OnVideoDecoded,
@@ -669,6 +672,10 @@ MediaDecoderStateMachine::DecodeAudio()
       mIsAudioPrerolling = false;
     }
   }
+
+  SAMPLE_LOG("DecodeAudio() queued=%i, decoder-queued=%o",
+             AudioQueue().GetSize(), mReader->SizeOfAudioQueueInFrames());
+
   mReader->RequestAudioData()->Then(DecodeTaskQueue(), __func__, this,
                                     &MediaDecoderStateMachine::OnAudioDecoded,
                                     &MediaDecoderStateMachine::OnAudioNotDecoded);
@@ -1097,12 +1104,6 @@ nsresult MediaDecoderStateMachine::Init(MediaDecoderStateMachine* aCloneDonor)
 
   nsresult rv = mScheduler->Init();
   NS_ENSURE_SUCCESS(rv, rv);
-
-  // Note: This creates a cycle, broken in shutdown.
-  mMediaDecodedListener =
-    new MediaDataDecodedListener<MediaDecoderStateMachine>(this,
-                                                           DecodeTaskQueue());
-  mReader->SetCallback(mMediaDecodedListener);
 
   rv = mReader->Init(cloneReader);
   NS_ENSURE_SUCCESS(rv, rv);
@@ -1624,9 +1625,7 @@ MediaDecoderStateMachine::StartSeek(const SeekTarget& aTarget)
 
   DECODER_LOG("Changed state to SEEKING (to %lld)", mSeekTarget.mTime);
   SetState(DECODER_STATE_SEEKING);
-  if (mDecoder->GetDecodedStream()) {
-    mDecoder->RecreateDecodedStream(seekTime - mStartTime);
-  }
+  mDecoder->RecreateDecodedStreamIfNecessary(seekTime - mStartTime);
   ScheduleStateMachine();
 }
 
@@ -2308,10 +2307,10 @@ void MediaDecoderStateMachine::DecodeSeek()
       // the reader, since it could do I/O or deadlock some other way.
       res = mReader->ResetDecode();
       if (NS_SUCCEEDED(res)) {
-        mReader->Seek(seekTime,
-                      mStartTime,
-                      mEndTime,
-                      mCurrentTimeBeforeSeek);
+        mReader->Seek(seekTime, mStartTime, mEndTime, mCurrentTimeBeforeSeek)
+               ->Then(DecodeTaskQueue(), __func__, this,
+                      &MediaDecoderStateMachine::OnSeekCompleted,
+                      &MediaDecoderStateMachine::OnSeekFailed);
       }
     }
     if (NS_FAILED(res)) {
@@ -2323,19 +2322,28 @@ void MediaDecoderStateMachine::DecodeSeek()
 }
 
 void
-MediaDecoderStateMachine::OnSeekCompleted(nsresult aResult)
+MediaDecoderStateMachine::OnSeekCompleted()
 {
   ReentrantMonitorAutoEnter mon(mDecoder->GetReentrantMonitor());
   mWaitingForDecoderSeek = false;
-  if (NS_FAILED(aResult)) {
-    DecodeError();
-    return;
-  }
 
   // We must decode the first samples of active streams, so we can determine
   // the new stream time. So dispatch tasks to do that.
   mDecodeToSeekTarget = true;
   DispatchDecodeTasksIfNeeded();
+}
+
+void
+MediaDecoderStateMachine::OnSeekFailed(nsresult aResult)
+{
+  ReentrantMonitorAutoEnter mon(mDecoder->GetReentrantMonitor());
+  mWaitingForDecoderSeek = false;
+  // Sometimes we reject the promise for non-failure reasons, like
+  // when we request a second seek before the previous one has
+  // completed.
+  if (NS_FAILED(aResult)) {
+    DecodeError();
+  }
 }
 
 void
@@ -2736,6 +2744,12 @@ MediaDecoderStateMachine::FlushDecoding()
     DecodeTaskQueue()->FlushAndDispatch(task);
   }
 
+  // These flags will be reset when the decoded data returned in OnAudioDecoded()
+  // and OnVideoDecoded(). Because the decode tasks are flushed, these flags need
+  // to be reset here.
+  mAudioRequestPending = false;
+  mVideoRequestPending = false;
+
   // We must reset playback so that all references to frames queued
   // in the state machine are dropped, else subsequent calls to Shutdown()
   // or ReleaseMediaResources() can fail on B2G.
@@ -2753,7 +2767,9 @@ void MediaDecoderStateMachine::RenderVideoFrame(VideoData* aData,
     return;
   }
 
-  VERBOSE_LOG("playing video frame %lld", aData->mTime);
+  VERBOSE_LOG("playing video frame %lld (queued=%i, state-machine=%i, decoder-queued=%i)",
+              aData->mTime, VideoQueue().GetSize() + mReader->SizeOfVideoQueueInFrames(),
+              VideoQueue().GetSize(), mReader->SizeOfVideoQueueInFrames());
 
   VideoFrameContainer* container = mDecoder->GetVideoFrameContainer();
   if (container) {

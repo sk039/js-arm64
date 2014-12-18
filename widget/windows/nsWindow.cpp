@@ -187,6 +187,7 @@
 #endif
 
 #include "mozilla/layers/APZCTreeManager.h"
+#include "mozilla/layers/InputAPZContext.h"
 
 using namespace mozilla;
 using namespace mozilla::dom;
@@ -3741,6 +3742,18 @@ bool nsWindow::DispatchKeyboardEvent(WidgetGUIEvent* event)
 
 bool nsWindow::DispatchScrollEvent(WidgetGUIEvent* aEvent)
 {
+  uint64_t inputBlockId = 0;
+  ScrollableLayerGuid guid;
+
+  if (mAPZC && aEvent->mClass == eWheelEventClass) {
+    nsEventStatus status = mAPZC->ReceiveInputEvent(*aEvent->AsWheelEvent(), &guid, &inputBlockId);
+    if (status == nsEventStatus_eConsumeNoDefault) {
+      return true;
+    }
+  }
+
+  InputAPZContext context(guid, inputBlockId);
+
   nsEventStatus status;
   DispatchEvent(aEvent, status);
   return ConvertStatus(status);
@@ -3920,6 +3933,7 @@ bool nsWindow::DispatchMouseEvent(uint32_t aEventType, WPARAM wParam,
     event.message = NS_MOUSE_BUTTON_DOWN;
     event.button = aButton;
     sLastClickCount = 2;
+    sLastMouseDownTime = curMsgTime;
   }
   else if (aEventType == NS_MOUSE_BUTTON_UP) {
     // remember when this happened for the next mouse down

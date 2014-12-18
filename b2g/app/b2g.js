@@ -1037,6 +1037,9 @@ pref("browser.autofocus", false);
 // Enable wakelock
 pref("dom.wakelock.enabled", true);
 
+// Enable webapps add-ons
+pref("dom.apps.customization.enabled", true);
+
 // Enable touch caret by default
 pref("touchcaret.enabled", true);
 
@@ -1070,3 +1073,8 @@ pref("dom.mozSettings.SettingsDB.verbose.enabled", false);
 pref("dom.mozSettings.SettingsManager.verbose.enabled", false);
 pref("dom.mozSettings.SettingsRequestManager.verbose.enabled", false);
 pref("dom.mozSettings.SettingsService.verbose.enabled", false);
+
+// Controlling whether we want to allow forcing some Settings
+// IndexedDB transactions to be opened as readonly or keep everything as
+// readwrite.
+pref("dom.mozSettings.allowForceReadOnly", false);
