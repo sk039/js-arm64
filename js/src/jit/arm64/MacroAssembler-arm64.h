@@ -1113,6 +1113,10 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         movePtr(ImmPtr(lhs.addr), ScratchReg2);
         branch32(cond, Address(ScratchReg2, 0), rhs, label);
     }
+    void branch32(Condition cond, AsmJSAbsoluteAddress lhs, Imm32 rhs, Label *label) {
+        movePtr(AsmJSImmPtr(lhs.kind()), ScratchReg2);
+        branch32(cond, Address(ScratchReg2, 0), rhs, label);
+    }
     void branch32(Condition cond, BaseIndex lhs, Imm32 rhs, Label *label) {
         MOZ_CRASH("branch32 BaseIndex");
     }
