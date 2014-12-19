@@ -133,7 +133,7 @@ static const unsigned PostStorePrePopFP = 4;
 static const unsigned PushedRetAddr = 8; // Maybe FIXME: read from assertion
 static const unsigned PushedFP = 24; // FIXME: read from assertion
 static const unsigned StoredFP = 28; // FIXME: read from assertion
-static const unsigned PostStorePrePopFP = 0; // FIXME
+static const unsigned PostStorePrePopFP = 4;
 #elif defined(JS_CODEGEN_MIPS)
 static const unsigned PushedRetAddr = 8;
 static const unsigned PushedFP = 24;
@@ -237,8 +237,10 @@ GenerateProfilingEpilogue(MacroAssembler &masm, unsigned framePushed, AsmJSExit:
     // instructions from profilingReturn, so AutoForbidPools to ensure that
     // unintended instructions are not automatically inserted.
     {
-#if defined(JS_CODEGEN_ARM) || defined(JS_CODEGEN_ARM64)
+#if defined(JS_CODEGEN_ARM)
         AutoForbidPools afp(&masm, /* number of instructions in scope = */ 4);
+#elif defined(JS_CODEGEN_ARM64)
+        AutoForbidPools afp(&masm, /* number of instructions in scope = */ 5);
 #endif
 
         // sp protects the stack from clobber via asynchronous signal handlers
@@ -246,10 +248,10 @@ GenerateProfilingEpilogue(MacroAssembler &masm, unsigned framePushed, AsmJSExit:
         // time and still points to the current frame, be careful to only update
         // sp after activation.fp has been repointed to the caller's frame.
 #if defined(JS_CODEGEN_ARM) || defined(JS_CODEGEN_ARM64) || defined(JS_CODEGEN_MIPS)
-        masm.loadPtr(Address(StackPointer, 0), scratch2);
+        masm.loadPtr(Address(masm.GetStackPointer_(), 0), scratch2);
         masm.storePtr(scratch2, Address(scratch, AsmJSActivation::offsetOfFP()));
         DebugOnly<uint32_t> prePop = masm.currentOffset();
-        masm.add32(Imm32(4), StackPointer);
+        masm.add32(Imm32(4), masm.GetStackPointer_());
         MOZ_ASSERT(PostStorePrePopFP == masm.currentOffset() - prePop);
 #else
         masm.pop(Address(scratch, AsmJSActivation::offsetOfFP()));
