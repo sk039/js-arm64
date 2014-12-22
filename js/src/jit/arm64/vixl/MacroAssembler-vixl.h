@@ -975,7 +975,9 @@ class MacroAssemblerVIXL : public Assembler
     const ARMRegister& GetStackPointer() const {
         return sp_;
     }
-
+    const Register GetStackPointer_() const {
+        return Register::FromCode(sp_.code());
+    }
     CPURegList* TmpList() { return &tmp_list_; }
     CPURegList* FPTmpList() { return &fptmp_list_; }
 
