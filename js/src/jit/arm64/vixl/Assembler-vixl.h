@@ -1836,7 +1836,7 @@ class AssemblerVIXL : public AssemblerShared
         return reg.Is64Bits() ? xzr : wzr;
     }
 
-    void LoadStore(const CPURegister& rt, const MemOperand& addr, LoadStoreOp op,
+    BufferOffset LoadStore(const CPURegister& rt, const MemOperand& addr, LoadStoreOp op,
                    LoadStoreScalingOption option = PreferScaledOffset);
 
     static bool IsImmLSUnscaled(ptrdiff_t offset);

@@ -2271,7 +2271,7 @@ AssemblerVIXL::IsImmAddSub(int64_t immediate)
     return is_uint12(immediate) || (is_uint12(immediate >> 12) && ((immediate & 0xfff) == 0));
 }
 
-void
+BufferOffset
 AssemblerVIXL::LoadStore(const CPURegister& rt, const MemOperand& addr,
                          LoadStoreOp op, LoadStoreScalingOption option)
 {
@@ -2284,21 +2284,18 @@ AssemblerVIXL::LoadStore(const CPURegister& rt, const MemOperand& addr,
                                (option == RequireUnscaledOffset);
         if (prefer_unscaled && IsImmLSUnscaled(offset)) {
             // Use the unscaled addressing mode.
-            Emit(LoadStoreUnscaledOffsetFixed | memop | ImmLS(offset));
-            return;
+            return Emit(LoadStoreUnscaledOffsetFixed | memop | ImmLS(offset));
         }
  
         if ((option != RequireUnscaledOffset) && IsImmLSScaled(offset, size)) {
             // Use the scaled addressing mode.
-            Emit(LoadStoreUnsignedOffsetFixed | memop |
-                ImmLSUnsigned(offset >> size));
-            return;
+            return Emit(LoadStoreUnsignedOffsetFixed | memop |
+                        ImmLSUnsigned(offset >> size));
         }
 
         if ((option != RequireScaledOffset) && IsImmLSUnscaled(offset)) {
             // Use the unscaled addressing mode.
-            Emit(LoadStoreUnscaledOffsetFixed | memop | ImmLS(offset));
-            return;
+            return Emit(LoadStoreUnscaledOffsetFixed | memop | ImmLS(offset));
         }
     }
 
@@ -2321,19 +2318,16 @@ AssemblerVIXL::LoadStore(const CPURegister& rt, const MemOperand& addr,
         // access size.
         MOZ_ASSERT((shift_amount == 0) ||
                     (shift_amount == static_cast<unsigned>(CalcLSDataSize(op))));
-        Emit(LoadStoreRegisterOffsetFixed | memop | Rm(addr.regoffset()) |
-             ExtendMode(ext) | ImmShiftLS((shift_amount > 0) ? 1 : 0));
-        return;
+        return Emit(LoadStoreRegisterOffsetFixed | memop | Rm(addr.regoffset()) |
+                    ExtendMode(ext) | ImmShiftLS((shift_amount > 0) ? 1 : 0));
     }
 
     if (addr.IsPreIndex() && IsImmLSUnscaled(offset)) {
-        Emit(LoadStorePreIndexFixed | memop | ImmLS(offset));
-        return;
+        return Emit(LoadStorePreIndexFixed | memop | ImmLS(offset));
     }
 
     if (addr.IsPostIndex() && IsImmLSUnscaled(offset)) {
-        Emit(LoadStorePostIndexFixed | memop | ImmLS(offset));
-        return;
+        return Emit(LoadStorePostIndexFixed | memop | ImmLS(offset));
     }
 
     // If this point is reached, the MemOperand (addr) cannot be encoded.

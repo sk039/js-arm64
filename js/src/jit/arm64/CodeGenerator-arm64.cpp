@@ -612,13 +612,15 @@ CodeGeneratorARM64::visitUnbox(LUnbox *unbox)
 void 
 CodeGeneratorARM64::visitDouble(LDouble *ins)
 {
-    MOZ_CRASH("CodeGeneratorARM64::visitDouble");
+    const LDefinition *out = ins->getDef(0);
+    masm.Fmov(ARMFPRegister(ToFloatRegister(out), 64), ins->getDouble());
 }
 
 void 
 CodeGeneratorARM64::visitFloat32(LFloat32 *ins)
 {
-    MOZ_CRASH("CodeGeneratorARM64::visitFloat32");
+    const LDefinition *out = ins->getDef(0);
+    masm.Fmov(ARMFPRegister(ToFloatRegister(out), 32), ins->getFloat());
 }
 
 Register
@@ -847,10 +849,48 @@ CodeGeneratorARM64::visitAsmJSLoadHeap(LAsmJSLoadHeap *ins)
     MOZ_CRASH("CodeGeneratorARM64::visitAsmJSLoadHeap");
 }
 
+CPURegister
+ToCPUReg(const LAllocation *a)
+{
+    if (a->isFloatReg())
+        return ARMFPRegister(ToFloatRegister(a), 64);
+    if (a->isGeneralReg())
+        return ARMRegister(ToRegister(a), 32);
+    MOZ_CRASH("Unknown LAllocation");
+}
+
 void 
 CodeGeneratorARM64::visitAsmJSStoreHeap(LAsmJSStoreHeap *ins)
 {
-    MOZ_CRASH("CodeGeneratorARM64::visitAsmJSStoreHeap");
+    const MAsmJSStoreHeap *mir = ins->mir();
+    LoadStoreOp op;
+    const LAllocation *ptr = ins->ptr();
+    bool isSigned = false;
+    switch (mir->viewType()) {
+      case Scalar::Int8:
+      case Scalar::Uint8:   op = STRB_w; break;
+      case Scalar::Int16:
+      case Scalar::Uint16:  op = STRH_w; break;
+      case Scalar::Int32:
+      case Scalar::Uint32:  isSigned = true;  op = STR_w; break;
+      case Scalar::Float64: op = STR_d; break;
+      case Scalar::Float32: op = STR_s; break;
+      default: MOZ_CRASH("unexpected array type");
+    }
+
+    CPURegister rt = ToCPUReg(ins->value());
+    if (ptr->isConstant()) {
+        int32_t ptrImm = ptr->toConstant()->toInt32();
+        MOZ_ASSERT(ptrImm >= 0);
+        masm.LoadStoreMacro(rt, MemOperand(ARMRegister(HeapReg, 64), ptrImm), op);
+        //memoryBarrier(mir->barrierAfter());
+        return;
+    }
+    Register ptrReg = ToRegister(ptr);
+    BufferOffset bo = masm.LoadStoreMacro(rt, MemOperand(ARMRegister(HeapReg, 64), ARMRegister(ptrReg, 64)), op);
+    if (mir->needsBoundsCheck()) {
+        masm.append(AsmJSHeapAccess(bo.getOffset()));
+    }
 }
 
 void 

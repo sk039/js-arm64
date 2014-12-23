@@ -546,7 +546,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
     void movePtr(AsmJSImmPtr imm, Register dest) {
         append(AsmJSAbsoluteLink(CodeOffsetLabel(currentOffset()), imm.kind()));
-        movePatchablePtr(ImmPtr((void*)0xffffffffffffffffULL), dest);
+        movePatchablePtr(ImmWord(0xffffffffffffffffULL), dest);
     }
     void movePtr(ImmGCPtr imm, Register dest) {
         BufferOffset load = movePatchablePtr(ImmPtr(imm.value), dest);
@@ -565,6 +565,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     // Move a pointer using a literal pool, so that the pointer
     // may be easily patched or traced.
     // Returns the BufferOffset of the load instruction emitted.
+    BufferOffset movePatchablePtr(ImmWord ptr, Register dest);
     BufferOffset movePatchablePtr(ImmPtr ptr, Register dest);
 
     void not32(Register reg) {

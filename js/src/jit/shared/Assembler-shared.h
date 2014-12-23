@@ -770,7 +770,7 @@ class AsmJSHeapAccess
         type_(type),
         loadedReg_(UINT8_MAX)
     {}
-#elif defined(JS_CODEGEN_ARM) || defined(JS_CODEGEN_MIPS)
+#elif defined(JS_CODEGEN_ARM) || defined(JS_CODEGEN_MIPS) || defined(JS_CODEGEN_ARM64)
     explicit AsmJSHeapAccess(uint32_t offset)
       : offset_(offset)
     {}

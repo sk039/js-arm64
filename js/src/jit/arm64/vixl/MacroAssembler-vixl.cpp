@@ -773,7 +773,7 @@ void MacroAssemblerVIXL::FN(const REGTYPE REG, const MemOperand& addr) {  \
 LS_MACRO_LIST(DEFINE_FUNCTION)
 #undef DEFINE_FUNCTION
 
-void
+BufferOffset
 MacroAssemblerVIXL::LoadStoreMacro(const CPURegister& rt, const MemOperand& addr, LoadStoreOp op)
 {
     int64_t offset = addr.offset();
@@ -791,18 +791,19 @@ MacroAssemblerVIXL::LoadStoreMacro(const CPURegister& rt, const MemOperand& addr
         MOZ_ASSERT(!temp.Is(addr.base()) && !temp.Is(addr.regoffset()));
 
         Mov(temp, addr.offset());
-        LoadStore(rt, MemOperand(addr.base(), temp), op);
+        return LoadStore(rt, MemOperand(addr.base(), temp), op);
     } else if (addr.IsPostIndex() && !IsImmLSUnscaled(offset)) {
         // Post-index beyond unscaled addressing range.
-        LoadStore(rt, MemOperand(addr.base()), op);
+        BufferOffset ret = LoadStore(rt, MemOperand(addr.base()), op);
         Add(addr.base(), addr.base(), Operand(offset));
+        return ret;
     } else if (addr.IsPreIndex() && !IsImmLSUnscaled(offset)) {
         // Pre-index beyond unscaled addressing range.
         Add(addr.base(), addr.base(), Operand(offset));
-        LoadStore(rt, MemOperand(addr.base()), op);
+        return LoadStore(rt, MemOperand(addr.base()), op);
     } else {
         // Encodable in one load/store instruction.
-        LoadStore(rt, addr, op);
+        return LoadStore(rt, addr, op);
     }
 }
 

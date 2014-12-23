@@ -348,7 +348,18 @@ LIRGeneratorARM64::visitAsmJSLoadHeap(MAsmJSLoadHeap *ins)
 void
 LIRGeneratorARM64::visitAsmJSStoreHeap(MAsmJSStoreHeap *ins)
 {
-    MOZ_CRASH("visitAsmJSStoreHeap");
+        MDefinition *ptr = ins->ptr();
+    MOZ_ASSERT(ptr->type() == MIRType_Int32);
+    LAllocation ptrAlloc;
+
+    if (ptr->isConstant() && !ins->needsBoundsCheck()) {
+        MOZ_ASSERT(ptr->toConstant()->value().toInt32() >= 0);
+        ptrAlloc = LAllocation(ptr->toConstant()->vp());
+    } else {
+        ptrAlloc = useRegisterAtStart(ptr);
+    }
+
+    add(new(alloc()) LAsmJSStoreHeap(ptrAlloc, useRegisterAtStart(ins->value())), ins);
 }
 
 void

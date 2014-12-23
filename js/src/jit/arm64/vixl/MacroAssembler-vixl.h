@@ -171,7 +171,7 @@ class MacroAssemblerVIXL : public Assembler
     LS_MACRO_LIST(DECLARE_FUNCTION)
 #undef DECLARE_FUNCTION
 
-    void LoadStoreMacro(const CPURegister& rt, const MemOperand& addr, LoadStoreOp op);
+    BufferOffset LoadStoreMacro(const CPURegister& rt, const MemOperand& addr, LoadStoreOp op);
 
     // Push or pop up to 4 registers of the same width to or from the stack,
     // using the current stack pointer as set by SetStackPointer.
