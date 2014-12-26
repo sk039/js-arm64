@@ -8089,7 +8089,7 @@ GenerateEntry(ModuleCompiler &m, unsigned exportIndex)
     masm.bind(&begin);
 
     // Save the return address if it wasn't already saved by the call insn.
-#if defined(JS_CODEGEN_ARM)
+#if defined(JS_CODEGEN_ARM) || defined(JS_CODEGEN_ARM64)
     masm.push(lr);
 #elif defined(JS_CODEGEN_MIPS)
     masm.push(ra);
@@ -8106,7 +8106,7 @@ GenerateEntry(ModuleCompiler &m, unsigned exportIndex)
     // ARM and MIPS have a globally-pinned GlobalReg (x64 uses RIP-relative
     // addressing, x86 uses immediates in effective addresses). For the
     // AsmJSGlobalRegBias addition, see Assembler-(mips,arm).h.
-#if defined(JS_CODEGEN_ARM) || defined(JS_CODEGEN_MIPS)
+#if defined(JS_CODEGEN_ARM) || defined(JS_CODEGEN_MIPS) || defined(JS_CODEGEN_ARM64)
     masm.movePtr(IntArgReg1, GlobalReg);
     masm.addPtr(Imm32(AsmJSGlobalRegBias), GlobalReg);
 #endif
@@ -8135,18 +8135,18 @@ GenerateEntry(ModuleCompiler &m, unsigned exportIndex)
     // GlobalReg.
     MOZ_ASSERT(masm.framePushed() == FramePushedForEntrySP);
     masm.loadAsmJSActivation(scratch);
-    masm.storePtr(StackPointer, Address(scratch, AsmJSActivation::offsetOfEntrySP()));
+    masm.storePtr(masm.GetStackPointer_(), Address(scratch, AsmJSActivation::offsetOfEntrySP()));
 
     // Dynamically align the stack since ABIStackAlignment is not necessarily
     // AsmJSStackAlignment. We'll use entrySP to recover the original stack
     // pointer on return.
-    masm.andPtr(Imm32(~(AsmJSStackAlignment - 1)), StackPointer);
-
+    masm.andPtr(Imm32(~(AsmJSStackAlignment - 1)), masm.GetStackPointer_());
+    
     // Bump the stack for the call.
     PropertyName *funcName = m.module().exportedFunction(exportIndex).name();
     const ModuleCompiler::Func &func = *m.lookupFunction(funcName);
     masm.reserveStack(AlignBytes(StackArgBytes(func.sig().args()), AsmJSStackAlignment));
-
+    masm.syncStackPtr();
     // Copy parameters out of argv and into the registers/stack-slots specified by
     // the system ABI.
     for (ABIArgTypeIter iter(func.sig().args()); !iter.done(); iter++) {
@@ -8183,25 +8183,25 @@ GenerateEntry(ModuleCompiler &m, unsigned exportIndex)
             switch (type) {
               case MIRType_Int32:
                 masm.load32(src, scratch);
-                masm.storePtr(scratch, Address(StackPointer, iter->offsetFromArgBase()));
+                masm.storePtr(scratch, Address(masm.GetStackPointer_(), iter->offsetFromArgBase()));
                 break;
               case MIRType_Double:
                 masm.loadDouble(src, ScratchDoubleReg);
-                masm.storeDouble(ScratchDoubleReg, Address(StackPointer, iter->offsetFromArgBase()));
+                masm.storeDouble(ScratchDoubleReg, Address(masm.GetStackPointer_(), iter->offsetFromArgBase()));
                 break;
               case MIRType_Float32:
                 masm.loadFloat32(src, ScratchFloat32Reg);
-                masm.storeFloat32(ScratchFloat32Reg, Address(StackPointer, iter->offsetFromArgBase()));
+                masm.storeFloat32(ScratchFloat32Reg, Address(masm.GetStackPointer_(), iter->offsetFromArgBase()));
                 break;
               case MIRType_Int32x4:
                 masm.loadUnalignedInt32x4(src, ScratchSimdReg);
                 masm.storeAlignedInt32x4(ScratchSimdReg,
-                                         Address(StackPointer, iter->offsetFromArgBase()));
+                                         Address(masm.GetStackPointer_(), iter->offsetFromArgBase()));
                 break;
               case MIRType_Float32x4:
                 masm.loadUnalignedFloat32x4(src, ScratchSimdReg);
                 masm.storeAlignedFloat32x4(ScratchSimdReg,
-                                           Address(StackPointer, iter->offsetFromArgBase()));
+                                           Address(masm.GetStackPointer_(), iter->offsetFromArgBase()));
                 break;
               default:
                 MOZ_MAKE_COMPILER_ASSUME_IS_UNREACHABLE("unexpected stack arg type");
@@ -8216,7 +8216,7 @@ GenerateEntry(ModuleCompiler &m, unsigned exportIndex)
 
     // Recover the stack pointer value before dynamic alignment.
     masm.loadAsmJSActivation(scratch);
-    masm.loadPtr(Address(scratch, AsmJSActivation::offsetOfEntrySP()), StackPointer);
+    masm.loadPtr(Address(scratch, AsmJSActivation::offsetOfEntrySP()), masm.GetStackPointer_());
     masm.setFramePushed(FramePushedForEntrySP);
 
     // Recover the 'argv' pointer which was saved before aligning the stack.
@@ -8264,7 +8264,7 @@ FillArgumentArray(ModuleCompiler &m, const VarTypeVector &argTypes,
     MacroAssembler &masm = m.masm();
 
     for (ABIArgTypeIter i(argTypes); !i.done(); i++) {
-        Address dstAddr(StackPointer, offsetToArgs + i.index() * sizeof(Value));
+        Address dstAddr(masm.GetStackPointer_(), offsetToArgs + i.index() * sizeof(Value));
         switch (i->kind()) {
           case ABIArg::GPR:
             masm.storeValue(JSVAL_TYPE_INT32, i->gpr(), dstAddr);
@@ -8275,7 +8275,7 @@ FillArgumentArray(ModuleCompiler &m, const VarTypeVector &argTypes,
             break;
           case ABIArg::Stack:
             if (i.mirType() == MIRType_Int32) {
-                Address src(StackPointer, offsetToCallerStackArgs + i->offsetFromArgBase());
+                Address src(masm.GetStackPointer_(), offsetToCallerStackArgs + i->offsetFromArgBase());
 #if defined(JS_CODEGEN_X86) || defined(JS_CODEGEN_X64)
                 masm.load32(src, scratch);
                 masm.storeValue(JSVAL_TYPE_INT32, scratch, dstAddr);
@@ -8284,7 +8284,7 @@ FillArgumentArray(ModuleCompiler &m, const VarTypeVector &argTypes,
 #endif
             } else {
                 MOZ_ASSERT(i.mirType() == MIRType_Double);
-                Address src(StackPointer, offsetToCallerStackArgs + i->offsetFromArgBase());
+                Address src(masm.GetStackPointer_(), offsetToCallerStackArgs + i->offsetFromArgBase());
                 masm.loadDouble(src, ScratchDoubleReg);
                 masm.canonicalizeDouble(ScratchDoubleReg);
                 masm.storeDouble(ScratchDoubleReg, dstAddr);
@@ -8353,7 +8353,7 @@ GenerateFFIInterpExit(ModuleCompiler &m, const ModuleCompiler::ExitDescriptor &e
     if (i->kind() == ABIArg::GPR)
         masm.movePtr(ImmWord(exitIndex), i->gpr());
     else
-        masm.store32(Imm32(exitIndex), Address(StackPointer, i->offsetFromArgBase()));
+        masm.store32(Imm32(exitIndex), Address(masm.GetStackPointer_(), i->offsetFromArgBase()));
     i++;
 
     // argument 1: argc
@@ -8361,16 +8361,16 @@ GenerateFFIInterpExit(ModuleCompiler &m, const ModuleCompiler::ExitDescriptor &e
     if (i->kind() == ABIArg::GPR)
         masm.movePtr(ImmWord(argc), i->gpr());
     else
-        masm.store32(Imm32(argc), Address(StackPointer, i->offsetFromArgBase()));
+        masm.store32(Imm32(argc), Address(masm.GetStackPointer_(), i->offsetFromArgBase()));
     i++;
 
     // argument 2: argv
-    Address argv(StackPointer, offsetToArgv);
+    Address argv(masm.GetStackPointer_(), offsetToArgv);
     if (i->kind() == ABIArg::GPR) {
         masm.computeEffectiveAddress(argv, i->gpr());
     } else {
         masm.computeEffectiveAddress(argv, scratch);
-        masm.storePtr(scratch, Address(StackPointer, i->offsetFromArgBase()));
+        masm.storePtr(scratch, Address(masm.GetStackPointer_(), i->offsetFromArgBase()));
     }
     i++;
     MOZ_ASSERT(i.done());
@@ -8460,7 +8460,7 @@ GenerateFFIIonExit(ModuleCompiler &m, const ModuleCompiler::ExitDescriptor &exit
     // 1. Descriptor
     size_t argOffset = offsetToIonArgs;
     uint32_t descriptor = MakeFrameDescriptor(framePushed, JitFrame_Entry);
-    masm.storePtr(ImmWord(uintptr_t(descriptor)), Address(StackPointer, argOffset));
+    masm.storePtr(ImmWord(uintptr_t(descriptor)), Address(masm.GetStackPointer_(), argOffset));
     argOffset += sizeof(size_t);
 
     // 2. Callee
@@ -8483,7 +8483,7 @@ GenerateFFIIonExit(ModuleCompiler &m, const ModuleCompiler::ExitDescriptor &exit
     masm.loadPtr(Address(callee, offsetof(AsmJSModule::ExitDatum, fun)), callee);
 
     // 2.3. Save callee
-    masm.storePtr(callee, Address(StackPointer, argOffset));
+    masm.storePtr(callee, Address(masm.GetStackPointer_(), argOffset));
     argOffset += sizeof(size_t);
 
     // 2.4. Load callee executable entry point
@@ -8492,11 +8492,11 @@ GenerateFFIIonExit(ModuleCompiler &m, const ModuleCompiler::ExitDescriptor &exit
 
     // 3. Argc
     unsigned argc = exit.sig().args().length();
-    masm.storePtr(ImmWord(uintptr_t(argc)), Address(StackPointer, argOffset));
+    masm.storePtr(ImmWord(uintptr_t(argc)), Address(masm.GetStackPointer_(), argOffset));
     argOffset += sizeof(size_t);
 
     // 4. |this| value
-    masm.storeValue(UndefinedValue(), Address(StackPointer, argOffset));
+    masm.storeValue(UndefinedValue(), Address(masm.GetStackPointer_(), argOffset));
     argOffset += sizeof(Value);
 
     // 5. Fill the arguments
@@ -8514,7 +8514,7 @@ GenerateFFIIonExit(ModuleCompiler &m, const ModuleCompiler::ExitDescriptor &exit
 #if defined(JS_CODEGEN_ARM) || defined(JS_CODEGEN_MIPS)
     JS_STATIC_ASSERT(MaybeSavedGlobalReg > 0);
     unsigned savedGlobalOffset = framePushed - MaybeSavedGlobalReg;
-    masm.storePtr(GlobalReg, Address(StackPointer, savedGlobalOffset));
+    masm.storePtr(GlobalReg, Address(masm.GetStackPointer_(), savedGlobalOffset));
 #else
     JS_STATIC_ASSERT(MaybeSavedGlobalReg == 0);
 #endif
@@ -8595,7 +8595,7 @@ GenerateFFIIonExit(ModuleCompiler &m, const ModuleCompiler::ExitDescriptor &exit
     // Reload the global register since Ion code can clobber any register.
 #if defined(JS_CODEGEN_ARM) || defined(JS_CODEGEN_MIPS)
     JS_STATIC_ASSERT(MaybeSavedGlobalReg > 0);
-    masm.loadPtr(Address(StackPointer, savedGlobalOffset), GlobalReg);
+    masm.loadPtr(Address(masm.GetStackPointer_(), savedGlobalOffset), GlobalReg);
 #else
     JS_STATIC_ASSERT(MaybeSavedGlobalReg == 0);
 #endif
@@ -8636,16 +8636,16 @@ GenerateFFIIonExit(ModuleCompiler &m, const ModuleCompiler::ExitDescriptor &exit
         masm.setFramePushed(framePushed);
 
         // Store return value into argv[0]
-        masm.storeValue(JSReturnOperand, Address(StackPointer, offsetToCoerceArgv));
+        masm.storeValue(JSReturnOperand, Address(masm.GetStackPointer_(), offsetToCoerceArgv));
 
         // argument 0: argv
         ABIArgMIRTypeIter i(coerceArgTypes);
-        Address argv(StackPointer, offsetToCoerceArgv);
+        Address argv(masm.GetStackPointer_(), offsetToCoerceArgv);
         if (i->kind() == ABIArg::GPR) {
             masm.computeEffectiveAddress(argv, i->gpr());
         } else {
             masm.computeEffectiveAddress(argv, scratch);
-            masm.storePtr(scratch, Address(StackPointer, i->offsetFromArgBase()));
+            masm.storePtr(scratch, Address(masm.GetStackPointer_(), i->offsetFromArgBase()));
         }
         i++;
         MOZ_ASSERT(i.done());
@@ -8656,12 +8656,12 @@ GenerateFFIIonExit(ModuleCompiler &m, const ModuleCompiler::ExitDescriptor &exit
           case RetType::Signed:
             masm.call(AsmJSImmPtr(AsmJSImm_CoerceInPlace_ToInt32));
             masm.branchTest32(Assembler::Zero, ReturnReg, ReturnReg, throwLabel);
-            masm.unboxInt32(Address(StackPointer, offsetToCoerceArgv), ReturnReg);
+            masm.unboxInt32(Address(masm.GetStackPointer_(), offsetToCoerceArgv), ReturnReg);
             break;
           case RetType::Double:
             masm.call(AsmJSImmPtr(AsmJSImm_CoerceInPlace_ToNumber));
             masm.branchTest32(Assembler::Zero, ReturnReg, ReturnReg, throwLabel);
-            masm.loadDouble(Address(StackPointer, offsetToCoerceArgv), ReturnDoubleReg);
+            masm.loadDouble(Address(masm.GetStackPointer_(), offsetToCoerceArgv), ReturnDoubleReg);
             break;
           default:
             MOZ_CRASH("Unsupported convert type");
@@ -8759,8 +8759,8 @@ GenerateBuiltinThunk(ModuleCompiler &m, AsmJSExit::BuiltinKind builtin)
             continue;
 #if !defined(JS_CODEGEN_ARM)
         unsigned offsetToCallerStackArgs = sizeof(AsmJSFrame) + masm.framePushed();
-        Address srcAddr(StackPointer, offsetToCallerStackArgs + i->offsetFromArgBase());
-        Address dstAddr(StackPointer, i->offsetFromArgBase());
+        Address srcAddr(masm.GetStackPointer_(), offsetToCallerStackArgs + i->offsetFromArgBase());
+        Address dstAddr(masm.GetStackPointer_(), i->offsetFromArgBase());
         if (i.mirType() == MIRType_Int32 || i.mirType() == MIRType_Float32) {
             masm.load32(srcAddr, ABIArgGenerator::NonArg_VolatileReg);
             masm.store32(ABIArgGenerator::NonArg_VolatileReg, dstAddr);
@@ -8803,7 +8803,7 @@ GenerateOnDetachedLabelExit(ModuleCompiler &m, Label *throwLabel)
 
     return m.finishGeneratingInlineStub(&m.onDetachedLabel()) && !masm.oom();
 }
-
+// TODO: the stack pointer is kind of determined at runtime on arm64,
 static const RegisterSet AllRegsExceptSP =
     RegisterSet(GeneralRegisterSet(Registers::AllMask &
                                    ~(uint32_t(1) << Registers::StackPointer)),
@@ -8838,14 +8838,14 @@ GenerateAsyncInterruptExit(ModuleCompiler &m, Label *throwLabel)
     // Store resumePC into the reserved space.
     masm.loadAsmJSActivation(scratch);
     masm.loadPtr(Address(scratch, AsmJSActivation::offsetOfResumePC()), scratch);
-    masm.storePtr(scratch, Address(StackPointer, masm.framePushed() + sizeof(void*)));
+    masm.storePtr(scratch, Address(masm.GetStackPointer_(), masm.framePushed() + sizeof(void*)));
 
     // We know that StackPointer is word-aligned, but not necessarily
     // stack-aligned, so we need to align it dynamically.
-    masm.movePtr(StackPointer, ABIArgGenerator::NonVolatileReg);
-    masm.andPtr(Imm32(~(ABIStackAlignment - 1)), StackPointer);
+    masm.movePtr(masm.GetStackPointer_(), ABIArgGenerator::NonVolatileReg);
+    masm.andPtr(Imm32(~(ABIStackAlignment - 1)), masm.GetStackPointer_());
     if (ShadowStackSpace)
-        masm.subPtr(Imm32(ShadowStackSpace), StackPointer);
+        masm.subPtr(Imm32(ShadowStackSpace), masm.GetStackPointer_());
 
     masm.assertStackAlignment(ABIStackAlignment);
     masm.call(AsmJSImmPtr(AsmJSImm_HandleExecutionInterrupt));
@@ -8853,7 +8853,7 @@ GenerateAsyncInterruptExit(ModuleCompiler &m, Label *throwLabel)
     masm.branchIfFalseBool(ReturnReg, throwLabel);
 
     // Restore the StackPointer to it's position before the call.
-    masm.movePtr(ABIArgGenerator::NonVolatileReg, StackPointer);
+    masm.movePtr(ABIArgGenerator::NonVolatileReg, masm.GetStackPointer_());
 
     // Restore the machine state to before the interrupt.
     masm.PopRegsInMask(AllRegsExceptSP, AllRegsExceptSP.fpus()); // restore all GP/FP registers (except SP)
@@ -8861,7 +8861,7 @@ GenerateAsyncInterruptExit(ModuleCompiler &m, Label *throwLabel)
     masm.ret();                   // pop resumePC into PC
 #elif defined(JS_CODEGEN_MIPS)
     // Reserve space to store resumePC.
-    masm.subPtr(Imm32(sizeof(intptr_t)), StackPointer);
+    masm.subPtr(Imm32(sizeof(intptr_t)), masm.GetStackPointer_());
     // set to zero so we can use masm.framePushed() below.
     masm.setFramePushed(0);
     // When this platform supports SIMD extensions, we'll need to push high lanes
@@ -8871,9 +8871,9 @@ GenerateAsyncInterruptExit(ModuleCompiler &m, Label *throwLabel)
     masm.PushRegsInMask(AllRegsExceptSP);
 
     // Save the stack pointer in a non-volatile register.
-    masm.movePtr(StackPointer, s0);
+    masm.movePtr(masm.GetStackPointer_(), s0);
     // Align the stack.
-    masm.ma_and(StackPointer, StackPointer, Imm32(~(ABIStackAlignment - 1)));
+    masm.ma_and(masm.GetStackPointer_(), masm.GetStackPointer_(), Imm32(~(ABIStackAlignment - 1)));
 
     // Store resumePC into the reserved space.
     masm.loadAsmJSActivation(IntArgReg0);
@@ -8881,17 +8881,17 @@ GenerateAsyncInterruptExit(ModuleCompiler &m, Label *throwLabel)
     masm.storePtr(IntArgReg1, Address(s0, masm.framePushed()));
 
     // MIPS ABI requires rewserving stack for registes $a0 to $a3.
-    masm.subPtr(Imm32(4 * sizeof(intptr_t)), StackPointer);
+    masm.subPtr(Imm32(4 * sizeof(intptr_t)), masm.GetStackPointer_());
 
     masm.assertStackAlignment(ABIStackAlignment);
     masm.call(AsmJSImm_HandleExecutionInterrupt);
 
-    masm.addPtr(Imm32(4 * sizeof(intptr_t)), StackPointer);
+    masm.addPtr(Imm32(4 * sizeof(intptr_t)), masm.GetStackPointer_());
 
     masm.branchIfFalseBool(ReturnReg, throwLabel);
 
     // This will restore stack to the address before the call.
-    masm.movePtr(s0, StackPointer);
+    masm.movePtr(s0, masm.GetStackPointer_());
     masm.PopRegsInMask(AllRegsExceptSP);
 
     // Pop resumePC into PC. Clobber HeapReg to make the jump and restore it
@@ -8999,7 +8999,7 @@ GenerateThrowStub(ModuleCompiler &m, Label *throwLabel)
     masm.storePtr(ImmWord(0), Address(scratch, AsmJSActivation::offsetOfFP()));
 
     masm.setFramePushed(FramePushedForEntrySP);
-    masm.loadPtr(Address(scratch, AsmJSActivation::offsetOfEntrySP()), StackPointer);
+    masm.loadPtr(Address(scratch, AsmJSActivation::offsetOfEntrySP()), masm.GetStackPointer_());
     masm.Pop(scratch);
     masm.PopRegsInMask(NonVolatileRegs, NonVolatileSimdRegs);
     MOZ_ASSERT(masm.framePushed() == 0);

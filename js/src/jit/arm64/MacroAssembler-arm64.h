@@ -149,11 +149,20 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         MacroAssemblerVIXL::Push(ARMRegister(val.valueReg(), 64));
         adjustFrame(sizeof(void *));
     }
-
+    #if 0
     template <typename T>
     void Pop(const T t) {
         pop(t);
         adjustFrame(-1 * (int32_t)(sizeof(T)));
+    }
+#endif
+    void Pop(const Register t) {
+        pop(t);
+        adjustFrame(-1 * sizeof(int64_t));
+    }
+    void Pop(const ValueOperand t) {
+        pop(t);
+        adjustFrame(-1 * sizeof(int64_t));
     }
 
     void push(FloatRegister f) {
@@ -1984,15 +1993,18 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
 
     void call(const CallSiteDesc &desc, Label *label) {
         syncStackPtr();
-        MOZ_CRASH("call");
+        call(label);
+        append(desc, currentOffset(), framePushed_);
     }
     void call(const CallSiteDesc &desc, Register reg) {
         syncStackPtr();
-        MOZ_CRASH("call");
+        call(reg);
+        append(desc, currentOffset(), framePushed_);
     }
     void call(const CallSiteDesc &desc, AsmJSImmPtr imm) {
         syncStackPtr();
-        MOZ_CRASH("call");
+        call(imm);
+        append(desc, currentOffset(), framePushed_);
     }
 
     void call(AsmJSImmPtr imm) {
@@ -2333,7 +2345,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         loadPtr(Address(GlobalReg, AsmJSActivationGlobalDataOffset), dest);
     }
     void loadAsmJSHeapRegisterFromGlobalData() {
-        MOZ_CRASH("loadAsmJSHeapRegisterFromGlobalData");
+        loadPtr(Address(GlobalReg, AsmJSHeapGlobalDataOffset - AsmJSGlobalRegBias), HeapReg);
     }
     // This moves an un-tagged value from src into a
     // dest that already has the correct tag, and /anything/ in the lower bits

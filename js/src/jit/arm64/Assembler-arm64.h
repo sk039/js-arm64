@@ -38,7 +38,7 @@ namespace js {
 namespace jit {
 
 static MOZ_CONSTEXPR_VAR bool SupportsSimd = false;
-
+static const int32_t AsmJSGlobalRegBias = 1024;
 class Assembler : public AssemblerVIXL
 {
   public:

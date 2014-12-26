@@ -342,13 +342,26 @@ LIRGeneratorARM64::visitAsmJSUnsignedToFloat32(MAsmJSUnsignedToFloat32 *ins)
 void
 LIRGeneratorARM64::visitAsmJSLoadHeap(MAsmJSLoadHeap *ins)
 {
-    MOZ_CRASH("visitAsmJSLoadHeap");
+    MDefinition *ptr = ins->ptr();
+    MOZ_ASSERT(ptr->type() == MIRType_Int32);
+    LAllocation ptrAlloc;
+
+    // For the ARM it is best to keep the 'ptr' in a register if a bounds check is needed.
+    if (ptr->isConstant() && !ins->needsBoundsCheck()) {
+        // A bounds check is only skipped for a positive index.
+        MOZ_ASSERT(ptr->toConstant()->value().toInt32() >= 0);
+        ptrAlloc = LAllocation(ptr->toConstant()->vp());
+    } else {
+        ptrAlloc = useRegisterAtStart(ptr);
+    }
+
+    define(new(alloc()) LAsmJSLoadHeap(ptrAlloc), ins);
 }
 
 void
 LIRGeneratorARM64::visitAsmJSStoreHeap(MAsmJSStoreHeap *ins)
 {
-        MDefinition *ptr = ins->ptr();
+    MDefinition *ptr = ins->ptr();
     MOZ_ASSERT(ptr->type() == MIRType_Int32);
     LAllocation ptrAlloc;
 

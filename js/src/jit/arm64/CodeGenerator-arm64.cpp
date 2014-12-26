@@ -247,7 +247,23 @@ js::jit::Operand toWOperand(const LAllocation *a)
         return js::jit::Operand(ToInt32(a));
     return js::jit::Operand(toWRegister(a));
 }
-void 
+
+CPURegister
+ToCPURegister(const LAllocation *a)
+{
+    if (a->isFloatReg())
+        return ARMFPRegister(ToFloatRegister(a), 64);
+    if (a->isGeneralReg())
+        return ARMRegister(ToRegister(a), 32);
+    MOZ_CRASH("Unknown LAllocation");
+}
+CPURegister
+ToCPURegister(const LDefinition *d)
+{
+    return ToCPURegister(d->output());
+}
+
+void
 CodeGeneratorARM64::visitAddI(LAddI *ins)
 {
     const LAllocation *lhs = ins->getOperand(0);
@@ -490,7 +506,27 @@ CodeGeneratorARM64::emitTableSwitchDispatch(MTableSwitch *mir, Register index, R
 void 
 CodeGeneratorARM64::visitMathD(LMathD *math)
 {
-    MOZ_CRASH("CodeGeneratorARM64::visitMathD");
+    const ARMFPRegister src1(ToFloatRegister(math->getOperand(0)), 64);
+    const ARMFPRegister src2(ToFloatRegister(math->getOperand(1)), 64);
+    const ARMFPRegister output(ToFloatRegister(math->getOperand(0)), 64);
+
+    switch (math->jsop()) {
+      case JSOP_ADD:
+        masm.Fadd(output, src1, src2);
+        break;
+      case JSOP_SUB:
+        masm.Fsub(output, src1, src2);
+        break;
+      case JSOP_MUL:
+        masm.Fmul(output, src1, src2);
+        break;
+      case JSOP_DIV:
+        masm.Fdiv(output, src1, src2);
+        break;
+      default:
+        MOZ_CRASH("unexpected opcode");
+    }
+
 }
 
 void 
@@ -846,17 +882,35 @@ CodeGeneratorARM64::visitAsmJSCall(LAsmJSCall *ins)
 void 
 CodeGeneratorARM64::visitAsmJSLoadHeap(LAsmJSLoadHeap *ins)
 {
-    MOZ_CRASH("CodeGeneratorARM64::visitAsmJSLoadHeap");
-}
+    const MAsmJSLoadHeap *mir = ins->mir();
+    LoadStoreOp op;
+    const LAllocation *ptr = ins->ptr();
+    bool isSigned = false;
+    switch (mir->viewType()) {
+      case Scalar::Int8:    op = LDRSB_w; break;
+      case Scalar::Uint8:   op = LDRB_w; break;
+      case Scalar::Int16:   op = LDRSH_w; break;
+      case Scalar::Uint16:  op = LDRH_w; break;
+      case Scalar::Int32:   op = LDR_w; break;
+      case Scalar::Uint32:  op = LDR_w; break;
+      case Scalar::Float64: op = LDR_d; break;
+      case Scalar::Float32: op = LDR_s; break;
+      default: MOZ_CRASH("unexpected array type");
+    }
 
-CPURegister
-ToCPUReg(const LAllocation *a)
-{
-    if (a->isFloatReg())
-        return ARMFPRegister(ToFloatRegister(a), 64);
-    if (a->isGeneralReg())
-        return ARMRegister(ToRegister(a), 32);
-    MOZ_CRASH("Unknown LAllocation");
+    CPURegister rt = ToCPURegister(ins->output());
+    if (ptr->isConstant()) {
+        int32_t ptrImm = ptr->toConstant()->toInt32();
+        MOZ_ASSERT(ptrImm >= 0);
+        masm.LoadStoreMacro(rt, MemOperand(ARMRegister(HeapReg, 64), ptrImm), op);
+        //memoryBarrier(mir->barrierAfter());
+        return;
+    }
+    Register ptrReg = ToRegister(ptr);
+    BufferOffset bo = masm.LoadStoreMacro(rt, MemOperand(ARMRegister(HeapReg, 64), ARMRegister(ptrReg, 64)), op);
+    if (mir->needsBoundsCheck()) {
+        masm.append(AsmJSHeapAccess(bo.getOffset()));
+    }
 }
 
 void 
@@ -878,7 +932,7 @@ CodeGeneratorARM64::visitAsmJSStoreHeap(LAsmJSStoreHeap *ins)
       default: MOZ_CRASH("unexpected array type");
     }
 
-    CPURegister rt = ToCPUReg(ins->value());
+    CPURegister rt = ToCPURegister(ins->value());
     if (ptr->isConstant()) {
         int32_t ptrImm = ptr->toConstant()->toInt32();
         MOZ_ASSERT(ptrImm >= 0);
@@ -958,10 +1012,13 @@ CodeGeneratorARM64::visitAsmJSLoadFuncPtr(LAsmJSLoadFuncPtr *ins)
     MOZ_CRASH("CodeGeneratorARM64::visitAsmJSLoadFuncPtr");
 }
 
-void 
+void
 CodeGeneratorARM64::visitAsmJSLoadFFIFunc(LAsmJSLoadFFIFunc *ins)
 {
-    MOZ_CRASH("CodeGeneratorARM64::visitAsmJSLoadFFIFunc");
+    const MAsmJSLoadFFIFunc *mir = ins->mir();
+    masm.Ldr(toWRegister(ins->output()),
+             MemOperand(ARMRegister(GlobalReg, 64),
+                        mir->globalDataOffset() - AsmJSGlobalRegBias));
 }
 
 void 
