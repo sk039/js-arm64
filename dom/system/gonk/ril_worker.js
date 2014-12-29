@@ -546,6 +546,12 @@ RilObject.prototype = {
      * { options: options of the corresponding dialing request }
      */
     this.pendingMO = null;
+
+    /**
+     * True when the request to report SMS Memory Status is pending.
+     */
+    this.pendingToReportSmsMemoryStatus = false;
+    this.smsStorageAvailable = true;
   },
 
   /**
@@ -2064,6 +2070,23 @@ RilObject.prototype = {
     }
   },
 
+  /**
+   * Report SMS storage status to modem.
+   */
+  _updateSmsMemoryStatus: function() {
+    let Buf = this.context.Buf;
+    Buf.newParcel(REQUEST_REPORT_SMS_MEMORY_STATUS);
+    Buf.writeInt32(1);
+    Buf.writeInt32(this.smsStorageAvailable ? 1 : 0);
+    Buf.sendParcel();
+  },
+
+  reportSmsMemoryStatus: function(options) {
+    this.pendingToReportSmsMemoryStatus = true;
+    this.smsStorageAvailable = options.isAvailable;
+    this._updateSmsMemoryStatus();
+  },
+
   setCellBroadcastDisabled: function(options) {
     this.cellBroadcastDisabled = options.disabled;
 
@@ -2127,8 +2150,9 @@ RilObject.prototype = {
     let numConfigs = config ? config.length / 2 : 0;
     Buf.writeInt32(numConfigs);
     for (let i = 0; i < config.length;) {
+      // convert [from, to) to [from, to - 1]
       Buf.writeInt32(config[i++]);
-      Buf.writeInt32(config[i++]);
+      Buf.writeInt32(config[i++] - 1);
       Buf.writeInt32(0x00);
       Buf.writeInt32(0xFF);
       Buf.writeInt32(1);
@@ -2409,6 +2433,33 @@ RilObject.prototype = {
       return true;
     }
 
+    function _isValidChangePasswordRequest() {
+      if (mmi.procedure !== MMI_PROCEDURE_REGISTRATION &&
+          mmi.procedure !== MMI_PROCEDURE_ACTIVATION) {
+        _sendMMIError(MMI_ERROR_KS_INVALID_ACTION);
+        return false;
+      }
+
+      if (mmi.sia !== "" && mmi.sia !== MMI_ZZ_BARRING_SERVICE) {
+        _sendMMIError(MMI_ERROR_KS_NOT_SUPPORTED);
+        return false;
+      }
+
+      let validPassword = si => /^[0-9]{4}$/.test(si);
+      if (!validPassword(mmi.sib) || !validPassword(mmi.sic) ||
+          !validPassword(mmi.pwd)) {
+        _sendMMIError(MMI_ERROR_KS_INVALID_PASSWORD);
+        return false;
+      }
+
+      if (mmi.sic != mmi.pwd) {
+        _sendMMIError(MMI_ERROR_KS_MISMATCH_PASSWORD);
+        return false;
+      }
+
+      return true;
+    }
+
     let _isRadioAvailable = (function() {
       if (this.radioState !== GECKO_RADIOSTATE_ENABLED) {
         _sendMMIError(GECKO_ERROR_RADIO_NOT_AVAILABLE);
@@ -2556,6 +2607,17 @@ RilObject.prototype = {
         this.setCLIR(options);
         return;
 
+      // Change call barring password
+      case MMI_SC_CHANGE_PASSWORD:
+        if (!_isRadioAvailable() || !_isValidChangePasswordRequest()) {
+          return;
+        }
+
+        options.pin = mmi.sib;
+        options.newPin = mmi.sic;
+        this.changeCallBarringPassword(options);
+        return;
+
       // Call barring
       case MMI_SC_BAOC:
       case MMI_SC_BAOIC:
@@ -2617,7 +2679,7 @@ RilObject.prototype = {
 
     options.ussd = mmi.fullMMI;
 
-    if (options.startNewSession && this._ussdSession) {
+    if (this._ussdSession) {
       if (DEBUG) this.context.debug("Cancel existing ussd session.");
       this.cachedUSSDRequest = options;
       this.cancelUSSD({});
@@ -3894,7 +3956,8 @@ RilObject.prototype = {
    * Helpers for processing call state changes.
    */
   _processCalls: function(newCalls, failCause) {
-    if (DEBUG) this.context.debug("_processCalls: " + JSON.stringify(newCalls));
+    if (DEBUG) this.context.debug("_processCalls: " + JSON.stringify(newCalls) +
+                                  " failCause: " + failCause);
 
     // Let's get the failCause first if there are removed calls. Otherwise, we
     // need to trigger another async request when removing call and it cause
@@ -4747,7 +4810,7 @@ RilObject.prototype = {
     // MSG_TYPE          | 8
     // TOTAL_SEGMENTS    | 8
     // SEGMENT_NUMBER    | 8
-    // DATAGRAM          | (NUM_FIELDS – 3) * 8
+    // DATAGRAM          | (NUM_FIELDS - 3) * 8
     let index = 0;
     if (message.data[index++] !== 0) {
       if (DEBUG) this.context.debug("Ignore a WAP Message which is not WDP.");
@@ -5455,7 +5518,16 @@ RilObject.prototype[REQUEST_UDUB] = function REQUEST_UDUB(length, options) {
 RilObject.prototype[REQUEST_LAST_CALL_FAIL_CAUSE] = function REQUEST_LAST_CALL_FAIL_CAUSE(length, options) {
   let Buf = this.context.Buf;
   let num = length ? Buf.readInt32() : 0;
-  let failCause = num ? RIL_CALL_FAILCAUSE_TO_GECKO_CALL_ERROR[Buf.readInt32()] : null;
+  let failCause = null;
+
+  if (num) {
+    let causeNum = Buf.readInt32();
+    // To make _processCalls work as design, failCause couldn't be "undefined."
+    // See Bug 1112550 for details.
+    failCause = RIL_CALL_FAILCAUSE_TO_GECKO_CALL_ERROR[causeNum] || null;
+  }
+  if (DEBUG) this.context.debug("Last call fail cause: " + failCause);
+
   if (options.callback) {
     options.callback(failCause);
   }
@@ -5976,6 +6048,13 @@ RilObject.prototype[REQUEST_CHANGE_BARRING_PASSWORD] =
   if (options.rilRequestError) {
     options.errorMsg = RIL_ERROR_TO_GECKO_ERROR[options.rilRequestError];
   }
+
+  if (options.rilMessageType != "sendMMI") {
+    this.sendChromeMessage(options);
+    return;
+  }
+
+  options.statusMessage = MMI_SM_KS_PASSWORD_CHANGED;
   this.sendChromeMessage(options);
 };
 RilObject.prototype[REQUEST_SIM_OPEN_CHANNEL] = function REQUEST_SIM_OPEN_CHANNEL(length, options) {
@@ -6507,7 +6586,9 @@ RilObject.prototype[REQUEST_GET_SMSC_ADDRESS] = function REQUEST_GET_SMSC_ADDRES
   this.sendChromeMessage(options);
 };
 RilObject.prototype[REQUEST_SET_SMSC_ADDRESS] = null;
-RilObject.prototype[REQUEST_REPORT_SMS_MEMORY_STATUS] = null;
+RilObject.prototype[REQUEST_REPORT_SMS_MEMORY_STATUS] = function REQUEST_REPORT_SMS_MEMORY_STATUS(length, options) {
+  this.pendingToReportSmsMemoryStatus = options.rilRequestError != ERROR_SUCCESS;
+};
 RilObject.prototype[REQUEST_REPORT_STK_SERVICE_IS_RUNNING] = null;
 RilObject.prototype[REQUEST_CDMA_GET_SUBSCRIPTION_SOURCE] = null;
 RilObject.prototype[REQUEST_ISIM_AUTHENTICATION] = null;
@@ -6654,6 +6735,10 @@ RilObject.prototype[UNSOLICITED_RESPONSE_RADIO_STATE_CHANGED] = function UNSOLIC
          RILQUIRKS_SUBSCRIPTION_CONTROL) &&
         this._attachDataRegistration) {
       this.setDataRegistration({attach: true});
+    }
+
+    if (this.pendingToReportSmsMemoryStatus) {
+      this._updateSmsMemoryStatus();
     }
   }
 
@@ -12196,8 +12281,8 @@ BerTlvHelperObject.prototype = {
     };
     // byte 5 ~ 7 are mandatory for linear fixed and cyclic files, otherwise
     // they are not applicable.
-    if (fileStructure === UICC_EF_STRUCTURE[EF_TYPE_LINEAR_FIXED] ||
-        fileStructure === UICC_EF_STRUCTURE[EF_TYPE_CYCLIC]) {
+    if (fileStructure === UICC_EF_STRUCTURE[EF_STRUCTURE_LINEAR_FIXED] ||
+        fileStructure === UICC_EF_STRUCTURE[EF_STRUCTURE_CYCLIC]) {
       fileDescriptor.recordLength = (GsmPDUHelper.readHexOctet() << 8) +
                                      GsmPDUHelper.readHexOctet();
       fileDescriptor.numOfRecords = GsmPDUHelper.readHexOctet();
@@ -12417,7 +12502,7 @@ ICCIOHelperObject.prototype = {
       this.context.RIL.iccIO(options);
     }).bind(this);
 
-    options.type = EF_TYPE_LINEAR_FIXED;
+    options.structure = EF_STRUCTURE_LINEAR_FIXED;
     options.pathId = this.context.ICCFileHelper.getEFPath(options.fileId);
     if (options.recordSize) {
       readRecord(options);
@@ -12459,7 +12544,7 @@ ICCIOHelperObject.prototype = {
                       " or recordNumber " + options.recordNumber);
     }
 
-    options.type = EF_TYPE_LINEAR_FIXED;
+    options.structure = EF_STRUCTURE_LINEAR_FIXED;
     options.pathId = this.context.ICCFileHelper.getEFPath(options.fileId);
     let cb = options.callback;
     options.callback = function callback(options) {
@@ -12484,7 +12569,7 @@ ICCIOHelperObject.prototype = {
    *        The callback function shall be called when failure.
    */
   loadTransparentEF: function(options) {
-    options.type = EF_TYPE_TRANSPARENT;
+    options.structure = EF_STRUCTURE_TRANSPARENT;
     let cb = options.callback;
     options.callback = function callback(options) {
       options.callback = cb;
@@ -12569,13 +12654,15 @@ ICCIOHelperObject.prototype = {
     let iter = Iterator(berTlv.value);
     let tlv = BerTlvHelper.searchForNextTag(BER_FCP_FILE_DESCRIPTOR_TAG,
                                             iter);
-    if (!tlv || (tlv.value.fileStructure !== UICC_EF_STRUCTURE[options.type])) {
-      throw new Error("Expected EF type " + UICC_EF_STRUCTURE[options.type] +
+    if (!tlv ||
+        (tlv.value.fileStructure !== UICC_EF_STRUCTURE[options.structure])) {
+      throw new Error("Expected EF structure " +
+                      UICC_EF_STRUCTURE[options.structure] +
                       " but read " + tlv.value.fileStructure);
     }
 
-    if (tlv.value.fileStructure === UICC_EF_STRUCTURE[EF_TYPE_LINEAR_FIXED] ||
-        tlv.value.fileStructure === UICC_EF_STRUCTURE[EF_TYPE_CYCLIC]) {
+    if (tlv.value.fileStructure === UICC_EF_STRUCTURE[EF_STRUCTURE_LINEAR_FIXED] ||
+        tlv.value.fileStructure === UICC_EF_STRUCTURE[EF_STRUCTURE_CYCLIC]) {
       options.recordSize = tlv.value.recordLength;
       options.totalRecords = tlv.value.numOfRecords;
     }
@@ -12631,15 +12718,16 @@ ICCIOHelperObject.prototype = {
         Buf.PDU_HEX_OCTET_SIZE));
 
     // Read Structure of EF, data[13]
-    let efType = GsmPDUHelper.readHexOctet();
-    if (efType != options.type) {
-      throw new Error("Expected EF type " + options.type + " but read " + efType);
+    let efStructure = GsmPDUHelper.readHexOctet();
+    if (efStructure != options.structure) {
+      throw new Error("Expected EF structure " + options.structure +
+                      " but read " + efStructure);
     }
 
-    // TODO: Bug 952025.
     // Length of a record, data[14].
     // Only available for LINEAR_FIXED and CYCLIC.
-    if (efType == EF_TYPE_LINEAR_FIXED || efType == EF_TYPE_CYCLIC) {
+    if (efStructure == EF_STRUCTURE_LINEAR_FIXED ||
+        efStructure == EF_STRUCTURE_CYCLIC) {
       options.recordSize = GsmPDUHelper.readHexOctet();
       options.totalRecords = options.fileSize / options.recordSize;
     } else {

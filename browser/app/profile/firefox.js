@@ -439,6 +439,12 @@ pref("browser.search.official", true);
 // How many times to show the new search highlight
 pref("browser.search.highlightCount", 5);
 
+// geoip end-point and timeout
+pref("browser.search.geoip.url", "https://location.services.mozilla.com/v1/country?key=%MOZILLA_API_KEY%");
+// NOTE: this timeout figure is also the "high" value for the telemetry probe
+// SEARCH_SERVICE_COUNTRY_FETCH_MS - if you change this also change that probe.
+pref("browser.search.geoip.timeout", 2000);
+
 pref("browser.sessionhistory.max_entries", 50);
 
 // handle links targeting new windows
@@ -1424,9 +1430,11 @@ pref("devtools.debugger.ui.variables-sorting-enabled", true);
 pref("devtools.debugger.ui.variables-only-enum-visible", false);
 pref("devtools.debugger.ui.variables-searchbox-visible", false);
 
-// Enable the Profiler and the Timeline
+// Enable the Profiler
 pref("devtools.profiler.enabled", true);
-#ifdef MOZ_DEV_EDITION
+
+// Timeline panel settings
+#ifdef NIGHTLY_BUILD
 pref("devtools.timeline.enabled", true);
 #else
 pref("devtools.timeline.enabled", false);
@@ -1662,7 +1670,7 @@ pref("loop.enabled", true);
 pref("loop.server", "https://loop.services.mozilla.com/v0");
 pref("loop.seenToS", "unseen");
 pref("loop.gettingStarted.seen", false);
-pref("loop.gettingStarted.url", "https://www.mozilla.org/%LOCALE%/firefox/%VERSION%/hello/start");
+pref("loop.gettingStarted.url", "https://www.mozilla.org/%LOCALE%/firefox/%VERSION%/hello/start/");
 pref("loop.gettingStarted.resumeOnFirstJoin", false);
 pref("loop.learnMoreUrl", "https://www.firefox.com/hello/");
 pref("loop.legal.ToS_url", "https://www.mozilla.org/about/legal/terms/firefox-hello/");
@@ -1849,3 +1857,6 @@ pref("extensions.interposition.enabled", true);
 #endif
 
 pref("browser.defaultbrowser.notificationbar", false);
+
+// How many milliseconds to wait for a CPOW response from the child process.
+pref("dom.ipc.cpow.timeout", 0);

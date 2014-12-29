@@ -134,8 +134,12 @@ pref("dom.workers.maxPerDomain", 20);
 // Whether or not Shared Web Workers are enabled.
 pref("dom.workers.sharedWorkers.enabled", true);
 
-// WebSocket in workers are enabled.
+// WebSocket in workers are disabled by default.
+#ifdef RELEASE_BUILD
+pref("dom.workers.websocket.enabled", false);
+#else
 pref("dom.workers.websocket.enabled", true);
+#endif
 
 // Service workers
 pref("dom.serviceWorkers.enabled", false);
@@ -1284,6 +1288,7 @@ pref("network.http.spdy.enabled", true);
 pref("network.http.spdy.enabled.v3-1", true);
 pref("network.http.spdy.enabled.http2draft", true);
 pref("network.http.spdy.enabled.http2", true);
+pref("network.http.spdy.enabled.deps", true);
 pref("network.http.spdy.enforce-tls-profile", true);
 pref("network.http.spdy.chunk-size", 16000);
 pref("network.http.spdy.timeout", 180);
@@ -1297,13 +1302,8 @@ pref("network.http.spdy.push-allowance", 131072);
 
 // alt-svc allows separation of transport routing from
 // the origin host without using a proxy.
-#ifdef RELEASE_BUILD
-pref("network.http.altsvc.enabled", false);
-pref("network.http.altsvc.oe", false);
-#else
 pref("network.http.altsvc.enabled", true);
 pref("network.http.altsvc.oe", true);
-#endif
 
 pref("network.http.diagnostics", false);
 
@@ -2245,6 +2245,13 @@ pref("layout.frame_rate.precise", false);
 
 // pref to control whether layout warnings that are hit quite often are enabled
 pref("layout.spammy_warnings.enabled", true);
+
+// Should we fragment floats inside CSS column layout?
+#ifdef RELEASE_BUILD
+pref("layout.float-fragments-inside-column.enabled", false);
+#else
+pref("layout.float-fragments-inside-column.enabled", true);
+#endif
 
 // Is support for the Web Animations API enabled?
 #ifdef RELEASE_BUILD

@@ -40,10 +40,10 @@ public:
 
   FrameMetrics()
     : mCompositionBounds(0, 0, 0, 0)
-    , mDisplayPort(0, 0, 0, 0)
     , mCriticalDisplayPort(0, 0, 0, 0)
-    , mScrollableRect(0, 0, 0, 0)
     , mPresShellResolution(1)
+    , mDisplayPort(0, 0, 0, 0)
+    , mScrollableRect(0, 0, 0, 0)
     , mCumulativeResolution(1)
     , mDevPixelsPerCSSPixel(1)
     , mMayHaveTouchListeners(false)
@@ -256,19 +256,6 @@ public:
   // space, so each is explained separately.
   //
 
-  // The area of a frame's contents that has been painted, relative to
-  // mCompositionBounds.
-  //
-  // Note that this is structured in such a way that it doesn't depend on the
-  // method layout uses to scroll content.
-  //
-  // May be larger or smaller than |mScrollableRect|.
-  //
-  // To pre-render a margin of 100 CSS pixels around the window,
-  // { x = -100, y = - 100,
-  //   width = window.innerWidth + 200, height = window.innerHeight + 200 }
-  CSSRect mDisplayPort;
-
   // If non-empty, the area of a frame's contents that is considered critical
   // to paint. Area outside of this area (i.e. area inside mDisplayPort, but
   // outside of mCriticalDisplayPort) is considered low-priority, and may be
@@ -276,19 +263,6 @@ public:
   //
   // The same restrictions for mDisplayPort apply here.
   CSSRect mCriticalDisplayPort;
-
-  // The scrollable bounds of a frame. This is determined by reflow.
-  // Ordinarily the x and y will be 0 and the width and height will be the
-  // size of the element being scrolled. However for RTL pages or elements
-  // the x value may be negative.
-  //
-  // This is relative to the document. It is in the same coordinate space as
-  // |mScrollOffset|, but a different coordinate space than |mViewport| and
-  // |mDisplayPort|. Note also that this coordinate system is understood by
-  // window.scrollTo().
-  //
-  // This is valid on any layer unless it has no content.
-  CSSRect mScrollableRect;
 
   // ---------------------------------------------------------------------------
   // The following metrics are dimensionless.
@@ -303,13 +277,27 @@ public:
   // it does not convert between any coordinate spaces for which we have names.
   float mPresShellResolution;
 
-  // The cumulative resolution that the current frame has been painted at.
-  // This is the product of the pres-shell resolutions of the document
-  // containing this scroll frame and its ancestors, and any css-driven
-  // resolution. This information is provided by Gecko at layout/paint time.
-  LayoutDeviceToLayerScale mCumulativeResolution;
-
 public:
+  void SetDisplayPort(const CSSRect& aDisplayPort)
+  {
+    mDisplayPort = aDisplayPort;
+  }
+
+  CSSRect GetDisplayPort() const
+  {
+    return mDisplayPort;
+  }
+
+  void SetCumulativeResolution(const LayoutDeviceToLayerScale& aCumulativeResolution)
+  {
+    mCumulativeResolution = aCumulativeResolution;
+  }
+
+  LayoutDeviceToLayerScale GetCumulativeResolution() const
+  {
+    return mCumulativeResolution;
+  }
+
   void SetDevPixelsPerCSSPixel(const CSSToLayoutDeviceScale& aDevPixelsPerCSSPixel)
   {
     mDevPixelsPerCSSPixel = aDevPixelsPerCSSPixel;
@@ -527,7 +515,49 @@ public:
     mLineScrollAmount = size;
   }
 
+  const CSSRect& GetScrollableRect() const
+  {
+    return mScrollableRect;
+  }
+
+  void SetScrollableRect(const CSSRect& aScrollableRect)
+  {
+    mScrollableRect = aScrollableRect;
+  }
+
 private:
+  // The area of a frame's contents that has been painted, relative to
+  // mCompositionBounds.
+  //
+  // Note that this is structured in such a way that it doesn't depend on the
+  // method layout uses to scroll content.
+  //
+  // May be larger or smaller than |mScrollableRect|.
+  //
+  // To pre-render a margin of 100 CSS pixels around the window,
+  // { x = -100, y = - 100,
+  //   width = window.innerWidth + 200, height = window.innerHeight + 200 }
+  CSSRect mDisplayPort;
+
+  // The scrollable bounds of a frame. This is determined by reflow.
+  // Ordinarily the x and y will be 0 and the width and height will be the
+  // size of the element being scrolled. However for RTL pages or elements
+  // the x value may be negative.
+  //
+  // This is relative to the document. It is in the same coordinate space as
+  // |mScrollOffset|, but a different coordinate space than |mViewport| and
+  // |mDisplayPort|. Note also that this coordinate system is understood by
+  // window.scrollTo().
+  //
+  // This is valid on any layer unless it has no content.
+  CSSRect mScrollableRect;
+
+  // The cumulative resolution that the current frame has been painted at.
+  // This is the product of the pres-shell resolutions of the document
+  // containing this scroll frame and its ancestors, and any css-driven
+  // resolution. This information is provided by Gecko at layout/paint time.
+  LayoutDeviceToLayerScale mCumulativeResolution;
+
   // New fields from now on should be made private and old fields should
   // be refactored to be private.
 

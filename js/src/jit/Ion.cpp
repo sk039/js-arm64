@@ -2015,7 +2015,11 @@ IonCompile(JSContext *cx, JSScript *script,
 
     bool success = codegen->link(cx, builder->constraints());
 
-    return success ? AbortReason_NoAbort : AbortReason_Disable;
+    if (success)
+        return AbortReason_NoAbort;
+    if (cx->isExceptionPending())
+        return AbortReason_Error;
+    return AbortReason_Disable;
 }
 
 static bool
@@ -2508,7 +2512,7 @@ jit::SetEnterJitData(JSContext *cx, EnterJitData &data, RunState &state, AutoVal
         {
             ScriptFrameIter iter(cx);
             if (iter.isFunctionFrame())
-                data.calleeToken = CalleeToToken(iter.callee(), /* constructing = */ false);
+                data.calleeToken = CalleeToToken(iter.callee(cx), /* constructing = */ false);
         }
     }
 

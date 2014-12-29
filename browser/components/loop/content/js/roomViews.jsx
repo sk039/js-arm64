@@ -94,15 +94,10 @@ loop.roomViews = (function(mozL10n) {
     handleFormSubmit: function(event) {
       event.preventDefault();
 
-      var newRoomName = this.state.newRoomName;
-
-      if (newRoomName && this.state.roomName != newRoomName) {
-        this.props.dispatcher.dispatch(
-          new sharedActions.RenameRoom({
-            roomToken: this.state.roomToken,
-            newRoomName: newRoomName
-          }));
-      }
+      this.props.dispatcher.dispatch(new sharedActions.RenameRoom({
+        roomToken: this.state.roomToken,
+        newRoomName: this.state.newRoomName
+      }));
     },
 
     handleEmailButtonClick: function(event) {
@@ -305,10 +300,16 @@ loop.roomViews = (function(mozL10n) {
           />;
         }
         case ROOM_STATES.ENDED: {
-          return <sharedViews.FeedbackView
-            feedbackStore={this.props.feedbackStore}
-            onAfterFeedbackReceived={this.closeWindow}
-          />;
+          if (this.state.used)
+            return <sharedViews.FeedbackView
+              feedbackStore={this.props.feedbackStore}
+              onAfterFeedbackReceived={this.closeWindow}
+            />;
+
+          // In case the room was not used (no one was here), we
+          // bypass the feedback form.
+          this.closeWindow();
+          return null;
         }
         default: {
           return (

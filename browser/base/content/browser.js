@@ -259,10 +259,10 @@ XPCOMUtils.defineLazyServiceGetter(this, "gCrashReporter",
                                    "nsICrashReporter");
 #endif
 
-XPCOMUtils.defineLazyGetter(this, "PageMenu", function() {
+XPCOMUtils.defineLazyGetter(this, "PageMenuParent", function() {
   let tmp = {};
   Cu.import("resource://gre/modules/PageMenu.jsm", tmp);
-  return new tmp.PageMenu();
+  return new tmp.PageMenuParent();
 });
 
 /**
@@ -3308,8 +3308,32 @@ const BrowserSearch = {
 
     if (hidden)
       browser.hiddenEngines = engines;
-    else
+    else {
       browser.engines = engines;
+      if (browser == gBrowser.selectedBrowser)
+        this.updateSearchButton();
+    }
+  },
+
+  /**
+   * Update the browser UI to show whether or not additional engines are
+   * available when a page is loaded or the user switches tabs to a page that
+   * has search engines.
+   */
+  updateSearchButton: function() {
+    var searchBar = this.searchBar;
+
+    // The search bar binding might not be applied even though the element is
+    // in the document (e.g. when the navigation toolbar is hidden), so check
+    // for .searchButton specifically.
+    if (!searchBar || !searchBar.searchButton)
+      return;
+
+    var engines = gBrowser.selectedBrowser.engines;
+    if (engines && engines.length > 0)
+      searchBar.setAttribute("addengines", "true");
+    else
+      searchBar.removeAttribute("addengines");
   },
 
   /**
@@ -4326,6 +4350,7 @@ var XULBrowserWindow = {
 
   asyncUpdateUI: function () {
     FeedHandler.updateFeeds();
+    BrowserSearch.updateSearchButton();
   },
 
   // Left here for add-on compatibility, see bug 752434
@@ -6746,7 +6771,7 @@ function isTabEmpty(aTab) {
   if (!gMultiProcessBrowser && browser.contentWindow.opener)
     return false;
 
-  if (browser.sessionHistory && browser.sessionHistory.count >= 2)
+  if (browser.canGoForward || browser.canGoBack)
     return false;
 
   return true;
@@ -7007,7 +7032,7 @@ var gIdentityHandler = {
          nsIWebProgressListener.STATE_BLOCKED_TRACKING_CONTENT     |
          nsIWebProgressListener.STATE_LOADED_TRACKING_CONTENT)) {
       this.showBadContentDoorhanger(state);
-    } else {
+    } else if (gPrefService.getBoolPref("privacy.trackingprotection.enabled")) {
       // We didn't show the shield
       Services.telemetry.getHistogramById("TRACKING_PROTECTION_SHIELD")
         .add(0);
@@ -7040,9 +7065,9 @@ var gIdentityHandler = {
     } else if (state &
                Ci.nsIWebProgressListener.STATE_BLOCKED_TRACKING_CONTENT) {
       histogram.add(2);
-    } else {
-      // The shield is due to mixed content, just keep a count so we can
-      // normalize later.
+    } else if (gPrefService.getBoolPref("privacy.trackingprotection.enabled")) {
+      // Tracking protection is enabled but no tracking elements are loaded,
+      // the shield is due to mixed content.
       histogram.add(3);
     }
     if (state &
@@ -7488,6 +7513,7 @@ function switchToTabHavingURI(aURI, aOpenNew, aOpenParams={}) {
   // not be used as a parameter for the new load.
   delete aOpenParams.ignoreFragment;
   delete aOpenParams.ignoreQueryString;
+  delete aOpenParams.replaceQueryString;
 
   // This will switch to the tab in aWindow having aURI, if present.
   function switchIfURIInWindow(aWindow) {

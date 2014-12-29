@@ -213,10 +213,10 @@ SharedFrameMetricsHelper::UpdateFromCompositorFrameMetrics(
   // an endless updating cycle.
   if (fabsf(contentMetrics.GetScrollOffset().x - compositorMetrics.GetScrollOffset().x) <= 2 &&
       fabsf(contentMetrics.GetScrollOffset().y - compositorMetrics.GetScrollOffset().y) <= 2 &&
-      fabsf(contentMetrics.mDisplayPort.x - compositorMetrics.mDisplayPort.x) <= 2 &&
-      fabsf(contentMetrics.mDisplayPort.y - compositorMetrics.mDisplayPort.y) <= 2 &&
-      fabsf(contentMetrics.mDisplayPort.width - compositorMetrics.mDisplayPort.width) <= 2 &&
-      fabsf(contentMetrics.mDisplayPort.height - compositorMetrics.mDisplayPort.height)) {
+      fabsf(contentMetrics.GetDisplayPort().x - compositorMetrics.GetDisplayPort().x) <= 2 &&
+      fabsf(contentMetrics.GetDisplayPort().y - compositorMetrics.GetDisplayPort().y) <= 2 &&
+      fabsf(contentMetrics.GetDisplayPort().width - compositorMetrics.GetDisplayPort().width) <= 2 &&
+      fabsf(contentMetrics.GetDisplayPort().height - compositorMetrics.GetDisplayPort().height) <= 2) {
     return false;
   }
 
@@ -258,7 +258,7 @@ SharedFrameMetricsHelper::AboutToCheckerboard(const FrameMetrics& aContentMetric
   // This process can introduce some rounding error, so we inflate the rect by one app unit
   // to account for that.
   CSSRect painted = (aContentMetrics.mCriticalDisplayPort.IsEmpty()
-                      ? aContentMetrics.mDisplayPort
+                      ? aContentMetrics.GetDisplayPort()
                       : aContentMetrics.mCriticalDisplayPort)
                     + aContentMetrics.GetScrollOffset();
   painted.Inflate(CSSMargin::FromAppUnits(nsMargin(1, 1, 1, 1)));
@@ -273,8 +273,8 @@ SharedFrameMetricsHelper::AboutToCheckerboard(const FrameMetrics& aContentMetric
   // Clamp both rects to the scrollable rect, because having either of those
   // exceed the scrollable rect doesn't make sense, and could lead to false
   // positives.
-  painted = painted.Intersect(aContentMetrics.mScrollableRect);
-  showing = showing.Intersect(aContentMetrics.mScrollableRect);
+  painted = painted.Intersect(aContentMetrics.GetScrollableRect());
+  showing = showing.Intersect(aContentMetrics.GetScrollableRect());
 
   if (!painted.Contains(showing)) {
     TILING_LOG("TILING: About to checkerboard; content %s\n", Stringify(aContentMetrics).c_str());
@@ -595,7 +595,6 @@ CopyFrontToBack(TextureClient* aFront,
 
 void
 TileClient::ValidateBackBufferFromFront(const nsIntRegion& aDirtyRegion,
-                                        bool aCanRerasterizeValidRegion,
                                         nsIntRegion& aAddPaintedRegion)
 {
   if (mBackBuffer && mFrontBuffer) {
@@ -614,9 +613,7 @@ TileClient::ValidateBackBufferFromFront(const nsIntRegion& aDirtyRegion,
 
       aAddPaintedRegion = regionToCopy;
 
-      if (regionToCopy.IsEmpty() ||
-          (aCanRerasterizeValidRegion &&
-           regionToCopy.Area() < tileSize.width * tileSize.height * MINIMUM_TILE_COPY_AREA)) {
+      if (regionToCopy.IsEmpty()) {
         // Just redraw it all.
         return;
       }
@@ -713,7 +710,6 @@ TileClient::GetBackBuffer(const nsIntRegion& aDirtyRegion,
                           SurfaceMode aMode,
                           bool *aCreatedTextureClient,
                           nsIntRegion& aAddPaintedRegion,
-                          bool aCanRerasterizeValidRegion,
                           RefPtr<TextureClient>* aBackBufferOnWhite)
 {
   // Try to re-use the front-buffer if possible
@@ -778,7 +774,7 @@ TileClient::GetBackBuffer(const nsIntRegion& aDirtyRegion,
     mInvalidBack = nsIntRect(0, 0, mBackBuffer->GetSize().width, mBackBuffer->GetSize().height);
   }
 
-  ValidateBackBufferFromFront(aDirtyRegion, aCanRerasterizeValidRegion, aAddPaintedRegion);
+  ValidateBackBufferFromFront(aDirtyRegion, aAddPaintedRegion);
 
   *aBackBufferOnWhite = mBackBufferOnWhite;
   return mBackBuffer;
@@ -1116,7 +1112,6 @@ ClientTiledLayerBuffer::ValidateTile(TileClient aTile,
     aTile.GetBackBuffer(offsetScaledDirtyRegion,
                         content, mode,
                         &createdTextureClient, extraPainted,
-                        usingTiledDrawTarget,
                         &backBufferOnWhite);
 
   extraPainted.MoveBy(aTileOrigin);
@@ -1150,8 +1145,6 @@ ClientTiledLayerBuffer::ValidateTile(TileClient aTile,
   }
 
   if (usingTiledDrawTarget) {
-    aTile.Flip();
-
     if (createdTextureClient) {
       if (!mCompositableClient->AddTextureClient(backBuffer)) {
         NS_WARNING("Failed to add tile TextureClient.");
@@ -1180,6 +1173,7 @@ ClientTiledLayerBuffer::ValidateTile(TileClient aTile,
     moz2DTile.mTileOrigin = gfx::IntPoint(aTileOrigin.x * mResolution, aTileOrigin.y * mResolution);
     if (!dt || (backBufferOnWhite && !dtOnWhite)) {
       aTile.DiscardFrontBuffer();
+      aTile.DiscardBackBuffer();
       return aTile;
     }
 
@@ -1195,13 +1189,10 @@ ClientTiledLayerBuffer::ValidateTile(TileClient aTile,
                          dirtyRect->height);
       drawRect.Scale(mResolution);
 
-      gfx::IntRect copyRect(NS_roundf((dirtyRect->x - mSinglePaintBufferOffset.x) * mResolution),
-                            NS_roundf((dirtyRect->y - mSinglePaintBufferOffset.y) * mResolution),
-                            drawRect.width,
-                            drawRect.height);
-      gfx::IntPoint copyTarget(NS_roundf(drawRect.x), NS_roundf(drawRect.y));
-      // Mark the newly updated area as invalid in the back buffer
-      aTile.mInvalidBack.Or(aTile.mInvalidBack, nsIntRect(copyTarget.x, copyTarget.y, copyRect.width, copyRect.height));
+      // Mark the newly updated area as invalid in the front buffer
+      aTile.mInvalidFront.Or(aTile.mInvalidFront,
+        nsIntRect(NS_roundf(drawRect.x), NS_roundf(drawRect.y),
+                  drawRect.width, drawRect.height));
 
       if (mode == SurfaceMode::SURFACE_COMPONENT_ALPHA) {
         dt->FillRect(drawRect, ColorPattern(Color(0.0, 0.0, 0.0, 1.0)));
@@ -1212,8 +1203,10 @@ ClientTiledLayerBuffer::ValidateTile(TileClient aTile,
     }
 
     // The new buffer is now validated, remove the dirty region from it.
-    aTile.mInvalidFront.Sub(nsIntRect(0, 0, GetTileSize().width, GetTileSize().height),
-                            offsetScaledDirtyRegion);
+    aTile.mInvalidBack.Sub(nsIntRect(0, 0, GetTileSize().width, GetTileSize().height),
+                           offsetScaledDirtyRegion);
+
+    aTile.Flip();
 
     return aTile;
   }
@@ -1596,6 +1589,28 @@ ClientTiledLayerBuffer::ProgressiveUpdate(nsIntRegion& aValidRegion,
   // Return false if nothing has been drawn, or give what has been drawn
   // to the shadow layer to upload.
   return isBufferChanged;
+}
+
+void
+TiledContentClient::PrintInfo(std::stringstream& aStream, const char* aPrefix)
+{
+  aStream << aPrefix;
+  aStream << nsPrintfCString("TiledContentClient (0x%p)", this).get();
+
+  if (profiler_feature_active("displaylistdump")) {
+    nsAutoCString pfx(aPrefix);
+    pfx += "  ";
+
+    Dump(aStream, pfx.get(), false);
+  }
+}
+
+void
+TiledContentClient::Dump(std::stringstream& aStream,
+                       const char* aPrefix,
+                       bool aDumpHtml)
+{
+  mTiledBuffer.Dump(aStream, aPrefix, aDumpHtml);
 }
 
 }

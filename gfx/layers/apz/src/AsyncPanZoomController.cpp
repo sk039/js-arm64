@@ -1369,9 +1369,9 @@ nsEventStatus AsyncPanZoomController::OnScale(const PinchGestureInput& aEvent) {
     CSSToParentLayerScale realMinZoom = mZoomConstraints.mMinZoom;
     CSSToParentLayerScale realMaxZoom = mZoomConstraints.mMaxZoom;
     realMinZoom.scale = std::max(realMinZoom.scale,
-                                 mFrameMetrics.mCompositionBounds.width / mFrameMetrics.mScrollableRect.width);
+                                 mFrameMetrics.mCompositionBounds.width / mFrameMetrics.GetScrollableRect().width);
     realMinZoom.scale = std::max(realMinZoom.scale,
-                                 mFrameMetrics.mCompositionBounds.height / mFrameMetrics.mScrollableRect.height);
+                                 mFrameMetrics.mCompositionBounds.height / mFrameMetrics.GetScrollableRect().height);
     if (realMaxZoom < realMinZoom) {
       realMaxZoom = realMinZoom;
     }
@@ -1662,6 +1662,10 @@ nsEventStatus AsyncPanZoomController::OnLongPress(const TapGestureInput& aEvent)
     int32_t modifiers = WidgetModifiersToDOMModifiers(aEvent.modifiers);
     CSSPoint geckoScreenPoint;
     if (ConvertToGecko(aEvent.mLocalPoint, &geckoScreenPoint)) {
+      if (CurrentTouchBlock()->IsDuringFastMotion()) {
+        APZC_LOG("%p dropping long-press because of fast motion\n", this);
+        return nsEventStatus_eIgnore;
+      }
       uint64_t blockId = GetInputQueue()->InjectNewTouchBlock(this);
       controller->HandleLongTap(geckoScreenPoint, modifiers, GetGuid(), blockId);
       return nsEventStatus_eConsumeNoDefault;
@@ -2620,12 +2624,12 @@ ViewTransform AsyncPanZoomController::GetCurrentAsyncTransform() const {
   // If checkerboarding has been disallowed, clamp the scroll position to stay
   // within rendered content.
   if (!gfxPrefs::APZAllowCheckerboarding() &&
-      !mLastContentPaintMetrics.mDisplayPort.IsEmpty()) {
+      !mLastContentPaintMetrics.GetDisplayPort().IsEmpty()) {
     CSSSize compositedSize = mLastContentPaintMetrics.CalculateCompositedSizeInCssPixels();
     CSSPoint maxScrollOffset = lastPaintScrollOffset +
-      CSSPoint(mLastContentPaintMetrics.mDisplayPort.XMost() - compositedSize.width,
-               mLastContentPaintMetrics.mDisplayPort.YMost() - compositedSize.height);
-    CSSPoint minScrollOffset = lastPaintScrollOffset + mLastContentPaintMetrics.mDisplayPort.TopLeft();
+      CSSPoint(mLastContentPaintMetrics.GetDisplayPort().XMost() - compositedSize.width,
+               mLastContentPaintMetrics.GetDisplayPort().YMost() - compositedSize.height);
+    CSSPoint minScrollOffset = lastPaintScrollOffset + mLastContentPaintMetrics.GetDisplayPort().TopLeft();
 
     if (minScrollOffset.x < maxScrollOffset.x) {
       currentScrollOffset.x = clamped(currentScrollOffset.x, minScrollOffset.x, maxScrollOffset.x);
@@ -2656,7 +2660,7 @@ Matrix4x4 AsyncPanZoomController::GetTransformToLastDispatchedPaint() const {
   LayerPoint scrollChange =
     (mLastContentPaintMetrics.GetScrollOffset() - mLastDispatchedPaintMetrics.GetScrollOffset())
     * mLastContentPaintMetrics.GetDevPixelsPerCSSPixel()
-    * mLastContentPaintMetrics.mCumulativeResolution
+    * mLastContentPaintMetrics.GetCumulativeResolution()
       // This transform ("LD" in the terminology of the comment above
       // GetScreenToApzcTransform() in APZCTreeManager.h) is applied in a
       // coordinate space that includes the APZC's CSS transform ("LC").
@@ -2681,7 +2685,7 @@ bool AsyncPanZoomController::IsCurrentlyCheckerboarding() const {
   }
 
   CSSPoint currentScrollOffset = mFrameMetrics.GetScrollOffset() + mTestAsyncScrollOffset;
-  CSSRect painted = mLastContentPaintMetrics.mDisplayPort + mLastContentPaintMetrics.GetScrollOffset();
+  CSSRect painted = mLastContentPaintMetrics.GetDisplayPort() + mLastContentPaintMetrics.GetScrollOffset();
   painted.Inflate(CSSMargin::FromAppUnits(nsMargin(1, 1, 1, 1)));   // fuzz for rounding error
   CSSRect visible = CSSRect(currentScrollOffset, mFrameMetrics.CalculateCompositedSizeInCssPixels());
   return !painted.Contains(visible);
@@ -2700,9 +2704,9 @@ void AsyncPanZoomController::NotifyLayersUpdated(const FrameMetrics& aLayerMetri
   mFrameMetrics.SetScrollParentId(aLayerMetrics.GetScrollParentId());
   APZC_LOG_FM(aLayerMetrics, "%p got a NotifyLayersUpdated with aIsFirstPaint=%d", this, aIsFirstPaint);
 
-  LogRendertraceRect(GetGuid(), "page", "brown", aLayerMetrics.mScrollableRect);
+  LogRendertraceRect(GetGuid(), "page", "brown", aLayerMetrics.GetScrollableRect());
   LogRendertraceRect(GetGuid(), "painted displayport", "lightgreen",
-    aLayerMetrics.mDisplayPort + aLayerMetrics.GetScrollOffset());
+    aLayerMetrics.GetDisplayPort() + aLayerMetrics.GetScrollOffset());
   if (!aLayerMetrics.mCriticalDisplayPort.IsEmpty()) {
     LogRendertraceRect(GetGuid(), "painted critical displayport", "darkgreen",
       aLayerMetrics.mCriticalDisplayPort + aLayerMetrics.GetScrollOffset());
@@ -2765,8 +2769,8 @@ void AsyncPanZoomController::NotifyLayersUpdated(const FrameMetrics& aLayerMetri
       // our zoom to reflect that. Note that we can't just take
       // aLayerMetrics.mZoom because the APZ may have additional async zoom
       // since the repaint request.
-      float totalResolutionChange = aLayerMetrics.mCumulativeResolution.scale
-                                  / mFrameMetrics.mCumulativeResolution.scale;
+      float totalResolutionChange = aLayerMetrics.GetCumulativeResolution().scale
+                                  / mFrameMetrics.GetCumulativeResolution().scale;
       float presShellResolutionChange = aLayerMetrics.mPresShellResolution
                                       / mFrameMetrics.mPresShellResolution;
       mFrameMetrics.ZoomBy(totalResolutionChange / presShellResolutionChange);
@@ -2776,14 +2780,14 @@ void AsyncPanZoomController::NotifyLayersUpdated(const FrameMetrics& aLayerMetri
       mFrameMetrics.SetZoom(aLayerMetrics.GetZoom());
       mFrameMetrics.SetDevPixelsPerCSSPixel(aLayerMetrics.GetDevPixelsPerCSSPixel());
     }
-    if (!mFrameMetrics.mScrollableRect.IsEqualEdges(aLayerMetrics.mScrollableRect)) {
-      mFrameMetrics.mScrollableRect = aLayerMetrics.mScrollableRect;
+    if (!mFrameMetrics.GetScrollableRect().IsEqualEdges(aLayerMetrics.GetScrollableRect())) {
+      mFrameMetrics.SetScrollableRect(aLayerMetrics.GetScrollableRect());
       needContentRepaint = true;
     }
     mFrameMetrics.mCompositionBounds = aLayerMetrics.mCompositionBounds;
     mFrameMetrics.SetRootCompositionSize(aLayerMetrics.GetRootCompositionSize());
     mFrameMetrics.mPresShellResolution = aLayerMetrics.mPresShellResolution;
-    mFrameMetrics.mCumulativeResolution = aLayerMetrics.mCumulativeResolution;
+    mFrameMetrics.SetCumulativeResolution(aLayerMetrics.GetCumulativeResolution());
     mFrameMetrics.SetHasScrollgrab(aLayerMetrics.GetHasScrollgrab());
 
     if (scrollOffsetUpdated) {
@@ -2865,7 +2869,7 @@ void AsyncPanZoomController::ZoomToRect(CSSRect aRect) {
     ReentrantMonitorAutoEnter lock(mMonitor);
 
     ParentLayerRect compositionBounds = mFrameMetrics.mCompositionBounds;
-    CSSRect cssPageRect = mFrameMetrics.mScrollableRect;
+    CSSRect cssPageRect = mFrameMetrics.GetScrollableRect();
     CSSPoint scrollOffset = mFrameMetrics.GetScrollOffset();
     CSSToParentLayerScale currentZoom = mFrameMetrics.GetZoom();
     CSSToParentLayerScale targetZoom;
@@ -3071,7 +3075,7 @@ void AsyncPanZoomController::SendAsyncScrollEvent() {
     ReentrantMonitorAutoEnter lock(mMonitor);
 
     isRoot = mFrameMetrics.GetIsRoot();
-    scrollableSize = mFrameMetrics.mScrollableRect.Size();
+    scrollableSize = mFrameMetrics.GetScrollableRect().Size();
     contentRect = mFrameMetrics.CalculateCompositedRectInCssPixels();
     contentRect.MoveTo(mCurrentAsyncScrollOffset);
   }

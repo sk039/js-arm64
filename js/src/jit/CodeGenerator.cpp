@@ -1792,6 +1792,11 @@ CodeGenerator::visitNop(LNop *lir)
 }
 
 void
+CodeGenerator::visitMop(LMop *lir)
+{
+}
+
+void
 CodeGenerator::visitOsiPoint(LOsiPoint *lir)
 {
     // Note: markOsiPoint ensures enough space exists between the last
@@ -9541,19 +9546,6 @@ CodeGenerator::loadJSScriptForBlock(MBasicBlock *block, Register reg)
 
     JSScript *script = block->info().script();
     masm.movePtr(ImmGCPtr(script), reg);
-}
-
-void
-CodeGenerator::visitHaveSameClass(LHaveSameClass *ins)
-{
-    Register lhs = ToRegister(ins->lhs());
-    Register rhs = ToRegister(ins->rhs());
-    Register temp = ToRegister(ins->getTemp(0));
-    Register output = ToRegister(ins->output());
-
-    masm.loadObjClass(lhs, temp);
-    masm.loadObjClass(rhs, output);
-    masm.cmpPtrSet(Assembler::Equal, temp, output, output);
 }
 
 void

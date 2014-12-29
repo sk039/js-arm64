@@ -349,6 +349,8 @@ var BrowserApp = {
 #endif
 #ifdef NIGHTLY_BUILD
         WebcompatReporter.init();
+        Telemetry.addData("TRACKING_PROTECTION_ENABLED",
+          Services.prefs.getBoolPref("privacy.trackingprotection.enabled"));
 #endif
       } catch(ex) { console.log(ex); }
     }, false);
@@ -1336,7 +1338,6 @@ var BrowserApp = {
       // preferences to the correct type.
       switch (prefName) {
         // (string) index for determining which multiple choice value to display.
-        case "browser.chrome.titlebarMode":
         case "network.cookie.cookieBehavior":
         case "font.size.inflation.minTwips":
         case "home.sync.updateMode":
@@ -1387,7 +1388,6 @@ var BrowserApp = {
       // When sending to Java, we normalized special preferences that use
       // integers and strings to represent booleans. Here, we convert them back
       // to their actual types so we can store them.
-      case "browser.chrome.titlebarMode":
       case "network.cookie.cookieBehavior":
       case "font.size.inflation.minTwips":
       case "home.sync.updateMode":
@@ -4297,11 +4297,6 @@ Tab.prototype = {
 
           this.savedArticle = article;
           Reader.updatePageAction(this);
-
-          Messaging.sendRequest({
-            type: "Content:ReaderEnabled",
-            tabID: this.id
-          });
         }).catch(e => Cu.reportError("Error parsing document from tab: " + e));
       }
     }
@@ -6788,15 +6783,18 @@ var IdentityHandler = {
 
   getTrackingMode: function getTrackingMode(aState) {
     if (aState & Ci.nsIWebProgressListener.STATE_BLOCKED_TRACKING_CONTENT) {
+      Telemetry.addData("TRACKING_PROTECTION_SHIELD", 2);
       return this.TRACKING_MODE_CONTENT_BLOCKED;
     }
 
     // Only show an indicator for loaded tracking content if the pref to block it is enabled
     if ((aState & Ci.nsIWebProgressListener.STATE_LOADED_TRACKING_CONTENT) &&
          Services.prefs.getBoolPref("privacy.trackingprotection.enabled")) {
+      Telemetry.addData("TRACKING_PROTECTION_SHIELD", 1);
       return this.TRACKING_MODE_CONTENT_LOADED;
     }
 
+    Telemetry.addData("TRACKING_PROTECTION_SHIELD", 0);
     return this.TRACKING_MODE_UNKNOWN;
   },
 

@@ -296,7 +296,7 @@ class Assembler : public AssemblerX86Shared
     }
     void push(FloatRegister src) {
         subq(Imm32(sizeof(double)), StackPointer);
-        movsd(src, Address(StackPointer, 0));
+        vmovsd(src, Address(StackPointer, 0));
     }
     CodeOffsetLabel pushWithPatch(ImmWord word) {
         CodeOffsetLabel label = movWithPatch(word, ScratchReg);
@@ -305,7 +305,7 @@ class Assembler : public AssemblerX86Shared
     }
 
     void pop(FloatRegister src) {
-        movsd(Address(StackPointer, 0), src);
+        vmovsd(Address(StackPointer, 0), src);
         addq(Imm32(sizeof(double)), StackPointer);
     }
 
@@ -396,11 +396,11 @@ class Assembler : public AssemblerX86Shared
             MOZ_CRASH("unexpected operand kind");
         }
     }
-    void movq(Register src, FloatRegister dest) {
-        masm.movq_rr(src.code(), dest.code());
+    void vmovq(Register src, FloatRegister dest) {
+        masm.vmovq_rr(src.code(), dest.code());
     }
-    void movq(FloatRegister src, Register dest) {
-        masm.movq_rr(src.code(), dest.code());
+    void vmovq(FloatRegister src, Register dest) {
+        masm.vmovq_rr(src.code(), dest.code());
     }
     void movq(Register src, Register dest) {
         masm.movq_rr(src.code(), dest.code());
@@ -506,13 +506,13 @@ class Assembler : public AssemblerX86Shared
         }
     }
     void shlq(Imm32 imm, Register dest) {
-        masm.shlq_i8r(imm.value, dest.code());
+        masm.shlq_ir(imm.value, dest.code());
     }
     void shrq(Imm32 imm, Register dest) {
-        masm.shrq_i8r(imm.value, dest.code());
+        masm.shrq_ir(imm.value, dest.code());
     }
     void sarq(Imm32 imm, Register dest) {
-        masm.sarq_i8r(imm.value, dest.code());
+        masm.sarq_ir(imm.value, dest.code());
     }
     void orq(Imm32 imm, Register dest) {
         masm.orq_ir(imm.value, dest.code());
@@ -602,31 +602,31 @@ class Assembler : public AssemblerX86Shared
         return CodeOffsetLabel(masm.movq_ripr(dest.code()).offset());
     }
     CodeOffsetLabel loadRipRelativeDouble(FloatRegister dest) {
-        return CodeOffsetLabel(masm.movsd_ripr(dest.code()).offset());
+        return CodeOffsetLabel(masm.vmovsd_ripr(dest.code()).offset());
     }
     CodeOffsetLabel loadRipRelativeFloat32(FloatRegister dest) {
-        return CodeOffsetLabel(masm.movss_ripr(dest.code()).offset());
+        return CodeOffsetLabel(masm.vmovss_ripr(dest.code()).offset());
     }
     CodeOffsetLabel loadRipRelativeInt32x4(FloatRegister dest) {
-        return CodeOffsetLabel(masm.movdqa_ripr(dest.code()).offset());
+        return CodeOffsetLabel(masm.vmovdqa_ripr(dest.code()).offset());
     }
     CodeOffsetLabel loadRipRelativeFloat32x4(FloatRegister dest) {
-        return CodeOffsetLabel(masm.movaps_ripr(dest.code()).offset());
+        return CodeOffsetLabel(masm.vmovaps_ripr(dest.code()).offset());
     }
     CodeOffsetLabel storeRipRelativeInt32(Register dest) {
         return CodeOffsetLabel(masm.movl_rrip(dest.code()).offset());
     }
     CodeOffsetLabel storeRipRelativeDouble(FloatRegister dest) {
-        return CodeOffsetLabel(masm.movsd_rrip(dest.code()).offset());
+        return CodeOffsetLabel(masm.vmovsd_rrip(dest.code()).offset());
     }
     CodeOffsetLabel storeRipRelativeFloat32(FloatRegister dest) {
-        return CodeOffsetLabel(masm.movss_rrip(dest.code()).offset());
+        return CodeOffsetLabel(masm.vmovss_rrip(dest.code()).offset());
     }
     CodeOffsetLabel storeRipRelativeInt32x4(FloatRegister dest) {
-        return CodeOffsetLabel(masm.movdqa_rrip(dest.code()).offset());
+        return CodeOffsetLabel(masm.vmovdqa_rrip(dest.code()).offset());
     }
     CodeOffsetLabel storeRipRelativeFloat32x4(FloatRegister dest) {
-        return CodeOffsetLabel(masm.movaps_rrip(dest.code()).offset());
+        return CodeOffsetLabel(masm.vmovaps_rrip(dest.code()).offset());
     }
     CodeOffsetLabel leaRipRelative(Register dest) {
         return CodeOffsetLabel(masm.leaq_rip(dest.code()).offset());

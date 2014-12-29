@@ -1596,6 +1596,7 @@ struct nsStyleText {
   uint8_t mWordBreak;                   // [inherited] see nsStyleConsts.h
   uint8_t mWordWrap;                    // [inherited] see nsStyleConsts.h
   uint8_t mHyphens;                     // [inherited] see nsStyleConsts.h
+  uint8_t mRubyPosition;                // [inherited] see nsStyleConsts.h
   uint8_t mTextSizeAdjust;              // [inherited] see nsStyleConsts.h
   uint8_t mTextCombineUpright;          // [inherited] see nsStyleConsts.h
   uint8_t mControlCharacterVisibility;  // [inherited] see nsStyleConsts.h
@@ -2075,8 +2076,9 @@ struct nsStyleDisplay {
   bool IsBlockInsideStyle() const {
     return NS_STYLE_DISPLAY_BLOCK == mDisplay ||
            NS_STYLE_DISPLAY_LIST_ITEM == mDisplay ||
-           NS_STYLE_DISPLAY_INLINE_BLOCK == mDisplay;
-    // Should TABLE_CELL and TABLE_CAPTION go here?  They have
+           NS_STYLE_DISPLAY_INLINE_BLOCK == mDisplay ||
+           NS_STYLE_DISPLAY_TABLE_CAPTION == mDisplay;
+    // Should TABLE_CELL be included here?  They have
     // block frames nested inside of them.
     // (But please audit all callers before changing.)
   }
@@ -2889,11 +2891,11 @@ public:
     return false;
   }
   nsStyleCorners& GetRadius() {
-    NS_ASSERTION(mType == eInset, "expected circle or ellipse");
+    NS_ASSERTION(mType == eInset, "expected inset");
     return mRadius;
   }
   const nsStyleCorners& GetRadius() const {
-    NS_ASSERTION(mType == eInset, "expected circle or ellipse");
+    NS_ASSERTION(mType == eInset, "expected inset");
     return mRadius;
   }
 

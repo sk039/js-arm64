@@ -931,6 +931,10 @@ nsHTMLScrollFrame::GetFrameName(nsAString& aResult) const
 a11y::AccType
 nsHTMLScrollFrame::AccessibleType()
 {
+  if (IsTableCaption()) {
+    return GetRect().IsEmpty() ? a11y::eNoType : a11y::eHTMLCaptionType;
+  }
+
   // Create an accessible regardless of focusable state because the state can be
   // changed during frame life cycle without any notifications to accessibility.
   if (mContent->IsRootOfNativeAnonymousSubtree() ||
@@ -1896,7 +1900,7 @@ ScrollFrameHelper::ScrollFrameHelper(nsContainerFrame* aOuter,
   EnsureImageVisPrefsCached();
 
   if (IsAlwaysActive() &&
-      gfxPlatform::GetPlatform()->UseTiling() &&
+      gfxPrefs::LayersTilesEnabled() &&
       !nsLayoutUtils::UsesAsyncScrolling() &&
       mOuter->GetContent()) {
     // If we have tiling but no APZ, then set a 0-margin display port on
