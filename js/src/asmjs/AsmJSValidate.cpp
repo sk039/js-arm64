@@ -8141,7 +8141,7 @@ GenerateEntry(ModuleCompiler &m, unsigned exportIndex)
     // AsmJSStackAlignment. We'll use entrySP to recover the original stack
     // pointer on return.
     masm.andPtr(Imm32(~(AsmJSStackAlignment - 1)), masm.GetStackPointer_());
-    
+
     // Bump the stack for the call.
     PropertyName *funcName = m.module().exportedFunction(exportIndex).name();
     const ModuleCompiler::Func &func = *m.lookupFunction(funcName);
