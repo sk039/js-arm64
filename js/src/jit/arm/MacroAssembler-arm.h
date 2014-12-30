@@ -1838,6 +1838,9 @@ class MacroAssemblerARMCompat : public MacroAssemblerARM
     void pushReturnAddress() {
         push(lr);
     }
+    void popReturn() {
+        pop(pc);
+    }
 };
 
 typedef MacroAssemblerARMCompat MacroAssemblerSpecific;

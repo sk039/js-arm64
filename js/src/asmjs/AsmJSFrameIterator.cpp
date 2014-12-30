@@ -131,8 +131,8 @@ static const unsigned StoredFP = 20;
 static const unsigned PostStorePrePopFP = 4;
 #elif defined(JS_CODEGEN_ARM64)
 static const unsigned PushedRetAddr = 8; // Maybe FIXME: read from assertion
-static const unsigned PushedFP = 24; // FIXME: read from assertion
-static const unsigned StoredFP = 28; // FIXME: read from assertion
+static const unsigned PushedFP = 28;
+static const unsigned StoredFP = 32;
 static const unsigned PostStorePrePopFP = 4;
 #elif defined(JS_CODEGEN_MIPS)
 static const unsigned PushedRetAddr = 8;
@@ -188,7 +188,7 @@ GenerateProfilingPrologue(MacroAssembler &masm, unsigned framePushed, AsmJSExit:
 #if defined(JS_CODEGEN_ARM)
         AutoForbidPools afp(&masm, /* number of instructions in scope = */ 5);
 #elif defined(JS_CODEGEN_ARM64)
-        AutoForbidPools afp(&masm, /* number of instructions in scope = */ 7);
+        AutoForbidPools afp(&masm, /* number of instructions in scope = */ 8);
 #endif
         DebugOnly<uint32_t> offsetAtBegin = masm.currentOffset();
         masm.bind(begin);
@@ -200,7 +200,7 @@ GenerateProfilingPrologue(MacroAssembler &masm, unsigned framePushed, AsmJSExit:
         masm.push(Address(scratch, AsmJSActivation::offsetOfFP()));
         MOZ_ASSERT(PushedFP == masm.currentOffset() - offsetAtBegin);
 
-        masm.storePtr(StackPointer, Address(scratch, AsmJSActivation::offsetOfFP()));
+        masm.storePtr(masm.GetStackPointer_(), Address(scratch, AsmJSActivation::offsetOfFP()));
         MOZ_ASSERT(StoredFP == masm.currentOffset() - offsetAtBegin);
     }
 
@@ -212,7 +212,7 @@ GenerateProfilingPrologue(MacroAssembler &masm, unsigned framePushed, AsmJSExit:
 #endif
 
     if (framePushed)
-        masm.subPtr(Imm32(framePushed), StackPointer);
+        masm.subPtr(Imm32(framePushed), masm.GetStackPointer_());
 }
 
 // Generate the inverse of GenerateProfilingPrologue.
@@ -226,7 +226,7 @@ GenerateProfilingEpilogue(MacroAssembler &masm, unsigned framePushed, AsmJSExit:
 #endif
 
     if (framePushed)
-        masm.addPtr(Imm32(framePushed), StackPointer);
+        masm.addPtr(Imm32(framePushed), masm.GetStackPointer_());
 
     masm.loadAsmJSActivation(scratch);
 
@@ -290,7 +290,7 @@ js::GenerateAsmJSFunctionPrologue(MacroAssembler &masm, unsigned framePushed,
     masm.align(CodeAlignment);
     masm.bind(&labels->entry);
     PushRetAddr(masm);
-    masm.subPtr(Imm32(framePushed + AsmJSFrameBytesAfterReturnAddress), StackPointer);
+    masm.subPtr(Imm32(framePushed + AsmJSFrameBytesAfterReturnAddress), masm.GetStackPointer_());
 
     // Prologue join point, body begin:
     masm.bind(&body);
@@ -304,7 +304,7 @@ js::GenerateAsmJSFunctionPrologue(MacroAssembler &masm, unsigned framePushed,
         Label *target = framePushed ? labels->overflowThunk.ptr() : &labels->overflowExit;
         masm.branchPtr(Assembler::AboveOrEqual,
                        AsmJSAbsoluteAddress(AsmJSImm_StackLimit),
-                       StackPointer,
+                       masm.GetStackPointer_(),
                        target);
     }
 }
@@ -350,7 +350,7 @@ js::GenerateAsmJSFunctionEpilogue(MacroAssembler &masm, unsigned framePushed,
     }
 
     // Normal epilogue:
-    masm.addPtr(Imm32(framePushed + AsmJSFrameBytesAfterReturnAddress), StackPointer);
+    masm.addPtr(Imm32(framePushed + AsmJSFrameBytesAfterReturnAddress), masm.GetStackPointer_());
     masm.ret();
     masm.setFramePushed(0);
 
@@ -363,7 +363,7 @@ js::GenerateAsmJSFunctionEpilogue(MacroAssembler &masm, unsigned framePushed,
         // have been pushed. The overflow check occurs after incrementing by
         // framePushed, so pop that before jumping to the overflow exit.
         masm.bind(labels->overflowThunk.ptr());
-        masm.addPtr(Imm32(framePushed), StackPointer);
+        masm.addPtr(Imm32(framePushed), masm.GetStackPointer_());
         masm.jump(&labels->overflowExit);
     }
 }
@@ -381,11 +381,11 @@ js::GenerateAsmJSStackOverflowExit(MacroAssembler &masm, Label *overflowExit, La
     // the profiling case, it is already correct.
     Register activation = ABIArgGenerator::NonArgReturnReg0;
     masm.loadAsmJSActivation(activation);
-    masm.storePtr(StackPointer, Address(activation, AsmJSActivation::offsetOfFP()));
+    masm.storePtr(masm.GetStackPointer_(), Address(activation, AsmJSActivation::offsetOfFP()));
 
     // Prepare the stack for calling C++.
     if (uint32_t d = StackDecrementForCall(ABIStackAlignment, sizeof(AsmJSFrame), ShadowStackSpace))
-        masm.subPtr(Imm32(d), StackPointer);
+        masm.subPtr(Imm32(d), masm.GetStackPointer_());
 
     // No need to restore the stack; the throw stub pops everything.
     masm.assertStackAlignment(ABIStackAlignment);

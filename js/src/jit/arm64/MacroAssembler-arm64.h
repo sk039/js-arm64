@@ -149,13 +149,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         MacroAssemblerVIXL::Push(ARMRegister(val.valueReg(), 64));
         adjustFrame(sizeof(void *));
     }
-    #if 0
-    template <typename T>
-    void Pop(const T t) {
-        pop(t);
-        adjustFrame(-1 * (int32_t)(sizeof(T)));
-    }
-#endif
+
     void Pop(const Register t) {
         pop(t);
         adjustFrame(-1 * sizeof(int64_t));
@@ -217,7 +211,10 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     void pushReturnAddress() {
         push(lr);
     }
-
+    void popReturn() {
+        pop(lr);
+        ret();
+    }
     void pop(const ValueOperand &v) {
         pop(v.valueReg());
     }
@@ -274,7 +271,10 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         if (!GetStackPointer().Is(sp))
             Add(sp, GetStackPointer(), Operand(0));
     }
-
+    void initStackPtr() {
+        if (!GetStackPointer().Is(sp))
+            Add(GetStackPointer(), sp, Operand(0));
+    }
     void storeValue(ValueOperand val, const Address &dest) {
         storePtr(val.valueReg(), dest);
     }
@@ -2009,7 +2009,8 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
 
     void call(AsmJSImmPtr imm) {
         syncStackPtr();
-        MOZ_CRASH("call(AsmJSImmPtr)");
+        movePtr(imm, ScratchReg2);
+        call(ScratchReg2);
     }
 
     void call(Register target) {
@@ -2342,7 +2343,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
 
     void loadAsmJSActivation(Register dest) {
-        loadPtr(Address(GlobalReg, AsmJSActivationGlobalDataOffset), dest);
+        loadPtr(Address(GlobalReg, AsmJSActivationGlobalDataOffset - AsmJSGlobalRegBias), dest);
     }
     void loadAsmJSHeapRegisterFromGlobalData() {
         loadPtr(Address(GlobalReg, AsmJSHeapGlobalDataOffset - AsmJSGlobalRegBias), HeapReg);

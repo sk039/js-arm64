@@ -237,38 +237,35 @@ Simulator::call(uint8_t* entry, int argument_count, ...)
 
     // First eight arguments passed in registers.
     MOZ_ASSERT(argument_count <= 8);
-
-    // EnterJitData::jitcode.
-    if (argument_count >= 1)
+    // This code should use the type of the called function
+    // (with templates, like the callVM machinery), but since the
+    // number of called functions is miniscule, their types have been
+    // divined from the number of arguments.
+    if (argument_count == 8) {
+        // EnterJitData::jitcode.
         set_xreg(0, va_arg(parameters, int64_t));
-
-    // EnterJitData::maxArgc.
-    if (argument_count >= 2)
+        // EnterJitData::maxArgc.
         set_xreg(1, va_arg(parameters, unsigned));
-
-    // EnterJitData::maxArgv.
-    if (argument_count >= 3)
+        // EnterJitData::maxArgv.
         set_xreg(2, va_arg(parameters, int64_t));
-
-    // EnterJitData::osrFrame.
-    if (argument_count >= 4)
+        // EnterJitData::osrFrame.
         set_xreg(3, va_arg(parameters, int64_t));
-
-    // EnterJitData::calleeToken.
-    if (argument_count >= 5)
+        // EnterJitData::calleeToken.
         set_xreg(4, va_arg(parameters, int64_t));
-
-    // EnterJitData::scopeChain.
-    if (argument_count >= 6)
+        // EnterJitData::scopeChain.
         set_xreg(5, va_arg(parameters, int64_t));
-
-    // EnterJitData::osrNumStackValues.
-    if (argument_count >= 7)
+        // EnterJitData::osrNumStackValues.
         set_xreg(6, va_arg(parameters, unsigned));
-
-    // Address of EnterJitData::result.
-    if (argument_count >= 8)
+        // Address of EnterJitData::result.
         set_xreg(7, va_arg(parameters, int64_t));
+    } else if (argument_count == 2) {
+        // EntryArg *args
+        set_xreg(0, va_arg(parameters, int64_t));
+        // uint8_t *GlobalData
+        set_xreg(1, va_arg(parameters, int64_t));
+    } else {
+        MOZ_CRASH("Unknown number of arguments");
+    }
 
     va_end(parameters);
 

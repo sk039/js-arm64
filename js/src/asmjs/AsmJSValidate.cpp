@@ -8090,7 +8090,8 @@ GenerateEntry(ModuleCompiler &m, unsigned exportIndex)
 
     // Save the return address if it wasn't already saved by the call insn.
 #if defined(JS_CODEGEN_ARM) || defined(JS_CODEGEN_ARM64)
-    masm.push(lr);
+    masm.initStackPtr();
+    masm.pushReturnAddress();
 #elif defined(JS_CODEGEN_MIPS)
     masm.push(ra);
 #elif defined(JS_CODEGEN_X86)
@@ -8251,7 +8252,7 @@ GenerateEntry(ModuleCompiler &m, unsigned exportIndex)
     MOZ_ASSERT(masm.framePushed() == 0);
 
     masm.move32(Imm32(true), ReturnReg);
-    masm.ret();
+    masm.popReturn();
 
     return m.finishGeneratingEntry(exportIndex, &begin) && !masm.oom();
 }
@@ -8950,7 +8951,88 @@ GenerateAsyncInterruptExit(ModuleCompiler &m, Label *throwLabel)
     masm.finishDataTransfer();
     masm.ret();
 #elif defined(JS_CODEGEN_ARM64)
-    MOZ_CRASH("TODO");
+    masm.setFramePushed(0);         // set to zero so we can use masm.framePushed() below
+    // awkward situation is awkward.
+    // rsp can't be used as a stack pointer, because it may not be aligned
+    // r28 can't be used as a stack pointer, because it will go below rsp
+    // we can't sacrifice a register to align sp, because *all* registers need to be saved.
+
+    // reserve enough space to save everything.
+    masm.Sub(sp, sp, 8*32);
+    // Push and PushRegsInMask will attempt to sync the stack pointer
+    masm.Stp(x0, x1, MemOperand(x28, -16, PreIndex));
+    masm.Stp(x2, x3, MemOperand(x28, -16, PreIndex));
+    masm.Stp(x4, x5, MemOperand(x28, -16, PreIndex));
+    masm.Stp(x6, x7, MemOperand(x28, -16, PreIndex));
+    masm.Stp(x8, x9, MemOperand(x28, -16, PreIndex));
+    masm.Stp(x10, x11, MemOperand(x28, -16, PreIndex));
+    masm.Stp(x12, x13, MemOperand(x28, -16, PreIndex));
+    masm.Stp(x14, x15, MemOperand(x28, -16, PreIndex));
+    masm.Stp(x16, x17, MemOperand(x28, -16, PreIndex));
+    masm.Stp(x18, x19, MemOperand(x28, -16, PreIndex));
+    masm.Stp(x20, x21, MemOperand(x28, -16, PreIndex));
+    masm.Stp(x22, x23, MemOperand(x28, -16, PreIndex));
+    masm.Stp(x24, x25, MemOperand(x28, -16, PreIndex));
+    masm.Stp(x26, x27, MemOperand(x28, -16, PreIndex));
+    masm.Stp(x29, x30, MemOperand(x28, -16, PreIndex));
+    
+    // now save sp as well
+    masm.Add(x9, sp, Operand(0));
+    masm.Mrs(x10, NZCV);
+    // don't need to store those two, since the registers should be preserved.
+    //masm.Stp(x9, x10, MemOperand(x28, -16, PreIndex));
+    
+    // Align the stack, sp was previously copied to r9.
+    masm.And(sp, x9, Operand(~15));
+    ARMRegister fake_sp = masm.GetStackPointer();
+    masm.SetStackPointer(sp);
+
+    // Store resumePC into the return PC stack slot.
+    masm.loadAsmJSActivation(IntArgReg0);
+    masm.loadPtr(Address(IntArgReg0, AsmJSActivation::offsetOfResumePC()), IntArgReg1);
+    // lr is r30, which is currently sitting in *(r28+16)
+    // this could probably also be done by doing this load *before* lr was pushed.
+    masm.storePtr(IntArgReg1, Address(r28, 16));
+
+    // When this platform supports SIMD extensions, we'll need to push and pop
+    // high lanes of SIMD registers as well.
+    JS_STATIC_ASSERT(!SupportsSimd);
+    masm.PushRegsInMask(RegisterSet(GeneralRegisterSet(0), FloatRegisterSet(FloatRegisters::AllDoubleMask)));   // save all FP registers
+
+    masm.assertStackAlignment(ABIStackAlignment);
+    masm.call(AsmJSImm_HandleExecutionInterrupt);
+
+    masm.branchIfFalseBool(ReturnReg, throwLabel);
+
+
+    masm.Mov(sp,x9);
+    masm.Msr(NZCV, x10);
+    masm.SetStackPointer(fake_sp);
+
+    // Restore the machine state to before the interrupt. this will set the pc!
+    masm.PopRegsInMask(RegisterSet(GeneralRegisterSet(0), FloatRegisterSet(FloatRegisters::AllDoubleMask)));   // restore all FP registers
+
+    // Push and PushRegsInMask will attempt to sync the stack pointer
+
+    // Restore all GP registers
+    masm.Ldp(x29, x30, MemOperand(x28, 16, PostIndex));
+    masm.Ldp(x26, x27, MemOperand(x28, 16, PostIndex));
+    masm.Ldp(x24, x25, MemOperand(x28, 16, PostIndex));
+    masm.Ldp(x22, x23, MemOperand(x28, 16, PostIndex));
+    masm.Ldp(x20, x21, MemOperand(x28, 16, PostIndex));
+    masm.Ldp(x18, x19, MemOperand(x28, 16, PostIndex));
+    masm.Ldp(x16, x17, MemOperand(x28, 16, PostIndex));
+    masm.Ldp(x14, x15, MemOperand(x28, 16, PostIndex));
+    masm.Ldp(x12, x13, MemOperand(x28, 16, PostIndex));
+    masm.Ldp(x10, x11, MemOperand(x28, 16, PostIndex));
+    masm.Ldp(x8, x9, MemOperand(x28, 16, PostIndex));
+    masm.Ldp(x6, x7, MemOperand(x28, 16, PostIndex));
+    masm.Ldp(x4, x5, MemOperand(x28, 16, PostIndex));
+    masm.Ldp(x2, x3, MemOperand(x28, 16, PostIndex));
+    masm.Ldp(x0, x1, MemOperand(x28, 16, PostIndex));
+
+    masm.Add(sp, sp, 8*32);
+    masm.ret();
 #elif defined(JS_CODEGEN_NONE)
     MOZ_CRASH();
 #else
