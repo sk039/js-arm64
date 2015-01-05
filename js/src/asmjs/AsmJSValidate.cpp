@@ -8975,13 +8975,13 @@ GenerateAsyncInterruptExit(ModuleCompiler &m, Label *throwLabel)
     masm.Stp(x24, x25, MemOperand(x28, -16, PreIndex));
     masm.Stp(x26, x27, MemOperand(x28, -16, PreIndex));
     masm.Stp(x29, x30, MemOperand(x28, -16, PreIndex));
-    
+
     // now save sp as well
     masm.Add(x9, sp, Operand(0));
     masm.Mrs(x10, NZCV);
     // don't need to store those two, since the registers should be preserved.
     //masm.Stp(x9, x10, MemOperand(x28, -16, PreIndex));
-    
+
     // Align the stack, sp was previously copied to r9.
     masm.And(sp, x9, Operand(~15));
     ARMRegister fake_sp = masm.GetStackPointer();
