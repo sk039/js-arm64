@@ -714,7 +714,7 @@ void
 HandleException(ResumeFromException *rfe)
 {
     JSContext *cx = GetJSContextFromJitCode();
-    TraceLogger *logger = TraceLoggerForMainThread(cx->runtime());
+    TraceLoggerThread *logger = TraceLoggerForMainThread(cx->runtime());
 
     rfe->kind = ResumeFromException::RESUME_ENTRY_FRAME;
 
@@ -726,6 +726,8 @@ HandleException(ResumeFromException *rfe)
     // otherwise clear the return override.
     if (cx->runtime()->jitRuntime()->hasIonReturnOverride())
         cx->runtime()->jitRuntime()->takeIonReturnOverride();
+
+    JitActivation *activation = cx->mainThread().activation()->asJit();
 
     // The Debugger onExceptionUnwind hook (reachable via
     // HandleExceptionBaseline below) may cause on-stack recompilation of
@@ -781,13 +783,14 @@ HandleException(ResumeFromException *rfe)
                 JSScript *script = frames.script();
                 probes::ExitScript(cx, script, script->functionNonDelazifying(), popSPSFrame);
                 if (!frames.more()) {
-                    TraceLogStopEvent(logger, TraceLogger::IonMonkey);
-                    TraceLogStopEvent(logger);
+                    TraceLogStopEvent(logger, TraceLogger_IonMonkey);
+                    TraceLogStopEvent(logger, TraceLogger_Scripts);
                     break;
                 }
                 ++frames;
             }
 
+            activation->removeIonFrameRecovery(iter.jsFrame());
             if (invalidated)
                 ionScript->decrementInvalidationCount(cx->runtime()->defaultFreeOp());
 
@@ -812,8 +815,8 @@ HandleException(ResumeFromException *rfe)
             if (rfe->kind != ResumeFromException::RESUME_ENTRY_FRAME)
                 return;
 
-            TraceLogStopEvent(logger, TraceLogger::Baseline);
-            TraceLogStopEvent(logger);
+            TraceLogStopEvent(logger, TraceLogger_Baseline);
+            TraceLogStopEvent(logger, TraceLogger_Scripts);
 
             // Unwind profiler pseudo-stack
             JSScript *script = iter.script();
