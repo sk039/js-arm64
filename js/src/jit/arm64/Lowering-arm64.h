@@ -70,7 +70,6 @@ class LIRGeneratorARM64 : public LIRGeneratorShared
         return lowerForFPU(ins, mir, lhs, rhs);
     }
 
-
     void lowerForBitAndAndBranch(LBitAndAndBranch *baab, MInstruction *mir,
                                  MDefinition *lhs, MDefinition *rhs);
     void lowerConstantDouble(double d, MInstruction *ins);
@@ -107,11 +106,11 @@ class LIRGeneratorARM64 : public LIRGeneratorShared
     void visitStoreTypedArrayElementStatic(MStoreTypedArrayElementStatic *ins);
     void visitForkJoinGetSlice(MForkJoinGetSlice *ins);
     void visitSimdBinaryArith(MSimdBinaryArith *ins);
-    void visitSimdTernaryBitwise(MSimdTernaryBitwise *ins);
+    void visitSimdSelect(MSimdSelect *ins);
     void visitSimdSplatX4(MSimdSplatX4 *ins);
     void visitSimdValueX4(MSimdValueX4 *ins);
-    void visitAtomicTypedArrayElementBinop(MAtomicTypedArrayElementBinop *ins);
     void visitCompareExchangeTypedArrayElement(MCompareExchangeTypedArrayElement *ins);
+    void visitAtomicTypedArrayElementBinop(MAtomicTypedArrayElementBinop *ins);
     void visitSubstr(MSubstr *ins);
 };
 

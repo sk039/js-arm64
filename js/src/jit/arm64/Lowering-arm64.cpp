@@ -430,7 +430,7 @@ LIRGeneratorARM64::visitSimdBinaryArith(MSimdBinaryArith *ins)
 }
 
 void
-LIRGeneratorARM64::visitSimdTernaryBitwise(MSimdTernaryBitwise *ins)
+LIRGeneratorARM64::visitSimdSelect(MSimdSelect *ins)
 {
     MOZ_CRASH("NYI");
 }

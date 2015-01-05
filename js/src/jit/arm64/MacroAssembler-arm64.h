@@ -152,11 +152,11 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
 
     void Pop(const Register t) {
         pop(t);
-        adjustFrame(-1 * sizeof(int64_t));
+        adjustFrame(-1 * int64_t(sizeof(int64_t)));
     }
     void Pop(const ValueOperand t) {
         pop(t);
-        adjustFrame(-1 * sizeof(int64_t));
+        adjustFrame(-1 * int64_t(sizeof(int64_t)));
     }
 
     void push(FloatRegister f) {
@@ -1565,6 +1565,9 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     void unboxObject(const Address &src, Register dest) {
         loadPtr(src, dest);
         unboxNonDouble(dest, dest);
+    }
+    void unboxObject(const BaseIndex &src, Register dest) {
+        MOZ_CRASH("unboxObject");
     }
 
     void unboxValue(const ValueOperand &src, AnyRegister dest) {
