@@ -213,8 +213,6 @@ class CodeGeneratorARM64 : public CodeGeneratorShared
     void visitAsmJSLoadFFIFunc(LAsmJSLoadFFIFunc *ins);
     void visitAsmJSPassStackArg(LAsmJSPassStackArg *ins);
 
-    void visitForkJoinGetSlice(LForkJoinGetSlice *ins);
-
     void generateInvalidateEpilogue();
   protected:
     void postAsmJSCall(LAsmJSCall *lir) {

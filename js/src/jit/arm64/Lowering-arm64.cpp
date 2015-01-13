@@ -418,12 +418,6 @@ LIRGeneratorARM64::visitStoreTypedArrayElementStatic(MStoreTypedArrayElementStat
 }
 
 void
-LIRGeneratorARM64::visitForkJoinGetSlice(MForkJoinGetSlice *ins)
-{
-    MOZ_CRASH("NYI");
-}
-
-void
 LIRGeneratorARM64::visitSimdBinaryArith(MSimdBinaryArith *ins)
 {
     MOZ_CRASH("NYI");

@@ -37,7 +37,20 @@
 namespace js {
 namespace jit {
 
+// This boolean indicates whether we support SIMD instructions flavoured for
+// this architecture or not. Rather than a method in the LIRGenerator, it is
+// here such that it is accessible from the entire codebase. Once full support
+// for SIMD is reached on all tier-1 platforms, this constant can be deleted.
 static MOZ_CONSTEXPR_VAR bool SupportsSimd = false;
+static MOZ_CONSTEXPR_VAR uint32_t SimdMemoryAlignment = 16;
+
+static_assert(CodeAlignment % SimdMemoryAlignment == 0,
+  "Code alignment should be larger than any of the alignments which are used for "
+  "the constant sections of the code buffer.  Thus it should be larger than the "
+  "alignment for SIMD constants.");
+
+static const uint32_t AsmJSStackAlignment = SimdMemoryAlignment;
+
 static const int32_t AsmJSGlobalRegBias = 1024;
 class Assembler : public AssemblerVIXL
 {
@@ -483,10 +496,6 @@ static MOZ_CONSTEXPR_VAR Register r30 = { Registers::x30 };
 static MOZ_CONSTEXPR_VAR Register lr  = { Registers::x30 };
 static MOZ_CONSTEXPR_VAR Register r31 = { Registers::xzr };
 static MOZ_CONSTEXPR_VAR ValueOperand JSReturnOperand = ValueOperand(JSReturnReg);
-
-// SIMD.
-static MOZ_CONSTEXPR_VAR uint32_t SimdStackAlignment = 16;
-static MOZ_CONSTEXPR_VAR uint32_t AsmJSStackAlignment = SimdStackAlignment;
 
 // Registers used in the GenerateFFIIonExit Enable Activation block.
 static MOZ_CONSTEXPR_VAR Register AsmJSIonExitRegCallee = r8;

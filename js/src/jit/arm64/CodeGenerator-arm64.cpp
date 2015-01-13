@@ -89,7 +89,7 @@ CodeGeneratorARM64::generateOutOfLineCode()
         // Push the frame size, so the handler can recover the IonScript.
         masm.Mov(w30, frameSize());
 
-        JitCode *handler = gen->jitRuntime()->getGenericBailoutHandler(gen->info().executionMode());
+        JitCode *handler = gen->jitRuntime()->getGenericBailoutHandler();
         masm.branch(handler);
     }
 
@@ -106,7 +106,6 @@ CodeGeneratorARM64::emitBranch(Assembler::Condition cond, MBasicBlock *mirTrue, 
         jumpToBlock(mirTrue);
     }
 }
-
 
 void 
 OutOfLineBailout::accept(CodeGeneratorARM64 *codegen)
@@ -883,7 +882,6 @@ CodeGeneratorARM64::visitAsmJSLoadHeap(LAsmJSLoadHeap *ins)
     const MAsmJSLoadHeap *mir = ins->mir();
     LoadStoreOp op;
     const LAllocation *ptr = ins->ptr();
-    bool isSigned = false;
     switch (mir->viewType()) {
       case Scalar::Int8:    op = LDRSB_w; break;
       case Scalar::Uint8:   op = LDRB_w; break;
@@ -929,6 +927,9 @@ CodeGeneratorARM64::visitAsmJSStoreHeap(LAsmJSStoreHeap *ins)
       case Scalar::Float32: op = STR_s; break;
       default: MOZ_CRASH("unexpected array type");
     }
+
+    // TODO: What is the point of isSigned here?
+    (void) isSigned;
 
     CPURegister rt = ToCPURegister(ins->value());
     if (ptr->isConstant()) {
@@ -1041,16 +1042,4 @@ CodeGeneratorARM64::visitNegF(LNegF *ins)
     ARMFPRegister input(ToFloatRegister(ins->input()), 32);
     ARMFPRegister output(ToFloatRegister(ins->output()), 32);
     masm.Fneg(output, input);
-}
-
-void 
-CodeGeneratorARM64::visitForkJoinGetSlice(LForkJoinGetSlice *ins)
-{
-    MOZ_CRASH("NYI");
-}
-
-JitCode *
-JitRuntime::generateForkJoinGetSliceStub(JSContext *cx)
-{
-    MOZ_CRASH("NYI");
 }

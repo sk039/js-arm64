@@ -292,7 +292,7 @@ JitRuntime::generateInvalidator(JSContext *cx)
 }
 
 JitCode *
-JitRuntime::generateArgumentsRectifier(JSContext *cx, ExecutionMode mode, void **returnAddrOut)
+JitRuntime::generateArgumentsRectifier(JSContext *cx, void **returnAddrOut)
 {
     MacroAssembler masm;
 
@@ -347,7 +347,7 @@ JitRuntime::generateArgumentsRectifier(JSContext *cx, ExecutionMode mode, void *
     // Load the address of the code that is getting called
     masm.And(x1, x1, Operand(CalleeTokenMask));
     masm.Ldr(x3, MemOperand(x1, JSFunction::offsetOfNativeOrScript()));
-    masm.loadBaselineOrIonRaw(r3, r3, mode, nullptr);
+    masm.loadBaselineOrIonRaw(r3, r3, nullptr);
     masm.call(r3);
 
     // Clean up!
@@ -383,7 +383,7 @@ JitRuntime::generateBailoutTable(JSContext *cx, uint32_t frameClass)
 }
 
 JitCode *
-JitRuntime::generateBailoutHandler(JSContext *cx, ExecutionMode mode)
+JitRuntime::generateBailoutHandler(JSContext *cx)
 {
     // FIXME: Actually implement.
     MacroAssembler masm(cx);
@@ -427,7 +427,8 @@ JitRuntime::generateVMWrapper(JSContext *cx, const VMFunction &f)
     //  +0  returnAddress (pushed by this function, caller sets as lr)
     //
     //  We're aligned to an exit frame, so link it up.
-    masm.enterExitFrameAndLoadContext(&f, reg_cx, regs.getAny(), f.executionMode);
+    masm.enterExitFrame(&f);
+    masm.loadJSContext(reg_cx);
 
     // Save the current stack pointer as the base for copying arguments.
     Register argsBase = InvalidReg;
@@ -521,10 +522,10 @@ JitRuntime::generateVMWrapper(JSContext *cx, const VMFunction &f)
     // Test for failure.
     switch (f.failType()) {
       case Type_Object:
-        masm.branchTestPtr(Assembler::Zero, r0, r0, masm.failureLabel(f.executionMode));
+        masm.branchTestPtr(Assembler::Zero, r0, r0, masm.failureLabel());
         break;
       case Type_Bool:
-        masm.branchIfFalseBool(r0, masm.failureLabel(f.executionMode));
+        masm.branchIfFalseBool(r0, masm.failureLabel());
         break;
       default:
         MOZ_CRASH("unknown failure kind");
