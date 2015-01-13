@@ -132,7 +132,7 @@ Navigator implements NavigatorBattery;
 [NoInterfaceObject,
  Exposed=(Window,Worker)]
 interface NavigatorDataStore {
-    [Throws, NewObject, Func="Navigator::HasDataStoreSupport"]
+    [NewObject, Func="Navigator::HasDataStoreSupport"]
     Promise<sequence<DataStore>> getDataStores(DOMString name,
                                                optional DOMString? owner = null);
 };
@@ -173,7 +173,7 @@ interface NavigatorMobileId {
     // permission is set to PROMPT_ACTION and [CheckPermissions] only checks
     // for ALLOW_ACTION.
     // XXXbz what is this promise resolved with?
-    [Throws, NewObject, Func="Navigator::HasMobileIdSupport"]
+    [NewObject, Func="Navigator::HasMobileIdSupport"]
     Promise<any> getMobileIdAssertion(optional MobileIdOptions options);
 };
 Navigator implements NavigatorMobileId;
@@ -193,7 +193,7 @@ partial interface Navigator {
   readonly attribute boolean cookieEnabled;
   [Throws]
   readonly attribute DOMString buildID;
-  [Throws, CheckPermissions="power"]
+  [Throws, CheckPermissions="power", UnsafeInPrerendering]
   readonly attribute MozPowerManager mozPower;
 
   // WebKit/Blink/Trident/Presto support this.
@@ -240,7 +240,7 @@ partial interface Navigator {
    *
    * @param aTopic resource name
    */
-  [Throws, Pref="dom.wakelock.enabled", Func="Navigator::HasWakeLockSupport"]
+  [Throws, Pref="dom.wakelock.enabled", Func="Navigator::HasWakeLockSupport", UnsafeInPrerendering]
   MozWakeLock requestWakeLock(DOMString aTopic);
 };
 
@@ -344,7 +344,7 @@ partial interface Navigator {
 #ifdef MOZ_TIME_MANAGER
 // nsIDOMMozNavigatorTime
 partial interface Navigator {
-  [Throws, CheckPermissions="time"]
+  [Throws, CheckPermissions="time", UnsafeInPrerendering]
   readonly attribute MozTimeManager mozTime;
 };
 #endif // MOZ_TIME_MANAGER
@@ -405,7 +405,7 @@ partial interface Navigator {
 
 #ifdef MOZ_EME
 partial interface Navigator {
-  [Pref="media.eme.enabled", Throws, NewObject]
+  [Pref="media.eme.enabled", NewObject]
   Promise<MediaKeySystemAccess>
   requestMediaKeySystemAccess(DOMString keySystem,
                               optional sequence<MediaKeySystemOptions> supportedConfigurations);

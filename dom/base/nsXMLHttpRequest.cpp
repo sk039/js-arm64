@@ -288,7 +288,8 @@ nsXMLHttpRequest::sDontWarnAboutSyncXHR = false;
 nsXMLHttpRequest::nsXMLHttpRequest()
   : mResponseBodyDecodedPos(0),
     mResponseType(XML_HTTP_RESPONSE_TYPE_DEFAULT),
-    mRequestObserver(nullptr), mState(XML_HTTP_REQUEST_UNSENT),
+    mRequestObserver(nullptr),
+    mState(XML_HTTP_REQUEST_UNSENT | XML_HTTP_REQUEST_ASYNC),
     mUploadTransferred(0), mUploadTotal(0), mUploadComplete(true),
     mProgressSinceLastProgressEvent(false),
     mRequestSentTime(0), mTimeoutMilliseconds(0),
@@ -361,10 +362,11 @@ NS_IMETHODIMP
 nsXMLHttpRequest::Init(nsIPrincipal* aPrincipal,
                        nsIScriptContext* aScriptContext,
                        nsIGlobalObject* aGlobalObject,
-                       nsIURI* aBaseURI)
+                       nsIURI* aBaseURI,
+                       nsILoadGroup* aLoadGroup)
 {
   NS_ENSURE_ARG_POINTER(aPrincipal);
-  
+
   if (nsCOMPtr<nsPIDOMWindow> win = do_QueryInterface(aGlobalObject)) {
     if (win->IsOuterWindow()) {
       // Must be bound to inner window, innerize if necessary.
@@ -374,7 +376,7 @@ nsXMLHttpRequest::Init(nsIPrincipal* aPrincipal,
     }
   }
 
-  Construct(aPrincipal, aGlobalObject, aBaseURI);
+  Construct(aPrincipal, aGlobalObject, aBaseURI, aLoadGroup);
   return NS_OK;
 }
 
@@ -914,10 +916,9 @@ void
 nsXMLHttpRequest::SetResponseType(nsXMLHttpRequest::ResponseTypeEnum aResponseType,
                                   ErrorResult& aRv)
 {
-  // If the state is not OPENED or HEADERS_RECEIVED raise an
-  // INVALID_STATE_ERR exception and terminate these steps.
-  if (!(mState & (XML_HTTP_REQUEST_OPENED | XML_HTTP_REQUEST_SENT |
-                  XML_HTTP_REQUEST_HEADERS_RECEIVED))) {
+  // If the state is LOADING or DONE raise an INVALID_STATE_ERR exception
+  // and terminate these steps.
+  if ((mState & (XML_HTTP_REQUEST_LOADING | XML_HTTP_REQUEST_DONE))) {
     aRv.Throw(NS_ERROR_DOM_INVALID_STATE_ERR);
     return;
   }
@@ -1434,6 +1435,11 @@ nsXMLHttpRequest::GetLoadGroup() const
 {
   if (mState & XML_HTTP_REQUEST_BACKGROUND) {                 
     return nullptr;
+  }
+
+  if (mLoadGroup) {
+    nsCOMPtr<nsILoadGroup> ref = mLoadGroup;
+    return ref.forget();
   }
 
   nsresult rv = NS_ERROR_FAILURE;
@@ -3426,7 +3432,7 @@ public:
   NS_DECL_CYCLE_COLLECTION_CLASS(AsyncVerifyRedirectCallbackForwarder)
 
   // nsIAsyncVerifyRedirectCallback implementation
-  NS_IMETHOD OnRedirectVerifyCallback(nsresult result)
+  NS_IMETHOD OnRedirectVerifyCallback(nsresult result) MOZ_OVERRIDE
   {
     mXHR->OnRedirectVerifyCallback(result);
 

@@ -125,8 +125,16 @@ public abstract class GeckoApp
     LocationListener,
     NativeEventListener,
     SensorEventListener,
-    Tabs.OnTabsChangedListener
-{
+    Tabs.OnTabsChangedListener {
+
+    protected GeckoApp() {
+        // We need to do this before any access to the profile; it controls
+        // which database class is used.
+        // We thus need to do this before our GeckoView is inflated, because
+        // GeckoView implicitly accesses the profile.
+        GeckoProfile.setBrowserDBFactory(getBrowserDBFactory());
+    }
+
     private static final String LOGTAG = "GeckoApp";
     private static final int ONE_DAY_MS = 1000*60*60*24;
 
@@ -142,7 +150,6 @@ public abstract class GeckoApp
     public static final String ACTION_LAUNCH_SETTINGS      = "org.mozilla.gecko.SETTINGS";
     public static final String ACTION_LOAD                 = "org.mozilla.gecko.LOAD";
     public static final String ACTION_INIT_PW              = "org.mozilla.gecko.INIT_PW";
-    public static final String ACTION_WEBAPP_PREFIX        = "org.mozilla.gecko.WEBAPP";
 
     public static final String EXTRA_STATE_BUNDLE          = "stateBundle";
 
@@ -230,6 +237,8 @@ public abstract class GeckoApp
     public SharedPreferences getSharedPreferences() {
         return GeckoSharedPrefs.forApp(this);
     }
+
+    protected abstract BrowserDB.Factory getBrowserDBFactory();
 
     @Override
     public Activity getActivity() {
@@ -524,7 +533,13 @@ public abstract class GeckoApp
     }
 
     void handleClearHistory() {
-        BrowserDB.clearHistory(getContentResolver());
+        final BrowserDB db = getProfile().getDB();
+        ThreadUtils.postToBackgroundThread(new Runnable() {
+            @Override
+            public void run() {
+                db.clearHistory(getContentResolver());
+            }
+        });
     }
 
     public void addTab() { }
@@ -559,10 +574,11 @@ public abstract class GeckoApp
             final String url = message.getString("url");
             final String title = message.getString("title");
             final Context context = this;
+            final BrowserDB db = getProfile().getDB();
             ThreadUtils.postToBackgroundThread(new Runnable() {
                 @Override
                 public void run() {
-                    BrowserDB.addBookmark(getContentResolver(), title, url);
+                    db.addBookmark(getContentResolver(), title, url);
                     ThreadUtils.postToUiThread(new Runnable() {
                         @Override
                         public void run() {
@@ -1146,33 +1162,15 @@ public abstract class GeckoApp
         // business later and dispose of the reference.
         GeckoLoader.setLastIntent(intent);
 
-        if (mProfile == null) {
-            String profileName = null;
-            String profilePath = null;
-            if (args != null) {
-                if (args.contains("-P")) {
-                    Pattern p = Pattern.compile("(?:-P\\s*)(\\w*)(\\s*)");
-                    Matcher m = p.matcher(args);
-                    if (m.find()) {
-                        profileName = m.group(1);
-                    }
-                }
-
-                if (args.contains("-profile")) {
-                    Pattern p = Pattern.compile("(?:-profile\\s*)(\\S*)(\\s*)");
-                    Matcher m = p.matcher(args);
-                    if (m.find()) {
-                        profilePath =  m.group(1);
-                    }
-                    if (profileName == null) {
-                        profileName = GeckoProfile.DEFAULT_PROFILE;
-                    }
-                    GeckoProfile.sIsUsingCustomProfile = true;
-                }
-
-                if (profileName != null || profilePath != null) {
-                    mProfile = GeckoProfile.get(this, profileName, profilePath);
-                }
+        // If we don't already have a profile, but we do have arguments,
+        // let's see if they're enough to find one.
+        // Note that subclasses must ensure that if they try to access
+        // the profile prior to this code being run, then they do something
+        // similar.
+        if (mProfile == null && args != null) {
+            final GeckoProfile p = GeckoProfile.getFromArgs(this, args);
+            if (p != null) {
+                mProfile = p;
             }
         }
 
@@ -1439,16 +1437,15 @@ public abstract class GeckoApp
      *
      * @param url External URL to load, or null to load the default URL
      */
-    protected void loadStartupTab(String url) {
+    protected void loadStartupTab(String url, int flags) {
         if (url == null) {
             if (!mShouldRestore) {
                 // Show about:home if we aren't restoring previous session and
                 // there's no external URL.
-                Tabs.getInstance().loadUrl(AboutPages.HOME, Tabs.LOADURL_NEW_TAB);
+                Tabs.getInstance().loadUrl(AboutPages.HOME, flags);
             }
         } else {
             // If given an external URL, load it
-            int flags = Tabs.LOADURL_NEW_TAB | Tabs.LOADURL_USER_ENTERED | Tabs.LOADURL_EXTERNAL;
             Tabs.getInstance().loadUrl(url, flags);
         }
     }
@@ -1485,8 +1482,6 @@ public abstract class GeckoApp
 
         initializeChrome();
 
-        BrowserDB.initialize(getProfile().getName());
-
         // If we are doing a restore, read the session data and send it to Gecko
         if (!mIsRestoringActivity) {
             String restoreMessage = null;
@@ -1515,10 +1510,14 @@ public abstract class GeckoApp
             // Restore tabs before opening an external URL so that the new tab
             // is animated properly.
             Tabs.getInstance().notifyListeners(null, Tabs.TabEvents.RESTORED);
-            loadStartupTab(passedUri);
+            int flags = Tabs.LOADURL_NEW_TAB | Tabs.LOADURL_USER_ENTERED | Tabs.LOADURL_EXTERNAL;
+            if (ACTION_HOMESCREEN_SHORTCUT.equals(action)) {
+                flags |= Tabs.LOADURL_PINNED;
+            }
+            loadStartupTab(passedUri, flags);
         } else {
             if (!mIsRestoringActivity) {
-                loadStartupTab(null);
+                loadStartupTab(null, Tabs.LOADURL_NEW_TAB);
             }
 
             Tabs.getInstance().notifyListeners(null, Tabs.TabEvents.RESTORED);
@@ -1587,9 +1586,7 @@ public abstract class GeckoApp
 
         mTextSelection = new TextSelection((TextSelectionHandle) findViewById(R.id.anchor_handle),
                                            (TextSelectionHandle) findViewById(R.id.caret_handle),
-                                           (TextSelectionHandle) findViewById(R.id.focus_handle),
-                                           EventDispatcher.getInstance(),
-                                           this);
+                                           (TextSelectionHandle) findViewById(R.id.focus_handle));
 
         PrefsHelper.getPref("app.update.autodownload", new PrefsHelper.PrefHandlerBase() {
             @Override public void prefValue(String pref, String value) {
@@ -1851,12 +1848,6 @@ public abstract class GeckoApp
             Tabs.getInstance().loadUrl(uri, Tabs.LOADURL_NEW_TAB |
                                             Tabs.LOADURL_USER_ENTERED |
                                             Tabs.LOADURL_EXTERNAL);
-        } else if (action != null && action.startsWith(ACTION_WEBAPP_PREFIX)) {
-            // A lightweight mechanism for loading a web page as a webapp
-            // without installing the app natively nor registering it in the DOM
-            // application registry.
-            String uri = getURIFromIntent(intent);
-            GeckoAppShell.sendEventToGecko(GeckoEvent.createWebappLoadEvent(uri));
         } else if (ACTION_HOMESCREEN_SHORTCUT.equals(action)) {
             String uri = getURIFromIntent(intent);
             GeckoAppShell.sendEventToGecko(GeckoEvent.createBookmarkLoadEvent(uri));

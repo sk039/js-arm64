@@ -181,8 +181,7 @@ MediaDecoderStateMachine::MediaDecoderStateMachine(MediaDecoder* aDecoder,
   mDecoder(aDecoder),
   mScheduler(new MediaDecoderStateMachineScheduler(
       aDecoder->GetReentrantMonitor(),
-      &MediaDecoderStateMachine::TimeoutExpired,
-      MOZ_THIS_IN_INITIALIZER_LIST(), aRealTime)),
+      &MediaDecoderStateMachine::TimeoutExpired, this, aRealTime)),
   mState(DECODER_STATE_DECODING_NONE),
   mSyncPointInMediaStream(-1),
   mSyncPointInDecodedStream(-1),
@@ -229,8 +228,8 @@ MediaDecoderStateMachine::MediaDecoderStateMachine(MediaDecoder* aDecoder,
   mAmpleVideoFrames =
     std::max<uint32_t>(Preferences::GetUint("media.video-queue.default-size", 10), 3);
 
-  mBufferingWait = mScheduler->IsRealTime() ? 0 : 30;
-  mLowDataThresholdUsecs = mScheduler->IsRealTime() ? 0 : LOW_DATA_THRESHOLD_USECS;
+  mBufferingWait = IsRealTime() ? 0 : 30;
+  mLowDataThresholdUsecs = IsRealTime() ? 0 : LOW_DATA_THRESHOLD_USECS;
 
 #ifdef XP_WIN
   // Ensure high precision timers are enabled on Windows, otherwise the state
@@ -532,6 +531,13 @@ bool MediaDecoderStateMachine::HaveEnoughDecodedAudio(int64_t aAmpleAudioUSecs)
   }
 
   DecodedStreamData* stream = mDecoder->GetDecodedStream();
+
+  // Since stream is initialized in SendStreamData() which is called when
+  // audio/video samples are received, we need to keep decoding to ensure
+  // the stream is initialized.
+  if (stream && !stream->mStreamInitialized) {
+    return false;
+  }
   if (stream && stream->mStreamInitialized && !stream->mHaveSentFinishAudio) {
     if (!stream->mStream->HaveEnoughBuffered(kAudioTrack)) {
       return false;
@@ -552,6 +558,11 @@ bool MediaDecoderStateMachine::HaveEnoughDecodedVideo()
   }
 
   DecodedStreamData* stream = mDecoder->GetDecodedStream();
+
+  if (stream && !stream->mStreamInitialized) {
+    return false;
+  }
+
   if (stream && stream->mStreamInitialized && !stream->mHaveSentFinishVideo) {
     if (!stream->mStream->HaveEnoughBuffered(kVideoTrack)) {
       return false;
@@ -576,6 +587,9 @@ bool
 MediaDecoderStateMachine::NeedToSkipToNextKeyframe()
 {
   AssertCurrentThreadInMonitor();
+  if (mState == DECODER_STATE_DECODING_FIRSTFRAME) {
+    return false;
+  }
   MOZ_ASSERT(mState == DECODER_STATE_DECODING ||
              mState == DECODER_STATE_BUFFERING ||
              mState == DECODER_STATE_SEEKING);
@@ -623,6 +637,7 @@ MediaDecoderStateMachine::DecodeVideo()
     NS_ASSERTION(OnDecodeThread(), "Should be on decode thread.");
 
     if (mState != DECODER_STATE_DECODING &&
+        mState != DECODER_STATE_DECODING_FIRSTFRAME &&
         mState != DECODER_STATE_BUFFERING &&
         mState != DECODER_STATE_SEEKING) {
       mVideoRequestStatus = RequestStatus::Idle;
@@ -672,6 +687,7 @@ MediaDecoderStateMachine::DecodeAudio()
     NS_ASSERTION(OnDecodeThread(), "Should be on decode thread.");
 
     if (mState != DECODER_STATE_DECODING &&
+        mState != DECODER_STATE_DECODING_FIRSTFRAME &&
         mState != DECODER_STATE_BUFFERING &&
         mState != DECODER_STATE_SEEKING) {
       mAudioRequestStatus = RequestStatus::Idle;
@@ -1173,7 +1189,13 @@ void MediaDecoderStateMachine::SetSyncPointForMediaStream()
   }
 
   mSyncPointInMediaStream = stream->GetLastOutputTime();
-  mSyncPointInDecodedStream = mStartTime + mPlayDuration;
+  TimeDuration timeSincePlayStart = mPlayStartTime.IsNull() ? TimeDuration(0) :
+                                    TimeStamp::Now() - mPlayStartTime;
+  mSyncPointInDecodedStream = mStartTime + mPlayDuration +
+                              timeSincePlayStart.ToMicroseconds();
+
+  DECODER_LOG("SetSyncPointForMediaStream MediaStream=%lldus, DecodedStream=%lldus",
+              mSyncPointInMediaStream, mSyncPointInDecodedStream);
 }
 
 void MediaDecoderStateMachine::ResyncMediaStreamClock()
@@ -1337,6 +1359,13 @@ void MediaDecoderStateMachine::SetAudioCaptured(bool aCaptured)
     // If mStopAudioThread is true then we're already stopping the audio sink
     // and since we set mAudioCaptured to true, nothing can start it again.
     ScheduleStateMachine();
+
+    if (HasAudio()) {
+      // The audio clock is active so force a resync now in case the audio
+      // clock is ahead of us (observed on Android), since after mAudioCaptured
+      // gets set can't call GetAudioClock().
+      ResyncAudioClock();
+    }
   }
   mAudioCaptured = aCaptured;
 }
@@ -1349,6 +1378,10 @@ double MediaDecoderStateMachine::GetCurrentTime() const
                "Should be on main, decode, or state machine thread.");
 
   return static_cast<double>(mCurrentFrameTime) / static_cast<double>(USECS_PER_S);
+}
+
+bool MediaDecoderStateMachine::IsRealTime() const {
+  return mScheduler->IsRealTime();
 }
 
 int64_t MediaDecoderStateMachine::GetDuration()
@@ -1422,6 +1455,15 @@ void MediaDecoderStateMachine::SetDormant(bool aDormant)
   DECODER_LOG("SetDormant=%d", aDormant);
 
   if (aDormant) {
+    if (mState == DECODER_STATE_SEEKING && !mQueuedSeekTarget.IsValid()) {
+      if (mSeekTarget.IsValid()) {
+        mQueuedSeekTarget = mSeekTarget;
+      } else if (mCurrentSeekTarget.IsValid()) {
+        mQueuedSeekTarget = mCurrentSeekTarget;
+      }
+    }
+    mSeekTarget.Reset();
+    mCurrentSeekTarget.Reset();
     ScheduleStateMachine();
     SetState(DECODER_STATE_DORMANT);
     mDecoder->GetReentrantMonitor().NotifyAll();
@@ -1773,6 +1815,7 @@ MediaDecoderStateMachine::DispatchDecodeTasksIfNeeded()
   AssertCurrentThreadInMonitor();
 
   if (mState != DECODER_STATE_DECODING &&
+      mState != DECODER_STATE_DECODING_FIRSTFRAME &&
       mState != DECODER_STATE_BUFFERING &&
       mState != DECODER_STATE_SEEKING) {
     return;
@@ -1820,7 +1863,6 @@ MediaDecoderStateMachine::DispatchDecodeTasksIfNeeded()
   if (needToDecodeVideo) {
     EnsureVideoDecodeTaskQueued();
   }
-
 
   if (needIdle) {
     RefPtr<nsIRunnable> event = NS_NewRunnableMethod(
@@ -1888,7 +1930,7 @@ MediaDecoderStateMachine::EnsureAudioDecodeTaskQueued()
     return NS_OK;
   }
 
-  MOZ_ASSERT(mState > DECODER_STATE_DECODING_FIRSTFRAME);
+  MOZ_ASSERT(mState >= DECODER_STATE_DECODING_FIRSTFRAME);
 
   if (IsAudioDecoding() && mAudioRequestStatus == RequestStatus::Idle && !mWaitingForDecoderSeek) {
     RefPtr<nsIRunnable> task(
@@ -1933,7 +1975,7 @@ MediaDecoderStateMachine::EnsureVideoDecodeTaskQueued()
     return NS_OK;
   }
 
-  MOZ_ASSERT(mState > DECODER_STATE_DECODING_FIRSTFRAME);
+  MOZ_ASSERT(mState >= DECODER_STATE_DECODING_FIRSTFRAME);
 
   if (IsVideoDecoding() && mVideoRequestStatus == RequestStatus::Idle && !mWaitingForDecoderSeek) {
     RefPtr<nsIRunnable> task(
@@ -1988,6 +2030,12 @@ int64_t MediaDecoderStateMachine::AudioDecodedUsecs()
   // already decoded and pushed to the hardware, plus the amount of audio
   // data waiting to be pushed to the hardware.
   int64_t pushed = (mAudioEndTime != -1) ? (mAudioEndTime - GetMediaTime()) : 0;
+
+  // Currently for real time streams, AudioQueue().Duration() produce
+  // wrong values (Bug 1114434), so we use frame counts to calculate duration.
+  if (IsRealTime()) {
+    return pushed + FramesToUsecs(AudioQueue().FrameCount(), mInfo.mAudio.mRate).value();
+  }
   return pushed + AudioQueue().Duration();
 }
 
@@ -2187,7 +2235,7 @@ MediaDecoderStateMachine::DecodeFirstFrame()
     VideoQueue().AddPopListener(decodeTask, DecodeTaskQueue());
   }
 
-  if (mScheduler->IsRealTime()) {
+  if (IsRealTime()) {
     SetStartTime(0);
     nsresult res = FinishDecodeFirstFrame();
     NS_ENSURE_SUCCESS(res, res);
@@ -2226,7 +2274,7 @@ MediaDecoderStateMachine::FinishDecodeFirstFrame()
     return NS_ERROR_FAILURE;
   }
 
-  if (!mScheduler->IsRealTime() && !mDecodingFrozenAtStateMetadata) {
+  if (!IsRealTime() && !mDecodingFrozenAtStateMetadata) {
     const VideoData* v = VideoQueue().PeekFront();
     const AudioData* a = AudioQueue().PeekFront();
     SetStartTime(mReader->ComputeStartTime(v, a));
@@ -2381,7 +2429,7 @@ void MediaDecoderStateMachine::DecodeSeek()
 }
 
 void
-MediaDecoderStateMachine::OnSeekCompleted()
+MediaDecoderStateMachine::OnSeekCompleted(int64_t aTime)
 {
   ReentrantMonitorAutoEnter mon(mDecoder->GetReentrantMonitor());
   mWaitingForDecoderSeek = false;
@@ -2839,7 +2887,7 @@ void MediaDecoderStateMachine::RenderVideoFrame(VideoData* aData,
   if (container) {
     container->SetCurrentFrame(ThebesIntSize(aData->mDisplay), aData->mImage,
                                aTarget);
-    MOZ_ASSERT(container->GetFrameDelay() >= 0 || mScheduler->IsRealTime());
+    MOZ_ASSERT(container->GetFrameDelay() >= 0 || IsRealTime());
   }
 }
 
@@ -2890,16 +2938,15 @@ int64_t MediaDecoderStateMachine::GetClock() const
   int64_t clock_time = -1;
   if (!IsPlaying()) {
     clock_time = mPlayDuration + mStartTime;
-  } else if (mDecoder->GetDecodedStream()) {
-    clock_time = GetCurrentTimeViaMediaStreamSync();
   } else {
-    if (HasAudio() && !mAudioCompleted && !mAudioCaptured) {
+    if (mDecoder->GetDecodedStream()) {
+      clock_time = GetCurrentTimeViaMediaStreamSync();
+    } else if (HasAudio() && !mAudioCompleted && !mAudioCaptured) {
       clock_time = GetAudioClock();
     } else {
       // Audio is disabled on this system. Sync to the system clock.
       clock_time = GetVideoStreamPosition();
     }
-    // FIXME: This assertion should also apply the case of decoding to a stream.
     // Ensure the clock can never go backwards.
     NS_ASSERTION(GetMediaTime() <= clock_time || mPlaybackRate <= 0,
       "Clock should go forwards if the playback rate is > 0.");
@@ -2925,6 +2972,14 @@ void MediaDecoderStateMachine::AdvanceFrame()
     return;
   }
 
+  DecodedStreamData* stream = mDecoder->GetDecodedStream();
+  if (stream && !stream->mStreamInitialized) {
+    // Output streams exist but are not initialized yet.
+    // Send the data we already have to allow stream clock to progress and
+    // avoid stalling playback.
+    SendStreamData();
+  }
+
   const int64_t clock_time = GetClock();
   TimeStamp nowTime = TimeStamp::Now();
   // Skip frames up to the frame at the playback position, and figure out
@@ -2937,7 +2992,7 @@ void MediaDecoderStateMachine::AdvanceFrame()
 #ifdef PR_LOGGING
     int32_t droppedFrames = 0;
 #endif
-    while (mScheduler->IsRealTime() || clock_time >= frame->mTime) {
+    while (IsRealTime() || clock_time >= frame->mTime) {
       mVideoFrameEndTime = frame->GetEndTime();
 #ifdef PR_LOGGING
       if (currentFrame) {
@@ -3006,7 +3061,7 @@ void MediaDecoderStateMachine::AdvanceFrame()
     // zero if it's a initial frame.
     int64_t frameTime = currentFrame->mTime - mStartTime;
     if (frameTime > 0  || (frameTime == 0 && mPlayDuration == 0) ||
-        mScheduler->IsRealTime()) {
+        IsRealTime()) {
       ReentrantMonitorAutoExit exitMon(mDecoder->GetReentrantMonitor());
       // If we have video, we want to increment the clock in steps of the frame
       // duration.

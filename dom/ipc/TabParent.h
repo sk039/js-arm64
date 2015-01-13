@@ -127,23 +127,24 @@ public:
 
     virtual bool RecvMoveFocus(const bool& aForward) MOZ_OVERRIDE;
     virtual bool RecvEvent(const RemoteDOMEvent& aEvent) MOZ_OVERRIDE;
-    virtual bool RecvReplyKeyEvent(const WidgetKeyboardEvent& event);
-    virtual bool RecvDispatchAfterKeyboardEvent(const WidgetKeyboardEvent& event);
+    virtual bool RecvReplyKeyEvent(const WidgetKeyboardEvent& aEvent) MOZ_OVERRIDE;
+    virtual bool RecvDispatchAfterKeyboardEvent(const WidgetKeyboardEvent& aEvent) MOZ_OVERRIDE;
     virtual bool RecvBrowserFrameOpenWindow(PBrowserParent* aOpener,
                                             const nsString& aURL,
                                             const nsString& aName,
                                             const nsString& aFeatures,
                                             bool* aOutWindowOpened) MOZ_OVERRIDE;
-    virtual bool AnswerCreateWindow(const uint32_t& aChromeFlags,
-                                    const bool& aCalledFromJS,
-                                    const bool& aPositionSpecified,
-                                    const bool& aSizeSpecified,
-                                    const nsString& aURI,
-                                    const nsString& aName,
-                                    const nsString& aFeatures,
-                                    const nsString& aBaseURI,
-                                    bool* aWindowIsNew,
-                                    PBrowserParent** aRetVal) MOZ_OVERRIDE;
+    virtual bool RecvCreateWindow(PBrowserParent* aOpener,
+                                  const uint32_t& aChromeFlags,
+                                  const bool& aCalledFromJS,
+                                  const bool& aPositionSpecified,
+                                  const bool& aSizeSpecified,
+                                  const nsString& aURI,
+                                  const nsString& aName,
+                                  const nsString& aFeatures,
+                                  const nsString& aBaseURI,
+                                  bool* aWindowIsNew,
+                                  InfallibleTArray<FrameScriptInfo>* aFrameScripts) MOZ_OVERRIDE;
     virtual bool RecvSyncMessage(const nsString& aMessage,
                                  const ClonedMessageData& aData,
                                  const InfallibleTArray<CpowEntry>& aCpows,
@@ -178,6 +179,11 @@ public:
     virtual bool RecvNotifyIMETextHint(const nsString& aText) MOZ_OVERRIDE;
     virtual bool RecvNotifyIMEMouseButtonEvent(const widget::IMENotification& aEventMessage,
                                                bool* aConsumedByIME) MOZ_OVERRIDE;
+    virtual bool RecvNotifyIMEEditorRect(const nsIntRect& aRect) MOZ_OVERRIDE;
+    virtual bool RecvNotifyIMEPositionChange(
+                   const nsIntRect& aEditoRect,
+                   const InfallibleTArray<nsIntRect>& aCompositionRects,
+                   const nsIntRect& aCaretRect) MOZ_OVERRIDE;
     virtual bool RecvEndIMEComposition(const bool& aCancel,
                                        nsString* aComposition) MOZ_OVERRIDE;
     virtual bool RecvGetInputContext(int32_t* aIMEEnabled,
@@ -197,9 +203,9 @@ public:
     virtual bool RecvSetCursor(const uint32_t& aValue, const bool& aForce) MOZ_OVERRIDE;
     virtual bool RecvSetBackgroundColor(const nscolor& aValue) MOZ_OVERRIDE;
     virtual bool RecvSetStatus(const uint32_t& aType, const nsString& aStatus) MOZ_OVERRIDE;
-    virtual bool RecvIsParentWindowMainWidgetVisible(bool* aIsVisible);
-    virtual bool RecvShowTooltip(const uint32_t& aX, const uint32_t& aY, const nsString& aTooltip);
-    virtual bool RecvHideTooltip();
+    virtual bool RecvIsParentWindowMainWidgetVisible(bool* aIsVisible) MOZ_OVERRIDE;
+    virtual bool RecvShowTooltip(const uint32_t& aX, const uint32_t& aY, const nsString& aTooltip) MOZ_OVERRIDE;
+    virtual bool RecvHideTooltip() MOZ_OVERRIDE;
     virtual bool RecvGetDPI(float* aValue) MOZ_OVERRIDE;
     virtual bool RecvGetDefaultScale(double* aValue) MOZ_OVERRIDE;
     virtual bool RecvGetWidgetNativeData(WindowsHandle* aValue) MOZ_OVERRIDE;
@@ -347,6 +353,11 @@ public:
     void SetInitedByParent() { mInitedByParent = true; }
     bool IsInitedByParent() const { return mInitedByParent; }
 
+    static TabParent* GetNextTabParent();
+
+    bool SendLoadRemoteScript(const nsString& aURL,
+                              const bool& aRunInGlobalScope);
+
 protected:
     bool ReceiveMessage(const nsString& aMessage,
                         bool aSync,
@@ -398,6 +409,7 @@ protected:
     InfallibleTArray<nsIntRect> mIMECompositionRects;
     uint32_t mIMECaretOffset;
     nsIntRect mIMECaretRect;
+    nsIntRect mIMEEditorRect;
 
     // The number of event series we're currently capturing.
     int32_t mEventCaptureDepth;
@@ -461,6 +473,35 @@ private:
     nsCOMPtr<nsILoadContext> mLoadContext;
 
     TabId mTabId;
+
+    // Helper class for RecvCreateWindow.
+    struct AutoUseNewTab;
+
+    // When loading a new tab or window via window.open, the child process sends
+    // a new PBrowser to use. We store that tab in sNextTabParent and then
+    // proceed through the browser's normal paths to create a new
+    // window/tab. When it comes time to create a new TabParent, we instead use
+    // sNextTabParent.
+    static TabParent* sNextTabParent;
+
+    // When loading a new tab or window via window.open, the child is
+    // responsible for loading the URL it wants into the new
+    // TabChild. Simultaneously, though, the parent sends a LoadURL message to
+    // every new PBrowser (usually for about:blank). This message usually
+    // arrives after the child has started to load the URL it wants, and
+    // overrides it. To prevent this, we set mSkipLoad to true when creating the
+    // new tab. This flag prevents the unwanted LoadURL message from being sent
+    // by the parent.
+    bool mSkipLoad;
+
+    // When loading a new tab or window via window.open, we want to ensure that
+    // frame scripts for that tab are loaded before any scripts start to run in
+    // the window. We can't load the frame scripts the normal way, using
+    // separate IPC messages, since they won't be processed by the child until
+    // returning to the event loop, which is too late. Instead, we queue up
+    // frame scripts that we intend to load and send them as part of the
+    // CreateWindow response. Then TabChild loads them immediately.
+    nsTArray<FrameScriptInfo> mDelayedFrameScripts;
 
 private:
     // This is used when APZ needs to find the TabParent associated with a layer

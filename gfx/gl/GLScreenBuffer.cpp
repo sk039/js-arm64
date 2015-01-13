@@ -525,11 +525,18 @@ GLScreenBuffer::Readback(SharedSurface* src, gfx::DataSourceSurface* dest)
   }
 
   {
+      // Even though we're reading. We're doing it on
+      // the producer side. So we call ProducerAcquire
+      // instead of ConsumerAcquire.
+      src->ProducerAcquire();
+
       UniquePtr<ReadBuffer> buffer = CreateRead(src);
       MOZ_ASSERT(buffer);
 
       ScopedBindFramebuffer autoFB(mGL, buffer->mFB);
       ReadPixelsIntoDataSurface(mGL, dest);
+
+      src->ProducerRelease();
   }
 
   if (needsSwap) {
@@ -613,7 +620,11 @@ DrawBuffer::Create(GLContext* const gl,
     gl->fGenFramebuffers(1, &fb);
     gl->AttachBuffersToFB(0, colorMSRB, depthRB, stencilRB, fb);
 
-    UniquePtr<DrawBuffer> ret( new DrawBuffer(gl, size, fb, colorMSRB,
+    GLsizei samples = formats.samples;
+    if (!samples)
+        samples = 1;
+
+    UniquePtr<DrawBuffer> ret( new DrawBuffer(gl, size, samples, fb, colorMSRB,
                                               depthRB, stencilRB) );
 
     GLenum err = localError.GetError();

@@ -7,10 +7,14 @@ const Cu = Components.utils;
 
 Cu.import("resource:///modules/devtools/ViewHelpers.jsm");
 const promise = Cu.import("resource://gre/modules/Promise.jsm", {}).Promise;
-const {EventEmitter} = Cu.import("resource://gre/modules/devtools/event-emitter.js", {});
 const {Task} = Cu.import("resource://gre/modules/Task.jsm", {});
+const {EventEmitter} = Cu.import("resource://gre/modules/devtools/event-emitter.js", {});
 
 this.EXPORTED_SYMBOLS = [
+  "GraphCursor",
+  "GraphSelection",
+  "GraphSelectionDragger",
+  "GraphSelectionResizer",
   "AbstractCanvasGraph",
   "LineGraphWidget",
   "BarGraphWidget",
@@ -93,28 +97,23 @@ const BAR_GRAPH_LEGEND_MOUSEOVER_DEBOUNCE = 50; // ms
 /**
  * Small data primitives for all graphs.
  */
-this.GraphCursor = function() {};
-this.GraphSelection = function() {};
-this.GraphSelectionDragger = function() {};
-this.GraphSelectionResizer = function() {};
-
-GraphCursor.prototype = {
-  x: null,
-  y: null
+this.GraphCursor = function() {
+  this.x = null;
+  this.y = null;
 };
 
-GraphSelection.prototype = {
-  start: null,
-  end: null
+this.GraphSelection = function() {
+  this.start = null;
+  this.end = null;
 };
 
-GraphSelectionDragger.prototype = {
-  origin: null,
-  anchor: new GraphSelection()
+this.GraphSelectionDragger = function() {
+  this.origin = null;
+  this.anchor = new GraphSelection();
 };
 
-GraphSelectionResizer.prototype = {
-  margin: null
+this.GraphSelectionResizer = function() {
+  this.margin = null;
 };
 
 /**
@@ -244,6 +243,11 @@ AbstractCanvasGraph.prototype = {
 
     this._window.cancelAnimationFrame(this._animationId);
     this._iframe.remove();
+
+    this._cursor = null;
+    this._selection = null;
+    this._selectionDragger = null;
+    this._selectionResizer = null;
 
     this._data = null;
     this._mask = null;
@@ -892,6 +896,9 @@ AbstractCanvasGraph.prototype = {
 
   /**
    * Gets the offset of this graph's container relative to the owner window.
+   *
+   * @return object
+   *         The { left, top } offset.
    */
   _getContainerOffset: function() {
     let node = this._canvas;
@@ -1169,20 +1176,32 @@ AbstractCanvasGraph.prototype = {
  *
  * @param nsIDOMNode parent
  *        The parent node holding the graph.
- * @param string metric [optional]
- *        The metric displayed in the graph, e.g. "fps" or "bananas".
+ * @param object options [optional]
+ *        `metric`: The metric displayed in the graph, e.g. "fps" or "bananas".
+ *        `min`: Boolean whether to show the min tooltip/gutter/line (default: true)
+ *        `max`: Boolean whether to show the max tooltip/gutter/line (default: true)
+ *        `avg`: Boolean whether to show the avg tooltip/gutter/line (default: true)
  */
-this.LineGraphWidget = function(parent, metric, ...args) {
+this.LineGraphWidget = function(parent, options, ...args) {
+  options = options || {};
+  let metric = options.metric;
+
+  this._showMin = options.min !== false;
+  this._showMax = options.max !== false;
+  this._showAvg = options.avg !== false;
   AbstractCanvasGraph.apply(this, [parent, "line-graph", ...args]);
 
   this.once("ready", () => {
+    // Create all gutters and tooltips incase the showing of min/max/avg
+    // are changed later
     this._gutter = this._createGutter();
+
     this._maxGutterLine = this._createGutterLine("maximum");
-    this._avgGutterLine = this._createGutterLine("average");
-    this._minGutterLine = this._createGutterLine("minimum");
     this._maxTooltip = this._createTooltip("maximum", "start", "max", metric);
-    this._avgTooltip = this._createTooltip("average", "end", "avg", metric);
+    this._minGutterLine = this._createGutterLine("minimum");
     this._minTooltip = this._createTooltip("minimum", "start", "min", metric);
+    this._avgGutterLine = this._createGutterLine("average");
+    this._avgTooltip = this._createTooltip("average", "end", "avg", metric);
   });
 };
 
@@ -1362,37 +1381,40 @@ LineGraphWidget.prototype = Heritage.extend(AbstractCanvasGraph.prototype, {
     let totalTicks = this._data.length;
 
     // Draw the maximum value horizontal line.
-
-    ctx.strokeStyle = this.maximumLineColor;
-    ctx.lineWidth = LINE_GRAPH_HELPER_LINES_WIDTH;
-    ctx.setLineDash(LINE_GRAPH_HELPER_LINES_DASH);
-    ctx.beginPath();
-    let maximumY = height - maxValue * dataScaleY;
-    ctx.moveTo(0, maximumY);
-    ctx.lineTo(width, maximumY);
-    ctx.stroke();
+    if (this._showMax) {
+      ctx.strokeStyle = this.maximumLineColor;
+      ctx.lineWidth = LINE_GRAPH_HELPER_LINES_WIDTH;
+      ctx.setLineDash(LINE_GRAPH_HELPER_LINES_DASH);
+      ctx.beginPath();
+      let maximumY = height - maxValue * dataScaleY;
+      ctx.moveTo(0, maximumY);
+      ctx.lineTo(width, maximumY);
+      ctx.stroke();
+    }
 
     // Draw the average value horizontal line.
-
-    ctx.strokeStyle = this.averageLineColor;
-    ctx.lineWidth = LINE_GRAPH_HELPER_LINES_WIDTH;
-    ctx.setLineDash(LINE_GRAPH_HELPER_LINES_DASH);
-    ctx.beginPath();
-    let averageY = height - avgValue * dataScaleY;
-    ctx.moveTo(0, averageY);
-    ctx.lineTo(width, averageY);
-    ctx.stroke();
+    if (this._showAvg) {
+      ctx.strokeStyle = this.averageLineColor;
+      ctx.lineWidth = LINE_GRAPH_HELPER_LINES_WIDTH;
+      ctx.setLineDash(LINE_GRAPH_HELPER_LINES_DASH);
+      ctx.beginPath();
+      let averageY = height - avgValue * dataScaleY;
+      ctx.moveTo(0, averageY);
+      ctx.lineTo(width, averageY);
+      ctx.stroke();
+    }
 
     // Draw the minimum value horizontal line.
-
-    ctx.strokeStyle = this.minimumLineColor;
-    ctx.lineWidth = LINE_GRAPH_HELPER_LINES_WIDTH;
-    ctx.setLineDash(LINE_GRAPH_HELPER_LINES_DASH);
-    ctx.beginPath();
-    let minimumY = height - minValue * dataScaleY;
-    ctx.moveTo(0, minimumY);
-    ctx.lineTo(width, minimumY);
-    ctx.stroke();
+    if (this._showMin) {
+      ctx.strokeStyle = this.minimumLineColor;
+      ctx.lineWidth = LINE_GRAPH_HELPER_LINES_WIDTH;
+      ctx.setLineDash(LINE_GRAPH_HELPER_LINES_DASH);
+      ctx.beginPath();
+      let minimumY = height - minValue * dataScaleY;
+      ctx.moveTo(0, minimumY);
+      ctx.lineTo(width, minimumY);
+      ctx.stroke();
+    }
 
     // Update the tooltips text and gutter lines.
 
@@ -1431,10 +1453,14 @@ LineGraphWidget.prototype = Heritage.extend(AbstractCanvasGraph.prototype, {
     this._minTooltip.setAttribute("with-arrows", this.withTooltipArrows);
 
     let distanceMinMax = Math.abs(maxTooltipTop - minTooltipTop);
-    this._maxTooltip.hidden = !totalTicks || distanceMinMax < LINE_GRAPH_MIN_MAX_TOOLTIP_DISTANCE;
-    this._avgTooltip.hidden = !totalTicks;
-    this._minTooltip.hidden = !totalTicks;
-    this._gutter.hidden = !totalTicks || !this.withTooltipArrows;
+    this._maxTooltip.hidden = this._showMax === false || !totalTicks || distanceMinMax < LINE_GRAPH_MIN_MAX_TOOLTIP_DISTANCE;
+    this._avgTooltip.hidden = this._showAvg === false || !totalTicks;
+    this._minTooltip.hidden = this._showMin === false || !totalTicks;
+    this._gutter.hidden = (this._showMin === false && this._showAvg === false && this._showMax === false) || !totalTicks;
+
+    this._maxGutterLine.hidden = this._showMax === false;
+    this._avgGutterLine.hidden = this._showAvg === false;
+    this._minGutterLine.hidden = this._showMin === false;
   },
 
   /**

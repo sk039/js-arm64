@@ -583,7 +583,7 @@ FrameIter::settleOnActivation()
     }
 }
 
-FrameIter::Data::Data(ThreadSafeContext *cx, SavedOption savedOption,
+FrameIter::Data::Data(JSContext *cx, SavedOption savedOption,
                       ContextOption contextOption, JSPrincipals *principals)
   : cx_(cx),
     savedOption_(savedOption),
@@ -613,7 +613,7 @@ FrameIter::Data::Data(const FrameIter::Data &other)
 {
 }
 
-FrameIter::FrameIter(ThreadSafeContext *cx, SavedOption savedOption)
+FrameIter::FrameIter(JSContext *cx, SavedOption savedOption)
   : data_(cx, savedOption, CURRENT_CONTEXT, nullptr),
     ionInlineFrames_(cx, (js::jit::JitFrameIterator*) nullptr)
 {
@@ -622,7 +622,7 @@ FrameIter::FrameIter(ThreadSafeContext *cx, SavedOption savedOption)
     settleOnActivation();
 }
 
-FrameIter::FrameIter(ThreadSafeContext *cx, ContextOption contextOption,
+FrameIter::FrameIter(JSContext *cx, ContextOption contextOption,
                      SavedOption savedOption)
   : data_(cx, savedOption, contextOption, nullptr),
     ionInlineFrames_(cx, (js::jit::JitFrameIterator*) nullptr)
@@ -1396,18 +1396,6 @@ jit::JitActivation::JitActivation(JSContext *cx, bool active)
     }
 }
 
-jit::JitActivation::JitActivation(ForkJoinContext *cx)
-  : Activation(cx, Jit),
-    active_(true),
-    rematerializedFrames_(nullptr),
-    ionRecovery_(cx),
-    bailoutData_(nullptr)
-{
-    prevJitTop_ = cx->perThreadData->jitTop;
-    prevJitJSContext_ = cx->perThreadData->jitJSContext;
-    cx->perThreadData->jitJSContext = nullptr;
-}
-
 jit::JitActivation::~JitActivation()
 {
     if (active_) {
@@ -1489,8 +1477,6 @@ jit::JitActivation::clearRematerializedFrames()
 jit::RematerializedFrame *
 jit::JitActivation::getRematerializedFrame(JSContext *cx, const JitFrameIterator &iter, size_t inlineDepth)
 {
-    // Only allow rematerializing from the same thread.
-    MOZ_ASSERT(cx->perThreadData == cx_->perThreadData);
     MOZ_ASSERT(iter.activation() == this);
     MOZ_ASSERT(iter.isIonScripted());
 
@@ -1515,8 +1501,22 @@ jit::JitActivation::getRematerializedFrame(JSContext *cx, const JitFrameIterator
         // preserve identity. Therefore, we always rematerialize an uninlined
         // frame and all its inlined frames at once.
         InlineFrameIterator inlineIter(cx, &iter);
-        if (!RematerializedFrame::RematerializeInlineFrames(cx, top, inlineIter, p->value()))
+        MaybeReadFallback recover(cx, this, &iter);
+
+        // Frames are often rematerialized with the cx inside a Debugger's
+        // compartment. To recover slots and to create CallObjects, we need to
+        // be in the activation's compartment.
+        AutoCompartment ac(cx, compartment_);
+
+        if (!RematerializedFrame::RematerializeInlineFrames(cx, top, inlineIter, recover,
+                                                            p->value()))
+        {
             return nullptr;
+        }
+
+        // All frames younger than the rematerialized frame need to have their
+        // prevUpToDate flag cleared.
+        DebugScopes::unsetPrevUpToDateUntil(cx, p->value()[inlineDepth]);
     }
 
     return p->value()[inlineDepth];

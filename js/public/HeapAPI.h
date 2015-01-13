@@ -193,6 +193,7 @@ class JS_FRIEND_API(GCCellPtr)
     bool isScript() const { return kind() == JSTRACE_SCRIPT; }
     bool isString() const { return kind() == JSTRACE_STRING; }
     bool isSymbol() const { return kind() == JSTRACE_SYMBOL; }
+    bool isShape() const { return kind() == JSTRACE_SHAPE; }
 
     // Conversions to more specific types must match the kind. Access to
     // further refined types is not allowed directly from a GCCellPtr.
@@ -216,19 +217,15 @@ class JS_FRIEND_API(GCCellPtr)
         return reinterpret_cast<js::gc::Cell *>(ptr & ~JSTRACE_OUTOFLINE);
     }
 
-    // The CC stores nodes as void* internally.
-    void *unsafeGetUntypedPtr() const {
-        MOZ_ASSERT(asCell());
-        MOZ_ASSERT(!js::gc::IsInsideNursery(asCell()));
-        return reinterpret_cast<void *>(asCell());
-    }
     // The CC's trace logger needs an identity that is XPIDL serializable.
     uint64_t unsafeAsInteger() const {
-        return reinterpret_cast<uint64_t>(unsafeGetUntypedPtr());
+        return static_cast<uint64_t>(unsafeAsUIntPtr());
     }
     // Inline mark bitmap access requires direct pointer arithmetic.
     uintptr_t unsafeAsUIntPtr() const {
-        return reinterpret_cast<uintptr_t>(unsafeGetUntypedPtr());
+        MOZ_ASSERT(asCell());
+        MOZ_ASSERT(!js::gc::IsInsideNursery(asCell()));
+        return reinterpret_cast<uintptr_t>(asCell());
     }
 
   private:

@@ -1095,9 +1095,6 @@ var gBrowserInit = {
     socialBrowser.addEventListener("MozApplicationManifest",
                               OfflineApps, false);
 
-    let uriToLoad = this._getUriToLoad();
-    var isLoadingBlank = isBlankPageURL(uriToLoad);
-
     // This pageshow listener needs to be registered before we may call
     // swapBrowsersAndCloseOther() to receive pageshow events fired by that.
     let mm = window.messageManager;
@@ -1135,6 +1132,7 @@ var gBrowserInit = {
       SessionStore.reviveCrashedTab(tab);
     }, false, true);
 
+    let uriToLoad = this._getUriToLoad();
     if (uriToLoad && uriToLoad != "about:blank") {
       if (uriToLoad instanceof Ci.nsISupportsArray) {
         let count = uriToLoad.Count();
@@ -1219,8 +1217,10 @@ var gBrowserInit = {
 
     UpdateUrlbarSearchSplitterState();
 
-    if (!isLoadingBlank || !focusAndSelectUrlBar())
+    if (!(isBlankPageURL(uriToLoad) || uriToLoad == "about:privatebrowsing") ||
+        !focusAndSelectUrlBar()) {
       gBrowser.selectedBrowser.focus();
+    }
 
     // Set up Sanitize Item
     this._initializeSanitizer();
@@ -1738,7 +1738,7 @@ function HandleAppCommandEvent(evt) {
     saveDocument(gBrowser.selectedBrowser.contentDocumentAsCPOW);
     break;
   case "SendMail":
-    MailIntegration.sendLinkForWindow(window.content);
+    MailIntegration.sendLinkForBrowser(gBrowser.selectedBrowser);
     break;
   default:
     return;
@@ -2082,7 +2082,7 @@ function getShortcutOrURIAndPostData(aURL, aCallback) {
 
   let engine = Services.search.getEngineByAlias(keyword);
   if (engine) {
-    let submission = engine.getSubmission(param);
+    let submission = engine.getSubmission(param, null, "keyword");
     postData = submission.postData;
     aCallback({ postData: submission.postData, url: submission.uri.spec,
                 mayInheritPrincipal: mayInheritPrincipal });
@@ -2643,11 +2643,6 @@ let BrowserOnClick = {
     let transportSecurityInfo = serhelper.deserializeObject(securityInfo);
     transportSecurityInfo.QueryInterface(Ci.nsITransportSecurityInfo)
 
-    if (transportSecurityInfo.failedCertChain == null) {
-      Cu.reportError("transportSecurityInfo didn't have a failedCertChain for a failedChannel");
-      return;
-    }
-
     showReportStatus("activity");
 
     /*
@@ -2677,11 +2672,14 @@ let BrowserOnClick = {
     // Convert the nsIX509CertList into a format that can be parsed into
     // JSON
     let asciiCertChain = [];
-    let certs = transportSecurityInfo.failedCertChain.getEnumerator();
-    while (certs.hasMoreElements()) {
-      let cert = certs.getNext();
-      cert.QueryInterface(Ci.nsIX509Cert);
-      asciiCertChain.push(btoa(getDERString(cert)));
+
+    if (transportSecurityInfo.failedCertChain) {
+      let certs = transportSecurityInfo.failedCertChain.getEnumerator();
+      while (certs.hasMoreElements()) {
+        let cert = certs.getNext();
+        cert.QueryInterface(Ci.nsIX509Cert);
+        asciiCertChain.push(btoa(getDERString(cert)));
+      }
     }
 
     let report = {
@@ -3568,6 +3566,11 @@ const BrowserSearch = {
     let count = Services.telemetry.getKeyedHistogramById("SEARCH_COUNTS");
     count.add(countId);
   },
+
+  recordOneoffSearchInTelemetry: function (engine, source, type, where) {
+    let id = this._getSearchEngineId(engine) + "." + source;
+    BrowserUITelemetry.countOneoffSearchEvent(id, type, where);
+  }
 };
 
 const SearchHighlight = {
@@ -3796,8 +3799,11 @@ function toJavaScriptConsole()
 
 function BrowserDownloadsUI()
 {
-  Cc["@mozilla.org/download-manager-ui;1"].
-  getService(Ci.nsIDownloadManagerUI).show(window);
+  if (PrivateBrowsingUtils.isWindowPrivate(window)) {
+    openUILinkIn("about:downloads", "tab");
+  } else {
+    PlacesCommandHook.showPlacesOrganizer("Downloads");
+  }
 }
 
 function toOpenWindowByType(inType, uri, features)
@@ -6521,9 +6527,8 @@ function warnAboutClosingWindow() {
 }
 
 var MailIntegration = {
-  sendLinkForWindow: function (aWindow) {
-    this.sendMessage(aWindow.location.href,
-                     aWindow.document.title);
+  sendLinkForBrowser: function (aBrowser) {
+    this.sendMessage(aBrowser.currentURI.spec, aBrowser.contentTitle);
   },
 
   sendMessage: function (aBody, aSubject) {

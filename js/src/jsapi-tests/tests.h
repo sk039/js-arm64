@@ -317,8 +317,8 @@ class JSAPITest
 #define BEGIN_TEST(testname)                                            \
     class cls_##testname : public JSAPITest {                           \
       public:                                                           \
-        virtual const char * name() { return #testname; }               \
-        virtual bool run(JS::HandleObject global)
+        virtual const char * name() MOZ_OVERRIDE { return #testname; }  \
+        virtual bool run(JS::HandleObject global) MOZ_OVERRIDE
 
 #define END_TEST(testname)                                              \
     };                                                                  \
@@ -335,8 +335,8 @@ class JSAPITest
 #define BEGIN_FIXTURE_TEST(fixture, testname)                           \
     class cls_##testname : public fixture {                             \
       public:                                                           \
-        virtual const char * name() { return #testname; }               \
-        virtual bool run(JS::HandleObject global)
+        virtual const char * name() MOZ_OVERRIDE { return #testname; }  \
+        virtual bool run(JS::HandleObject global) MOZ_OVERRIDE
 
 #define END_FIXTURE_TEST(fixture, testname)                             \
     };                                                                  \
@@ -425,10 +425,11 @@ class AutoLeaveZeal
 
   public:
     explicit AutoLeaveZeal(JSContext *cx) : cx_(cx) {
-        JS_GetGCZeal(cx_, &zeal_, &frequency_);
+        uint32_t dummy;
+        JS_GetGCZeal(cx_, &zeal_, &frequency_, &dummy);
         JS_SetGCZeal(cx_, 0, 0);
         JS::PrepareForFullGC(JS_GetRuntime(cx_));
-        JS::ShrinkingGC(JS_GetRuntime(cx_), JS::gcreason::DEBUG_GC);
+        JS::GCForReason(JS_GetRuntime(cx_), GC_SHRINK, JS::gcreason::DEBUG_GC);
     }
     ~AutoLeaveZeal() {
         JS_SetGCZeal(cx_, zeal_, frequency_);

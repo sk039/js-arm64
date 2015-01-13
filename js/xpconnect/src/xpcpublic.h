@@ -30,10 +30,6 @@ class nsIPrincipal;
 class nsScriptNameSpaceManager;
 class nsIMemoryReporterCallback;
 
-#ifndef BAD_TLS_INDEX
-#define BAD_TLS_INDEX ((uint32_t) -1)
-#endif
-
 namespace xpc {
 
 class Scriptability {
@@ -372,8 +368,8 @@ public:
     nsAutoCString pathPrefix;
 
 private:
-    ZoneStatsExtras(const ZoneStatsExtras &other) MOZ_DELETE;
-    ZoneStatsExtras& operator=(const ZoneStatsExtras &other) MOZ_DELETE;
+    ZoneStatsExtras(const ZoneStatsExtras &other) = delete;
+    ZoneStatsExtras& operator=(const ZoneStatsExtras &other) = delete;
 };
 
 // ReportJSRuntimeExplicitTreeStats will expect this in the |extra| member
@@ -388,8 +384,8 @@ public:
     nsCOMPtr<nsIURI> location;
 
 private:
-    CompartmentStatsExtras(const CompartmentStatsExtras &other) MOZ_DELETE;
-    CompartmentStatsExtras& operator=(const CompartmentStatsExtras &other) MOZ_DELETE;
+    CompartmentStatsExtras(const CompartmentStatsExtras &other) = delete;
+    CompartmentStatsExtras& operator=(const CompartmentStatsExtras &other) = delete;
 };
 
 // This reports all the stats in |rtStats| that belong in the "explicit" tree,

@@ -2914,7 +2914,7 @@ class FunctionCompiler
             return nullptr;
 
         MOZ_ASSERT(IsSimdType(type));
-        T *ins = T::New(alloc(), type, x, y, z, w);
+        T *ins = T::NewAsmJS(alloc(), type, x, y, z, w);
         curBlock_->add(ins);
         return ins;
     }
@@ -8496,7 +8496,7 @@ GenerateFFIIonExit(ModuleCompiler &m, const ModuleCompiler::ExitDescriptor &exit
 
     // 2.4. Load callee executable entry point
     masm.loadPtr(Address(callee, JSFunction::offsetOfNativeOrScript()), callee);
-    masm.loadBaselineOrIonNoArgCheck(callee, callee, SequentialExecution, nullptr);
+    masm.loadBaselineOrIonNoArgCheck(callee, callee, nullptr);
 
     // 3. Argc
     unsigned argc = exit.sig().args().length();

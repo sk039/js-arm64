@@ -11,7 +11,6 @@
 #include "nsStyleContext.h"
 #include "WritingModes.h"
 #include "RubyUtils.h"
-#include "RubyReflowState.h"
 #include "nsRubyBaseContainerFrame.h"
 #include "nsRubyTextContainerFrame.h"
 
@@ -167,6 +166,9 @@ nsRubyFrame::Reflow(nsPresContext* aPresContext,
   // Grab overflow frames from prev-in-flow and its own.
   MoveOverflowToChildList();
 
+  // Clear leadings
+  mBStartLeading = mBEndLeading = 0;
+
   // Begin the span for the ruby frame
   WritingMode frameWM = aReflowState.GetWritingMode();
   WritingMode lineWM = aReflowState.mLineLayout->GetWritingMode();
@@ -238,11 +240,9 @@ nsRubyFrame::ReflowSegment(nsPresContext* aPresContext,
     textContainers.AppendElement(iter.GetTextContainer());
   }
   const uint32_t rtcCount = textContainers.Length();
-  RubyReflowState rubyReflowState(lineWM, textContainers);
 
   nsHTMLReflowMetrics baseMetrics(aReflowState);
   bool pushedFrame;
-  aReflowState.mLineLayout->SetRubyReflowState(&rubyReflowState);
   aReflowState.mLineLayout->ReflowFrame(aBaseContainer, aStatus,
                                         &baseMetrics, pushedFrame);
 
@@ -292,7 +292,12 @@ nsRubyFrame::ReflowSegment(nsPresContext* aPresContext,
         mFrames.InsertFrame(nullptr, newLastChild, newTextContainer);
         newLastChild = newTextContainer;
       }
-      PushChildren(newBaseContainer, lastChild);
+    }
+    if (lastChild != mFrames.LastChild()) {
+      // Always push the next frame after the last child in this segment.
+      // It is possible that we pulled it back before our next-in-flow
+      // drain our overflow.
+      PushChildren(lastChild->GetNextSibling(), lastChild);
       aReflowState.mLineLayout->SetDirtyNextLine();
     }
   } else {
@@ -308,6 +313,7 @@ nsRubyFrame::ReflowSegment(nsPresContext* aPresContext,
     }
   }
 
+  nscoord segmentISize = baseMetrics.ISize(lineWM);
   nsRect baseRect = aBaseContainer->GetRect();
   // We need to position our rtc frames on one side or the other of the
   // base container's rect, using a coordinate space that's relative to
@@ -321,13 +327,10 @@ nsRubyFrame::ReflowSegment(nsPresContext* aPresContext,
   nsRect offsetRect = baseRect;
   for (uint32_t i = 0; i < rtcCount; i++) {
     nsRubyTextContainerFrame* textContainer = textContainers[i];
-    rubyReflowState.AdvanceCurrentContainerIndex();
-
     nsReflowStatus textReflowStatus;
     nsHTMLReflowMetrics textMetrics(aReflowState);
     nsHTMLReflowState textReflowState(aPresContext, aReflowState,
                                       textContainer, availSize);
-    textReflowState.mRubyReflowState = &rubyReflowState;
     // FIXME We probably shouldn't be using the same nsLineLayout for
     //       the text containers. But it should be fine now as we are
     //       not actually using this line layout to reflow something,
@@ -340,11 +343,14 @@ nsRubyFrame::ReflowSegment(nsPresContext* aPresContext,
     // handled when reflowing the base containers.
     NS_ASSERTION(textReflowStatus == NS_FRAME_COMPLETE,
                  "Ruby text container must not break itself inside");
-    textContainer->SetSize(LogicalSize(lineWM, textMetrics.ISize(lineWM),
-                                       textMetrics.BSize(lineWM)));
+    nscoord isize = textMetrics.ISize(lineWM);
+    nscoord bsize = textMetrics.BSize(lineWM);
+    textContainer->SetSize(LogicalSize(lineWM, isize, bsize));
+
+    nscoord reservedISize = RubyUtils::GetReservedISize(textContainer);
+    segmentISize = std::max(segmentISize, isize + reservedISize);
 
     nscoord x, y;
-    nscoord bsize = textMetrics.BSize(lineWM);
     uint8_t rubyPosition = textContainer->StyleText()->mRubyPosition;
 #ifdef DEBUG
     SanityCheckRubyPosition(rubyPosition);
@@ -377,6 +383,22 @@ nsRubyFrame::ReflowSegment(nsPresContext* aPresContext,
     FinishReflowChild(textContainer, aPresContext, textMetrics,
                       &textReflowState, x, y, 0);
   }
+
+  nscoord deltaISize = segmentISize - baseMetrics.ISize(lineWM);
+  if (deltaISize <= 0) {
+    RubyUtils::ClearReservedISize(aBaseContainer);
+  } else {
+    RubyUtils::SetReservedISize(aBaseContainer, deltaISize);
+    aReflowState.mLineLayout->AdvanceICoord(deltaISize);
+  }
+
+  // Set block leadings of the base container
+  LogicalMargin leadings(lineWM, offsetRect - baseRect);
+  NS_ASSERTION(leadings.BStart(lineWM) >= 0 && leadings.BEnd(lineWM) >= 0,
+               "Leadings should be non-negative (because adding "
+               "ruby annotation can only increase the size)");
+  mBStartLeading = std::max(mBStartLeading, leadings.BStart(lineWM));
+  mBEndLeading = std::max(mBEndLeading, leadings.BEnd(lineWM));
 }
 
 nsRubyBaseContainerFrame*

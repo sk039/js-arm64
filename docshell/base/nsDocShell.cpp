@@ -195,6 +195,7 @@
 #include "mozilla/dom/EncodingUtils.h"
 #include "mozilla/dom/ScriptSettings.h"
 #include "mozilla/dom/URLSearchParams.h"
+#include "nsPerformance.h"
 
 #ifdef MOZ_TOOLKIT_SEARCH
 #include "nsIBrowserSearchService.h"
@@ -838,6 +839,7 @@ nsDocShell::nsDocShell():
     mAllowKeywordFixup(false),
     mIsOffScreenBrowser(false),
     mIsActive(true),
+    mIsPrerendered(false),
     mIsAppTab(false),
     mUseGlobalHistory(false),
     mInPrivateBrowsing(false),
@@ -858,6 +860,7 @@ nsDocShell::nsDocShell():
     mInvisible(false),
     mHasLoadedNonBlankURI(false),
     mDefaultLoadFlags(nsIRequest::LOAD_NORMAL),
+    mBlankTiming(false),
     mFrameType(eFrameTypeRegular),
     mOwnOrContainingAppId(nsIScriptSecurityManager::UNKNOWN_APP_ID),
     mParentCharsetSource(0),
@@ -1769,11 +1772,22 @@ nsDocShell::FirePageHideNotification(bool aIsUnload)
 void
 nsDocShell::MaybeInitTiming()
 {
-    if (mTiming) {
+    if (mTiming && !mBlankTiming) {
         return;
     }
 
-    mTiming = new nsDOMNavigationTiming();
+    if (mScriptGlobal && mBlankTiming) {
+        nsPIDOMWindow* innerWin = mScriptGlobal->GetCurrentInnerWindow();
+        if (innerWin && innerWin->GetPerformance()) {
+            mTiming = innerWin->GetPerformance()->GetDOMTiming();
+            mBlankTiming = false;
+        }
+    }
+
+    if (!mTiming) {
+      mTiming = new nsDOMNavigationTiming();
+    }
+
     mTiming->NotifyNavigationStart();
 }
 
@@ -3385,6 +3399,11 @@ nsDocShell::SetDocLoaderParent(nsDocLoader * aParent)
         if (NS_SUCCEEDED(parentAsDocShell->GetIsActive(&value)))
         {
             SetIsActive(value);
+        }
+        if (NS_SUCCEEDED(parentAsDocShell->GetIsPrerendered(&value))) {
+            if (value) {
+                SetIsPrerendered(true);
+            }
         }
         if (NS_FAILED(parentAsDocShell->GetAllowDNSPrefetch(&value))) {
             value = false;
@@ -5143,6 +5162,15 @@ nsDocShell::DisplayLoadError(nsresult aError, nsIURI *aURI,
     // Display the error as a page or an alert prompt
     NS_ENSURE_FALSE(messageStr.IsEmpty(), NS_ERROR_FAILURE);
 
+    if (NS_ERROR_NET_INTERRUPT == aError || NS_ERROR_NET_RESET == aError) {
+        bool isSecureURI = false;
+        rv = aURI->SchemeIs("https", &isSecureURI);
+        if (NS_SUCCEEDED(rv) && isSecureURI) {
+            // Maybe TLS intolerant. Treat this as an SSL error.
+            error.AssignLiteral("nssFailure2");
+        }
+    }
+
     if (UseErrorPages()) {
         // Display an error page
         LoadErrorPage(aURI, aURL, errorPage.get(), error.get(),
@@ -6049,6 +6077,22 @@ NS_IMETHODIMP
 nsDocShell::GetIsActive(bool *aIsActive)
 {
     *aIsActive = mIsActive;
+    return NS_OK;
+}
+
+NS_IMETHODIMP
+nsDocShell::SetIsPrerendered(bool aPrerendered)
+{
+    MOZ_ASSERT(!aPrerendered || !mIsPrerendered,
+               "SetIsPrerendered(true) called on already prerendered docshell");
+    mIsPrerendered = aPrerendered;
+    return NS_OK;
+}
+
+NS_IMETHODIMP
+nsDocShell::GetIsPrerendered(bool *aIsPrerendered)
+{
+    *aIsPrerendered = mIsPrerendered;
     return NS_OK;
 }
 
@@ -7847,6 +7891,7 @@ nsDocShell::CreateAboutBlankContentViewer(nsIPrincipal* aPrincipal,
   // have one before entering this function.
   if (!hadTiming) {
     mTiming = nullptr;
+    mBlankTiming = true;
   }
 
   return rv;
@@ -8553,8 +8598,8 @@ nsDocShell::RestoreFromHistory()
 
         // this.AddChild(child) calls child.SetDocLoaderParent(this), meaning
         // that the child inherits our state. Among other things, this means
-        // that the child inherits our mIsActive and mInPrivateBrowsing, which
-        // is what we want.
+        // that the child inherits our mIsActive, mIsPrerendered and mInPrivateBrowsing,
+        // which is what we want.
         AddChild(childItem);
 
         childShell->SetAllowPlugins(allowPlugins);

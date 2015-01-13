@@ -165,6 +165,8 @@ public:
   void ShutdownReader();
   void FinishShutdown();
 
+  bool IsRealTime() const;
+
   // Called from the main thread to get the duration. The decoder monitor
   // must be obtained before calling this. It is in units of microseconds.
   int64_t GetDuration();
@@ -398,7 +400,7 @@ public:
     OnNotDecoded(MediaData::VIDEO_DATA, aReason);
   }
 
-  void OnSeekCompleted();
+  void OnSeekCompleted(int64_t aTime);
   void OnSeekFailed(nsresult aResult);
 
   void OnWaitForDataResolved(MediaData::Type aType)

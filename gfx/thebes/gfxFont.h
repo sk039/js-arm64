@@ -1846,6 +1846,8 @@ protected:
         return -1;
     }
 
+    bool IsSpaceGlyphInvisible(gfxContext *aRefContext, gfxTextRun *aTextRun);
+
     void AddGlyphChangeObserver(GlyphChangeObserver *aObserver);
     void RemoveGlyphChangeObserver(GlyphChangeObserver *aObserver);
 
@@ -1881,6 +1883,7 @@ protected:
                           const char16_t *aText,
                           uint32_t         aOffset, // position within aShapedText
                           uint32_t         aLength,
+                          bool             aVertical,
                           gfxShapedText   *aShapedText);
 
     // Shape text directly into a range within a textrun, without using the

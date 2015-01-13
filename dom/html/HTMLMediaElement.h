@@ -537,7 +537,7 @@ public:
   void SetOnencrypted(mozilla::dom::EventHandlerNonNull* listener);
 
   void DispatchEncrypted(const nsTArray<uint8_t>& aInitData,
-                         const nsAString& aInitDataType);
+                         const nsAString& aInitDataType) MOZ_OVERRIDE;
 
 
   bool IsEventAttributeName(nsIAtom* aName) MOZ_OVERRIDE;
@@ -579,7 +579,7 @@ public:
 
   VideoTrackList* VideoTracks();
 
-  TextTrackList* TextTracks();
+  TextTrackList* GetTextTracks();
 
   already_AddRefed<TextTrack> AddTextTrack(TextTrackKind aKind,
                                            const nsAString& aLabel,

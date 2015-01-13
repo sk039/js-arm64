@@ -3344,7 +3344,7 @@ TypeObject::print()
             fprintf(stderr, " noLengthOverflow");
         if (hasAnyFlags(OBJECT_FLAG_ITERATED))
             fprintf(stderr, " iterated");
-        if (interpretedFunction)
+        if (maybeInterpretedFunction())
             fprintf(stderr, " ifun");
     }
 
@@ -3675,12 +3675,12 @@ types::UseNewTypeForClone(JSFunction *fun)
 
     uint32_t begin, end;
     if (fun->hasScript()) {
-        if (!fun->nonLazyScript()->usesArgumentsAndApply())
+        if (!fun->nonLazyScript()->usesArgumentsApplyAndThis())
             return false;
         begin = fun->nonLazyScript()->sourceStart();
         end = fun->nonLazyScript()->sourceEnd();
     } else {
-        if (!fun->lazyScript()->usesArgumentsAndApply())
+        if (!fun->lazyScript()->usesArgumentsApplyAndThis())
             return false;
         begin = fun->lazyScript()->begin();
         end = fun->lazyScript()->end();
@@ -3749,7 +3749,7 @@ JSFunction::setTypeForScriptedFunction(ExclusiveContext *cx, HandleFunction fun,
             return false;
 
         fun->setType(type);
-        type->interpretedFunction = fun;
+        type->setInterpretedFunction(fun);
     }
 
     return true;
@@ -4319,7 +4319,7 @@ JSObject::makeLazyType(JSContext *cx, HandleObject obj)
     type->initSingleton(obj);
 
     if (obj->is<JSFunction>() && obj->as<JSFunction>().isInterpreted())
-        type->interpretedFunction = &obj->as<JSFunction>();
+        type->setInterpretedFunction(&obj->as<JSFunction>());
 
     obj->type_ = type;
 
@@ -4580,7 +4580,6 @@ ConstraintTypeSet::sweep(Zone *zone, AutoClearTypeInferenceStateOnOOM &oom)
     // IsAboutToBeFinalized doesn't work right on tenured objects when called
     // during a minor collection.
     MOZ_ASSERT(!zone->runtimeFromMainThread()->isHeapMinorCollecting());
-    MOZ_ASSERT(!zone->runtimeFromMainThread()->isFJMinorCollecting());
 
     /*
      * Purge references to type objects that are no longer live. Type sets hold
@@ -4654,7 +4653,9 @@ TypeObject::clearProperties()
 bool
 TypeObject::needsSweep()
 {
-    return generation() != zone()->types.generation;
+    // Note: this can be called off thread during compacting GCs, in which case
+    // nothing will be running on the main thread.
+    return generation() != zoneFromAnyThread()->types.generation;
 }
 #endif
 
@@ -4949,12 +4950,14 @@ TypeObject::fixupAfterMovingGC()
             if (IsForwarded(&typeDescr()))
                 addendum_ = Forwarded(&typeDescr());
             break;
+          case Addendum_InterpretedFunction:
+            if (IsForwarded(maybeInterpretedFunction()))
+                addendum_ = Forwarded(maybeInterpretedFunction());
+            break;
           default:
             MOZ_CRASH();
         }
     }
-    if (interpretedFunction && IsForwarded(interpretedFunction.get()))
-        interpretedFunction = Forwarded(interpretedFunction.get());
 }
 
 #endif // JSGC_COMPACTING
@@ -5268,11 +5271,11 @@ TypeObject::setAddendum(AddendumKind kind, void *addendum)
 {
     MOZ_ASSERT(!needsSweep());
     MOZ_ASSERT(kind <= (OBJECT_FLAG_ADDENDUM_MASK >> OBJECT_FLAG_ADDENDUM_SHIFT));
-    MOZ_ASSERT(!(flags_ & OBJECT_FLAG_ADDENDUM_MASK));
+    MOZ_ASSERT(addendumKind() == 0 || addendumKind() == kind);
 
     // Manually trigger barriers if we are clearing a TypeNewScript. Other
     // kinds of addendums are immutable.
-    if (addendum_) {
+    if (newScript()) {
         MOZ_ASSERT(kind == Addendum_NewScript);
         TypeNewScript::writeBarrierPre(newScript());
     }

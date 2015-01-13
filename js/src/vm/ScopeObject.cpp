@@ -336,10 +336,8 @@ DeclEnvObject::createTemplateObject(JSContext *cx, HandleFunction fun, gc::Initi
     MOZ_ASSERT(getter != JS_PropertyStub);
     MOZ_ASSERT(setter != JS_StrictPropertyStub);
 
-    if (!NativeObject::putProperty<SequentialExecution>(cx, obj, id, getter, setter, lambdaSlot(),
-                                                        attrs, 0)) {
+    if (!NativeObject::putProperty(cx, obj, id, getter, setter, lambdaSlot(), attrs, 0))
         return nullptr;
-    }
 
     MOZ_ASSERT(!obj->hasDynamicSlots());
     return &obj->as<DeclEnvObject>();
@@ -702,8 +700,8 @@ StaticBlockObject::addVar(ExclusiveContext *cx, Handle<StaticBlockObject*> block
     *redeclared = false;
 
     /* Inline NativeObject::addProperty in order to trap the redefinition case. */
-    Shape **spp;
-    if (Shape::search(cx, block->lastProperty(), id, &spp, true)) {
+    ShapeTable::Entry *entry;
+    if (Shape::search(cx, block->lastProperty(), id, &entry, true)) {
         *redeclared = true;
         return nullptr;
     }
@@ -715,14 +713,14 @@ StaticBlockObject::addVar(ExclusiveContext *cx, Handle<StaticBlockObject*> block
     uint32_t slot = JSSLOT_FREE(&BlockObject::class_) + index;
     uint32_t readonly = constant ? JSPROP_READONLY : 0;
     uint32_t propFlags = readonly | JSPROP_ENUMERATE | JSPROP_PERMANENT;
-    return NativeObject::addPropertyInternal<SequentialExecution>(cx, block, id,
-                                                                  /* getter = */ nullptr,
-                                                                  /* setter = */ nullptr,
-                                                                  slot,
-                                                                  propFlags,
-                                                                  /* attrs = */ 0,
-                                                                  spp,
-                                                                  /* allowDictionary = */ false);
+    return NativeObject::addPropertyInternal(cx, block, id,
+                                             /* getter = */ nullptr,
+                                             /* setter = */ nullptr,
+                                             slot,
+                                             propFlags,
+                                             /* attrs = */ 0,
+                                             entry,
+                                             /* allowDictionary = */ false);
 }
 
 const Class BlockObject::class_ = {
@@ -1355,7 +1353,7 @@ class DebugScopeProxy : public BaseProxyHandler
                 return true;
 
             if (bi->kind() == Binding::VARIABLE || bi->kind() == Binding::CONSTANT) {
-                if (script->bodyLevelLocalIsAliased(bi.localIndex()))
+                if (script->bindingIsAliased(bi))
                     return true;
 
                 uint32_t i = bi.frameIndex();
@@ -1576,7 +1574,7 @@ class DebugScopeProxy : public BaseProxyHandler
     }
 
     bool getOwnPropertyDescriptor(JSContext *cx, HandleObject proxy, HandleId id,
-                                  MutableHandle<PropertyDescriptor> desc) const
+                                  MutableHandle<PropertyDescriptor> desc) const MOZ_OVERRIDE
     {
         Rooted<DebugScopeObject*> debugScope(cx, &proxy->as<DebugScopeObject>());
         Rooted<ScopeObject*> scope(cx, &debugScope->scope());
@@ -1734,7 +1732,7 @@ class DebugScopeProxy : public BaseProxyHandler
                                      JS_PROPERTYOP_SETTER(desc.setter()));
     }
 
-    bool ownPropertyKeys(JSContext *cx, HandleObject proxy, AutoIdVector &props) const
+    bool ownPropertyKeys(JSContext *cx, HandleObject proxy, AutoIdVector &props) const MOZ_OVERRIDE
     {
         Rooted<ScopeObject*> scope(cx, &proxy->as<DebugScopeObject>().scope());
 
@@ -2384,6 +2382,31 @@ DebugScopes::hasLiveScope(ScopeObject &scope)
         return &p->value();
 
     return nullptr;
+}
+
+/* static */ void
+DebugScopes::unsetPrevUpToDateUntil(JSContext *cx, AbstractFramePtr until)
+{
+    // This is the one exception where fp->prevUpToDate() is cleared without
+    // popping the frame. When a frame is rematerialized, all frames younger
+    // than the rematerialized frame have their prevUpToDate set to
+    // false. This is because unrematerialized Ion frames have no usable
+    // AbstractFramePtr, and so are skipped by the updateLiveScopes. If in the
+    // future a frame suddenly gains a usable AbstractFramePtr via
+    // rematerialization, the prevUpToDate invariant will no longer hold.
+    for (AllFramesIter i(cx); !i.done(); ++i) {
+        if (!i.hasUsableAbstractFramePtr())
+            continue;
+
+        AbstractFramePtr frame = i.abstractFramePtr();
+        if (frame == until)
+            return;
+
+        if (frame.scopeChain()->compartment() != cx->compartment())
+            continue;
+
+        frame.unsetPrevUpToDate();
+    }
 }
 
 /* static */ void

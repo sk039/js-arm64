@@ -526,8 +526,8 @@ BaselineScript::pcMappingReader(size_t indexEntry)
     return CompactBufferReader(dataStart, dataEnd);
 }
 
-ICEntry *
-BaselineScript::maybeICEntryFromReturnOffset(CodeOffsetLabel returnOffset)
+ICEntry &
+BaselineScript::icEntryFromReturnOffset(CodeOffsetLabel returnOffset)
 {
     size_t bottom = 0;
     size_t top = numICEntries();
@@ -536,25 +536,15 @@ BaselineScript::maybeICEntryFromReturnOffset(CodeOffsetLabel returnOffset)
         ICEntry &midEntry = icEntry(mid);
         if (midEntry.returnOffset().offset() < returnOffset.offset())
             bottom = mid + 1;
-        else // if (midEntry.returnOffset().offset() >= returnOffset.offset())
+        else
             top = mid;
         mid = bottom + (top - bottom) / 2;
     }
-    if (mid >= numICEntries())
-        return nullptr;
 
-    if (icEntry(mid).returnOffset().offset() != returnOffset.offset())
-        return nullptr;
+    MOZ_ASSERT(mid < numICEntries());
+    MOZ_ASSERT(icEntry(mid).returnOffset().offset() == returnOffset.offset());
 
-    return &icEntry(mid);
-}
-
-ICEntry &
-BaselineScript::icEntryFromReturnOffset(CodeOffsetLabel returnOffset)
-{
-    ICEntry *result = maybeICEntryFromReturnOffset(returnOffset);
-    MOZ_ASSERT(result);
-    return *result;
+    return icEntry(mid);
 }
 
 uint8_t *
@@ -563,16 +553,14 @@ BaselineScript::returnAddressForIC(const ICEntry &ent)
     return method()->raw() + ent.returnOffset().offset();
 }
 
-ICEntry &
-BaselineScript::icEntryFromPCOffset(uint32_t pcOffset)
+static inline size_t
+ComputeBinarySearchMid(BaselineScript *baseline, uint32_t pcOffset)
 {
-    // Multiple IC entries can have the same PC offset, but this method only looks for
-    // those which have isForOp() set.
     size_t bottom = 0;
-    size_t top = numICEntries();
+    size_t top = baseline->numICEntries();
     size_t mid = bottom + (top - bottom) / 2;
     while (mid < top) {
-        ICEntry &midEntry = icEntry(mid);
+        ICEntry &midEntry = baseline->icEntry(mid);
         if (midEntry.pcOffset() < pcOffset)
             bottom = mid + 1;
         else if (midEntry.pcOffset() > pcOffset)
@@ -581,6 +569,15 @@ BaselineScript::icEntryFromPCOffset(uint32_t pcOffset)
             break;
         mid = bottom + (top - bottom) / 2;
     }
+    return mid;
+}
+
+ICEntry &
+BaselineScript::icEntryFromPCOffset(uint32_t pcOffset)
+{
+    // Multiple IC entries can have the same PC offset, but this method only looks for
+    // those which have isForOp() set.
+    size_t mid = ComputeBinarySearchMid(this, pcOffset);
 
     // Found an IC entry with a matching PC offset.  Search backward, and then
     // forward from this IC entry, looking for one with the same PC offset which
@@ -619,13 +616,22 @@ BaselineScript::icEntryFromPCOffset(uint32_t pcOffset, ICEntry *prevLookedUpEntr
     return icEntryFromPCOffset(pcOffset);
 }
 
-ICEntry *
-BaselineScript::maybeICEntryFromReturnAddress(uint8_t *returnAddr)
+ICEntry &
+BaselineScript::callVMEntryFromPCOffset(uint32_t pcOffset)
 {
-    MOZ_ASSERT(returnAddr > method_->raw());
-    MOZ_ASSERT(returnAddr < method_->raw() + method_->instructionsSize());
-    CodeOffsetLabel offset(returnAddr - method_->raw());
-    return maybeICEntryFromReturnOffset(offset);
+    // Like icEntryFromPCOffset, but only looks for the fake ICEntries
+    // inserted by VM calls.
+    size_t mid = ComputeBinarySearchMid(this, pcOffset);
+
+    for (size_t i = mid; i < numICEntries() && icEntry(i).pcOffset() == pcOffset; i--) {
+        if (icEntry(i).kind() == ICEntry::Kind_CallVM)
+            return icEntry(i);
+    }
+    for (size_t i = mid+1; i < numICEntries() && icEntry(i).pcOffset() == pcOffset; i++) {
+        if (icEntry(i).kind() == ICEntry::Kind_CallVM)
+            return icEntry(i);
+    }
+    MOZ_CRASH("Invalid PC offset for callVM entry.");
 }
 
 ICEntry &
@@ -703,7 +709,7 @@ BaselineScript::copyPCMappingIndexEntries(const PCMappingIndexEntry *entries)
 }
 
 uint8_t *
-BaselineScript::maybeNativeCodeForPC(JSScript *script, jsbytecode *pc, PCMappingSlotInfo *slotInfo)
+BaselineScript::nativeCodeForPC(JSScript *script, jsbytecode *pc, PCMappingSlotInfo *slotInfo)
 {
     MOZ_ASSERT_IF(script->hasBaselineScript(), script->baselineScript() == this);
 
@@ -747,7 +753,7 @@ BaselineScript::maybeNativeCodeForPC(JSScript *script, jsbytecode *pc, PCMapping
         curPC += GetBytecodeLength(curPC);
     }
 
-    return nullptr;
+    MOZ_CRASH("No native code for this pc");
 }
 
 jsbytecode *

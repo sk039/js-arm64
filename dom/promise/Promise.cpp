@@ -273,6 +273,7 @@ NS_IMPL_CYCLE_COLLECTING_RELEASE(Promise)
 NS_INTERFACE_MAP_BEGIN_CYCLE_COLLECTION(Promise)
   NS_WRAPPERCACHE_INTERFACE_MAP_ENTRY
   NS_INTERFACE_MAP_ENTRY(nsISupports)
+  NS_INTERFACE_MAP_ENTRY(Promise)
 NS_INTERFACE_MAP_END
 
 Promise::Promise(nsIGlobalObject* aGlobal)
@@ -417,6 +418,7 @@ Promise::JSCallback(JSContext* aCx, unsigned aArgc, JS::Value* aVp)
     }
   }
 
+  args.rval().setUndefined();
   return true;
 }
 
@@ -433,6 +435,7 @@ Promise::ThenableResolverCommon(JSContext* aCx, uint32_t aTask,
   JS::Rooted<JSObject*> thisFunc(aCx, &args.callee());
   if (!MarkAsCalledIfNotCalledBefore(aCx, thisFunc)) {
     // A function from this pair has been called before.
+    args.rval().setUndefined();
     return true;
   }
 
@@ -444,6 +447,8 @@ Promise::ThenableResolverCommon(JSContext* aCx, uint32_t aTask,
   } else {
     promise->RejectInternal(aCx, args.get(0));
   }
+
+  args.rval().setUndefined();
   return true;
 }
 
@@ -788,13 +793,13 @@ public:
   }
 
   void
-  ResolvedCallback(JSContext* aCx, JS::Handle<JS::Value> aValue)
+  ResolvedCallback(JSContext* aCx, JS::Handle<JS::Value> aValue) MOZ_OVERRIDE
   {
     mCountdownHolder->SetValue(mIndex, aValue);
   }
 
   void
-  RejectedCallback(JSContext* aCx, JS::Handle<JS::Value> aValue)
+  RejectedCallback(JSContext* aCx, JS::Handle<JS::Value> aValue) MOZ_OVERRIDE
   {
     // Should never be attached to Promise as a reject handler.
     MOZ_ASSERT(false, "AllResolveHandler should never be attached to a Promise's reject handler!");
