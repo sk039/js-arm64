@@ -1273,7 +1273,7 @@ DebugCommand::Parse(char* line)
     const char* name = IdentifierToken::Cast(args[0])->value();
 #define RETURN_IF_MATCH(Command)             \
     if (Match(name, Command::kAliases))      \
-        return Command::Build(args);         \
+        return Command::Build(args);
     DEBUG_COMMAND_LIST(RETURN_IF_MATCH);
 #undef RETURN_IF_MATCH
 
