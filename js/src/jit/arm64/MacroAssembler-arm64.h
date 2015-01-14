@@ -2042,7 +2042,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
 
     void callJitFromAsmJS(Register reg) {
-        MOZ_CRASH("callIonFromAsmJS");
+        Blr(ARMRegister(reg, 64));
     }
 
     void callAndPushReturnAddress(Label *label) {
