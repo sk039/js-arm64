@@ -161,6 +161,18 @@ PushRetAddr(MacroAssembler &masm)
     // The x86/x64 call instruction pushes the return address.
 #endif
 }
+static void
+popReturn(MacroAssembler &masm)
+{
+#if defined(JS_CODEGEN_ARM) || defined(JS_CODEGEN_ARM64)
+    masm.popReturn();
+#elif defined(JS_CODEGEN_MIPS)
+    MOZ_CRASH("TODO: Implement");
+#else
+    masm.ret();
+    // The x86/x64 call instruction pushes the return address.
+#endif
+}
 
 // Generate a prologue that maintains AsmJSActivation::fp as the virtual frame
 // pointer so that AsmJSProfilingFrameIterator can walk the stack at any pc in
@@ -240,7 +252,7 @@ GenerateProfilingEpilogue(MacroAssembler &masm, unsigned framePushed, AsmJSExit:
 #if defined(JS_CODEGEN_ARM)
         AutoForbidPools afp(&masm, /* number of instructions in scope = */ 4);
 #elif defined(JS_CODEGEN_ARM64)
-        AutoForbidPools afp(&masm, /* number of instructions in scope = */ 5);
+        AutoForbidPools afp(&masm, /* number of instructions in scope = */ 6);
 #endif
 
         // sp protects the stack from clobber via asynchronous signal handlers
@@ -251,7 +263,7 @@ GenerateProfilingEpilogue(MacroAssembler &masm, unsigned framePushed, AsmJSExit:
         masm.loadPtr(Address(masm.GetStackPointer_(), 0), scratch2);
         masm.storePtr(scratch2, Address(scratch, AsmJSActivation::offsetOfFP()));
         DebugOnly<uint32_t> prePop = masm.currentOffset();
-        masm.add32(Imm32(4), masm.GetStackPointer_());
+        masm.addPtr(Imm32(sizeof(char*)), masm.GetStackPointer_());
         MOZ_ASSERT(PostStorePrePopFP == masm.currentOffset() - prePop);
 #else
         masm.pop(Address(scratch, AsmJSActivation::offsetOfFP()));
@@ -259,7 +271,7 @@ GenerateProfilingEpilogue(MacroAssembler &masm, unsigned framePushed, AsmJSExit:
 #endif
 
         masm.bind(profilingReturn);
-        masm.ret();
+        popReturn(masm);
     }
 }
 
@@ -351,7 +363,7 @@ js::GenerateAsmJSFunctionEpilogue(MacroAssembler &masm, unsigned framePushed,
 
     // Normal epilogue:
     masm.addPtr(Imm32(framePushed + AsmJSFrameBytesAfterReturnAddress), masm.GetStackPointer_());
-    masm.ret();
+    popReturn(masm);
     masm.setFramePushed(0);
 
     // Profiling epilogue:
