@@ -1016,31 +1016,66 @@ CodeGeneratorARM64::visitEffectiveAddress(LEffectiveAddress *ins)
 void 
 CodeGeneratorARM64::visitAsmJSLoadGlobalVar(LAsmJSLoadGlobalVar *ins)
 {
-    MOZ_CRASH("CodeGeneratorARM64::visitAsmJSLoadGlobalVar");
+    ARMRegister GlobalPtr(GlobalReg, 64);
+    const MAsmJSLoadGlobalVar *mir = ins->mir();
+    int32_t addr = mir->globalDataOffset() - AsmJSGlobalRegBias;
+    if (mir->type() == MIRType_Int32) {
+        masm.Ldr(toWRegister(ins->output()), MemOperand(GlobalPtr, addr));
+    } else if (mir->type() == MIRType_Float32) {
+        ARMFPRegister vd(ToFloatRegister(ins->output()), 32);
+        masm.Ldr(vd, MemOperand(GlobalPtr, addr));
+    } else {
+        ARMFPRegister vd(ToFloatRegister(ins->output()), 64);
+        masm.Ldr(vd, MemOperand(GlobalPtr, addr));
+    }
+
 }
 
-void 
+void
 CodeGeneratorARM64::visitAsmJSStoreGlobalVar(LAsmJSStoreGlobalVar *ins)
 {
-    MOZ_CRASH("CodeGeneratorARM64::visitAsmJSStoreGlobalVar");
+    const MAsmJSStoreGlobalVar *mir = ins->mir();
+    ARMRegister GlobalPtr(GlobalReg, 64);
+
+    MIRType type = mir->value()->type();
+    MOZ_ASSERT(IsNumberType(type));
+    int32_t addr = mir->globalDataOffset() - AsmJSGlobalRegBias;
+    if (type == MIRType_Int32) {
+        masm.Str(toWRegister(ins->value()), MemOperand(GlobalPtr, addr));
+    } else if (type == MIRType_Float32) {
+        ARMFPRegister vd(ToFloatRegister(ins->value()), 32);
+        masm.Str(vd, MemOperand(GlobalPtr, addr));
+    } else {
+        ARMFPRegister vd(ToFloatRegister(ins->value()), 64);
+        masm.Str(vd, MemOperand(GlobalPtr, addr));
+    }
+
 }
 
-void 
+void
 CodeGeneratorARM64::visitAsmJSLoadFuncPtr(LAsmJSLoadFuncPtr *ins)
 {
-    MOZ_CRASH("CodeGeneratorARM64::visitAsmJSLoadFuncPtr");
+    const MAsmJSLoadFuncPtr *mir = ins->mir();
+
+    ARMRegister index = toXRegister(ins->index());
+    ARMRegister tmp = toXRegister(ins->temp());
+    ARMRegister out = toXRegister(ins->output());
+    unsigned addr = mir->globalDataOffset();
+    masm.Mov(tmp, int64_t(addr) - AsmJSGlobalRegBias);
+    masm.Add(tmp, tmp, Operand(index, LSL, 3));
+    masm.Ldr(out, MemOperand(ARMRegister(GlobalReg, 64), tmp));
 }
 
 void
 CodeGeneratorARM64::visitAsmJSLoadFFIFunc(LAsmJSLoadFFIFunc *ins)
 {
     const MAsmJSLoadFFIFunc *mir = ins->mir();
-    masm.Ldr(toWRegister(ins->output()),
+    masm.Ldr(toXRegister(ins->output()),
              MemOperand(ARMRegister(GlobalReg, 64),
-                        mir->globalDataOffset() - AsmJSGlobalRegBias));
+                        int64_t(mir->globalDataOffset()) - AsmJSGlobalRegBias));
 }
 
-void 
+void
 CodeGeneratorARM64::visitNegI(LNegI *ins)
 {
     ARMRegister input = toWRegister(ins->input());
