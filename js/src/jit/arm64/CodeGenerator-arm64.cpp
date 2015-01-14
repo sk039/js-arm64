@@ -303,9 +303,9 @@ CodeGeneratorARM64::visitMulI(LMulI *ins)
             // N.B. A cbz/cbnz can be used here , if we're ok ith an OOL bailout. I think this is fine.
             masm.Cmp(toWRegister(lhs), Operand(0));
             bailoutIf(bailoutCond, ins->snapshot());
-            masm.move32(Imm32(constant), ScratchReg);
-            rhs_reg = ScratchReg;
         }
+        masm.move32(Imm32(constant), ScratchReg);
+        rhs_reg = ScratchReg;
 
     } else {
         rhs_reg = ToRegister(rhs);
