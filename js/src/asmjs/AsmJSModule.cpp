@@ -322,7 +322,7 @@ AsmJSModule::finish(ExclusiveContext *cx, TokenStream &tokenStream, MacroAssembl
     // Call-site metadata used for stack unwinding.
     callSites_ = masm.extractCallSites();
 
-#if defined(JS_CODEGEN_ARM)
+#if defined(JS_CODEGEN_ARM) || defined(JS_CODEGEN_ARM64)
     // ARM requires the offsets to be updated.
     pod.functionBytes_ = masm.actualOffset(pod.functionBytes_);
     for (size_t i = 0; i < heapAccesses_.length(); i++) {
@@ -1686,8 +1686,11 @@ AsmJSModule::setProfilingEnabled(bool enabled, JSContext *cx)
         callerInsn->as<InstBLImm>()->extractImm(&calleeOffset);
         void *callee = calleeOffset.getDest(callerInsn);
 #elif defined(JS_CODEGEN_ARM64)
-        MOZ_CRASH("setProfilingEnabled() 1");
-        void *callee = nullptr;
+
+        uint8_t *caller = callerRetAddr - 4;
+        Instruction *callerInsn = reinterpret_cast<Instruction*>(caller);
+        void *callee = (void*)callerInsn->ImmPCOffsetTarget();
+
 #elif defined(JS_CODEGEN_MIPS)
         Instruction *instr = (Instruction *)(callerRetAddr - 4 * sizeof(uint32_t));
         void *callee = (void *)Assembler::ExtractLuiOriValue(instr, instr->next());
@@ -1713,7 +1716,7 @@ AsmJSModule::setProfilingEnabled(bool enabled, JSContext *cx)
 #elif defined(JS_CODEGEN_ARM)
         new (caller) InstBLImm(BOffImm(newCallee - caller), Assembler::Always);
 #elif defined(JS_CODEGEN_ARM64)
-        MOZ_CRASH("setProfilingEnabled() 2");
+        reinterpret_cast<Instruction*>(caller)->SetImmPCOffsetTarget(reinterpret_cast<Instruction*>(newCallee));
 #elif defined(JS_CODEGEN_MIPS)
         Assembler::WriteLuiOriInstructions(instr, instr->next(),
                                            ScratchRegister, (uint32_t)newCallee);
@@ -1778,7 +1781,13 @@ AsmJSModule::setProfilingEnabled(bool enabled, JSContext *cx)
             new (jump) InstNOP();
         }
 #elif defined(JS_CODEGEN_ARM64)
-        MOZ_CRASH("setProfilingEnabled() 3");
+        Instruction *jmp = reinterpret_cast<Instruction*>(jump);
+        if (enabled) {
+            Assembler::b(jmp, 0);
+            jmp->SetImmPCOffsetTarget(reinterpret_cast<Instruction*>(profilingEpilogue));
+        } else {
+            Assembler::nop(jmp);
+        }
 #elif defined(JS_CODEGEN_MIPS)
         Instruction *instr = (Instruction *)jump;
         if (enabled) {
