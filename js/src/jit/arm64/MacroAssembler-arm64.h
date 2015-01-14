@@ -554,8 +554,8 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         Mov(ARMRegister(dest, 64), (int64_t)imm.value);
     }
     void movePtr(AsmJSImmPtr imm, Register dest) {
-        append(AsmJSAbsoluteLink(CodeOffsetLabel(currentOffset()), imm.kind()));
-        movePatchablePtr(ImmWord(0xffffffffffffffffULL), dest);
+        BufferOffset off = movePatchablePtr(ImmWord(0xffffffffffffffffULL), dest);
+        append(AsmJSAbsoluteLink(CodeOffsetLabel(off.getOffset()), imm.kind()));
     }
     void movePtr(ImmGCPtr imm, Register dest) {
         BufferOffset load = movePatchablePtr(ImmPtr(imm.value), dest);
