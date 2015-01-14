@@ -350,7 +350,26 @@ CodeGeneratorARM64::modICommon(MMod *mir, Register lhs, Register rhs, Register o
 void 
 CodeGeneratorARM64::visitModI(LModI *ins)
 {
-    MOZ_CRASH("CodeGeneratorARM64::visitModI");
+    MMod *mir = ins->mir();
+    ARMRegister lhs = toWRegister(ins->lhs());
+    ARMRegister rhs = toWRegister(ins->rhs());
+    ARMRegister output = toWRegister(ins->output());
+    Label done;
+    if (mir->canBeDivideByZero() && !mir->isTruncated()) {
+        masm.Cmp(rhs, Operand(0));
+        bailoutIf(Assembler::Equal, ins->snapshot());
+    }
+    masm.Sdiv(output, lhs, rhs);
+    // compute the remainder, out = lhs - rhs * out.
+    masm.Msub(output, output, rhs, lhs);
+    if (mir->canBeNegativeDividend()) {
+        if (!mir->isTruncated()) {
+            masm.Cbnz(output, &done);
+            masm.Cmp(lhs, Operand(0));
+            bailoutIf(Assembler::Signed, ins->snapshot());
+        }
+    }
+    masm.bind(&done);
 }
 
 void 
@@ -401,9 +420,9 @@ void
 CodeGeneratorARM64::visitShiftI(LShiftI *ins)
 {
     ARMRegister lhs = toWRegister(ins->lhs());
-    ARMRegister dest = toWRegister(ins->rhs());
+    ARMRegister dest = toWRegister(ins->output());
     if (ins->rhs()->isConstant()) {
-        ARMRegister rhs = toWRegister(ins->rhs());
+        int32_t rhs = ToInt32(ins->rhs()) & 0x1F;
         switch (ins->bitop()) {
           case JSOP_LSH:
             masm.Lsl(dest, lhs, rhs);
@@ -419,7 +438,7 @@ CodeGeneratorARM64::visitShiftI(LShiftI *ins)
             MOZ_CRASH("Unexpected shift opcode");
         }
     } else {
-        int32_t rhs = ToInt32(ins->rhs()) & 0x1F;
+        ARMRegister rhs = toWRegister(ins->rhs());
         switch (ins->bitop()) {
           case JSOP_LSH:
             masm.Lsl(dest, lhs, rhs);
@@ -873,7 +892,9 @@ CodeGeneratorARM64::visitStoreTypedArrayElementStatic(LStoreTypedArrayElementSta
 void 
 CodeGeneratorARM64::visitAsmJSCall(LAsmJSCall *ins)
 {
-    MOZ_CRASH("visitAsmJSCall");
+
+    emitAsmJSCall(ins);
+
 }
 
 void 
