@@ -476,8 +476,7 @@ CodeGeneratorARM64::toMoveOperand(const LAllocation *a) const
     if (a->isFloatReg())
         return MoveOperand(ToFloatRegister(a));
     int32_t offset = ToStackOffset(a);
-    MOZ_ASSERT((offset & 7) == 0);
-    return MoveOperand(StackPointer, offset);
+    return MoveOperand(masm.GetStackPointer_(), offset);
 }
 
 class js::jit::OutOfLineTableSwitch : public OutOfLineCodeBase<CodeGeneratorARM64>
