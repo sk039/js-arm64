@@ -550,7 +550,10 @@ MacroAssemblerCompat::callWithABI(Register fun, MoveOp::Type result)
 void
 MacroAssemblerCompat::callWithABI(AsmJSImmPtr imm, MoveOp::Type result)
 {
-    MOZ_CRASH("NYI"); // TODO
+    uint32_t stackAdjust;
+    callWithABIPre(&stackAdjust);
+    call(imm);
+    callWithABIPost(stackAdjust, result);
 }
 
 void

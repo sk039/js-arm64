@@ -521,7 +521,13 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
 
     void branchTruncateFloat32(FloatRegister src, Register dest, Label *fail) {
-        MOZ_CRASH("branchTruncateFloat32");
+        ARMFPRegister Src(src, 32);
+        ARMRegister Dest(dest, 64);
+        Fcvtas(Dest, Src);
+        Add(ScratchReg2_64, Dest, Operand(1));
+        Cmn(ScratchReg2_64, 3);
+        B(fail, Assembler::Above);
+        Mov(Dest, Operand(Dest, SXTW));
     }
     void jump(Label *label) {
         B(label);

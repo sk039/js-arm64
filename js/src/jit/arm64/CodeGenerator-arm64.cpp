@@ -147,7 +147,6 @@ CodeGeneratorARM64::visitCompare(LCompare *comp)
         masm.cmp32(ToRegister(left), ToRegister(right));
     masm.emitSet(cond, ToRegister(def));
 
-    MOZ_CRASH("visitCompare (validate)");
 }
 
 void 
@@ -159,8 +158,6 @@ CodeGeneratorARM64::visitCompareAndBranch(LCompareAndBranch *comp)
     else
         masm.cmp32(ToRegister(comp->left()), ToRegister(comp->right()));
     emitBranch(cond, comp->ifTrue(), comp->ifFalse());
-
-    MOZ_CRASH("visitCompareAndBranch (validate)");
 }
 
 void 
@@ -187,12 +184,24 @@ CodeGeneratorARM64::visitOutOfLineBailout(OutOfLineBailout *ool)
     MOZ_CRASH("CodeGeneratorARM64::visitOutOfLineBailout");
 }
 
-void 
+void
 CodeGeneratorARM64::visitMinMaxD(LMinMaxD *ins)
 {
     ARMFPRegister lhs(ToFloatRegister(ins->first()), 64);
     ARMFPRegister rhs(ToFloatRegister(ins->second()), 64);
     ARMFPRegister output(ToFloatRegister(ins->output()), 64);
+    if (ins->mir()->isMax())
+        masm.Fmax(output, lhs, rhs);
+    else
+        masm.Fmin(output, lhs, rhs);
+}
+
+void
+CodeGeneratorARM64::visitMinMaxF(LMinMaxF *ins)
+{
+    ARMFPRegister lhs(ToFloatRegister(ins->first()), 32);
+    ARMFPRegister rhs(ToFloatRegister(ins->second()), 32);
+    ARMFPRegister output(ToFloatRegister(ins->output()), 32);
     if (ins->mir()->isMax())
         masm.Fmax(output, lhs, rhs);
     else
@@ -587,21 +596,30 @@ CodeGeneratorARM64::visitRoundF(LRoundF *lir)
 }
 
 void
+CodeGeneratorARM64::visitClzI(LClzI *lir)
+{
+    ARMRegister input = toWRegister(lir->input());
+    ARMRegister output = toWRegister(lir->output());
+    masm.Clz(output, input);
+}
+
+
+void
 CodeGeneratorARM64::emitRoundDouble(FloatRegister src, Register dest, Label *fail)
 {
     MOZ_CRASH("CodeGeneratorARM64::emitRoundDouble");
 }
 
-void 
+void
 CodeGeneratorARM64::visitTruncateDToInt32(LTruncateDToInt32 *ins)
 {
-    MOZ_CRASH("CodeGeneratorARM64::visitTruncateDToInt32");
+    emitTruncateDouble(ToFloatRegister(ins->input()), ToRegister(ins->output()), ins->mir());
 }
 
-void 
+void
 CodeGeneratorARM64::visitTruncateFToInt32(LTruncateFToInt32 *ins)
 {
-    MOZ_CRASH("CodeGeneratorARM64::visitTruncateFToInt32");
+    emitTruncateFloat32(ToFloatRegister(ins->input()), ToRegister(ins->output()), ins->mir());
 }
 
 static const uint32_t FrameSizes[] = { 128, 256, 512, 1024 };
@@ -747,19 +765,19 @@ CodeGeneratorARM64::visitBitAndAndBranch(LBitAndAndBranch *baab)
     MOZ_CRASH("CodeGeneratorARM64::visitBitAndAndBranch");
 }
 
-void 
+void
 CodeGeneratorARM64::visitAsmJSUInt32ToDouble(LAsmJSUInt32ToDouble *lir)
 {
-    MOZ_CRASH("CodeGeneratorARM64::visitAsmJSUInt32ToDouble");
+    masm.convertUInt32ToDouble(ToRegister(lir->input()), ToFloatRegister(lir->output()));
 }
 
-void 
+void
 CodeGeneratorARM64::visitAsmJSUInt32ToFloat32(LAsmJSUInt32ToFloat32 *lir)
 {
-    MOZ_CRASH("CodeGeneratorARM64::visitAsmJSUInt32ToFloat32");
+    masm.convertUInt32ToFloat32(ToRegister(lir->input()), ToFloatRegister(lir->output()));
 }
 
-void 
+void
 CodeGeneratorARM64::visitNotI(LNotI *ins)
 {
     ARMRegister input = toWRegister(ins->input());
