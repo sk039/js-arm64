@@ -1573,7 +1573,8 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         unboxNonDouble(dest, dest);
     }
     void unboxObject(const BaseIndex &src, Register dest) {
-        MOZ_CRASH("unboxObject");
+        doBaseIndex(ARMRegister(dest, 64), src, LDR_x);
+        unboxNonDouble(dest, dest);
     }
 
     void unboxValue(const ValueOperand &src, AnyRegister dest) {
