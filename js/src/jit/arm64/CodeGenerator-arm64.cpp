@@ -414,7 +414,7 @@ CodeGeneratorARM64::modICommon(MMod *mir, Register lhs, Register rhs, Register o
     MOZ_CRASH("CodeGeneratorARM64::modICommon");
 }
 
-void 
+void
 CodeGeneratorARM64::visitModI(LModI *ins)
 {
     MMod *mir = ins->mir();
@@ -790,22 +790,37 @@ CodeGeneratorARM64::visitTestFAndBranch(LTestFAndBranch *test)
     MOZ_CRASH("CodeGeneratorARM64::visitTestFAndBranch");
 }
 
-void 
+void
 CodeGeneratorARM64::visitCompareD(LCompareD *comp)
 {
-    MOZ_CRASH("CodeGeneratorARM64::visitCompareD");
+    ARMFPRegister lhs(ToFloatRegister(comp->left()), 64);
+    ARMFPRegister rhs(ToFloatRegister(comp->right()), 64);
+    ARMRegister output = toWRegister(comp->output());
+    Assembler::DoubleCondition cond = JSOpToDoubleCondition(comp->mir()->jsop());
+    masm.Fcmp(lhs, rhs);
+    masm.cset(output, Assembler::ConditionFromDoubleCondition(cond));
 }
 
-void 
+void
 CodeGeneratorARM64::visitCompareF(LCompareF *comp)
 {
-    MOZ_CRASH("CodeGeneratorARM64::visitCompareF");
+    ARMFPRegister lhs(ToFloatRegister(comp->left()), 32);
+    ARMFPRegister rhs(ToFloatRegister(comp->right()), 32);
+    ARMRegister output = toWRegister(comp->output());
+    Assembler::DoubleCondition cond = JSOpToDoubleCondition(comp->mir()->jsop());
+    masm.Fcmp(lhs, rhs);
+    masm.cset(output, Assembler::ConditionFromDoubleCondition(cond));
 }
 
-void 
+void
 CodeGeneratorARM64::visitCompareDAndBranch(LCompareDAndBranch *comp)
 {
-    MOZ_CRASH("CodeGeneratorARM64::visitCompareDAndBranch");
+    ARMFPRegister lhs(ToFloatRegister(comp->left()), 64);
+    ARMFPRegister rhs(ToFloatRegister(comp->right()), 64);
+
+    Assembler::DoubleCondition cond = JSOpToDoubleCondition(comp->cmpMir()->jsop());
+    masm.Fcmp(lhs, rhs);
+    emitBranch(Assembler::ConditionFromDoubleCondition(cond), comp->ifTrue(), comp->ifFalse());
 }
 
 void 
@@ -841,7 +856,11 @@ CodeGeneratorARM64::visitCompareVAndBranch(LCompareVAndBranch *lir)
 void 
 CodeGeneratorARM64::visitBitAndAndBranch(LBitAndAndBranch *baab)
 {
-    MOZ_CRASH("CodeGeneratorARM64::visitBitAndAndBranch");
+    if (baab->right()->isConstant())
+        masm.Tst(toWRegister(baab->left()), Operand(ToInt32(baab->right())));
+    else
+        masm.Tst(toWRegister(baab->left()), toWRegister(baab->right()));
+    emitBranch(Assembler::NonZero, baab->ifTrue(), baab->ifFalse());
 }
 
 void
@@ -862,8 +881,7 @@ CodeGeneratorARM64::visitNotI(LNotI *ins)
     ARMRegister input = toWRegister(ins->input());
     ARMRegister output = toWRegister(ins->output());
     masm.Cmp(input, ZeroRegister32);
-    masm.Cset(output, Assembler::NonZero);
-    MOZ_CRASH("visitNotI (validate)");
+    masm.Cset(output, Assembler::Zero);
 }
 
 //        NZCV
