@@ -611,7 +611,7 @@ CodeGeneratorARM64::visitMathD(LMathD *math)
 {
     const ARMFPRegister src1(ToFloatRegister(math->getOperand(0)), 64);
     const ARMFPRegister src2(ToFloatRegister(math->getOperand(1)), 64);
-    const ARMFPRegister output(ToFloatRegister(math->getOperand(0)), 64);
+    const ARMFPRegister output(ToFloatRegister(math->getDef(0)), 64);
 
     switch (math->jsop()) {
       case JSOP_ADD:
