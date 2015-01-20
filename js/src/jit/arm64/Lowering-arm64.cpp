@@ -197,7 +197,37 @@ LIRGeneratorARM64::lowerForShift(LInstructionHelper<1, 2, 0> *ins, MDefinition *
 void
 LIRGeneratorARM64::lowerDivI(MDiv *div)
 {
-    MOZ_CRASH("lowerDivI");
+    if (div->isUnsigned()) {
+        lowerUDiv(div);
+        return;
+    }
+
+    // Division instructions are slow. Division by constant denominators can be
+    // rewritten to use other instructions.
+    if (div->rhs()->isConstant()) {
+        int32_t rhs = div->rhs()->toConstant()->value().toInt32();
+        // Check for division by a positive power of two, which is an easy and
+        // important case to optimize. Note that other optimizations are also
+        // possible; division by negative powers of two can be optimized in a
+        // similar manner as positive powers of two, and division by other
+        // constants can be optimized by a reciprocal multiplication technique.
+        int32_t shift = FloorLog2(rhs);
+        if (rhs > 0 && 1 << shift == rhs) {
+#if 0
+            LDivPowTwoI *lir = new(alloc()) LDivPowTwoI(useRegisterAtStart(div->lhs()), shift);
+            if (div->fallible())
+                assignSnapshot(lir, Bailout_DoubleOutput);
+            define(lir, div);
+            return;
+#endif
+        }
+    }
+
+    LDivI *lir = new(alloc()) LDivI(useRegister(div->lhs()), useRegister(div->rhs()), temp());
+    if (div->fallible())
+        assignSnapshot(lir, Bailout_DoubleOutput);
+    define(lir, div);
+    return;
 }
 
 void
@@ -314,13 +344,29 @@ LIRGeneratorARM64::visitAsmJSNeg(MAsmJSNeg *ins)
 void
 LIRGeneratorARM64::lowerUDiv(MDiv *div)
 {
-    MOZ_CRASH("lowerUDiv");
+    MDefinition *lhs = div->getOperand(0);
+    MDefinition *rhs = div->getOperand(1);
+
+    LUDiv *lir = new(alloc()) LUDiv;
+    lir->setOperand(0, useRegister(lhs));
+    lir->setOperand(1, useRegister(rhs));
+    if (div->fallible())
+        assignSnapshot(lir, Bailout_DoubleOutput);
+    define(lir, div);
 }
 
 void
 LIRGeneratorARM64::lowerUMod(MMod *mod)
 {
-    MOZ_CRASH("lowerUMod");
+    MDefinition *lhs = mod->getOperand(0);
+    MDefinition *rhs = mod->getOperand(1);
+
+    LUMod *lir = new(alloc()) LUMod;
+    lir->setOperand(0, useRegister(lhs));
+    lir->setOperand(1, useRegister(rhs));
+    if (mod->fallible())
+        assignSnapshot(lir, Bailout_DoubleOutput);
+    define(lir, mod);
 }
 
 void

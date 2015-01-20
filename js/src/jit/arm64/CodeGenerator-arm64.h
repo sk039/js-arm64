@@ -224,7 +224,6 @@ class CodeGeneratorARM64 : public CodeGeneratorShared
     void visitEffectiveAddress(LEffectiveAddress *ins);
     void visitUDiv(LUDiv *ins);
     void visitUMod(LUMod *ins);
-    void visitSoftUDivOrMod(LSoftUDivOrMod *ins);
 
   public:
     // Unimplemented SIMD instructions.

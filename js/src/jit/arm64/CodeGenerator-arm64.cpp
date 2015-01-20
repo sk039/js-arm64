@@ -330,17 +330,75 @@ CodeGeneratorARM64::visitMulI(LMulI *ins)
     }
 }
 
-void 
-CodeGeneratorARM64::divICommon(MDiv *mir, Register lhs, Register rhs, Register output,
-                             LSnapshot *snapshot, Label &done)
-{
-    MOZ_CRASH("CodeGeneratorARM64::divICommon");
-}
 
-void 
+void
 CodeGeneratorARM64::visitDivI(LDivI *ins)
 {
-    MOZ_CRASH("CodeGeneratorARM64::visitDivI");
+    // Extract the registers from this instruction.
+    ARMRegister lhs = toWRegister(ins->lhs());
+    ARMRegister rhs = toWRegister(ins->rhs());
+    ARMRegister temp = toWRegister(ins->getTemp(0));
+    ARMRegister output = toWRegister(ins->output());
+    MDiv *mir = ins->mir();
+    Label done;
+    if (mir->canBeNegativeOverflow()) {
+        Label skip;
+        // Handle INT32_MIN / -1;
+        // The integer division will give INT32_MIN, but we want -(double)INT32_MIN.
+
+        // Sets EQ if lhs == INT32_MIN.
+        masm.Cmp(lhs, Operand(INT32_MIN));
+        masm.B(&skip, Assembler::NotEqual);
+        // If EQ (LHS == INT32_MIN), sets EQ if rhs == -1.
+        masm.Cmp(rhs, Operand(-1));
+        if (mir->canTruncateOverflow()) {
+            // (-INT32_MIN)|0 = INT32_MIN
+            masm.B(&skip, Assembler::NotEqual);
+            masm.Mov(output, Operand(INT32_MIN));
+            masm.B(&done);
+        } else {
+            MOZ_ASSERT(mir->fallible());
+            bailoutIf(Assembler::Equal, ins->snapshot());
+        }
+        masm.bind(&skip);
+    }
+
+    // Handle divide by zero.
+    if (mir->canBeDivideByZero()) {
+        masm.Cmp(rhs, Operand(0));
+        if (mir->canTruncateInfinities()) {
+            // Infinity|0 == 0
+            Label skip;
+            masm.B(&skip, Assembler::NotEqual);
+            masm.Mov(output, Operand(0));
+            masm.B(&done);
+            masm.bind(&skip);
+        } else {
+            MOZ_ASSERT(mir->fallible());
+            bailoutIf(Assembler::Equal, ins->snapshot());
+        }
+    }
+
+    // Handle negative 0.
+    if (!mir->canTruncateNegativeZero() && mir->canBeNegativeZero()) {
+        Label nonzero;
+        masm.Tbz(rhs, 31, &nonzero);
+        masm.Cmp(lhs, Operand(0));
+        MOZ_ASSERT(mir->fallible());
+        bailoutIf(Assembler::Equal, ins->snapshot());
+        masm.bind(&nonzero);
+    }
+    if (mir->canTruncateRemainder()) {
+        masm.Sdiv(output, lhs, rhs);
+    } else {
+        masm.Sdiv(ScratchReg2_32, lhs, rhs);
+        masm.Mul(temp, ScratchReg2_32, rhs);
+        masm.Cmp(lhs, temp);
+        bailoutIf(Assembler::NotEqual, ins->snapshot());
+        masm.Mov(output, ScratchReg2_32);
+    }
+    masm.bind(&done);
+
 }
 
 void 
@@ -367,6 +425,10 @@ CodeGeneratorARM64::visitModI(LModI *ins)
     if (mir->canBeDivideByZero() && !mir->isTruncated()) {
         masm.Cmp(rhs, Operand(0));
         bailoutIf(Assembler::Equal, ins->snapshot());
+    } else if (mir->canBeDivideByZero()) {
+        // if it is truncated, then modulus should give zero,
+        masm.Mov(output, rhs);
+        masm.Cbz(rhs, &done);
     }
     masm.Sdiv(output, lhs, rhs);
     // compute the remainder, out = lhs - rhs * out.
@@ -381,10 +443,27 @@ CodeGeneratorARM64::visitModI(LModI *ins)
     masm.bind(&done);
 }
 
-void 
+void
 CodeGeneratorARM64::visitModPowTwoI(LModPowTwoI *ins)
 {
-    MOZ_CRASH("CodeGeneratorARM64::visitModPowTwoI");
+    MMod *mir = ins->mir();
+    ARMRegister in = toWRegister(ins->getOperand(0));
+    ARMRegister out = toWRegister(ins->output());
+    Label fin;
+    masm.Subs(out, in, Operand(0));
+    masm.B(&fin, Assembler::Zero);
+    masm.Cneg(out, out, Assembler::Signed);
+    masm.And(out, out, Operand((1 << ins->shift()) - 1));
+    masm.Cneg(out, out, Assembler::Signed);
+    if (mir->canBeNegativeDividend()) {
+        if (!mir->isTruncated()) {
+            MOZ_ASSERT(mir->fallible());
+            bailoutIf(Assembler::Zero, ins->snapshot());
+        } else {
+            // -0|0 == 0
+        }
+    }
+    masm.bind(&fin);
 }
 
 void 
@@ -1005,19 +1084,67 @@ CodeGeneratorARM64::visitAsmJSPassStackArg(LAsmJSPassStackArg *ins)
 void 
 CodeGeneratorARM64::visitUDiv(LUDiv *ins)
 {
-    MOZ_CRASH("CodeGeneratorARM64::visitUDiv");
+    ARMRegister lhs = toWRegister(ins->lhs());
+    ARMRegister rhs = toWRegister(ins->rhs());
+    ARMRegister output = toWRegister(ins->output());
+
+    Label done;
+    if (ins->mir()->canBeDivideByZero()) {
+        masm.Cmp(rhs, Operand(0));
+        if (ins->mir()->isTruncated()) {
+            // Infinity|0 == 0
+            Label skip;
+            masm.B(&skip, Assembler::NotEqual);
+            masm.Mov(output, Operand(0));
+            masm.B(&done);
+            masm.bind(&skip);
+        } else {
+            MOZ_ASSERT(ins->mir()->fallible());
+            bailoutIf(Assembler::Equal, ins->snapshot());
+        }
+    }
+
+    masm.Udiv(output, lhs, rhs);
+    if (!ins->mir()->isTruncated()) {
+        masm.Cmp(output, Operand(0));
+        bailoutIf(Assembler::LessThan, ins->snapshot());
+    }
+
+    masm.bind(&done);
 }
 
 void 
 CodeGeneratorARM64::visitUMod(LUMod *ins)
 {
-    MOZ_CRASH("CodeGeneratorARM64::visitUMod");
-}
+    ARMRegister lhs = toWRegister(ins->lhs());
+    ARMRegister rhs = toWRegister(ins->rhs());
+    ARMRegister output = toWRegister(ins->output());
+    Label done;
 
-void 
-CodeGeneratorARM64::visitSoftUDivOrMod(LSoftUDivOrMod *ins)
-{
-    MOZ_CRASH("CodeGeneratorARM64::visitSoftUDivOrMod");
+    if (ins->mir()->canBeDivideByZero()) {
+        masm.Cmp(rhs, Operand(0));
+        if (ins->mir()->isTruncated()) {
+            // Infinity|0 == 0
+            Label skip;
+            masm.B(&skip, Assembler::NotEqual);
+            masm.Mov(output, Operand(0));
+            masm.B(&done);
+            masm.bind(&skip);
+        } else {
+            MOZ_ASSERT(ins->mir()->fallible());
+            bailoutIf(Assembler::Equal, ins->snapshot());
+        }
+    }
+
+    masm.Udiv(output, lhs, rhs);
+    masm.Msub(output, output, rhs, lhs);
+
+    if (!ins->mir()->isTruncated()) {
+        masm.Cmp(output, Operand(0));
+        bailoutIf(Assembler::LessThan, ins->snapshot());
+    }
+
+    masm.bind(&done);
 }
 
 void 
