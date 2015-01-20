@@ -9094,7 +9094,7 @@ GenerateThrowStub(ModuleCompiler &m, Label *throwLabel)
     MOZ_ASSERT(masm.framePushed() == 0);
 
     masm.movePtr(ImmWord(0), ReturnReg);
-    masm.ret();
+    masm.popReturn();
 
     return m.finishGeneratingInlineStub(throwLabel) && !masm.oom();
 }
