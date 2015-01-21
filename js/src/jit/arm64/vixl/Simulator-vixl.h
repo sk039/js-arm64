@@ -312,11 +312,20 @@ class Simulator : public DecoderVisitor
             pc_ = pc_->NextInstruction();
         pc_modified_ = false;
     }
-
+    int64_t resume_pc_;
+    inline void set_resume_pc(int64_t newpc) {
+        resume_pc_ = newpc;
+    }
     inline void ExecuteInstruction() {
         // The program counter should always be aligned.
         MOZ_ASSERT(IsWordAligned(pc_));
         decoder_->Decode(pc_);
+        int64_t rpc = resume_pc_;
+        if (MOZ_UNLIKELY(rpc != 0)) {
+            PerThreadData::innermostAsmJSActivation()->setResumePC((void *)get_pc());
+            set_pc(reinterpret_cast<Instruction*>(rpc));
+            resume_pc_ = 0;
+        }
         increment_pc();
     }
 

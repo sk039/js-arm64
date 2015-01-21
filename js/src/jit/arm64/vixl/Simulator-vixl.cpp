@@ -196,7 +196,7 @@ Simulator::ResetState()
     // Set FP registers to a value that is NaN in both 32-bit and 64-bit FP.
     for (unsigned i = 0; i < kNumberOfFloatRegisters; i++)
         set_dreg(i, kFP64SignallingNaN);
-
+    resume_pc_ = 0;
     // Returning to address 0 exits the Simulator.
     set_lr(kEndOfSimAddress);
 }
