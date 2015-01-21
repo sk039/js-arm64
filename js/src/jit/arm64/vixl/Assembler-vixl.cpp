@@ -825,16 +825,16 @@ AssemblerVIXL::and_(const ARMRegister& rd, const ARMRegister& rn, const Operand&
     Logical(rd, rn, operand, AND);
 }
 
-void
+BufferOffset
 AssemblerVIXL::ands(const ARMRegister& rd, const ARMRegister& rn, const Operand& operand)
 {
-    Logical(rd, rn, operand, ANDS);
+    return Logical(rd, rn, operand, ANDS);
 }
 
-void
+BufferOffset
 AssemblerVIXL::tst(const ARMRegister& rn, const Operand& operand)
 {
-    ands(AppropriateZeroRegFor(rn), rn, operand);
+    return ands(AppropriateZeroRegFor(rn), rn, operand);
 }
 
 void
@@ -2091,7 +2091,7 @@ AssemblerVIXL::nop(Instruction *at)
     hint(at, NOP);
 }
 
-void
+BufferOffset
 AssemblerVIXL::Logical(const ARMRegister& rd, const ARMRegister& rn,
                        const Operand& operand, LogicalOp op)
 {
@@ -2113,7 +2113,7 @@ AssemblerVIXL::Logical(const ARMRegister& rd, const ARMRegister& rn,
         unsigned n, imm_s, imm_r;
         if (IsImmLogical(immediate, reg_size, &n, &imm_s, &imm_r)) {
             // Immediate can be encoded in the instruction.
-            LogicalImmediate(rd, rn, n, imm_s, imm_r, op);
+            return LogicalImmediate(rd, rn, n, imm_s, imm_r, op);
         } else {
             // This case is handled in the macro assembler.
             VIXL_UNREACHABLE();
@@ -2122,18 +2122,18 @@ AssemblerVIXL::Logical(const ARMRegister& rd, const ARMRegister& rn,
         MOZ_ASSERT(operand.IsShiftedRegister());
         MOZ_ASSERT(operand.reg().size() == rd.size());
         Instr dp_op = static_cast<Instr>(op | LogicalShiftedFixed);
-        DataProcShiftedRegister(rd, rn, operand, LeaveFlags, dp_op);
+        return DataProcShiftedRegister(rd, rn, operand, LeaveFlags, dp_op);
     }
 }
 
-void
+BufferOffset
 AssemblerVIXL::LogicalImmediate(const ARMRegister& rd, const ARMRegister& rn,
                                 unsigned n, unsigned imm_s, unsigned imm_r, LogicalOp op)
 {
     unsigned reg_size = rd.size();
     Instr dest_reg = (op == ANDS) ? Rd(rd) : RdSP(rd);
-    Emit(SF(rd) | LogicalImmediateFixed | op | BitN(n, reg_size) |
-         ImmSetBits(imm_s, reg_size) | ImmRotate(imm_r, reg_size) | dest_reg | Rn(rn));
+    return Emit(SF(rd) | LogicalImmediateFixed | op | BitN(n, reg_size) |
+                ImmSetBits(imm_s, reg_size) | ImmRotate(imm_r, reg_size) | dest_reg | Rn(rn));
 }
 
 void
@@ -2243,16 +2243,16 @@ AssemblerVIXL::EmitExtendShift(const ARMRegister& rd, const ARMRegister& rn,
     }
 }
 
-void
+BufferOffset
 AssemblerVIXL::DataProcShiftedRegister(const ARMRegister& rd, const ARMRegister& rn,
                                        const Operand& operand, FlagsUpdate S, Instr op)
 {
     MOZ_ASSERT(operand.IsShiftedRegister());
     MOZ_ASSERT(rn.Is64Bits() || (rn.Is32Bits() &&
                 is_uint5(operand.shift_amount())));
-    Emit(SF(rd) | op | Flags(S) |
-         ShiftDP(operand.shift()) | ImmDPShift(operand.shift_amount()) |
-         Rm(operand.reg()) | Rn(rn) | Rd(rd));
+    return Emit(SF(rd) | op | Flags(S) |
+                ShiftDP(operand.shift()) | ImmDPShift(operand.shift_amount()) |
+                Rm(operand.reg()) | Rn(rn) | Rd(rd));
 }
 
 void

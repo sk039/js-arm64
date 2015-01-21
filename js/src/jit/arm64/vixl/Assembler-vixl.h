@@ -915,10 +915,10 @@ class AssemblerVIXL : public AssemblerShared
     void and_(const ARMRegister& rd, const ARMRegister& rn, const Operand& operand);
 
     // Bitwise and (A & B) and update status flags.
-    void ands(const ARMRegister& rd, const ARMRegister& rn, const Operand& operand);
+    BufferOffset ands(const ARMRegister& rd, const ARMRegister& rn, const Operand& operand);
 
     // Bit test and set flags.
-    void tst(const ARMRegister& rn, const Operand& operand);
+    BufferOffset tst(const ARMRegister& rn, const Operand& operand);
 
     // Bit clear (A & ~B).
     void bic(const ARMRegister& rd, const ARMRegister& rn, const Operand& operand);
@@ -1842,9 +1842,9 @@ class AssemblerVIXL : public AssemblerShared
     static bool IsImmLSUnscaled(ptrdiff_t offset);
     static bool IsImmLSScaled(ptrdiff_t offset, LSDataSize size);
 
-    void Logical(const ARMRegister& rd, const ARMRegister& rn,
+    BufferOffset Logical(const ARMRegister& rd, const ARMRegister& rn,
                  const Operand& operand, LogicalOp op);
-    void LogicalImmediate(const ARMRegister& rd, const ARMRegister& rn, unsigned n,
+    BufferOffset LogicalImmediate(const ARMRegister& rd, const ARMRegister& rn, unsigned n,
                           unsigned imm_s, unsigned imm_r, LogicalOp op);
     static bool IsImmLogical(uint64_t value, unsigned width, unsigned* n = nullptr,
                              unsigned* imm_s = nullptr, unsigned* imm_r = nullptr);
@@ -1889,7 +1889,7 @@ class AssemblerVIXL : public AssemblerShared
   private:
     // Instruction helpers.
     void MoveWide(const ARMRegister& rd, uint64_t imm, int shift, MoveWideImmediateOp mov_op);
-    void DataProcShiftedRegister(const ARMRegister& rd, const ARMRegister& rn,
+    BufferOffset DataProcShiftedRegister(const ARMRegister& rd, const ARMRegister& rn,
                                  const Operand& operand, FlagsUpdate S, Instr op);
     void DataProcExtendedRegister(const ARMRegister& rd, const ARMRegister& rn,
                                   const Operand& operand, FlagsUpdate S, Instr op);
