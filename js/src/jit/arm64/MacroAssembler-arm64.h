@@ -490,11 +490,14 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
 
     void branchTruncateDouble(FloatRegister src, Register dest, Label *fail) {
         // An out of range integer will be saturated to the destination size.
-        Fcvtzs(ARMRegister(dest, 32), ARMFPRegister(src, 64));
-
-        // TODO: Ripe for improvement.
-        branch32(Assembler::Equal, dest, Imm32(0x7fffffff), fail);
-        branch32(Assembler::Equal, dest, Imm32(0x80000000), fail);
+        ARMFPRegister Src(src, 64);
+        ARMRegister Dest(dest, 64);
+        //breakpoint();
+        Fcvtzs(Dest, Src);
+        Add(ScratchReg2_64, Dest, Operand(0x7fffffffffffffff));
+        Cmn(ScratchReg2_64, 3);
+        B(fail, Assembler::Above);
+        And(Dest, Dest, Operand(0xffffffff));
     }
     void convertDoubleToInt32(FloatRegister src, Register dest, Label *fail,
                               bool negativeZeroCheck = true)
@@ -523,11 +526,11 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     void branchTruncateFloat32(FloatRegister src, Register dest, Label *fail) {
         ARMFPRegister Src(src, 32);
         ARMRegister Dest(dest, 64);
-        Fcvtas(Dest, Src);
-        Add(ScratchReg2_64, Dest, Operand(1));
+        Fcvtzs(Dest, Src);
+        Add(ScratchReg2_64, Dest, Operand(0x7fffffffffffffff));
         Cmn(ScratchReg2_64, 3);
         B(fail, Assembler::Above);
-        Mov(Dest, Operand(Dest, SXTW));
+        And(Dest, Dest, Operand(0xffffffff));
     }
     void jump(Label *label) {
         B(label);
