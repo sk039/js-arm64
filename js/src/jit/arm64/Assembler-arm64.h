@@ -289,6 +289,8 @@ class Assembler : public AssemblerVIXL
     CompactBufferWriter jumpRelocations_;
     CompactBufferWriter dataRelocations_;
     CompactBufferWriter preBarriers_;
+  public:
+    static void UpdateBoundsCheck(uint32_t logHeapSize, Instruction *inst);
 };
 
 class ABIArgGenerator

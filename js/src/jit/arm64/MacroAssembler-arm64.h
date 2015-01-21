@@ -2337,7 +2337,12 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     void inc64(AbsoluteAddress dest) {
         MOZ_CRASH("inc64");
     }
-
+    BufferOffset BoundsCheck(Register ptrReg, Label *onFail) {
+        // use tst rather than Tst to *ensure* that a single instrution is generated.
+        BufferOffset ret = tst(ARMRegister(ptrReg, 32), Operand(1u));
+        B(onFail, Assembler::NonZero);
+        return ret;
+    }
     void breakpoint();
 
     // Emits a simulator directive to save the current sp on an internal stack.

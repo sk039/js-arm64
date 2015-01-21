@@ -188,12 +188,24 @@ class Instruction
     inline Instr Mask(uint32_t mask) const {
         return InstructionBits() & mask;
     }
+    inline void SetBits32(int msb, int lsb, unsigned value) {
+        uint32_t me;
+        memcpy(&me, this, sizeof(me));
+        uint32_t new_mask = (1 << (msb+1)) - (1 << lsb);
+        uint32_t keep_mask = ~new_mask;
+        me = (me & keep_mask) | ((value << lsb) & new_mask);
+        memcpy(this, &me, sizeof(me));
+    }
 
 #define DEFINE_GETTER(Name, HighBit, LowBit, Func)             \
 inline int64_t Name() const { return Func(HighBit, LowBit); }
 INSTRUCTION_FIELDS_LIST(DEFINE_GETTER)
 #undef DEFINE_GETTER
 
+#define DEFINE_SETTER(Name, HighBit, LowBit, Func)             \
+inline void Set##Name(unsigned n) { SetBits32(HighBit, LowBit, n); }
+INSTRUCTION_FIELDS_LIST(DEFINE_SETTER)
+#undef DEFINE_SETTER
     // ImmPCRel is a compound field (not present in INSTRUCTION_FIELDS_LIST),
     // formed from ImmPCRelLo and ImmPCRelHi.
     int ImmPCRel() const {

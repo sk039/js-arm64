@@ -508,6 +508,16 @@ Assembler::PatchInstructionImmediate(uint8_t *code, PatchedImmPtr imm)
 {
     MOZ_CRASH("PatchInstructionImmediate()");
 }
-
+void
+Assembler::UpdateBoundsCheck(uint32_t heapSize, Instruction *inst)
+{
+    int32_t mask = ~(heapSize - 1);
+    unsigned n, imm_s, imm_r;
+    if (!IsImmLogical(mask, 32, &n, &imm_s, &imm_r))
+        MOZ_CRASH("Could not encode immediate!?");
+    inst->SetImmR(imm_r);
+    inst->SetImmS(imm_s);
+    inst->SetBitN(n);
+}
 } // namespace jit
 } // namespace js
