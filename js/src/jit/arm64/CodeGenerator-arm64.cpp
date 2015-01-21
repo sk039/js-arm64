@@ -632,10 +632,30 @@ CodeGeneratorARM64::visitMathD(LMathD *math)
 
 }
 
-void 
+void
 CodeGeneratorARM64::visitMathF(LMathF *math)
 {
-    MOZ_CRASH("CodeGeneratorARM64::visitMathF");
+    const ARMFPRegister src1(ToFloatRegister(math->getOperand(0)), 32);
+    const ARMFPRegister src2(ToFloatRegister(math->getOperand(1)), 32);
+    const ARMFPRegister output(ToFloatRegister(math->getDef(0)), 32);
+
+    switch (math->jsop()) {
+      case JSOP_ADD:
+        masm.Fadd(output, src1, src2);
+        break;
+      case JSOP_SUB:
+        masm.Fsub(output, src1, src2);
+        break;
+      case JSOP_MUL:
+        masm.Fmul(output, src1, src2);
+        break;
+      case JSOP_DIV:
+        masm.Fdiv(output, src1, src2);
+        break;
+      default:
+        MOZ_CRASH("unexpected opcode");
+    }
+
 }
 
 void 
@@ -823,10 +843,15 @@ CodeGeneratorARM64::visitCompareDAndBranch(LCompareDAndBranch *comp)
     emitBranch(Assembler::ConditionFromDoubleCondition(cond), comp->ifTrue(), comp->ifFalse());
 }
 
-void 
+void
 CodeGeneratorARM64::visitCompareFAndBranch(LCompareFAndBranch *comp)
 {
-    MOZ_CRASH("CodeGeneratorARM64::visitCompareFAndBranch");
+    FloatRegister lhs = ToFloatRegister(comp->left());
+    FloatRegister rhs = ToFloatRegister(comp->right());
+
+    Assembler::DoubleCondition cond = JSOpToDoubleCondition(comp->cmpMir()->jsop());
+    masm.compareFloat(cond, lhs, rhs);
+    emitBranch(Assembler::ConditionFromDoubleCondition(cond), comp->ifTrue(), comp->ifFalse());
 }
 
 void 
@@ -1099,13 +1124,28 @@ CodeGeneratorARM64::visitAsmJSAtomicBinopHeap(LAsmJSAtomicBinopHeap *ins)
     MOZ_CRASH("visitAsmJSAtomicBinopHeap");
 }
 
-void 
+void
 CodeGeneratorARM64::visitAsmJSPassStackArg(LAsmJSPassStackArg *ins)
 {
-    MOZ_CRASH("CodeGeneratorARM64::visitAsmJSPassStackArg");
+    const MAsmJSPassStackArg *mir = ins->mir();
+    MemOperand dst(masm.GetStackPointer(), mir->spOffset());
+    if (ins->arg()->isConstant()) {
+        ARMRegister tmp = ScratchReg2_32;
+        if (ToInt32(ins->arg()) == 0) {
+            tmp = wzr;
+        } else {
+            masm.Mov(tmp, Operand(ToInt32(ins->arg())));
+        }
+        masm.Str(tmp, dst);
+    } else {
+        if (ins->arg()->isGeneralReg())
+            masm.Str(toWRegister(ins->arg()), dst);
+        else
+            masm.Str(ARMFPRegister(ToFloatRegister(ins->arg()), 64), dst);
+    }
 }
 
-void 
+void
 CodeGeneratorARM64::visitUDiv(LUDiv *ins)
 {
     ARMRegister lhs = toWRegister(ins->lhs());
