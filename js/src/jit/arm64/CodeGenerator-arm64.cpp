@@ -1070,14 +1070,20 @@ CodeGeneratorARM64::visitAsmJSStoreHeap(LAsmJSStoreHeap *ins)
     if (ptr->isConstant()) {
         int32_t ptrImm = ptr->toConstant()->toInt32();
         MOZ_ASSERT(ptrImm >= 0);
+        // TODO: probably don't need a bounds check here, riiiigh?
         masm.LoadStoreMacro(rt, MemOperand(ARMRegister(HeapReg, 64), ptrImm), op);
         //memoryBarrier(mir->barrierAfter());
         return;
     }
     Register ptrReg = ToRegister(ptr);
+    Label noStore;
+    if (mir->needsBoundsCheck()) {
+        BufferOffset bo = masm.BoundsCheck(ptrReg, &noStore);
+        masm.append(AsmJSHeapAccess(bo.getOffset()));
+    }
     BufferOffset bo = masm.LoadStoreMacro(rt, MemOperand(ARMRegister(HeapReg, 64), ARMRegister(ptrReg, 64)), op);
     if (mir->needsBoundsCheck()) {
-        masm.append(AsmJSHeapAccess(bo.getOffset()));
+        masm.bind(&noStore);
     }
 }
 
