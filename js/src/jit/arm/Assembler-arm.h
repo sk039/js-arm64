@@ -1796,6 +1796,9 @@ class Assembler : public AssemblerShared
     bool bailed() {
         return m_buffer.bail();
     }
+    Register GetStackPointer_() {
+        return sp;
+    }
 }; // Assembler
 
 // An Instruction is a structure for both encoding and decoding any and all ARM

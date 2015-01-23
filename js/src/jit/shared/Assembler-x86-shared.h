@@ -341,7 +341,16 @@ class AssemblerX86Shared : public AssemblerShared
     void setPrinter(Sprinter *sp) {
         masm.setPrinter(sp);
     }
-
+    Register GetStackPointer_() {
+#ifdef JS_CODEGEN_X64
+        return rsp;
+#else
+        return esp;
+#endif
+    }
+    Register GetStackPointer() {
+        return GetStackPointer_();
+    }
     void executableCopy(void *buffer);
     void processCodeLabels(uint8_t *rawCode);
     static int32_t ExtractCodeLabelOffset(uint8_t *code) {
@@ -2593,6 +2602,9 @@ class AssemblerX86Shared : public AssemblerShared
         MOZ_ASSERT(*ptr == 0x3D || // CMP
                    *ptr == 0xE8);  // CALL
         *ptr = enabled ? 0xE8 : 0x3D;
+    }
+    void popReturn() {
+        ret();
     }
 };
 
