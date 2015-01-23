@@ -8096,7 +8096,9 @@ GenerateEntry(ModuleCompiler &m, unsigned exportIndex)
     masm.bind(&begin);
 
     // Save the return address if it wasn't already saved by the call insn.
-#if defined(JS_CODEGEN_ARM) || defined(JS_CODEGEN_ARM64)
+#if defined(JS_CODEGEN_ARM)
+    masm.pushReturnAddress();
+#elif defined(JS_CODEGEN_ARM64)
     masm.initStackPtr();
     masm.pushReturnAddress();
 #elif defined(JS_CODEGEN_MIPS)
