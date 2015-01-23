@@ -460,6 +460,7 @@ static MOZ_CONSTEXPR_VAR Register IntArgReg6 = { Registers::x6 };
 static MOZ_CONSTEXPR_VAR Register IntArgReg7 = { Registers::x7 };
 static MOZ_CONSTEXPR_VAR Register GlobalReg =  { Registers::x10 };
 static MOZ_CONSTEXPR_VAR Register HeapReg = { Registers::x11 };
+static MOZ_CONSTEXPR_VAR Register HeapLenReg = { Registers::x12 };
 
 static MOZ_CONSTEXPR_VAR Register r0 = { Registers::x0 };
 static MOZ_CONSTEXPR_VAR Register r1 = { Registers::x1 };

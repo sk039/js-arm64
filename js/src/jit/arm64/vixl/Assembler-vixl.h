@@ -194,7 +194,7 @@ class CPURegister
         return IsValid() || IsNone();
     }
 };
-
+static const CPURegister noReg;
 
 class ARMRegister : public CPURegister
 {
