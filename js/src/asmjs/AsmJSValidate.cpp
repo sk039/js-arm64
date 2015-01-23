@@ -8986,22 +8986,21 @@ GenerateAsyncInterruptExit(ModuleCompiler &m, Label *throwLabel)
     masm.Stp(x29, x30, MemOperand(x28, -16, PreIndex));
 
     // now save sp as well
-    masm.Add(x9, sp, Operand(0));
-    masm.Mrs(x10, NZCV);
+    masm.Add(x19, sp, Operand(0));
+    masm.Mrs(x20, NZCV);
     // don't need to store those two, since the registers should be preserved.
     //masm.Stp(x9, x10, MemOperand(x28, -16, PreIndex));
 
-    // Align the stack, sp was previously copied to r9.
-    masm.And(sp, x9, Operand(~15));
+    // Align the stack, sp was previously copied to r19.
+    masm.And(sp, x19, Operand(~15));
     ARMRegister fake_sp = masm.GetStackPointer();
     masm.SetStackPointer(sp);
-
     // Store resumePC into the return PC stack slot.
     masm.loadAsmJSActivation(IntArgReg0);
     masm.loadPtr(Address(IntArgReg0, AsmJSActivation::offsetOfResumePC()), IntArgReg1);
     // lr is r30, which is currently sitting in *(r28+16)
     // this could probably also be done by doing this load *before* lr was pushed.
-    masm.storePtr(IntArgReg1, Address(r28, 16));
+    masm.storePtr(IntArgReg1, Address(r28, 0));
 
     // When this platform supports SIMD extensions, we'll need to push and pop
     // high lanes of SIMD registers as well.
@@ -9014,14 +9013,14 @@ GenerateAsyncInterruptExit(ModuleCompiler &m, Label *throwLabel)
     masm.branchIfFalseBool(ReturnReg, throwLabel);
 
 
-    masm.Mov(sp,x9);
-    masm.Msr(NZCV, x10);
-    masm.SetStackPointer(fake_sp);
+    masm.Msr(NZCV, x20);
 
     // Restore the machine state to before the interrupt. this will set the pc!
     masm.PopRegsInMask(RegisterSet(GeneralRegisterSet(0), FloatRegisterSet(FloatRegisters::AllDoubleMask)));   // restore all FP registers
+    masm.Mov(sp,x19);
 
-    // Push and PushRegsInMask will attempt to sync the stack pointer
+    masm.SetStackPointer(fake_sp);
+
 
     // Restore all GP registers
     masm.Ldp(x29, x30, MemOperand(x28, 16, PostIndex));
