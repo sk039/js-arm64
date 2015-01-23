@@ -1839,6 +1839,7 @@ GetCPUID(uint32_t *cpuId)
         X64 = 0x2,
         ARM = 0x3,
         MIPS = 0x4,
+        ARM64 = 0x5,
         ARCH_BITS = 3
     };
 
@@ -1857,6 +1858,10 @@ GetCPUID(uint32_t *cpuId)
 #elif defined(JS_CODEGEN_MIPS)
     MOZ_ASSERT(GetMIPSFlags() <= (UINT32_MAX >> ARCH_BITS));
     *cpuId = MIPS | (GetMIPSFlags() << ARCH_BITS);
+    return true;
+#elif defined(JS_CODEGEN_ARM64)
+    // for now, arm64 doesn't really have any arch-specific bits.
+    *cpuId = ARM64;
     return true;
 #else
     return false;
