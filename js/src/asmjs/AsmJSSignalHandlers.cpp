@@ -958,7 +958,7 @@ RedirectJitCodeToInterruptCheck(JSRuntime *rt, CONTEXT *context)
             rt->mainThread.simulator()->set_resume_pc(int32_t(module.interruptExit()));
 #elif defined(JS_ARM64_SIMULATOR)
         fputs("Re-Directing simulator!\n", stderr);
-        if (module.containsFunctionPC((void*)rt->mainThread.simulator()->get_pc()))
+        if (rt->mainThread.simulator() && module.containsFunctionPC((void*)rt->mainThread.simulator()->get_pc()))
             rt->mainThread.simulator()->set_resume_pc(int64_t(module.interruptExit()));
 #endif
 
