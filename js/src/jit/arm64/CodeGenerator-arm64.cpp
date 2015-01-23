@@ -1062,10 +1062,14 @@ CodeGeneratorARM64::visitAsmJSLoadHeap(LAsmJSLoadHeap *ins)
         //memoryBarrier(mir->barrierAfter());
         return;
     }
+    Label oob;
     Register ptrReg = ToRegister(ptr);
-    BufferOffset bo = masm.LoadStoreMacro(rt, MemOperand(ARMRegister(HeapReg, 64), ARMRegister(ptrReg, 64)), op);
     if (mir->needsBoundsCheck()) {
-        masm.append(AsmJSHeapAccess(bo.getOffset()));
+        masm.BoundsCheck(ptrReg, &oob, rt);
+    }
+    masm.LoadStoreMacro(rt, MemOperand(ARMRegister(HeapReg, 64), ARMRegister(ptrReg, 64)), op);
+    if (mir->needsBoundsCheck()) {
+        masm.bind(&oob);
     }
 }
 
@@ -1103,8 +1107,7 @@ CodeGeneratorARM64::visitAsmJSStoreHeap(LAsmJSStoreHeap *ins)
     Register ptrReg = ToRegister(ptr);
     Label noStore;
     if (mir->needsBoundsCheck()) {
-        BufferOffset bo = masm.BoundsCheck(ptrReg, &noStore);
-        masm.append(AsmJSHeapAccess(bo.getOffset()));
+        masm.BoundsCheck(ptrReg, &noStore);
     }
     BufferOffset bo = masm.LoadStoreMacro(rt, MemOperand(ARMRegister(HeapReg, 64), ARMRegister(ptrReg, 64)), op);
     if (mir->needsBoundsCheck()) {

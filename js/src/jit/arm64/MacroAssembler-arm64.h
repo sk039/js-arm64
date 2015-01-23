@@ -2337,11 +2337,25 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     void inc64(AbsoluteAddress dest) {
         MOZ_CRASH("inc64");
     }
-    BufferOffset BoundsCheck(Register ptrReg, Label *onFail) {
+
+    void BoundsCheck(Register ptrReg, Label *onFail, CPURegister zeroMe = noReg) {
         // use tst rather than Tst to *ensure* that a single instrution is generated.
-        BufferOffset ret = tst(ARMRegister(ptrReg, 32), Operand(1u));
-        B(onFail, Assembler::NonZero);
-        return ret;
+        Cmp(ARMRegister(ptrReg, 32), ARMRegister(HeapLenReg, 32));
+        if (!zeroMe.IsNone()) {
+            if (zeroMe.IsRegister()) {
+                Csel(ARMRegister(zeroMe),
+                     ARMRegister(zeroMe),
+                     Operand(zeroMe.Is32Bits() ? wzr : xzr),
+                     Assembler::Below);
+            } else if (zeroMe.Is32Bits()) {
+                Fmov(ScratchFloat32Reg_, JS::GenericNaN());
+                Fcsel(ARMFPRegister(zeroMe), ARMFPRegister(zeroMe), ScratchFloat32Reg_, Assembler::Below);
+            } else {
+                Fmov(ScratchDoubleReg_, JS::GenericNaN());
+                Fcsel(ARMFPRegister(zeroMe), ARMFPRegister(zeroMe), ScratchDoubleReg_, Assembler::Below);
+            }
+        }
+        B(onFail, Assembler::AboveOrEqual);
     }
     void breakpoint();
 
@@ -2365,6 +2379,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
     void loadAsmJSHeapRegisterFromGlobalData() {
         loadPtr(Address(GlobalReg, AsmJSHeapGlobalDataOffset - AsmJSGlobalRegBias), HeapReg);
+        loadPtr(Address(GlobalReg, AsmJSHeapGlobalDataOffset - AsmJSGlobalRegBias + 8), HeapLenReg);
     }
     // This moves an un-tagged value from src into a
     // dest that already has the correct tag, and /anything/ in the lower bits
