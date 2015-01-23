@@ -1349,11 +1349,12 @@ class AsmJSModule
     // are laid out in this order:
     //   0. a pointer to the current AsmJSActivation
     //   1. a pointer to the heap that was linked to the module
-    //   2. the double float constant NaN
-    //   3. the float32 constant NaN, padded to Simd128DataSize
-    //   4. global SIMD variable state (elements are Simd128DataSize)
-    //   5. global variable state (elements are sizeof(uint64_t))
-    //   6. interleaved function-pointer tables and exits. These are allocated
+    //   2. the length of the heap
+    //   3. the double float constant NaN
+    //   4. the float32 constant NaN, padded to Simd128DataSize
+    //   5. global SIMD variable state (elements are Simd128DataSize)
+    //   6. global variable state (elements are sizeof(uint64_t))
+    //   7. interleaved function-pointer tables and exits. These are allocated
     //      while type checking function bodies (as exits and uses of
     //      function-pointer tables are encountered).
     size_t offsetOfGlobalData() const {
@@ -1367,15 +1368,16 @@ class AsmJSModule
     size_t globalSimdVarsOffset() const {
         return AlignBytes(/* 0 */ sizeof(void*) +
                           /* 1 */ sizeof(void*) +
-                          /* 2 */ sizeof(double) +
-                          /* 3 */ sizeof(float),
+                          /* 2 */ sizeof(void*) +
+                          /* 3 */ sizeof(double) +
+                          /* 4 */ sizeof(float),
                           jit::Simd128DataSize);
     }
     size_t globalDataBytes() const {
         return globalSimdVarsOffset() +
-               /* 4 */ pod.numGlobalSimdVars_ * jit::Simd128DataSize +
-               /* 5 */ pod.numGlobalScalarVars_ * sizeof(uint64_t) +
-               /* 6 */ pod.funcPtrTableAndExitBytes_;
+               /* 5 */ pod.numGlobalSimdVars_ * jit::Simd128DataSize +
+               /* 6 */ pod.numGlobalScalarVars_ * sizeof(uint64_t) +
+               /* 7 */ pod.funcPtrTableAndExitBytes_;
     }
     static unsigned activationGlobalDataOffset() {
         JS_STATIC_ASSERT(jit::AsmJSActivationGlobalDataOffset == 0);
@@ -1391,14 +1393,22 @@ class AsmJSModule
         JS_STATIC_ASSERT(jit::AsmJSHeapGlobalDataOffset == sizeof(void*));
         return sizeof(void*);
     }
+    static unsigned heapLenGlobalDataOffset() {
+        JS_STATIC_ASSERT(jit::AsmJSHeapGlobalDataOffset == sizeof(void*));
+        return sizeof(void*) + sizeof(void*);
+    }
     uint8_t *&heapDatum() const {
         MOZ_ASSERT(isFinished());
         return *(uint8_t**)(globalData() + heapGlobalDataOffset());
     }
+    uintptr_t &heapLenDatum() const {
+        MOZ_ASSERT(isFinished());
+        return *(uintptr_t*)(globalData() + heapLenGlobalDataOffset());
+    }
     static unsigned nan64GlobalDataOffset() {
         static_assert(jit::AsmJSNaN64GlobalDataOffset % sizeof(double) == 0,
                       "Global data NaN should be aligned");
-        return heapGlobalDataOffset() + sizeof(void*);
+        return heapLenGlobalDataOffset() + sizeof(void*);
     }
     static unsigned nan32GlobalDataOffset() {
         static_assert(jit::AsmJSNaN32GlobalDataOffset % sizeof(double) == 0,

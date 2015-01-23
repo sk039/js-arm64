@@ -727,8 +727,8 @@ static const uint32_t AsmJSFrameBytesAfterReturnAddress = sizeof(void*);
 // everywhere. Values are asserted in AsmJSModule.h.
 static const unsigned AsmJSActivationGlobalDataOffset = 0;
 static const unsigned AsmJSHeapGlobalDataOffset = sizeof(void*);
-static const unsigned AsmJSNaN64GlobalDataOffset = 2 * sizeof(void*);
-static const unsigned AsmJSNaN32GlobalDataOffset = 2 * sizeof(void*) + sizeof(double);
+static const unsigned AsmJSNaN64GlobalDataOffset = 3 * sizeof(void*);
+static const unsigned AsmJSNaN32GlobalDataOffset = 3 * sizeof(void*) + sizeof(double);
 
 // Summarizes a heap access made by asm.js code that needs to be patched later
 // and/or looked up by the asm.js signal handlers. Different architectures need

@@ -773,7 +773,7 @@ AsmJSModule::initHeap(Handle<ArrayBufferObjectMaybeShared *> heap, JSContext *cx
 
     maybeHeap_ = heap;
     heapDatum() = heap->dataPointer();
-
+    heapLenDatum() = heap->byteLength();
 #if defined(JS_CODEGEN_X86)
     uint8_t *heapOffset = heap->dataPointer();
     for (unsigned i = 0; i < heapAccesses_.length(); i++) {
