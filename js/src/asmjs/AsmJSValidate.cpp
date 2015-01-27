@@ -8995,12 +8995,6 @@ GenerateAsyncInterruptExit(ModuleCompiler &m, Label *throwLabel)
     masm.And(sp, x19, Operand(~15));
     ARMRegister fake_sp = masm.GetStackPointer();
     masm.SetStackPointer(sp);
-    // Store resumePC into the return PC stack slot.
-    masm.loadAsmJSActivation(IntArgReg0);
-    masm.loadPtr(Address(IntArgReg0, AsmJSActivation::offsetOfResumePC()), IntArgReg1);
-    // lr is r30, which is currently sitting in *(r28+16)
-    // this could probably also be done by doing this load *before* lr was pushed.
-    masm.storePtr(IntArgReg1, Address(r28, 0));
 
     // When this platform supports SIMD extensions, we'll need to push and pop
     // high lanes of SIMD registers as well.
@@ -9013,6 +9007,27 @@ GenerateAsyncInterruptExit(ModuleCompiler &m, Label *throwLabel)
     masm.branchIfFalseBool(ReturnReg, throwLabel);
 
 
+    // SWEET BABY JESUS, AsyncInterruptExit /really/ wants to function without modifing any registers
+    // trouble is: this is basically impossible, since we still need to /return/
+
+    Label retInst;
+
+    // Grab the resumepc from the activation
+    masm.loadAsmJSActivation(IntArgReg0);
+    masm.loadPtr(Address(IntArgReg0, AsmJSActivation::offsetOfResumePC()), IntArgReg0);
+    // get the address of the return instruction
+    masm.Adr(ARMRegister(IntArgReg1, 64), &retInst);
+    // get the offset between the return instruction and the resumepc
+    masm.Sub(ARMRegister(IntArgReg2, 64), ARMRegister(IntArgReg0, 64), ARMRegister(IntArgReg1, 64));
+    // start making an instruction, the top six bits are 0b000101, or 0x18000000
+    masm.Mov(ARMRegister(IntArgReg0,32), UnconditionalBranchFixed);
+    // chop off the lowest two bits, since that is how B is encoded.
+    masm.Asr(ARMRegister(IntArgReg2, 64), ARMRegister(IntArgReg2, 64), 2);
+    // stick the lower 25 bits of the offset onto the instruction
+    masm.Bfi(ARMRegister(IntArgReg0,32), ARMRegister(IntArgReg2,32), 0, 26);
+    // write this into the address of the instruction.
+    masm.Str(ARMRegister(IntArgReg0, 32), MemOperand(ARMRegister(IntArgReg1, 64), 0));
+    // TODO: flush the icache, simulator only currently, so it doesn't matter much.
     masm.Msr(NZCV, x20);
 
     // Restore the machine state to before the interrupt. this will set the pc!
@@ -9040,7 +9055,9 @@ GenerateAsyncInterruptExit(ModuleCompiler &m, Label *throwLabel)
     masm.Ldp(x0, x1, MemOperand(x28, 16, PostIndex));
 
     masm.Add(sp, sp, 8*32);
-    masm.ret();
+    masm.bind(&retInst);
+    // this 'breakpoint' should get overwritten with a branch to the return address
+    masm.breakpoint();
 #elif defined(JS_CODEGEN_NONE)
     MOZ_CRASH();
 #else
