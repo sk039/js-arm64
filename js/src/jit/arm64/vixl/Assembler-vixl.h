@@ -1960,22 +1960,22 @@ class AssemblerVIXL : public AssemblerShared
         Emit(at, instruction);
     }
 
-  private:
+  public:
     // Emit data inline in the instruction stream.
-    void EmitData(void const * data, unsigned size) {
+    BufferOffset EmitData(void const * data, unsigned size) {
         JS_STATIC_ASSERT(sizeof(*pc_) == 1);
-        MOZ_ASSERT(size == 4);
+        MOZ_ASSERT(size % 4 == 0);
         pc_ += 1;
-        armbuffer_.putInt(*(uint32_t*)(data), false);
+        BufferOffset ret = armbuffer_.allocEntry(size / sizeof(uint32_t), 0, (uint8_t*)(data), nullptr);
         // TODO: MOZ_ASSERT((pc_ + size) <= (buffer_ + buffer_size_));
 
 #ifdef DEBUG
         finalized_ = false;
 #endif
-
+        return ret;
 
     }
-
+  private:
     inline void CheckBufferSpace() {
         MOZ_ASSERT(!armbuffer_.oom());
         // TODO: MOZ_ASSERT(pc_ < (buffer_ + buffer_size_));
