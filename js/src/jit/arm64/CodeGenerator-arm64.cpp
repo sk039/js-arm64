@@ -594,16 +594,59 @@ class js::jit::OutOfLineTableSwitch : public OutOfLineCodeBase<CodeGeneratorARM6
     }
 };
 
-void 
+void
 CodeGeneratorARM64::visitOutOfLineTableSwitch(OutOfLineTableSwitch *ool)
 {
-    MOZ_CRASH("CodeGeneratorARM64::visitOutOfLineTableSwitch");
+    MTableSwitch *mir = ool->mir();
+
+    size_t numCases = mir->numCases();
+    for (size_t i = 0; i < numCases; i++) {
+        LBlock *caseblock = skipTrivialBlocks(mir->getCase(i))->lir();
+        Label *caseheader = caseblock->label();
+        uint32_t caseoffset = caseheader->offset();
+
+        // The entries of the jump table need to be absolute addresses and thus
+        // must be patched after codegen is finished.
+        CodeLabel cl = ool->codeLabel(i);
+        cl.src()->bind(caseoffset);
+        masm.addCodeLabel(cl);
+    }
 }
 
-void 
-CodeGeneratorARM64::emitTableSwitchDispatch(MTableSwitch *mir, Register index, Register base)
+void
+CodeGeneratorARM64::emitTableSwitchDispatch(MTableSwitch *mir, Register index_, Register base_)
 {
-    MOZ_CRASH("CodeGeneratorARM64::emitTableSwitchDispatch");
+    ARMRegister index(index_, 64);
+    ARMRegister index32(index_, 32);
+    Label *defaultcase = skipTrivialBlocks(mir->getDefault())->lir()->label();
+
+    int32_t cases = mir->numCases();
+    // Lower value with low value.
+    masm.Sub(index32, index32, Operand(mir->low()));
+    masm.Cmp(index32, Operand(cases));
+    //masm.breakpoint();
+    masm.B(defaultcase, Assembler::AboveOrEqual);
+
+    // Inhibit pools within the following sequence because we are indexing into
+    // a pc relative table. The region will have one instruction for ma_ldr, one
+    // for ma_b, and each table case takes one word.
+
+    AutoForbidPools afp(&masm, 1 + 1 + 1 + cases*2);
+    Label table;
+    masm.Adr(ScratchReg2_64, &table);
+    masm.Ldr(ScratchReg2_64, MemOperand(ScratchReg2_64, index, LSL, 3));
+    masm.Blr(ScratchReg2_64);
+    // To fill in the CodeLabels for the case entries, we need to first generate
+    // the case entries (we don't yet know their offsets in the instruction
+    // stream).
+    OutOfLineTableSwitch *ool = new(alloc()) OutOfLineTableSwitch(alloc(), mir);
+    masm.bind(&table);
+    for (int32_t i = 0; i < cases; i++) {
+        CodeLabel cl;
+        masm.writeCodePointer(cl.dest());
+        ool->addCodeLabel(cl);
+    }
+    addOutOfLineCode(ool, mir);
 }
 
 void 
