@@ -1973,7 +1973,8 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
 
     void memIntToValue(Address Source, Address Dest) {
-        MOZ_CRASH("memIntToValue");
+        load32(Source, ScratchReg2);
+        storeValue(JSVAL_TYPE_INT32, ScratchReg2, Dest);
     }
 
     void branchPtrInNurseryRange(Condition cond, Register ptr, Register temp, Label *label);
