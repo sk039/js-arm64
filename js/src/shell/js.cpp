@@ -3609,13 +3609,11 @@ EscapeForShell(AutoCStringVector &argv)
 
 static Vector<const char*, 4, js::SystemAllocPolicy> sPropagatedFlags;
 
-#if defined(JS_CODEGEN_X86) || defined(JS_CODEGEN_X64)
 static bool
 PropagateFlagToNestedShells(const char *flag)
 {
     return sPropagatedFlags.append(flag);
 }
-#endif
 
 static bool
 NestedShell(JSContext *cx, unsigned argc, jsval *vp)
@@ -5842,7 +5840,15 @@ main(int argc, char **argv, char **envp)
         PropagateFlagToNestedShells("--no-avx");
     }
 #endif
-
+    if (op.getBoolOption("no-asmjs")) {
+        PropagateFlagToNestedShells("--no-asmjs");
+    }
+    if (op.getBoolOption("no-native-regexp")) {
+        PropagateFlagToNestedShells("--no-native-regexp");
+    }
+    if (op.getBoolOption("no-ion")) {
+        PropagateFlagToNestedShells("--no-ion");
+    }
     if (op.getBoolOption("no-threads"))
         js::DisableExtraThreads();
 
