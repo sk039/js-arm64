@@ -462,7 +462,8 @@ AssemblerVIXL::LinkAndGetOffsetTo(BufferOffset branch, Label *label)
     // the branches, and update the linked list head in the label struct.
     ptrdiff_t prevHeadOffset = static_cast<ptrdiff_t>(label->offset());
     label->use(branch.getOffset());
-    return prevHeadOffset;
+    MOZ_ASSERT(prevHeadOffset - branch.getOffset() != LabelBase::INVALID_OFFSET);
+    return prevHeadOffset - branch.getOffset();
 }
 
 ptrdiff_t

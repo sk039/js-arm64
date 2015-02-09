@@ -219,7 +219,8 @@ Assembler::bind(Label *label, BufferOffset targetOffset)
         // Before overwriting the offset in this instruction, get the offset of
         // the next link in the implicit branch list.
         uint32_t nextLinkOffset = uint32_t(link->ImmPCRawOffset());
-
+        if (nextLinkOffset != LabelBase::INVALID_OFFSET)
+            nextLinkOffset += branchOffset;
         // Linking against the actual (Instruction *) would be invalid,
         // since that Instruction could be anywhere in memory.
         // Instead, just link against the correct relative offset, assuming
@@ -500,7 +501,7 @@ Assembler::TraceDataRelocations(JSTracer *trc, JitCode *code, CompactBufferReade
 int32_t
 Assembler::ExtractCodeLabelOffset(uint8_t *code)
 {
-    MOZ_CRASH("ExtractCodeLabelOffset()");
+    return *(int32_t *)code;
 }
 
 void
