@@ -310,9 +310,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
     void tagValue(JSValueType type, Register payload, ValueOperand dest) {
         // TODO: This could be more clever, but the first attempt had bugs.
-        movePtr(ImmShiftedTag(type), ScratchReg2);
-        Orr(ARMRegister(dest.valueReg(), 64),
-            ARMRegister(ScratchReg2, 64), ARMRegister(payload, 64));
+        Orr(ARMRegister(dest.valueReg(), 64), ARMRegister(payload, 64), Operand(ImmShiftedTag(type).value));
     }
     void pushValue(ValueOperand val) {
         MacroAssemblerVIXL::Push(ARMRegister(val.valueReg(), 64));
