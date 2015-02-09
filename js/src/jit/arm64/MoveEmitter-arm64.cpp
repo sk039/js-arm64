@@ -73,12 +73,12 @@ MoveEmitterARM64::emitFloat32Move(const MoveOperand &from, const MoveOperand &to
 {
     if (from.isFloatReg()) {
         if (to.isFloatReg())
-            masm.fmov(toFPReg(to), toFPReg(from));
+            masm.fmov(toFPReg(to, MoveOp::FLOAT32), toFPReg(from, MoveOp::FLOAT32));
         else
-            masm.Str(toFPReg(from), toMemOperand(to));
+            masm.Str(toFPReg(from, MoveOp::FLOAT32), toMemOperand(to));
     } else {
         if (to.isFloatReg()) {
-            masm.Ldr(toFPReg(to), toMemOperand(from));
+            masm.Ldr(toFPReg(to, MoveOp::FLOAT32), toMemOperand(from));
         } else {
             masm.Ldr(ScratchFloat32Reg_, toMemOperand(from));
             masm.Str(ScratchFloat32Reg_, toMemOperand(to));
@@ -91,12 +91,12 @@ MoveEmitterARM64::emitDoubleMove(const MoveOperand &from, const MoveOperand &to)
 {
     if (from.isFloatReg()) {
         if (to.isFloatReg())
-            masm.fmov(toFPReg(to), toFPReg(from));
+            masm.fmov(toFPReg(to, MoveOp::DOUBLE), toFPReg(from, MoveOp::DOUBLE));
         else
-            masm.Str(toFPReg(from), toMemOperand(to));
+            masm.Str(toFPReg(from, MoveOp::DOUBLE), toMemOperand(to));
     } else {
         if (to.isFloatReg()) {
-            masm.Ldr(toFPReg(to), toMemOperand(from));
+            masm.Ldr(toFPReg(to, MoveOp::DOUBLE), toMemOperand(from));
         } else {
             masm.ldr(ScratchDoubleReg_, toMemOperand(from));
             masm.Str(ScratchDoubleReg_, toMemOperand(to));
@@ -186,7 +186,7 @@ MoveEmitterARM64::breakCycle(const MoveOperand &from, const MoveOperand &to, Mov
             masm.Ldr(temp, toMemOperand(to));
             masm.Str(temp, cycleSlot());
         } else {
-            masm.Str(toARMReg64(to), cycleSlot());
+            masm.Str(toFPReg(to, type), cycleSlot());
         }
         break;
       case MoveOp::DOUBLE:
@@ -195,7 +195,7 @@ MoveEmitterARM64::breakCycle(const MoveOperand &from, const MoveOperand &to, Mov
             masm.Ldr(temp, toMemOperand(to));
             masm.Str(temp, cycleSlot());
         } else {
-            masm.Str(toARMReg64(to), cycleSlot());
+            masm.Str(toFPReg(to, type), cycleSlot());
         }
         break;
       case MoveOp::INT32:
