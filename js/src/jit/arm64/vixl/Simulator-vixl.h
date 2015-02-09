@@ -321,12 +321,18 @@ class Simulator : public DecoderVisitor
         MOZ_ASSERT(IsWordAligned(pc_));
         decoder_->Decode(pc_);
         int64_t rpc = resume_pc_;
+        increment_pc();
         if (MOZ_UNLIKELY(rpc != 0)) {
+            fflush(stdout);
+            printf("Setting pc from signal handler: %p->%p!\n", get_pc(), rpc);
             PerThreadData::innermostAsmJSActivation()->setResumePC((void *)get_pc());
             set_pc(reinterpret_cast<Instruction*>(rpc));
+            // Just calling set_pc turns the pc_modified_ flag on, which means it doesn't
+            // auto-step after executing the next instruction.  Force that to off so it
+            // will auto-step after executing the first instruction of the handler.
+            pc_modified_ = false;
             resume_pc_ = 0;
         }
-        increment_pc();
     }
 
     // Declare all Visitor functions.
