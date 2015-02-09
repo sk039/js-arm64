@@ -164,7 +164,7 @@ class Assembler : public AssemblerVIXL
         return armbuffer_.poolEntryOffset(pe);
     }
     int labelOffsetToPatchOffset(int labelOff) {
-        return labelOff;
+        return actualOffset(labelOff);
     }
     static uint8_t *PatchableJumpAddress(JitCode *code, uint32_t index) {
         MOZ_CRASH("patchableJumpAddress");
