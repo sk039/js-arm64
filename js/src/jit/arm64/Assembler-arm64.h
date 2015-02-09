@@ -116,7 +116,7 @@ class Assembler : public AssemblerVIXL
     }
 
     bool addCodeLabel(CodeLabel label) {
-        MOZ_CRASH("addCodeLabel()");
+        propagateOOM(codeLabels_.append(label));
     }
     size_t numCodeLabels() const {
         return codeLabels_.length();
@@ -291,6 +291,20 @@ class Assembler : public AssemblerVIXL
     CompactBufferWriter preBarriers_;
   public:
     static void UpdateBoundsCheck(uint32_t logHeapSize, Instruction *inst);
+    void writeCodePointer(AbsoluteLabel *absoluteLabel) {
+        MOZ_ASSERT(!absoluteLabel->bound());
+        uintptr_t x = LabelBase::INVALID_OFFSET;
+        BufferOffset off = EmitData(&x, sizeof(uintptr_t));
+
+        // The x86/x64 makes general use of AbsoluteLabel and weaves a linked list
+        // of uses of an AbsoluteLabel through the assembly. ARM only uses labels
+        // for the case statements of switch jump tables. Thus, for simplicity, we
+        // simply treat the AbsoluteLabel as a label and bind it to the offset of
+        // the jump table entry that needs to be patched.
+        LabelBase *label = absoluteLabel;
+        label->bind(off.getOffset());
+    }
+
 };
 
 class ABIArgGenerator
