@@ -8986,13 +8986,13 @@ GenerateAsyncInterruptExit(ModuleCompiler &m, Label *throwLabel)
     masm.Stp(x29, x30, MemOperand(x28, -16, PreIndex));
 
     // now save sp as well
-    masm.Add(x19, sp, Operand(0));
-    masm.Mrs(x20, NZCV);
+    masm.Add(x25, sp, Operand(0));
+    masm.Mrs(x26, NZCV);
     // don't need to store those two, since the registers should be preserved.
     //masm.Stp(x9, x10, MemOperand(x28, -16, PreIndex));
 
     // Align the stack, sp was previously copied to r19.
-    masm.And(sp, x19, Operand(~15));
+    masm.And(sp, x25, Operand(~15));
     ARMRegister fake_sp = masm.GetStackPointer();
     masm.SetStackPointer(sp);
 
@@ -9028,11 +9028,11 @@ GenerateAsyncInterruptExit(ModuleCompiler &m, Label *throwLabel)
     // write this into the address of the instruction.
     masm.Str(ARMRegister(IntArgReg0, 32), MemOperand(ARMRegister(IntArgReg1, 64), 0));
     // TODO: flush the icache, simulator only currently, so it doesn't matter much.
-    masm.Msr(NZCV, x20);
+    masm.Msr(NZCV, x26);
 
     // Restore the machine state to before the interrupt. this will set the pc!
     masm.PopRegsInMask(RegisterSet(GeneralRegisterSet(0), FloatRegisterSet(FloatRegisters::AllDoubleMask)));   // restore all FP registers
-    masm.Mov(sp,x19);
+    masm.Mov(sp,x25);
 
     masm.SetStackPointer(fake_sp);
 
