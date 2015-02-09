@@ -255,18 +255,20 @@ js::jit::Operand toWOperand(const LAllocation *a)
 }
 
 CPURegister
-ToCPURegister(const LAllocation *a)
+ToCPURegister(const LAllocation *a, Scalar::Type type)
 {
-    if (a->isFloatReg())
+    if (a->isFloatReg() && type == Scalar::Float64)
         return ARMFPRegister(ToFloatRegister(a), 64);
+    if (a->isFloatReg() && type == Scalar::Float32)
+        return ARMFPRegister(ToFloatRegister(a), 32);
     if (a->isGeneralReg())
         return ARMRegister(ToRegister(a), 32);
     MOZ_CRASH("Unknown LAllocation");
 }
 CPURegister
-ToCPURegister(const LDefinition *d)
+ToCPURegister(const LDefinition *d, Scalar::Type type)
 {
-    return ToCPURegister(d->output());
+    return ToCPURegister(d->output(), type);
 }
 
 void
@@ -1097,7 +1099,7 @@ CodeGeneratorARM64::visitAsmJSLoadHeap(LAsmJSLoadHeap *ins)
       default: MOZ_CRASH("unexpected array type");
     }
 
-    CPURegister rt = ToCPURegister(ins->output());
+    CPURegister rt = ToCPURegister(ins->output(), mir->viewType());
     if (ptr->isConstant()) {
         int32_t ptrImm = ptr->toConstant()->toInt32();
         MOZ_ASSERT(ptrImm >= 0);
@@ -1138,7 +1140,7 @@ CodeGeneratorARM64::visitAsmJSStoreHeap(LAsmJSStoreHeap *ins)
     // TODO: What is the point of isSigned here?
     (void) isSigned;
 
-    CPURegister rt = ToCPURegister(ins->value());
+    CPURegister rt = ToCPURegister(ins->value(), mir->viewType());
     if (ptr->isConstant()) {
         int32_t ptrImm = ptr->toConstant()->toInt32();
         MOZ_ASSERT(ptrImm >= 0);
