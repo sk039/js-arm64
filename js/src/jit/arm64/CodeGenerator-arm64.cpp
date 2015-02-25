@@ -224,10 +224,12 @@ CodeGeneratorARM64::bailout(LSnapshot *snapshot)
     MOZ_CRASH("CodeGeneratorARM64::bailout");
 }
 
-void 
+void
 CodeGeneratorARM64::visitOutOfLineBailout(OutOfLineBailout *ool)
 {
-    MOZ_CRASH("CodeGeneratorARM64::visitOutOfLineBailout");
+    masm.Mov(ScratchReg2_32, Operand(ool->snapshot()->snapshotOffset()));
+    masm.MacroAssemblerVIXL::Push(ScratchReg64, ScratchReg2_64); // BailoutStack::snapshotOffset_
+    masm.b(&deoptLabel_);
 }
 
 void
