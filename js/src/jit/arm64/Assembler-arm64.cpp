@@ -166,18 +166,37 @@ Assembler::executableCopy(uint8_t *buffer)
 }
 
 BufferOffset
-Assembler::immPool(ARMRegister dest, uint8_t *value, LoadLiteralOp op)
+Assembler::immPool(ARMRegister dest, uint8_t *value, LoadLiteralOp op, ARMBuffer::PoolEntry *pe)
 {
     uint32_t inst = op | Rt(dest);
     const size_t numInst = 1;
     const unsigned numPoolEntries = 2;
-    return armbuffer_.allocEntry(numInst, numPoolEntries, (uint8_t*)&inst, value);
+    return armbuffer_.allocEntry(numInst, numPoolEntries, (uint8_t*)&inst, value, pe);
 }
 
 BufferOffset
-Assembler::immPool64(ARMRegister dest, uint64_t value)
+Assembler::immPool64(ARMRegister dest, uint64_t value, ARMBuffer::PoolEntry *pe)
 {
-    return immPool(dest, (uint8_t*)&value, LDR_x_lit);
+    return immPool(dest, (uint8_t*)&value, LDR_x_lit, pe);
+}
+BufferOffset
+Assembler::immPool64Branch(RepatchLabel *label, ARMBuffer::PoolEntry *pe, Condition c)
+{
+    #if 0
+    uint64_t absoff = 0xdeadbeefbad0b004;
+    
+    BufferOffset ret = immPool(ScratchReg2_64, (uint8_t*)&absoff, LDR_x_lit, pe);
+    Instruction instptr = getInstructionAt(ret);
+    uint32_t offset = LabelBase::INVALID_OFFSET;
+    if (label->bound()) {
+        offset = label->getOffset() - ret.getOffset();
+    } else {
+        label->use(ret.getOffset());
+    }
+    b(instptr, offset, c);
+    #endif
+    BufferOffset ret;
+    return ret;
 }
 
 BufferOffset
