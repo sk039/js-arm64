@@ -46,7 +46,8 @@ C(ContinueCommand)             \
 C(StepCommand)                 \
 C(DisasmCommand)               \
 C(PrintCommand)                \
-C(ExamineCommand)
+C(ExamineCommand)             \
+C(QuitCommand) 
 
 // Debugger command lines are broken up in token of different type to make
 // processing easier later on.
@@ -423,7 +424,17 @@ class ExamineCommand : public DebugCommand
     FormatToken* format_;
     IntegerToken* count_;
 };
+class QuitCommand : public DebugCommand
+{
+  public:
+    static DebugCommand* Build(std::vector<Token*> args);
+    virtual bool Run(DebuggerARM64* debugger);
+    
+    static const char* kHelp;
+    static const char* kAliases[];
+    static const char* kArguments;
 
+};
 // Commands which name does not match any of the known commnand.
 class UnknownCommand : public DebugCommand
 {
@@ -475,6 +486,13 @@ const char* DisasmCommand::kArguments = "[n = 10]";
 const char* DisasmCommand::kHelp =
 "  Disassemble n instruction(s) at pc.\n"
 "  This command is equivalent to x pc.i [n = 10]."
+;
+
+
+const char* QuitCommand::kAliases[] = { "quit", "q", NULL };
+const char* QuitCommand::kArguments = "";
+const char* QuitCommand::kHelp =
+"quit the simulator"
 ;
 
 const char* PrintCommand::kAliases[] = { "print", "p", NULL };
@@ -713,7 +731,14 @@ DebuggerARM64::VisitException(Instruction* instr)
       default: Simulator::VisitException(instr);
     }
 }
+void
+DebuggerARM64::VisitUnallocated(Instruction *instr)
+{
+    set_debug_parameters(debug_parameters() | DBG_BREAK | DBG_ACTIVE);
+    // Make the shell point to the brk instruction.
+    set_pc(instr);
 
+}
 void
 DebuggerARM64::LogSystemRegisters()
 {
@@ -1319,6 +1344,16 @@ HelpCommand::Build(std::vector<Token*> args)
     if (args.size() != 1)
         return new InvalidCommand(args, -1, "too many arguments");
     return new HelpCommand(args[0]);
+}
+DebugCommand*
+QuitCommand::Build(std::vector<Token*> args)
+{
+    return new QuitCommand();
+}
+bool
+QuitCommand::Run(DebuggerARM64 *debugger)
+{
+    exit(0);
 }
 
 bool
