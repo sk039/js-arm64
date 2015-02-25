@@ -492,6 +492,14 @@ AssemblerVIXL::br(const ARMRegister& xn)
     // No need for EmitBranch(): no immediate offset needs fixing.
     Emit(BR | Rn(xn));
 }
+// Code generation.
+void
+AssemblerVIXL::br(Instruction * at, const ARMRegister& xn)
+{
+    MOZ_ASSERT(xn.Is64Bits());
+    // No need for EmitBranch(): no immediate offset needs fixing.
+    Emit(at, BR | Rn(xn));
+}
 
 void
 AssemblerVIXL::blr(const ARMRegister& xn)

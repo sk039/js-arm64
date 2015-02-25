@@ -794,6 +794,7 @@ class AssemblerVIXL : public AssemblerShared
     // Branch to register.
 
     void br(const ARMRegister& xn);
+    static void br(Instruction *at, const ARMRegister& xn);
 
     // Branch with link to register.
     void blr(const ARMRegister& xn);
