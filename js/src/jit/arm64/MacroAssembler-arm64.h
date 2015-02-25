@@ -297,7 +297,31 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     void storeUnboxedValue(ConstantOrRegister value, MIRType valueType, const T &dest,
                            MIRType slotType)
     {
-        MOZ_CRASH("storeUnboxedValue");
+        if (valueType == MIRType_Double) {
+            storeDouble(value.reg().typedReg().fpu(), dest);
+            return;
+        }
+
+        // For known integers and booleans, we can just store the unboxed value if
+        // the slot has the same type.
+        if ((valueType == MIRType_Int32 || valueType == MIRType_Boolean) && slotType == valueType) {
+            if (value.constant()) {
+                Value val = value.value();
+                if (valueType == MIRType_Int32)
+                    store32(Imm32(val.toInt32()), dest);
+                else
+                    store32(Imm32(val.toBoolean() ? 1 : 0), dest);
+            } else {
+                store32(value.reg().typedReg().gpr(), dest);
+            }
+            return;
+        }
+
+        if (value.constant())
+            storeValue(value.value(), dest);
+        else
+            storeValue(ValueTypeFromMIRType(valueType), value.reg().typedReg().gpr(), dest);
+
     }
     void loadValue(Address src, Register val) {
         Ldr(ARMRegister(val, 64), MemOperand(src));
@@ -796,10 +820,12 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         Cmp(ARMRegister(a, 32), Operand(ARMRegister(b, 32)));
     }
     void cmp32(const Operand &lhs, Imm32 rhs) {
-        MOZ_CRASH("cmp32");
+        Mov(ScratchReg2_32, lhs);
+        Cmp(ScratchReg2_32, Operand(rhs.value));
     }
     void cmp32(const Operand &lhs, Register rhs) {
-        MOZ_CRASH("cmp32");
+        Mov(ScratchReg2_32, lhs);
+        Cmp(ScratchReg2_32, Operand(ARMRegister(rhs, 32)));
     }
 
     void cmpPtr(Register lhs, ImmWord rhs) {
@@ -812,7 +838,8 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         Cmp(ARMRegister(lhs, 64), ARMRegister(rhs, 64));
     }
     void cmpPtr(Register lhs, ImmGCPtr rhs) {
-        MOZ_CRASH("cmpPtr");
+        movePtr(rhs, ScratchReg2);
+        cmpPtr(lhs, ScratchReg2);
     }
     void cmpPtr(Register lhs, ImmMaybeNurseryPtr rhs) {
         cmpPtr(lhs, noteMaybeNurseryPtr(rhs));
@@ -1222,10 +1249,15 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         B(label, cond);
     }
     void branchPtr(Condition cond, Register lhs, ImmGCPtr ptr, Label *label) {
-        MOZ_CRASH("branchPtr");
+        movePtr(ptr, ScratchReg2);
+        branchPtr(cond, lhs, ScratchReg2, label);
     }
     void branchPtr(Condition cond, Address lhs, ImmGCPtr ptr, Label *label) {
-        MOZ_CRASH("branchPtr");
+        movePtr(ptr, ScratchReg2);
+        loadPtr(lhs, ScratchReg);
+        cmp(ScratchReg64, ScratchReg2_64);
+        B(cond, label);
+
     }
     void branchPtr(Condition cond, Address lhs, ImmMaybeNurseryPtr ptr, Label *label) {
         branchPtr(cond, lhs, noteMaybeNurseryPtr(ptr), label);
@@ -1268,7 +1300,8 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
 
     void decBranchPtr(Condition cond, Register lhs, Imm32 imm, Label *label) {
-        MOZ_CRASH("decBranchPtr");
+        Subs(ARMRegister(lhs, 64), ARMRegister(lhs, 64), Operand(imm.value));
+        B(cond, label);
     }
 
     void branchTestUndefined(Condition cond, Register tag, Label *label) {
@@ -1579,7 +1612,18 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
 
     void unboxValue(const ValueOperand &src, AnyRegister dest) {
-        MOZ_CRASH("unboxValue");
+        if (dest.isFloat()) {
+            Label notInt32, end;
+            branchTestInt32(Assembler::NotEqual, src, &notInt32);
+            convertInt32ToDouble(src.valueReg(), dest.fpu());
+            jump(&end);
+            bind(&notInt32);
+            unboxDouble(src, dest.fpu());
+            bind(&end);
+        } else {
+            unboxNonDouble(src, dest.gpr());
+        }
+
     }
     void unboxString(const ValueOperand &operand, Register dest) {
         unboxNonDouble(operand, dest);
@@ -1587,7 +1631,12 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     void unboxString(const Address &src, Register dest) {
         unboxNonDouble(src, dest);
     }
-
+    void unboxSymbol(const ValueOperand &operand, Register dest) {
+        unboxNonDouble(operand, dest);
+    }
+    void unboxSymbol(const Address &src, Register dest) {
+        unboxNonDouble(src, dest);
+    }
     // These two functions use the low 32-bits of the full value register.
     void boolValueToDouble(const ValueOperand &operand, FloatRegister dest) {
         convertInt32ToDouble(operand.valueReg(), dest);
@@ -1858,10 +1907,41 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         Condition c = testStringTruthy(truthy, value);
         B(label, c);
     }
+    void int32OrDouble(Register src, ARMFPRegister dest) {
+        Label isInt32;
+        Label join;
+        testInt32(Equal, src);
+        B(&isInt32, Equal);
+        // is double, move teh bits as is
+        Fmov(dest, ARMRegister(src, 64));
+        B(&join);
+        bind(&isInt32);
+        // is int32, do a conversion while moving
+        Scvtf(dest, ARMRegister(src, 64));
+        bind(&join);
+    }
+    void loadUnboxedValue(Address address, MIRType type, AnyRegister dest) {
+        if (dest.isFloat()) {
+            Ldr(ScratchReg2_64, toMemOperand(address));
+            int32OrDouble(ScratchReg2, ARMFPRegister(dest.fpu(), 64));
+        } else if (type == MIRType_Int32 || type == MIRType_Boolean) {
+            load32(address, dest.gpr());
+        } else {
+            loadPtr(address, dest.gpr());
+            unboxNonDouble(dest.gpr(), dest.gpr());
+        }
+    }
 
-    template <typename T>
-    void loadUnboxedValue(const T &src, MIRType type, AnyRegister dest) {
-        MOZ_CRASH("loadUnboxedValue");
+    void loadUnboxedValue(BaseIndex address, MIRType type, AnyRegister dest) {
+        if (dest.isFloat()) {
+            doBaseIndex(ScratchReg2_64, address, LDR_x);
+            int32OrDouble(ScratchReg2, ARMFPRegister(dest.fpu(), 64));
+        }  else if (type == MIRType_Int32 || type == MIRType_Boolean) {
+            load32(address, dest.gpr());
+        } else {
+            loadPtr(address, dest.gpr());
+            unboxNonDouble(dest.gpr(), dest.gpr());
+        }
     }
 
     void loadInstructionPointerAfterCall(Register dest) {

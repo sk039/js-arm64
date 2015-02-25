@@ -779,7 +779,15 @@ CodeGeneratorARM64::visitCeilF(LCeilF *lir)
 void 
 CodeGeneratorARM64::visitRound(LRound *lir)
 {
-    MOZ_CRASH("CodeGeneratorARM64::visitRound");
+    FloatRegister input = ToFloatRegister(lir->input());
+    Register output = ToRegister(lir->output());
+    FloatRegister tmp = ToFloatRegister(lir->temp());
+    Label bail;
+    // Output is either correct, or clamped. All -0 cases have been translated
+    // to a clamped case.
+    // TODO: supposedly this is not the same as the round operation that we need?
+    masm.convertDoubleToInt32(input, output, &bail, true);
+    bailoutFrom(&bail, lir->snapshot());
 }
 
 void 
