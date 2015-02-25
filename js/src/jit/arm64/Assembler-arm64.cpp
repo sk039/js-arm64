@@ -298,6 +298,7 @@ Assembler::addPendingJump(BufferOffset src, ImmPtr target, Relocation::Kind relo
 size_t
 Assembler::addPatchableJump(BufferOffset src, Relocation::Kind reloc)
 {
+    MOZ_CRASH("TODO: This is currently unused (and untested)");
     if (reloc == Relocation::JITCODE)
         addJumpRelocation(src, reloc);
 

@@ -87,7 +87,7 @@ CodeGeneratorARM64::generateOutOfLineCode()
         masm.bind(&deoptLabel_);
 
         // Push the frame size, so the handler can recover the IonScript.
-        masm.Mov(w30, frameSize());
+        masm.Mov(x30, frameSize());
 
         JitCode *handler = gen->jitRuntime()->getGenericBailoutHandler();
         masm.branch(handler);
@@ -107,13 +107,13 @@ CodeGeneratorARM64::emitBranch(Assembler::Condition cond, MBasicBlock *mirTrue, 
     }
 }
 
-void 
+void
 OutOfLineBailout::accept(CodeGeneratorARM64 *codegen)
 {
-    MOZ_CRASH("OutOfLineBailout::accept");
+    codegen->visitOutOfLineBailout(this);
 }
 
-void 
+void
 CodeGeneratorARM64::visitTestIAndBranch(LTestIAndBranch *test)
 {
     const LAllocation *opd = test->getOperand(0);
@@ -149,7 +149,7 @@ CodeGeneratorARM64::visitCompare(LCompare *comp)
 
 }
 
-void 
+void
 CodeGeneratorARM64::visitCompareAndBranch(LCompareAndBranch *comp)
 {
     Assembler::Condition cond = JSOpToCondition(comp->cmpMir()->compareType(), comp->jsop());
@@ -323,10 +323,11 @@ CodeGeneratorARM64::visitMulI(LMulI *ins)
     }
 
     if (mul->canOverflow()) {
-        MOZ_CRASH("TODO: Handle overflow");
         // I should /really/ be able to just bail-out directly from the macro assembler.
         // this song-and-dance with condition codes seems unweildy in this case.
-        masm.mul32(ToRegister(lhs), rhs_reg, ToRegister(dest), nullptr, nullptr);
+        Label onOver;
+        masm.mul32(ToRegister(lhs), rhs_reg, ToRegister(dest), &onOver, nullptr);
+        bailoutFrom(&onOver, ins->snapshot());
     } else {
         masm.mul32(ToRegister(lhs), rhs_reg, ToRegister(dest), nullptr, nullptr);
     }
