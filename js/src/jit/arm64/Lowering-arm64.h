@@ -32,10 +32,10 @@ class LIRGeneratorARM64 : public LIRGeneratorShared
     LAllocation useByteOpRegisterOrNonDoubleConstant(MDefinition *mir);
 
     inline LDefinition tempToUnbox() {
-        return LDefinition::BogusTemp();
+        return temp();
     }
 
-    bool needTempForPostBarrier() { return false; }
+    bool needTempForPostBarrier() { return true; }
 
     // x64 has a scratch register, so no need for another temp for dispatch
     // ICs.
