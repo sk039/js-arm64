@@ -67,8 +67,9 @@ class Assembler : public AssemblerVIXL
 
     void executableCopy(uint8_t *buffer);
 
-    BufferOffset immPool(ARMRegister dest, uint8_t *value, LoadLiteralOp op);
-    BufferOffset immPool64(ARMRegister dest, uint64_t value);
+    BufferOffset immPool(ARMRegister dest, uint8_t *value, LoadLiteralOp op, ARMBuffer::PoolEntry *pe = nullptr);
+    BufferOffset immPool64(ARMRegister dest, uint64_t value, ARMBuffer::PoolEntry *pe = nullptr);
+    BufferOffset immPool64Branch(RepatchLabel *label, ARMBuffer::PoolEntry *pe, Condition c);
     BufferOffset fImmPool(ARMFPRegister dest, uint8_t *value, LoadLiteralOp op);
     BufferOffset fImmPool64(ARMFPRegister dest, double value);
     BufferOffset fImmPool32(ARMFPRegister dest, float value);
@@ -135,7 +136,15 @@ class Assembler : public AssemblerVIXL
         uint32_t off = actualOffset(label->offset());
         *reinterpret_cast<const void **>(rawCode + off) = address;
     }
-
+    bool nextLink(BufferOffset cur, BufferOffset *next) {
+        Instruction *link = getInstructionAt(cur);
+        uint32_t nextLinkOffset = uint32_t(link->ImmPCRawOffset());
+        if (nextLinkOffset == LabelBase::INVALID_OFFSET)
+            return false;
+        *next = BufferOffset(nextLinkOffset + cur.getOffset());
+        return true;
+    }
+    void retarget(Label *cur, Label *next);
     // Move our entire pool into the instruction stream. This is to force an
     // opportunistic dump of the pool, preferrably when it is more convenient
     // to do a dump.
@@ -167,7 +176,7 @@ class Assembler : public AssemblerVIXL
         return actualOffset(labelOff);
     }
     static uint8_t *PatchableJumpAddress(JitCode *code, uint32_t index) {
-        MOZ_CRASH("patchableJumpAddress");
+        return code->raw() + index;
     }
     void setPrinter(Sprinter *sp) {
         MOZ_CRASH("setPrinter()");
@@ -190,7 +199,7 @@ class Assembler : public AssemblerVIXL
 
   public:
     static uint32_t PatchWrite_NearCallSize() {
-        MOZ_CRASH("PatchWrite_NearCallSize()");
+        return 4;
     }
 
     static uint32_t NopSize() {
@@ -198,7 +207,10 @@ class Assembler : public AssemblerVIXL
     }
 
     static void PatchWrite_NearCall(CodeLocationLabel start, CodeLocationLabel toCall) {
-        MOZ_CRASH("PatchWrite_NearCall()");
+        Instruction *dest = (Instruction*)start.raw();
+        //printf("patching %p with call to %p\n", start.raw(), toCall.raw());
+        bl(dest, ((Instruction*)toCall.raw() - dest)>>2);
+
     }
     static void PatchDataWithValueCheck(CodeLocationLabel label,
                                         PatchedImmPtr newValue,
@@ -209,7 +221,11 @@ class Assembler : public AssemblerVIXL
                                         ImmPtr expected);
 
     static void PatchWrite_Imm32(CodeLocationLabel label, Imm32 imm) {
-        MOZ_CRASH("PatchWrite_Imm32()");
+        // Raw is going to be the return address.
+        uint32_t *raw = (uint32_t*)label.raw();
+        // Overwrite the 4 bytes before the return address, which will end up being
+        // the call instruction.
+        *(raw - 1) = imm.value;
     }
     static uint32_t AlignDoubleArg(uint32_t offset) {
         MOZ_CRASH("AlignDoubleArg()");
@@ -217,8 +233,10 @@ class Assembler : public AssemblerVIXL
     static uint8_t *NextInstruction(uint8_t *instruction, uint32_t *count = nullptr) {
         MOZ_CRASH("NextInstruction()");
     }
-    static uintptr_t GetPointer(uint8_t *) {
-        MOZ_CRASH("GetPointer()");
+    static uintptr_t GetPointer(uint8_t *ptr) {
+        Instruction *i = reinterpret_cast<Instruction *>(ptr);
+        uint64_t ret = i->Literal64();
+        return ret;
     }
 
     // Toggle a jmp or cmp emitted by toggledJump().

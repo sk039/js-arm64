@@ -246,8 +246,9 @@ Assembler::bind(RepatchLabel *label)
         label->bind(nextOffset().getOffset());
         return;
     }
-
-    MOZ_CRASH("bind (RepatchLabel)");
+    int branchOffset = label->offset();
+    Instruction *inst = getInstructionAt(BufferOffset(branchOffset));
+    inst->SetImmPCOffsetTarget(inst + nextOffset().getOffset() - branchOffset);
 }
 
 // FIXME: Share with ARM?
@@ -308,7 +309,39 @@ Assembler::addPatchableJump(BufferOffset src, Relocation::Kind reloc)
 // FIXME: Shouldn't this be a static method of Assembler?
 void
 PatchJump(CodeLocationJump &jump_, CodeLocationLabel label) {
-    MOZ_CRASH("PatchJump()");
+    // We need to determine if this jump can fit into the standard 24+2 bit
+    // address or if we need a larger branch (or just need to use our pool
+    // entry).
+    Instruction *jump = (Instruction*)jump_.raw();
+    //printInstruction(jump-12,3);
+    //printf("*");
+    //printInstruction(jump,3);
+    uint8_t **pe = reinterpret_cast<uint8_t**>(jump->LiteralAddress());
+    //printf("patching %p with %p->[%p]\n", jump, label.raw(), pe);
+    *pe = label.raw();
+    jump += 4;
+    if (jump->IsCondBranchImm()) {
+        jump += 4;
+    }
+    AssemblerVIXL::br(jump, ScratchReg2_64);
+    // jumpWithPatch() returns the offset of the jump and never a pool or nop.
+#if 0
+    Assembler::Condition c;
+    jump->extractCond(&c);
+    MOZ_ASSERT(jump->is<InstBranchImm>() || jump->is<InstLDR>());
+
+    int jumpOffset = label.raw() - jump_.raw();
+    if (BOffImm::IsInRange(jumpOffset)) {
+        // This instruction started off as a branch, and will remain one.
+        Assembler::RetargetNearBranch(jump, jumpOffset, c);
+    } else {
+        // This instruction started off as a branch, but now needs to be demoted
+        // to an ldr.
+        uint8_t **slot = reinterpret_cast<uint8_t**>(jump_.jumpTableEntry());
+        Assembler::RetargetFarBranch(jump, slot, label.raw(), c);
+    }
+#endif
+
 }
 
 void
@@ -519,6 +552,47 @@ Assembler::UpdateBoundsCheck(uint32_t heapSize, Instruction *inst)
     inst->SetImmR(imm_r);
     inst->SetImmS(imm_s);
     inst->SetBitN(n);
+}
+
+void
+Assembler::retarget(Label *label, Label *target)
+{
+    if (label->used()) {
+        if (target->bound()) {
+            bind(label, BufferOffset(target));
+        } else if (target->used()) {
+            // The target is not bound but used. Prepend label's branch list
+            // onto target's.
+            BufferOffset labelBranchOffset(label);
+            BufferOffset next;
+
+            // Find the head of the use chain for label.
+            while (nextLink(labelBranchOffset, &next))
+                labelBranchOffset = next;
+
+            // Then patch the head of label's use chain to the tail of target's
+            // use chain, prepending the entire use chain of target.
+            Instruction *branch = getInstructionAt(labelBranchOffset);
+            int32_t prev = target->use(label->offset());
+            branch->SetImmPCOffsetTarget(branch - labelBranchOffset.getOffset());
+#if 0
+            branch.extractCond(&c);
+
+            if (branch.is<InstBImm>())
+                as_b(BOffImm(prev), c, labelBranchOffset);
+            else if (branch.is<InstBLImm>())
+                as_bl(BOffImm(prev), c, labelBranchOffset);
+            else
+                MOZ_CRASH("crazy fixup!");
+#endif
+        } else {
+            // The target is unbound and unused. We can just take the head of
+            // the list hanging off of label, and dump that into target.
+            DebugOnly<uint32_t> prev = target->use(label->offset());
+            MOZ_ASSERT((int32_t)prev == Label::INVALID_OFFSET);
+        }
+    }
+    label->reset();
 }
 } // namespace jit
 } // namespace js
