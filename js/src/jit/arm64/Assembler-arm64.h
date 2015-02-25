@@ -536,7 +536,17 @@ GetFloatArgReg(uint32_t usedIntArgs, uint32_t usedFloatArgs, FloatRegister *out)
 static inline bool
 GetTempRegForIntArg(uint32_t usedIntArgs, uint32_t usedFloatArgs, Register *out)
 {
-    MOZ_CRASH("GetTempRegForIntArg");
+    if (GetIntArgReg(usedIntArgs, usedFloatArgs, out))
+        return true;
+    // Unfortunately, we have to assume things about the point at which
+    // GetIntArgReg returns false, because we need to know how many registers it
+    // can allocate.
+    usedIntArgs -= NumIntArgRegs;
+    if (usedIntArgs >= NumCallTempNonArgRegs)
+        return false;
+    *out = CallTempNonArgRegs[usedIntArgs];
+    return true;
+
 }
 
 // FIXME: Should be shared with ARM's Assembler.
