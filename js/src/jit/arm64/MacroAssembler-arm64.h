@@ -1980,9 +1980,23 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
 
     // Builds an exit frame on the stack, with a return address to an internal
     // non-function. Returns offset to be passed to markSafepointAt().
-    bool buildFakeExitFrame(Register scratch, uint32_t *offset) {
-        MOZ_CRASH("buildFakeExitFrame");
-        return false;
+    void buildFakeExitFrame(Register scratch, uint32_t *offset) {
+        mozilla::DebugOnly<uint32_t> initialDepth = framePushed();
+        uint32_t descriptor = MakeFrameDescriptor(framePushed(), JitFrame_IonJS);
+
+        Push(Imm32(descriptor)); // descriptor_
+
+        enterNoPool(3);
+        Label fakeCallsite;
+        Adr(ARMRegister(scratch, 64), &fakeCallsite);
+        Push(scratch);
+        bind(&fakeCallsite);
+        uint32_t pseudoReturnOffset = currentOffset();
+        leaveNoPool();
+
+        MOZ_ASSERT(framePushed() == initialDepth + ExitFrameLayout::Size());
+
+        *offset = pseudoReturnOffset;
     }
 
     void callWithExitFrame(Label *target) {
@@ -1990,7 +2004,10 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
 
     void callWithExitFrame(JitCode *target) {
-        MOZ_CRASH("callWithExitFrame");
+        uint32_t descriptor = MakeFrameDescriptor(framePushed(), JitFrame_IonJS);
+        Push(Imm32(descriptor)); // descriptor
+
+        call(target);
     }
 
     void callJit(Register callee) {

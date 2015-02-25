@@ -1111,7 +1111,25 @@ CodeGeneratorARM64::visitInterruptCheck(LInterruptCheck *lir)
 void 
 CodeGeneratorARM64::generateInvalidateEpilogue()
 {
-    MOZ_CRASH("CodeGeneratorARM64::generateInvalidateEpilogue");
+    // Ensure that there is enough space in the buffer for the OsiPoint patching
+    // to occur. Otherwise, we could overwrite the invalidation epilogue.
+    for (size_t i = 0; i < sizeof(void *); i += Assembler::NopSize())
+        masm.nop();
+
+    masm.bind(&invalidate_);
+
+    // Push the return address of the point that we bailed out at onto the stack.
+    masm.Push(lr);
+
+    // Push the Ion script onto the stack (when we determine what that pointer is).
+    invalidateEpilogueData_ = masm.pushWithPatch(ImmWord(uintptr_t(-1)));
+    JitCode *thunk = gen->jitRuntime()->getInvalidationThunk();
+
+    masm.branch(thunk);
+
+    // We should never reach this point in JIT code -- the invalidation thunk
+    // should pop the invalidated JS frame and return directly to its caller.
+    masm.assumeUnreachable("Should have returned directly to its caller instead of here.");
 }
 
 void

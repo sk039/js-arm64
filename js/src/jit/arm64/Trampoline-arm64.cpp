@@ -20,8 +20,8 @@ using namespace js::jit;
 // All registers to save and restore. This includes the stack pointer, since we
 // use the ability to reference register values on the stack by index.
 static const RegisterSet AllRegs =
-  RegisterSet(GeneralRegisterSet(Registers::AllMask),
-              FloatRegisterSet(FloatRegisters::AllMask));
+    RegisterSet(GeneralRegisterSet(Registers::AllMask & ~(1 << 31 | 1 << 30 | 1 << 29| 1 << 28)),
+                FloatRegisterSet(FloatRegisters::AllMask));
 
 /* This method generates a trampoline on x64 for a c++ function with
  * the following signature:
@@ -286,7 +286,25 @@ JitRuntime::generateInvalidator(JSContext *cx)
 {
     // FIXME: Actually implement.
     MacroAssembler masm;
-    masm.breakpoint();
+    masm.MacroAssemblerVIXL::Push(x0, x1, x2, x3);
+    masm.PushRegsInMask(AllRegs);
+    masm.Mov(x0, masm.GetStackPointer());
+    masm.Sub(masm.GetStackPointer(), masm.GetStackPointer(), Operand(sizeof(size_t)));
+    masm.Mov(x1, masm.GetStackPointer());
+    masm.Sub(masm.GetStackPointer(), masm.GetStackPointer(), Operand(sizeof(void *)));
+    masm.Mov(x2, masm.GetStackPointer());
+    masm.setupUnalignedABICall(3, r10);
+    masm.passABIArg(r0);
+    masm.passABIArg(r1);
+    masm.passABIArg(r2);
+    masm.callWithABI(JS_FUNC_TO_DATA_PTR(void *, InvalidationBailout));
+    masm.pop(r2);
+    masm.pop(r1);
+    masm.Add(masm.GetStackPointer(), masm.GetStackPointer(), Operand(sizeof(InvalidationBailoutStack)));
+    masm.Add(masm.GetStackPointer(), masm.GetStackPointer(), x1);
+    JitCode *bailoutTail = cx->runtime()->jitRuntime()->getBailoutTail();
+    masm.branch(bailoutTail);
+
     Linker linker(masm);
     return linker.newCode<NoGC>(cx, OTHER_CODE);
 }
@@ -365,11 +383,93 @@ JitRuntime::generateArgumentsRectifier(JSContext *cx, void **returnAddrOut)
     Linker linker(masm);
     return linker.newCode<NoGC>(cx, OTHER_CODE);
 }
+static void
+PushBailoutFrame(MacroAssembler &masm, uint32_t frameClass, Register spArg)
+{
+    // the stack should look like:
+    // [IonFrame]
+    // bailoutFrame.registersnapshot
+    // bailoutFrame.fpsnapshot
+    // bailoutFrame.snapshotOffset
+    // bailoutFrame.frameSize
+
+    // STEP 1a: Save our register sets to the stack so Bailout() can read
+    // everything.
+    // sp % 8 == 0
+
+
+    // We don't have to push everything, but this is likely easier.
+    // Setting regs_.
+    masm.Sub(masm.GetStackPointer(), masm.GetStackPointer(), Operand(Registers::Total * sizeof(void*)));
+    for (uint32_t i = 0; i < Registers::Total; i+=2)
+        masm.Stp(ARMRegister::XRegFromCode(i),
+                 ARMRegister::XRegFromCode(i+1),
+                 MemOperand(masm.GetStackPointer(), i * sizeof(void*)));
+
+
+    // Since our datastructures for stack inspection are compile-time fixed,
+    // if there are only 16 double registers, then we need to reserve
+    // space on the stack for the missing 16.
+    masm.Sub(masm.GetStackPointer(), masm.GetStackPointer(), Operand(FloatRegisters::Total * sizeof(void*)));
+    for (uint32_t i = 0; i < FloatRegisters::Total; i+=2)
+        masm.Stp(ARMFPRegister::DRegFromCode(i),
+                 ARMFPRegister::DRegFromCode(i+1),
+                 MemOperand(masm.GetStackPointer(), i * sizeof(void*)));
+
+
+    // STEP 1b: Push both the "return address" of the function call (the address
+    //          of the instruction after the call that we used to get here) as
+    //          well as the callee token onto the stack. The return address is
+    //          currently in r14. We will proceed by loading the callee token
+    //          into a sacrificial register <= r14, then pushing both onto the
+    //          stack.
+
+    // Now place the frameClass onto the stack, via a register.
+    masm.Mov(x9, frameClass);
+    // And onto the stack. Since the stack is full, we need to put this one past
+    // the end of the current stack. Sadly, the ABI says that we need to always
+    // point to the lowest place that has been written. The OS is free to do
+    // whatever it wants below sp.
+    masm.MacroAssemblerVIXL::Push(x30, x9);
+    masm.Mov(ARMRegister(spArg, 64), masm.GetStackPointer());
+}
 
 static void
 GenerateBailoutThunk(JSContext *cx, MacroAssembler &masm, uint32_t frameClass)
 {
-    // FIXME: Actually implement.
+    PushBailoutFrame(masm, frameClass, r0);
+
+    // SP % 8 == 4
+    // STEP 1c: Call the bailout function, giving a pointer to the
+    //          structure we just blitted onto the stack.
+    const int sizeOfBailoutInfo = sizeof(void *)*2;
+    masm.reserveStack(sizeOfBailoutInfo);
+    masm.mov(x1, masm.GetStackPointer());
+    masm.adr(xzr, 0x1337);
+    //    masm.breakpoint(e);
+        
+    masm.setupUnalignedABICall(2, r2);
+    masm.passABIArg(r0);
+    masm.passABIArg(r1);
+    masm.callWithABI(JS_FUNC_TO_DATA_PTR(void *, Bailout));
+    masm.Ldr(x2, MemOperand(masm.GetStackPointer(), 0));
+    masm.Add(masm.GetStackPointer(), masm.GetStackPointer(), Operand(sizeOfBailoutInfo));
+
+    static const uint32_t BailoutDataSize = sizeof(void *) * Registers::Total +
+                                            sizeof(double) * FloatRegisters::Total;
+    if (frameClass == NO_FRAME_SIZE_CLASS_ID) {
+        masm.Ldr(ScratchReg2_64, MemOperand(masm.GetStackPointer(), sizeof(uintptr_t)));
+        masm.Add(masm.GetStackPointer(), masm.GetStackPointer(), Operand(BailoutDataSize + 32));
+        masm.add(masm.GetStackPointer(), masm.GetStackPointer(), Operand(ScratchReg2_64));
+        //masm.breakpoint();
+    } else {
+        uint32_t frameSize = FrameSizeClass::FromClass(frameClass).frameSize();
+        masm.Add(masm.GetStackPointer(), masm.GetStackPointer(), Operand(frameSize + BailoutDataSize + sizeof(void*)));
+    }
+    // Jump to shared bailout tail. The BailoutInfo pointer has to be in r9.
+    JitCode *bailoutTail = cx->runtime()->jitRuntime()->getBailoutTail();
+    masm.branch(bailoutTail);
+
 }
 
 JitCode *
@@ -387,7 +487,12 @@ JitRuntime::generateBailoutHandler(JSContext *cx)
 {
     // FIXME: Actually implement.
     MacroAssembler masm(cx);
-    masm.breakpoint();
+    GenerateBailoutThunk(cx, masm, NO_FRAME_SIZE_CLASS_ID);
+
+#ifdef JS_ION_PERF
+    writePerfSpewerJitCodeProfile(code, "BailoutHandler");
+#endif
+
     Linker linker(masm);
     return linker.newCode<NoGC>(cx, OTHER_CODE);
 }
