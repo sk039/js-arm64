@@ -1220,7 +1220,21 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         MOZ_CRASH("branchTest32");
     }
     CodeOffsetJump jumpWithPatch(RepatchLabel *label, Condition cond = Always) {
-        MOZ_CRASH("jumpWithPatch");
+        ARMBuffer::PoolEntry pe;
+        BufferOffset load_bo =  immPool64(ScratchReg2_64, (uint64_t) label, &pe);
+        BufferOffset branch_bo;
+        MOZ_ASSERT(!label->bound());
+        if (cond != Always) {
+            Label notTaken;
+            b(&notTaken, Assembler::InvertCondition(cond));
+            branch_bo = b(-1);
+            bind(&notTaken);
+        } else {
+            nop();
+            branch_bo = b(-1);
+        }
+        label->use(branch_bo.getOffset());
+        return CodeOffsetJump(load_bo.getOffset(), pe.index());
     }
     CodeOffsetJump backedgeJump(RepatchLabel *label) {
         return jumpWithPatch(label);
@@ -1231,7 +1245,9 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
     template <typename T>
     CodeOffsetJump branchPtrWithPatch(Condition cond, Address addr, T ptr, RepatchLabel *label) {
-        MOZ_CRASH("branchPtrWithPatch");
+        loadPtr(addr, ScratchReg2);
+        cmpPtr(ScratchReg2, ptr);
+        jumpWithPatch(label, cond);
     }
 
     void branchPtr(Condition cond, AsmJSAbsoluteAddress lhs, Register rhs, Label *label) {
@@ -2038,7 +2054,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     void callWithABI(Address fun, MoveOp::Type result = MoveOp::GENERAL);
 
     CodeOffsetLabel labelForPatch() {
-        MOZ_CRASH("labelForPatch");
+        return CodeOffsetLabel(nextOffset().getOffset());
     }
 
     void handleFailureWithHandlerTail(void *handler);
