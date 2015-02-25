@@ -324,7 +324,10 @@ MacroAssemblerCompat::handleFailureWithHandlerTail(void *handler)
     // If we are bailing out to baseline to handle an exception,
     // jump to the bailout tail stub.
     bind(&bailout);
-    breakpoint(); // TODO: Unimplemented
+    Ldr(x2, MemOperand(GetStackPointer(), offsetof(ResumeFromException, bailoutInfo)));
+    Ldr(x1, MemOperand(GetStackPointer(), offsetof(ResumeFromException, target)));
+    Mov(x0, BAILOUT_RETURN_OK);
+    Br(x1);
 }
 
 void
