@@ -99,13 +99,21 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         // FIXME: jandem is trying to knock out enoughMemory_ now... needs rebasing.
         return Assembler::oom() || !enoughMemory_;
     }
+    static MemOperand toMemOperand(Address &a) {
+        return MemOperand(ARMRegister(a.base, 64), a.offset);
+    }
     void doBaseIndex(const CPURegister &rt, const BaseIndex &addr, LoadStoreOp op) {
         // Can use ONLY an indexed-reg load
         if (addr.offset == 0) {
-            LoadStoreMacro(rt, MemOperand(ARMRegister(addr.base, 64),
-                                          ARMRegister(addr.index, 64),
-                                          LSL, unsigned(addr.scale)), op);
-            return;
+            if (addr.scale == 0 || addr.scale == static_cast<unsigned>(CalcLSDataSize(op))) {
+                LoadStoreMacro(rt, MemOperand(ARMRegister(addr.base, 64),
+                                              ARMRegister(addr.index, 64),
+                                              LSL, unsigned(addr.scale)), op);
+                return;
+            } else {
+                add(ScratchReg64, ARMRegister(addr.base, 64), Operand(ARMRegister(addr.index, 64), LSL, unsigned(addr.scale)));
+                LoadStoreMacro(rt, MemOperand(ScratchReg64), op);
+            }
         }
 
         // Store operations should not clobber.
@@ -113,12 +121,12 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         MOZ_ASSERT(!rt.Is(ScratchReg2_64));
 
         // TODO: should only add here when we can fit it into a single operand.
-        Add(ScratchReg2_64,
+        Add(ScratchReg64,
             ARMRegister(addr.base, 64),
             Operand(ARMRegister(addr.index, 64),
                     LSL,
                     unsigned(addr.scale)));
-        LoadStoreMacro(rt, MemOperand(ScratchReg2_64, addr.offset), op);
+        LoadStoreMacro(rt, MemOperand(ScratchReg64, addr.offset), op);
     }
 
     void Push(Register reg) {
@@ -718,7 +726,8 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         Str(ARMRegister(r, 32), MemOperand(ARMRegister(address.base, 64), address.offset));
     }
     void store32(Imm32 imm, const BaseIndex &address) {
-        MOZ_CRASH("store32"); // Careful -- doBaseIndex() may use both scratch regs!
+        Mov(ScratchReg2_32, imm.value);
+        doBaseIndex(ScratchReg2_32, address, STR_w);
     }
     void store32(Register r, const BaseIndex &address) {
         doBaseIndex(ARMRegister(r, 32), address, STR_w);
