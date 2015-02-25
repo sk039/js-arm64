@@ -177,13 +177,14 @@ LIRGeneratorARM64::lowerForBitAndAndBranch(LBitAndAndBranch *baab, MInstruction 
 void
 LIRGeneratorARM64::defineUntypedPhi(MPhi *phi, size_t lirIndex)
 {
-    MOZ_CRASH("defineUntypedPhi");
+    defineTypedPhi(phi, lirIndex);
 }
 
 void
 LIRGeneratorARM64::lowerUntypedPhiInput(MPhi *phi, uint32_t inputPosition, LBlock *block, size_t lirIndex)
 {
-    MOZ_CRASH("lowerUntypedPhiInput");
+    lowerTypedPhiInput(phi, inputPosition, block, lirIndex);
+
 }
 
 void

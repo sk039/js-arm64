@@ -1458,7 +1458,7 @@ CodeGenerator::visitOutOfLineRegExpExec(OutOfLineRegExpExec *ool)
     regs.take(regexp);
     Register temp = regs.takeAny();
 
-    masm.computeEffectiveAddress(Address(StackPointer, sizeof(irregexp::InputOutputData)), temp);
+    masm.computeEffectiveAddress(Address(masm.GetStackPointer_(), sizeof(irregexp::InputOutputData)), temp);
 
     pushArg(temp);
     pushArg(input);
