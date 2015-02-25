@@ -526,6 +526,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     {
         ARMFPRegister fsrc(src, 64);
         ARMRegister dest32(dest, 32);
+        ARMRegister dest64(dest, 64);
         Fcvtzs(dest32, fsrc); // Convert, rounding toward zero.
         Scvtf(ScratchDoubleReg_, dest32); // Convert back, using FPCR rounding mode.
         Fcmp(ScratchDoubleReg_, fsrc);
@@ -534,8 +535,8 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         if (negativeZeroCheck) {
             Label nonzero;
             Cbnz(dest32, &nonzero);
-            Fmov(dest32, fsrc);
-            Cbnz(dest32, fail);
+            Fmov(dest64, fsrc);
+            Cbnz(dest64, fail);
             bind(&nonzero);
         }
     }
