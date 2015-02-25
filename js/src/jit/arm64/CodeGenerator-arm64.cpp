@@ -160,16 +160,62 @@ CodeGeneratorARM64::visitCompareAndBranch(LCompareAndBranch *comp)
     emitBranch(cond, comp->ifTrue(), comp->ifFalse());
 }
 
-void 
+void
 CodeGeneratorARM64::bailoutIf(Assembler::Condition condition, LSnapshot *snapshot)
 {
-    MOZ_CRASH("CodeGeneratorARM64::bailoutIf");
+    encode(snapshot);
+
+    // Though the assembler doesn't track all frame pushes, at least make sure
+    // the known value makes sense. We can't use bailout tables if the stack
+    // isn't properly aligned to the static frame size.
+    MOZ_ASSERT_IF(frameClass_ != FrameSizeClass::None(),
+                  frameClass_.frameSize() == masm.framePushed());
+
+#if 0 // I am pretty sure this is not worthwhile here.
+    if (assignBailoutId(snapshot)) {
+        uint8_t *code = Assembler::BailoutTableStart(deoptTable_->raw()) + snapshot->bailoutId() * BAILOUT_TABLE_ENTRY_SIZE;
+        masm.b(code, Relocation::HARDCODED, condition);
+        return;
+    }
+#endif
+    // We could not use a jump table, either because all bailout IDs were
+    // reserved, or a jump table is not optimal for this frame size or
+    // platform. Whatever, we will generate a lazy bailout.
+    InlineScriptTree *tree = snapshot->mir()->block()->trackedTree();
+    OutOfLineBailout *ool = new(alloc()) OutOfLineBailout(snapshot);
+
+    // All bailout code is associated with the bytecodeSite of the block we are
+    // bailing out from.
+    addOutOfLineCode(ool, new(alloc()) BytecodeSite(tree, tree->script()->code()));
+
+    masm.B(ool->entry(), condition);
+
 }
 
 void 
 CodeGeneratorARM64::bailoutFrom(Label *label, LSnapshot *snapshot)
 {
-    MOZ_CRASH("CodeGeneratorARM64::bailoutFrom");
+    MOZ_ASSERT(label->used());
+    MOZ_ASSERT(!label->bound());
+
+    encode(snapshot);
+
+    // Though the assembler doesn't track all frame pushes, at least make sure
+    // the known value makes sense. We can't use bailout tables if the stack
+    // isn't properly aligned to the static frame size.
+    MOZ_ASSERT_IF(frameClass_ != FrameSizeClass::None(),
+                  frameClass_.frameSize() == masm.framePushed());
+
+    // On ARM64 we don't use a bailout table.
+    InlineScriptTree *tree = snapshot->mir()->block()->trackedTree();
+    OutOfLineBailout *ool = new(alloc()) OutOfLineBailout(snapshot);
+
+    // All bailout code is associated with the bytecodeSite of the block we are
+    // bailing out from.
+    addOutOfLineCode(ool, new(alloc()) BytecodeSite(tree, tree->script()->code()));
+
+    masm.retarget(label, ool->entry());
+
 }
 
 void 
