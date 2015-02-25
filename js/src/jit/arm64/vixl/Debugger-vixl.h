@@ -117,7 +117,7 @@ class DebuggerARM64 : public Simulator
     DebuggerARM64(Decoder* decoder, FILE* stream = stdout);
     virtual void Run();
     void VisitException(Instruction* instr);
-
+    void VisitUnallocated(Instruction *instr);
     inline int log_parameters() {
         // The simulator can control disassembly, so make sure that the Debugger's
         // log parameters agree with it.
