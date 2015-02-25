@@ -193,6 +193,10 @@ class DebuggerARM64 : public Simulator
 
 } // namespace jit
 } // namespace js
-
+static void printInstruction(void *inst, int count) {
+    js::jit::Decoder d;
+    js::jit::DebuggerARM64 dbg(&d);
+    dbg.PrintInstructions(inst, count);
+}
 #endif  // JS_ARM64_SIMULATOR
 #endif  // VIXL_A64_DEBUGGER_A64_H_
