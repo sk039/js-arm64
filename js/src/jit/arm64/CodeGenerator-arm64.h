@@ -33,7 +33,12 @@ class CodeGeneratorARM64 : public CodeGeneratorShared
     // stack slotted variables are not useful on arm.
     // it looks like this will need to return one of two types.
     inline Operand ToOperand(const LAllocation &a) {
-        MOZ_CRASH("ToOperand");
+        switch(a.kind()) {
+          case LAllocation::GPR:
+            return Operand(ARMRegister(a.toGeneralReg()->reg(), 32));
+          default:
+            MOZ_CRASH("ToOperand");
+        }
     }
     inline Operand ToOperand(const LAllocation *a) {
         return ToOperand(*a);

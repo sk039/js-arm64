@@ -790,13 +790,14 @@ FrameSizeClass::frameSize() const
 ValueOperand
 CodeGeneratorARM64::ToValue(LInstruction *ins, size_t pos)
 {
-    MOZ_CRASH("CodeGeneratorARM64::ToValue");
+    return ValueOperand(ToRegister(ins->getOperand(pos)));
 }
 
 ValueOperand
 CodeGeneratorARM64::ToOutValue(LInstruction *ins)
 {
-    MOZ_CRASH("CodeGeneratorARM64::ToOutValue");
+    Register payloadReg = ToRegister(ins->getDef(0));
+    return ValueOperand(payloadReg);
 }
 
 ValueOperand
@@ -805,22 +806,83 @@ CodeGeneratorARM64::ToTempValue(LInstruction *ins, size_t pos)
     MOZ_CRASH("CodeGeneratorARM64::ToTempValue");
 }
 
-void 
+void
 CodeGeneratorARM64::visitValue(LValue *value)
 {
-    MOZ_CRASH("CodeGeneratorARM64::visitValue");
+    const ValueOperand out = ToOutValue(value);
+    masm.moveValue(value->value(), out);
 }
 
-void 
+void
 CodeGeneratorARM64::visitBox(LBox *box)
 {
-    MOZ_CRASH("CodeGeneratorARM64::visitBox");
+    const LAllocation *in = box->getOperand(0);
+    const LDefinition *result = box->getDef(0);
+
+    if (IsFloatingPointType(box->type())) {
+        FloatRegister reg = ToFloatRegister(in);
+        if (box->type() == MIRType_Float32) {
+            masm.convertFloat32ToDouble(reg, ScratchDoubleReg);
+            reg = ScratchDoubleReg;
+        }
+        masm.Fmov(ARMRegister(ToRegister(result), 64), ARMFPRegister(reg, 64));
+    } else {
+        masm.boxValue(ValueTypeFromMIRType(box->type()), ToRegister(in), ToRegister(result));
+    }
+
 }
 
-void 
+void
 CodeGeneratorARM64::visitUnbox(LUnbox *unbox)
 {
-    MOZ_CRASH("CodeGeneratorARM64::visitUnbox");
+    MUnbox *mir = unbox->mir();
+
+    if (mir->fallible()) {
+        const ValueOperand value = ToValue(unbox, LUnbox::Input);
+        Assembler::Condition cond;
+        switch (mir->type()) {
+          case MIRType_Int32:
+            cond = masm.testInt32(Assembler::NotEqual, value);
+            break;
+          case MIRType_Boolean:
+            cond = masm.testBoolean(Assembler::NotEqual, value);
+            break;
+          case MIRType_Object:
+            cond = masm.testObject(Assembler::NotEqual, value);
+            break;
+          case MIRType_String:
+            cond = masm.testString(Assembler::NotEqual, value);
+            break;
+          case MIRType_Symbol:
+            cond = masm.testSymbol(Assembler::NotEqual, value);
+            break;
+          default:
+            MOZ_CRASH("Given MIRType cannot be unboxed.");
+        }
+        bailoutIf(cond, unbox->snapshot());
+    }
+
+    ValueOperand input = ToValue(unbox, LUnbox::Input);
+    Register result = ToRegister(unbox->output());
+    switch (mir->type()) {
+      case MIRType_Int32:
+        masm.unboxInt32(input, result);
+        break;
+      case MIRType_Boolean:
+        masm.unboxBoolean(input, result);
+        break;
+      case MIRType_Object:
+        masm.unboxObject(input, result);
+        break;
+      case MIRType_String:
+        masm.unboxString(input, result);
+        break;
+      case MIRType_Symbol:
+        masm.unboxSymbol(input, result);
+        break;
+      default:
+        MOZ_CRASH("Given MIRType cannot be unboxed.");
+    }
 }
 
 void 
@@ -1015,10 +1077,17 @@ CodeGeneratorARM64::storeElementTyped(const LAllocation *value, MIRType valueTyp
     MOZ_CRASH("CodeGeneratorARM64::storeElementTyped");
 }
 
-void 
+void
 CodeGeneratorARM64::visitGuardShape(LGuardShape *guard)
 {
-    MOZ_CRASH("CodeGeneratorARM64::visitGuardShape");
+    ARMRegister obj = toXRegister(guard->input());
+    ARMRegister tmp = toXRegister(guard->tempInt());
+    Register tmp_ = ToRegister(guard->tempInt());
+    masm.Ldr(tmp, MemOperand(obj, JSObject::offsetOfShape()));
+    masm.cmpPtr(tmp_, ImmGCPtr(guard->mir()->shape()));
+
+    bailoutIf(Assembler::NotEqual, guard->snapshot());
+
 }
 
 void 
