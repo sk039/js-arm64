@@ -18,19 +18,27 @@ namespace jit {
 
 class BailoutStack
 {
+    uintptr_t frameClassId_;
+    uintptr_t frameSize_;
+
+    
+    
     mozilla::Array<double, FloatRegisters::Total> fpregs_;
     mozilla::Array<uintptr_t, Registers::Total> regs_;
-    uintptr_t frameSize_;
     uintptr_t snapshotOffset_;
-
+    uintptr_t padding_;
   public:
     MachineState machineState() {
         return MachineState::FromBailout(regs_, fpregs_);
     }
     uint32_t snapshotOffset() const {
+        printf("&snapshotOffset = %p(0x%x)\n", &snapshotOffset_, snapshotOffset_);
+        fflush(stdout);
         return snapshotOffset_;
     }
     uint32_t frameSize() const {
+        printf("&frameSize_ = %p\n", &frameSize_);
+        fflush(stdout);
         return frameSize_;
     }
     uint8_t *parentStackPointer() {
