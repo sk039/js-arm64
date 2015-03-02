@@ -22,6 +22,10 @@
 #include "I420ColorConverterHelper.h"
 #include "MediaCodecProxy.h"
 #include "MediaOmxCommonReader.h"
+#include "mozilla/layers/FenceUtils.h"
+#if MOZ_WIDGET_GONK && ANDROID_VERSION >= 17
+#include <ui/Fence.h>
+#endif
 
 namespace android {
 struct ALooper;
@@ -37,7 +41,7 @@ class GonkNativeWindow;
 
 namespace mozilla {
 
-class MediaTaskQueue;
+class FlushableMediaTaskQueue;
 class MP3FrameParser;
 
 namespace layers {
@@ -47,6 +51,7 @@ class TextureClient;
 class MediaCodecReader : public MediaOmxCommonReader
 {
   typedef mozilla::layers::TextureClient TextureClient;
+  typedef mozilla::layers::FenceHandle FenceHandle;
 
 public:
   MediaCodecReader(AbstractMediaDecoder* aDecoder);
@@ -60,7 +65,7 @@ public:
   virtual bool IsWaitingMediaResources();
 
   // True when this reader need to become dormant state
-  virtual bool IsDormantNeeded();
+  virtual bool IsDormantNeeded() { return true;}
 
   // Release media resources they should be released in dormant state
   virtual void ReleaseMediaResources();
@@ -101,14 +106,13 @@ public:
   // denote the start and end times of the media in usecs, and aCurrentTime
   // is the current playback position in microseconds.
   virtual nsRefPtr<SeekPromise>
-  Seek(int64_t aTime,
-       int64_t aStartTime,
-       int64_t aEndTime,
-       int64_t aCurrentTime) MOZ_OVERRIDE;
+  Seek(int64_t aTime, int64_t aEndTime) MOZ_OVERRIDE;
 
   virtual bool IsMediaSeekable() MOZ_OVERRIDE;
 
   virtual android::sp<android::MediaSource> GetAudioOffloadTrack();
+
+  virtual bool IsAsync() const MOZ_OVERRIDE { return true; }
 
 protected:
   struct TrackInputCopier
@@ -146,9 +150,8 @@ protected:
     // pipeline copier
     nsAutoPtr<TrackInputCopier> mInputCopier;
 
-    // media parameters
-    Mutex mDurationLock; // mDurationUs might be read or updated from multiple
-                         // threads.
+    // Protected by mTrackMonitor.
+    // mDurationUs might be read or updated from multiple threads.
     int64_t mDurationUs;
 
     // playback parameters
@@ -161,7 +164,8 @@ protected:
     int64_t mSeekTimeUs;
     bool mFlushed; // meaningless when mSeekTimeUs is invalid.
     bool mDiscontinuity;
-    nsRefPtr<MediaTaskQueue> mTaskQueue;
+    nsRefPtr<FlushableMediaTaskQueue> mTaskQueue;
+    Monitor mTrackMonitor;
 
   private:
     // Forbidden
@@ -240,6 +244,8 @@ private:
   struct AudioTrack : public Track
   {
     AudioTrack();
+    // Protected by mTrackMonitor.
+    MediaPromiseHolder<AudioDataPromise> mAudioPromise;
 
   private:
     // Forbidden
@@ -260,7 +266,10 @@ private:
     nsIntSize mFrameSize;
     nsIntRect mPictureRect;
     gfx::IntRect mRelativePictureRect;
+    // Protected by mTrackMonitor.
+    MediaPromiseHolder<VideoDataPromise> mVideoPromise;
 
+    nsRefPtr<MediaTaskQueue> mReleaseBufferTaskQueue;
   private:
     // Forbidden
     VideoTrack(const VideoTrack &rhs) = delete;
@@ -370,10 +379,10 @@ private:
 
   bool CreateTaskQueues();
   void ShutdownTaskQueues();
-  bool DecodeVideoFrameTask(int64_t aTimeThreshold);
-  bool DecodeVideoFrameSync(int64_t aTimeThreshold);
-  bool DecodeAudioDataTask();
-  bool DecodeAudioDataSync();
+  void DecodeVideoFrameTask(int64_t aTimeThreshold);
+  void DecodeVideoFrameSync(int64_t aTimeThreshold);
+  void DecodeAudioDataTask();
+  void DecodeAudioDataSync();
   void DispatchVideoTask(int64_t aTimeThreshold);
   void DispatchAudioTask();
   inline bool CheckVideoResources() {
@@ -412,6 +421,7 @@ private:
   static void TextureClientRecycleCallback(TextureClient* aClient,
                                            void* aClosure);
   void TextureClientRecycleCallback(TextureClient* aClient);
+  void WaitFenceAndReleaseOutputBuffer();
 
   void ReleaseRecycledTextureClients();
   static PLDHashOperator ReleaseTextureClient(TextureClient* aClient,
@@ -436,9 +446,6 @@ private:
   VideoTrack mVideoTrack;
   AudioTrack mAudioOffloadTrack; // only Track::mSource is valid
 
-  MediaPromiseHolder<AudioDataPromise> mAudioPromise;
-  MediaPromiseHolder<VideoDataPromise> mVideoPromise;
-
   // color converter
   android::I420ColorConverterHelper mColorConverter;
   nsAutoArrayPtr<uint8_t> mColorConverterBuffer;
@@ -450,6 +457,26 @@ private:
   int64_t mNextParserPosition;
   int64_t mParsedDataLength;
   nsAutoPtr<MP3FrameParser> mMP3FrameParser;
+#if MOZ_WIDGET_GONK && ANDROID_VERSION >= 17
+  // mReleaseIndex corresponding to a graphic buffer, and the mReleaseFence is
+  // the graohic buffer's fence. We must wait for the fence signaled by
+  // compositor, otherwise we will see the flicker because the HW decoder and
+  // compositor use the buffer concurrently.
+  struct ReleaseItem {
+    ReleaseItem(size_t aIndex, const android::sp<android::Fence>& aFence)
+    : mReleaseIndex(aIndex)
+    , mReleaseFence(aFence) {}
+    size_t mReleaseIndex;
+    android::sp<android::Fence> mReleaseFence;
+  };
+#else
+  struct ReleaseItem {
+    ReleaseItem(size_t aIndex)
+    : mReleaseIndex(aIndex) {}
+    size_t mReleaseIndex;
+  };
+#endif
+  nsTArray<ReleaseItem> mPendingReleaseItems;
 };
 
 } // namespace mozilla

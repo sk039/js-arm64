@@ -38,12 +38,12 @@
 namespace js {
 namespace jit {
 
-class Disassembler : public DecoderVisitor
+class DisassemblerARM64 : public DecoderVisitor
 {
   public:
-    Disassembler();
-    Disassembler(char* text_buffer, int buffer_size);
-    virtual ~Disassembler();
+    DisassemblerARM64();
+    DisassemblerARM64(char* text_buffer, int buffer_size);
+    virtual ~DisassemblerARM64();
     char* GetOutput();
 
     // Declare all Visitor functions.
@@ -98,7 +98,7 @@ class Disassembler : public DecoderVisitor
     bool own_buffer_;
 };
 
-class PrintDisassembler : public Disassembler
+class PrintDisassembler : public DisassemblerARM64
 {
   public:
     explicit PrintDisassembler(FILE* stream) : stream_(stream) { }

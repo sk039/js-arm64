@@ -59,10 +59,7 @@ public:
   virtual void ReadUpdatedMetadata(MediaInfo* aInfo) MOZ_OVERRIDE;
 
   virtual nsRefPtr<SeekPromise>
-  Seek(int64_t aTime,
-       int64_t aStartTime,
-       int64_t aEndTime,
-       int64_t aCurrentTime) MOZ_OVERRIDE;
+  Seek(int64_t aTime, int64_t aEndTime) MOZ_OVERRIDE;
 
   virtual bool IsMediaSeekable() MOZ_OVERRIDE;
 
@@ -81,6 +78,8 @@ public:
   virtual nsresult ResetDecode() MOZ_OVERRIDE;
 
   virtual nsRefPtr<ShutdownPromise> Shutdown() MOZ_OVERRIDE;
+
+  virtual bool IsAsync() const MOZ_OVERRIDE { return true; }
 
 private:
 
@@ -122,10 +121,12 @@ private:
   bool IsWaitingOnCodecResource();
   virtual bool IsWaitingOnCDMResource() MOZ_OVERRIDE;
 
+  Microseconds GetNextKeyframeTime();
+  bool ShouldSkip(bool aSkipToNextKeyframe, int64_t aTimeThreshold);
+
   size_t SizeOfQueue(TrackType aTrack);
 
   nsRefPtr<MP4Stream> mStream;
-  int64_t mTimestampOffset;
   nsAutoPtr<mp4_demuxer::MP4Demuxer> mDemuxer;
   nsRefPtr<PlatformDecoderModule> mPlatform;
 
@@ -184,7 +185,7 @@ private:
     nsRefPtr<MediaDataDecoder> mDecoder;
     // TaskQueue on which decoder can choose to decode.
     // Only non-null up until the decoder is created.
-    nsRefPtr<MediaTaskQueue> mTaskQueue;
+    nsRefPtr<FlushableMediaTaskQueue> mTaskQueue;
     // Callback that receives output and error notifications from the decoder.
     nsAutoPtr<DecoderCallback> mCallback;
     // Decoded samples returned my mDecoder awaiting being returned to
@@ -259,12 +260,19 @@ private:
   // True if we've read the streams' metadata.
   bool mDemuxerInitialized;
 
+  // True if we've gathered telemetry from an SPS.
+  bool mFoundSPSForTelemetry;
+
   // Synchronized by decoder monitor.
   bool mIsEncrypted;
 
   bool mIndexReady;
   Monitor mDemuxerMonitor;
   nsRefPtr<SharedDecoderManager> mSharedDecoderManager;
+
+#if defined(XP_WIN)
+  const bool mDormantEnabled;
+#endif
 };
 
 } // namespace mozilla

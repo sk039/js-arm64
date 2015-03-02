@@ -7,6 +7,12 @@
 DIRS += ['xbl-marquee']
 TEST_DIRS += ['test']
 
+XPIDL_SOURCES += [
+    'nsICSSUnprefixingService.idl',
+]
+
+XPIDL_MODULE = 'layout_base'
+
 EXPORTS += [
     'AnimationCommon.h',
     'CounterStyleManager.h',
@@ -23,6 +29,7 @@ EXPORTS += [
     'nsCSSProperty.h',
     'nsCSSPropertySet.h',
     'nsCSSPropList.h',
+    'nsCSSPropLogicalGroupList.h',
     'nsCSSProps.h',
     'nsCSSPseudoClasses.h',
     'nsCSSPseudoClassList.h',
@@ -146,6 +153,11 @@ SOURCES += [
     'nsCSSRuleProcessor.cpp',
 ]
 
+EXTRA_COMPONENTS += [
+    'CSSUnprefixingService.js',
+    'CSSUnprefixingService.manifest',
+]
+
 FAIL_ON_WARNINGS = True
 
 MSVC_ENABLE_PGO = True
@@ -173,6 +185,10 @@ RESOURCE_FILES += [
     'TopLevelImageDocument.css',
     'TopLevelVideoDocument.css',
 ]
+
+GENERATED_FILES += ['nsStyleStructList.h']
+style_struct_list = GENERATED_FILES['nsStyleStructList.h']
+style_struct_list.script = 'generate-stylestructlist.py'
 
 if CONFIG['GNU_CC']:
     CFLAGS += ['-Wshadow']

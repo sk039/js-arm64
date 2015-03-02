@@ -53,14 +53,20 @@ public:
   virtual size_t SizeOfVideoQueueInFrames() MOZ_OVERRIDE;
   virtual size_t SizeOfAudioQueueInFrames() MOZ_OVERRIDE;
 
+  virtual bool IsDormantNeeded() MOZ_OVERRIDE;
+  virtual void ReleaseMediaResources() MOZ_OVERRIDE;
+
   void OnAudioDecoded(AudioData* aSample);
   void OnAudioNotDecoded(NotDecodedReason aReason);
   void OnVideoDecoded(VideoData* aSample);
   void OnVideoNotDecoded(NotDecodedReason aReason);
 
+  void DoVideoSeek();
+  void DoAudioSeek();
   void OnVideoSeekCompleted(int64_t aTime);
+  void OnVideoSeekFailed(nsresult aResult);
   void OnAudioSeekCompleted(int64_t aTime);
-  void OnSeekFailed(nsresult aResult);
+  void OnAudioSeekFailed(nsresult aResult);
 
   virtual bool IsWaitForDataSupported() MOZ_OVERRIDE { return true; }
   virtual nsRefPtr<WaitForDataPromise> WaitForData(MediaData::Type aType) MOZ_OVERRIDE;
@@ -94,8 +100,9 @@ public:
   nsresult ReadMetadata(MediaInfo* aInfo, MetadataTags** aTags) MOZ_OVERRIDE;
   void ReadUpdatedMetadata(MediaInfo* aInfo) MOZ_OVERRIDE;
   nsRefPtr<SeekPromise>
-  Seek(int64_t aTime, int64_t aStartTime, int64_t aEndTime,
-       int64_t aCurrentTime) MOZ_OVERRIDE;
+  Seek(int64_t aTime, int64_t aEndTime) MOZ_OVERRIDE;
+
+  void CancelSeek() MOZ_OVERRIDE;
 
   // Acquires the decoder monitor, and is thus callable on any thread.
   nsresult GetBuffered(dom::TimeRanges* aBuffered) MOZ_OVERRIDE;
@@ -125,39 +132,99 @@ public:
 
   // Return true if the Ended method has been called
   bool IsEnded();
+  bool IsNearEnd(int64_t aTime /* microseconds */);
+
+  // Set the duration of the attached mediasource element.
+  void SetMediaSourceDuration(double aDuration /* seconds */);
 
 #ifdef MOZ_EME
   nsresult SetCDMProxy(CDMProxy* aProxy);
 #endif
 
-private:
-  // Switch the current audio/video reader to the reader that
-  // contains aTarget (or up to aError after target). Both
-  // aTarget and aError are in microseconds.
-  bool SwitchAudioReader(int64_t aTarget, int64_t aError = 0);
-  bool SwitchVideoReader(int64_t aTarget, int64_t aError = 0);
-  void RequestAudioDataComplete(int64_t aTime);
-  void RequestAudioDataFailed(nsresult aResult);
-  void RequestVideoDataComplete(int64_t aTime);
-  void RequestVideoDataFailed(nsresult aResult);
+  virtual bool IsAsync() const MOZ_OVERRIDE {
+    return (!GetAudioReader() || GetAudioReader()->IsAsync()) &&
+           (!GetVideoReader() || GetVideoReader()->IsAsync());
+  }
 
-  // Return a reader from the set available in aTrackDecoders that has data
+  // Returns true if aReader is a currently active audio or video
+  bool IsActiveReader(MediaDecoderReader* aReader);
+
+  // Returns a string describing the state of the MediaSource internal
+  // buffered data. Used for debugging purposes.
+  void GetMozDebugReaderData(nsAString& aString);
+
+private:
+  // Switch the current audio/video source to the source that
+  // contains aTarget (or up to aTolerance after target). Both
+  // aTarget and aTolerance are in microseconds.
+  // Search can be made using a fuzz factor. Should an approximated value be
+  // found instead, aTarget will be updated to the actual target found.
+  enum SwitchSourceResult {
+    SOURCE_NONE = -1,
+    SOURCE_EXISTING = 0,
+    SOURCE_NEW = 1,
+  };
+
+  SwitchSourceResult SwitchAudioSource(int64_t* aTarget);
+  SwitchSourceResult SwitchVideoSource(int64_t* aTarget);
+
+  void DoAudioRequest();
+  void DoVideoRequest();
+
+  void CompleteAudioSeekAndDoRequest()
+  {
+    mAudioSeekRequest.Complete();
+    DoAudioRequest();
+  }
+
+  void CompleteVideoSeekAndDoRequest()
+  {
+    mVideoSeekRequest.Complete();
+    DoVideoRequest();
+  }
+
+  void CompleteAudioSeekAndRejectPromise()
+  {
+    mAudioSeekRequest.Complete();
+    mAudioPromise.Reject(DECODE_ERROR, __func__);
+  }
+
+  void CompleteVideoSeekAndRejectPromise()
+  {
+    mVideoSeekRequest.Complete();
+    mVideoPromise.Reject(DECODE_ERROR, __func__);
+  }
+
+  MediaDecoderReader* GetAudioReader() const;
+  MediaDecoderReader* GetVideoReader() const;
+  int64_t GetReaderAudioTime(int64_t aTime) const;
+  int64_t GetReaderVideoTime(int64_t aTime) const;
+
+  // Will reject the MediaPromise with END_OF_STREAM if mediasource has ended
+  // or with WAIT_FOR_DATA otherwise.
+  void CheckForWaitOrEndOfStream(MediaData::Type aType, int64_t aTime /* microseconds */);
+
+  // Return a decoder from the set available in aTrackDecoders that has data
   // available in the range requested by aTarget.
-  already_AddRefed<MediaDecoderReader> SelectReader(int64_t aTarget,
-                                                    int64_t aError,
-                                                    const nsTArray<nsRefPtr<SourceBufferDecoder>>& aTrackDecoders);
+  already_AddRefed<SourceBufferDecoder> SelectDecoder(int64_t aTarget /* microseconds */,
+                                                      int64_t aTolerance /* microseconds */,
+                                                      const nsTArray<nsRefPtr<SourceBufferDecoder>>& aTrackDecoders);
   bool HaveData(int64_t aTarget, MediaData::Type aType);
 
   void AttemptSeek();
+  bool IsSeeking() { return mPendingSeekTime != -1; }
 
-  nsRefPtr<MediaDecoderReader> mAudioReader;
-  nsRefPtr<MediaDecoderReader> mVideoReader;
+  nsRefPtr<SourceBufferDecoder> mAudioSourceDecoder;
+  nsRefPtr<SourceBufferDecoder> mVideoSourceDecoder;
 
   nsTArray<nsRefPtr<TrackBuffer>> mTrackBuffers;
   nsTArray<nsRefPtr<TrackBuffer>> mShutdownTrackBuffers;
   nsTArray<nsRefPtr<TrackBuffer>> mEssentialTrackBuffers;
   nsRefPtr<TrackBuffer> mAudioTrack;
   nsRefPtr<TrackBuffer> mVideoTrack;
+
+  MediaPromiseConsumerHolder<AudioDataPromise> mAudioRequest;
+  MediaPromiseConsumerHolder<VideoDataPromise> mVideoRequest;
 
   MediaPromiseHolder<AudioDataPromise> mAudioPromise;
   MediaPromiseHolder<VideoDataPromise> mVideoPromise;
@@ -177,28 +244,24 @@ private:
   int64_t mLastAudioTime;
   int64_t mLastVideoTime;
 
+  MediaPromiseConsumerHolder<SeekPromise> mAudioSeekRequest;
+  MediaPromiseConsumerHolder<SeekPromise> mVideoSeekRequest;
+  MediaPromiseHolder<SeekPromise> mSeekPromise;
+
   // Temporary seek information while we wait for the data
   // to be added to the track buffer.
-  MediaPromiseHolder<SeekPromise> mSeekPromise;
   int64_t mPendingSeekTime;
-  int64_t mPendingStartTime;
-  int64_t mPendingEndTime;
-  int64_t mPendingCurrentTime;
   bool mWaitingForSeekData;
 
   int64_t mTimeThreshold;
   bool mDropAudioBeforeThreshold;
   bool mDropVideoBeforeThreshold;
 
-  bool mEnded;
+  bool mAudioDiscontinuity;
+  bool mVideoDiscontinuity;
 
-  // For a seek to complete we need to send a sample with
-  // the mDiscontinuity field set to true once we have the
-  // first decoded sample. These flags are set during seeking
-  // so we can detect when we have the first decoded sample
-  // after a seek.
-  bool mAudioIsSeeking;
-  bool mVideoIsSeeking;
+  bool mEnded;
+  double mMediaSourceDuration;
 
   bool mHasEssentialTrackBuffers;
 

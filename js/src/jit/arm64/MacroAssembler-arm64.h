@@ -369,6 +369,18 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         loadValue(addr, ScratchReg2);
         push(ScratchReg2);
     }
+    template <typename T>
+    void storeUnboxedPayload(ValueOperand value, T address, size_t nbytes) {
+        switch (nbytes) {
+          case 4:
+            storePtr(value.valueReg(), address);
+            return;
+          case 1:
+            store8(value.valueReg(), address);
+            return;
+          default: MOZ_CRASH("Bad payload width");
+        }
+    }
     void moveValue(const Value &val, Register dest) {
         movePtr(ImmWord(val.asRawBits()), dest);
     }
@@ -752,6 +764,10 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     void rshiftPtr(Imm32 imm, Register dest) {
         Lsr(ARMRegister(dest, 64), ARMRegister(dest, 64), imm.value);
     }
+    void rshiftPtr(Imm32 imm, Register src, Register dest) {
+        Lsr(ARMRegister(dest, 64), ARMRegister(src, 64), imm.value);
+    }
+
     void rshiftPtrArithmetic(Imm32 imm, Register dest) {
         Asr(ARMRegister(dest, 64), ARMRegister(dest, 64), imm.value);
     }
@@ -797,6 +813,10 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     void and32(Imm32 imm, Register dest) {
         And(ARMRegister(dest, 32), ARMRegister(dest, 32), Operand(imm.value));
     }
+    void and32(Imm32 imm, Register src, Register dest) {
+        And(ARMRegister(dest, 32), ARMRegister(src, 32), Operand(imm.value));
+    }
+
     void and32(Register src, Register dest) {
         And(ARMRegister(dest, 32), ARMRegister(dest, 32), Operand(ARMRegister(src, 32)));
     }
@@ -848,8 +868,8 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         Cmp(ARMRegister(lhs, 64), ARMRegister(rhs, 64));
     }
     void cmpPtr(Register lhs, ImmGCPtr rhs) {
-        movePtr(rhs, ScratchReg2);
-        cmpPtr(lhs, ScratchReg2);
+        movePtr(rhs, ScratchReg);
+        cmpPtr(lhs, ScratchReg);
     }
     void cmpPtr(Register lhs, ImmMaybeNurseryPtr rhs) {
         cmpPtr(lhs, noteMaybeNurseryPtr(rhs));
@@ -866,6 +886,10 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     void cmpPtr(const Address &lhs, ImmPtr rhs) {
         Ldr(ScratchReg2_64, MemOperand(ARMRegister(lhs.base, 64), lhs.offset));
         Cmp(ScratchReg2_64, Operand(uint64_t(rhs.value)));
+    }
+    void cmpPtr(const Address &lhs, ImmGCPtr rhs) {
+        loadPtr(lhs, ScratchReg2);
+        cmpPtr(ScratchReg2, rhs);
     }
 
     void loadDouble(const Address &src, FloatRegister dest) {
@@ -1060,9 +1084,17 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     void addPtr(Register src, Register dest) {
         Add(ARMRegister(dest, 64), ARMRegister(dest, 64), Operand(ARMRegister(src, 64)));
     }
+    void addPtr(Register src1, Register src2, Register dest) {
+        Add(ARMRegister(dest, 64), ARMRegister(src1, 64), Operand(ARMRegister(src2, 64)));
+    }
+
     void addPtr(Imm32 imm, Register dest) {
         Add(ARMRegister(dest, 64), ARMRegister(dest, 64), Operand(imm.value));
     }
+    void addPtr(Imm32 imm, Register src, Register dest) {
+        Add(ARMRegister(dest, 64), ARMRegister(src, 64), Operand(imm.value));
+    }
+
     void addPtr(Imm32 imm, const Address &dest) {
         Ldr(ScratchReg2_64, MemOperand(ARMRegister(dest.base, 64), dest.offset));
         Add(ScratchReg2_64, ScratchReg2_64, Operand(imm.value));
@@ -2186,6 +2218,21 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         Push(ScratchReg2);
         Bl(label);
         bind(&ret);
+    }
+    void profilerEnterFrame(Register framePtr, Register scratch) {
+        AbsoluteAddress activation(GetJitContext()->runtime->addressOfProfilingActivation());
+        loadPtr(activation, scratch);
+        storePtr(framePtr, Address(scratch, JitActivation::offsetOfLastProfilingFrame()));
+        storePtr(ImmPtr(nullptr), Address(scratch, JitActivation::offsetOfLastProfilingCallSite()));
+    }
+    void profilerExitFrame() {
+        branch(GetJitContext()->runtime->jitRuntime()->getProfilerExitFrameTail());
+    }
+    Address ToPayload(Address value) {
+        return value;
+    }
+    Address ToType(Address value) {
+        return value;
     }
 
   private:

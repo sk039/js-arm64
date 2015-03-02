@@ -7,8 +7,7 @@
 #ifndef vm_ProxyObject_h
 #define vm_ProxyObject_h
 
-#include "jsproxy.h"
-
+#include "js/Proxy.h"
 #include "vm/NativeObject.h"
 
 namespace js {
@@ -29,8 +28,7 @@ class ProxyObject : public JSObject
 
   public:
     static ProxyObject *New(JSContext *cx, const BaseProxyHandler *handler, HandleValue priv,
-                            TaggedProto proto_, JSObject *parent_,
-                            const ProxyOptions &options);
+                            TaggedProto proto_, const ProxyOptions &options);
 
     const Value &private_() {
         return GetProxyPrivate(this);

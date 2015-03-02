@@ -252,15 +252,23 @@ class SimExclusiveGlobalMonitor
     const int kPassProbability;
     uint32_t seed_;
 };
+class Redirection;
 
-class SimulatorRuntime;
 class Simulator : public DecoderVisitor
 {
+    friend class AutoLockSimulatorCache;
+    Redirection *redirection_;
+
+  protected:
+    // Synchronize access between main thread and compilation/PJS threads.
+    PRLock *lock_;
+    mozilla::DebugOnly<PRThread *> lockOwner_;
   public:
-    explicit Simulator(SimulatorRuntime *srt);
+    explicit Simulator();
     explicit Simulator(Decoder* decoder, FILE* stream = stdout);
     ~Simulator();
-
+    static Simulator *Create();
+    static void Destroy(Simulator *);
     void ResetState();
 
     void init(Decoder* decoder, FILE* stream = stdout);
@@ -268,11 +276,13 @@ class Simulator : public DecoderVisitor
     // The currently executing Simulator instance.
     // Potentially there can be one for each native thread.
     static Simulator *Current();
-
+#if 0
     static inline uintptr_t StackLimit() {
         return Simulator::Current()->stackLimit();
     }
+    #endif
 
+    uintptr_t *addressOfStackLimit();
     // Run the simulator.
     virtual void Run();
     void RunFrom(Instruction* first);
@@ -325,7 +335,7 @@ class Simulator : public DecoderVisitor
         if (MOZ_UNLIKELY(rpc != 0)) {
             fflush(stdout);
             printf("Setting pc from signal handler: %p->%p!\n", get_pc(), rpc);
-            PerThreadData::innermostAsmJSActivation()->setResumePC((void *)get_pc());
+            JSRuntime::innermostAsmJSActivation()->setResumePC((void *)get_pc());
             set_pc(reinterpret_cast<Instruction*>(rpc));
             // Just calling set_pc turns the pc_modified_ flag on, which means it doesn't
             // auto-step after executing the next instruction.  Force that to off so it
@@ -861,50 +871,51 @@ class Simulator : public DecoderVisitor
     void PrintExclusiveAccessWarning();
 
     virtual void enable_debugger() { }
-};
-
-class Redirection;
-
-// FIXME: This is MPLv2, and probably shouldn't be here...
-// FIXME: It should probably be in jit/shared.
-class SimulatorRuntime
-{
-    friend class AutoLockSimulatorRuntime;
-
-    Redirection *redirection_;
-
-  protected:
-    // Synchronize access between main thread and compilation/PJS threads.
-    PRLock *lock_;
-    mozilla::DebugOnly<PRThread *> lockOwner_;
-
   public:
-    SimulatorRuntime()
-      : redirection_(nullptr), lock_(nullptr), lockOwner_(nullptr)
-    { }
-
-    ~SimulatorRuntime() {
-        if (lock_)
-            PR_DestroyLock(lock_);
-    }
-
-    bool init() {
-        lock_ = PR_NewLock();
-        if (!lock_)
-            return false;
-        return true;
-    }
     Redirection *redirection() const {
-        MOZ_ASSERT(lockOwner_ == PR_GetCurrentThread());
+        MOZ_ASSERT(lockOwner_);
         return redirection_;
     }
+
     void setRedirection(js::jit::Redirection *redirection) {
-        MOZ_ASSERT(lockOwner_ == PR_GetCurrentThread());
+        MOZ_ASSERT(lockOwner_);
         redirection_ = redirection;
     }
 };
 
+
+
+// FIXME: This is MPLv2, and probably shouldn't be here...
+// FIXME: It should probably be in jit/shared.
+/*
+class SimulatorRuntime
+{
+
+
+  public:
+
+    SimulatorRuntime()
+      : redirection_(nullptr)
+    { }
+
+    ~SimulatorRuntime() {
+    }
+
+    bool init() {
+        return true;
+    }
+    #if 0
+    Redirection *redirection() const {
+        return redirection_;
+    }
+    void setRedirection(js::jit::Redirection *redirection) {
+        redirection_ = redirection;
+    }
+};
+*/
+
 // FIXME: This class should definitely be shared.
+#if 0
 class AutoLockSimulatorRuntime
 {
   protected:
@@ -930,11 +941,11 @@ class AutoLockSimulatorRuntime
 
 SimulatorRuntime *CreateSimulatorRuntime();
 void DestroySimulatorRuntime(SimulatorRuntime *srt);
-
+#endif
 #define JS_CHECK_SIMULATOR_RECURSION_WITH_EXTRA(cx, extra, onerror)             \
     JS_BEGIN_MACRO                                                              \
         if (cx->mainThread().simulator()->overRecursedWithExtra(extra)) {       \
-            js_ReportOverRecursed(cx);                                          \
+            js::ReportOverRecursed(cx);                                         \
             onerror;                                                            \
         }                                                                       \
     JS_END_MACRO

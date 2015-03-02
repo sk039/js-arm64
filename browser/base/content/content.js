@@ -8,6 +8,7 @@ let {classes: Cc, interfaces: Ci, utils: Cu, results: Cr} = Components;
 Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 Cu.import("resource://gre/modules/Services.jsm");
 Cu.import("resource:///modules/ContentWebRTC.jsm");
+Cu.import("resource:///modules/ContentObservers.jsm");
 Cu.import("resource://gre/modules/InlineSpellChecker.jsm");
 Cu.import("resource://gre/modules/InlineSpellCheckerContent.jsm");
 
@@ -27,6 +28,10 @@ XPCOMUtils.defineLazyModuleGetter(this, "PrivateBrowsingUtils",
   "resource://gre/modules/PrivateBrowsingUtils.jsm");
 XPCOMUtils.defineLazyModuleGetter(this, "FormSubmitObserver",
   "resource:///modules/FormSubmitObserver.jsm");
+XPCOMUtils.defineLazyModuleGetter(this, "AboutReader",
+  "resource://gre/modules/AboutReader.jsm");
+XPCOMUtils.defineLazyModuleGetter(this, "ReaderMode",
+  "resource://gre/modules/ReaderMode.jsm");
 XPCOMUtils.defineLazyGetter(this, "SimpleServiceDiscovery", function() {
   let ssdp = Cu.import("resource://gre/modules/SimpleServiceDiscovery.jsm", {}).SimpleServiceDiscovery;
   // Register targets
@@ -158,7 +163,10 @@ let handleContentContextMenu = function (event) {
     }
 
     let customMenuItems = PageMenuChild.build(event.target);
-    sendSyncMessage("contextmenu", { editFlags, spellInfo, customMenuItems, addonInfo }, { event, popupNode: event.target });
+    let principal = event.target.ownerDocument.nodePrincipal;
+    sendSyncMessage("contextmenu",
+                    { editFlags, spellInfo, customMenuItems, addonInfo, principal },
+                    { event, popupNode: event.target });
   }
   else {
     // Break out to the parent window and pass the add-on info along
@@ -452,6 +460,80 @@ let AboutHomeListener = {
 };
 AboutHomeListener.init(this);
 
+let AboutReaderListener = {
+  _savedArticle: null,
+
+  init: function() {
+    addEventListener("AboutReaderContentLoaded", this, false, true);
+    addEventListener("pageshow", this, false);
+    addEventListener("pagehide", this, false);
+    addMessageListener("Reader:SavedArticleGet", this);
+  },
+
+  receiveMessage: function(message) {
+    switch (message.name) {
+      case "Reader:SavedArticleGet":
+        sendAsyncMessage("Reader:SavedArticleData", { article: this._savedArticle });
+        break;
+    }
+  },
+
+  get isAboutReader() {
+    return content.document.documentURI.startsWith("about:reader");
+  },
+
+  handleEvent: function(aEvent) {
+    if (aEvent.originalTarget.defaultView != content) {
+      return;
+    }
+
+    switch (aEvent.type) {
+      case "AboutReaderContentLoaded":
+        if (!this.isAboutReader) {
+          return;
+        }
+
+        if (content.document.body) {
+          // Update the toolbar icon to show the "reader active" icon.
+          sendAsyncMessage("Reader:UpdateReaderButton");
+          new AboutReader(global, content);
+        }
+        break;
+
+      case "pagehide":
+        sendAsyncMessage("Reader:UpdateReaderButton", { isArticle: false });
+        break;
+
+      case "pageshow":
+        if (!ReaderMode.isEnabledForParseOnLoad || this.isAboutReader) {
+          return;
+        }
+
+        // Reader mode is disabled until proven enabled.
+        this._savedArticle = null;
+
+        ReaderMode.parseDocument(content.document).then(article => {
+          // Do nothing if there is no article, or if the content window has been destroyed.
+          if (article === null || content === null) {
+            return;
+          }
+
+          // The loaded page may have changed while we were parsing the document.
+          // Make sure we've got the current one.
+          let currentURL = Services.io.newURI(content.document.documentURI, null, null).specIgnoringRef;
+          if (article.url !== currentURL) {
+            return;
+          }
+
+          this._savedArticle = article;
+          sendAsyncMessage("Reader:UpdateReaderButton", { isArticle: true });
+
+        }).catch(e => Cu.reportError("Error parsing document: " + e));
+        break;
+    }
+  }
+};
+AboutReaderListener.init();
 
 // An event listener for custom "WebChannelMessageToChrome" events on pages
 addEventListener("WebChannelMessageToChrome", function (e) {
@@ -568,7 +650,8 @@ let ClickEventHandler = {
       this.onAboutBlocked(originalTarget, ownerDoc);
       return;
     } else if (ownerDoc.documentURI.startsWith("about:neterror")) {
-      this.onAboutNetError(originalTarget, ownerDoc);
+      this.onAboutNetError(event, ownerDoc.documentURI);
+      return;
     }
 
     let [href, node] = this._hrefAndLinkNodeForClickEvent(event);
@@ -589,8 +672,8 @@ let ClickEventHandler = {
             event.preventDefault(); // Need to prevent the pageload.
           }
         }
-        json.noReferrer = BrowserUtils.linkHasNoReferrer(node)
       }
+      json.noReferrer = BrowserUtils.linkHasNoReferrer(node)
 
       sendAsyncMessage("Content:Click", json);
       return;
@@ -635,12 +718,18 @@ let ClickEventHandler = {
     });
   },
 
-  onAboutNetError: function (targetElement, ownerDoc) {
-    let elmId = targetElement.getAttribute("id");
-    if (elmId != "errorTryAgain" || !/e=netOffline/.test(ownerDoc.documentURI)) {
+  onAboutNetError: function (event, documentURI) {
+    let elmId = event.originalTarget.getAttribute("id");
+    if (elmId != "errorTryAgain" || !/e=netOffline/.test(documentURI)) {
       return;
     }
-    sendSyncMessage("Browser:NetworkError", {});
+    // browser front end will handle clearing offline mode and refreshing
+    // the page *if* we're in offline mode now. Otherwise let the error page
+    // handle the click.
+    if (Services.io.offline) {
+      event.preventDefault();
+      sendAsyncMessage("Browser:EnableOnlineMode", {});
+    }
   },
 
   /**
@@ -842,6 +931,13 @@ ContentWebRTC.init();
 addMessageListener("webrtc:Allow", ContentWebRTC);
 addMessageListener("webrtc:Deny", ContentWebRTC);
 addMessageListener("webrtc:StopSharing", ContentWebRTC);
+addMessageListener("webrtc:StartBrowserSharing", () => {
+  let windowID = content.QueryInterface(Ci.nsIInterfaceRequestor)
+                        .getInterface(Ci.nsIDOMWindowUtils).outerWindowID;
+  sendAsyncMessage("webrtc:response:StartBrowserSharing", {
+    windowID: windowID
+  });
+});
 
 function gKeywordURIFixup(fixupInfo) {
   fixupInfo.QueryInterface(Ci.nsIURIFixupInfo);
@@ -975,4 +1071,43 @@ addMessageListener("ContextMenu:SaveVideoFrameAsImage", (message) => {
   sendAsyncMessage("ContextMenu:SaveVideoFrameAsImage:Result", {
     dataURL: canvas.toDataURL("image/jpeg", ""),
   });
+});
+
+addMessageListener("ContextMenu:MediaCommand", (message) => {
+  let media = message.objects.element;
+
+  switch (message.data.command) {
+    case "play":
+      media.play();
+      break;
+    case "pause":
+      media.pause();
+      break;
+    case "mute":
+      media.muted = true;
+      break;
+    case "unmute":
+      media.muted = false;
+      break;
+    case "playbackRate":
+      media.playbackRate = message.data.data;
+      break;
+    case "hidecontrols":
+      media.removeAttribute("controls");
+      break;
+    case "showcontrols":
+      media.setAttribute("controls", "true");
+      break;
+    case "hidestats":
+    case "showstats":
+      let event = media.ownerDocument.createEvent("CustomEvent");
+      event.initCustomEvent("media-showStatistics", false, true,
+                            message.data.command == "showstats");
+      media.dispatchEvent(event);
+      break;
+    case "fullscreen":
+      if (content.document.mozFullScreenEnabled)
+        media.mozRequestFullScreen();
+      break;
+  }
 });

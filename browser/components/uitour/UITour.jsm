@@ -13,6 +13,8 @@ Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 Cu.import("resource://gre/modules/Promise.jsm");
 Cu.import("resource://gre/modules/Task.jsm");
 
+Cu.importGlobalProperties(["URL"]);
+
 XPCOMUtils.defineLazyModuleGetter(this, "LightweightThemeManager",
   "resource://gre/modules/LightweightThemeManager.jsm");
 XPCOMUtils.defineLazyModuleGetter(this, "ResetProfile",
@@ -29,6 +31,19 @@ XPCOMUtils.defineLazyModuleGetter(this, "Metrics",
 // See LOG_LEVELS in Console.jsm. Common examples: "All", "Info", "Warn", & "Error".
 const PREF_LOG_LEVEL      = "browser.uitour.loglevel";
 const PREF_SEENPAGEIDS    = "browser.uitour.seenPageIDs";
+
+const BACKGROUND_PAGE_ACTIONS_ALLOWED = new Set([
+  "endUrlbarCapture",
+  "getConfiguration",
+  "getTreatmentTag",
+  "hideHighlight",
+  "hideInfo",
+  "hideMenu",
+  "ping",
+  "registerPageID",
+  "setConfiguration",
+  "setTreatmentTag",
+]);
 const MAX_BUTTONS         = 4;
 
 const BUCKET_NAME         = "UITour";
@@ -59,20 +74,17 @@ XPCOMUtils.defineLazyGetter(this, "log", () => {
 this.UITour = {
   url: null,
   seenPageIDs: null,
-  pageIDSourceTabs: new WeakMap(),
-  pageIDSourceWindows: new WeakMap(),
-  /* Map from browser windows to a set of tabs in which a tour is open */
-  originTabs: new WeakMap(),
-  /* Map from browser windows to a set of pinned tabs opened by (a) tour(s) */
-  pinnedTabs: new WeakMap(),
+  // This map is not persisted and is used for
+  // building the content source of a potential tour.
+  pageIDsForSession: new Map(),
+  pageIDSourceBrowsers: new WeakMap(),
+  /* Map from browser chrome windows to a Set of <browser>s in which a tour is open (both visible and hidden) */
+  tourBrowsersByWindow: new WeakMap(),
   urlbarCapture: new WeakMap(),
   appMenuOpenForAnnotation: new Set(),
   availableTargetsCache: new WeakMap(),
 
-  _detachingTab: false,
   _annotationPanelMutationObservers: new WeakMap(),
-  _queuedEvents: [],
-  _pendingDoc: null,
 
   highlightEffects: ["random", "wobble", "zoom", "color"],
   targets: new Map([
@@ -115,31 +127,35 @@ this.UITour = {
     ["help",        {query: "#PanelUI-help"}],
     ["home",        {query: "#home-button"}],
     ["forget", {
+      allowAdd: true,
       query: "#panic-button",
       widgetName: "panic-button",
-      allowAdd: true,
     }],
-    ["loop",        {query: "#loop-button"}],
+    ["loop",        {
+      allowAdd: true,
+      query: "#loop-button",
+      widgetName: "loop-button",
+    }],
     ["loop-newRoom", {
       infoPanelPosition: "leftcenter topright",
       query: (aDocument) => {
-        let loopBrowser = aDocument.querySelector("#loop-notification-panel > #loop");
-        if (!loopBrowser) {
+        let loopUI = aDocument.defaultView.LoopUI;
+        if (loopUI.selectedTab != "rooms") {
           return null;
         }
         // Use the parentElement full-width container of the button so our arrow
         // doesn't overlap the panel contents much.
-        return loopBrowser.contentDocument.querySelector(".new-room-button").parentElement;
+        return loopUI.browser.contentDocument.querySelector(".new-room-button").parentElement;
       },
     }],
     ["loop-roomList", {
       infoPanelPosition: "leftcenter topright",
       query: (aDocument) => {
-        let loopBrowser = aDocument.querySelector("#loop-notification-panel > #loop");
-        if (!loopBrowser) {
+        let loopUI = aDocument.defaultView.LoopUI;
+        if (loopUI.selectedTab != "rooms") {
           return null;
         }
-        return loopBrowser.contentDocument.querySelector(".room-list");
+        return loopUI.browser.contentDocument.querySelector(".room-list");
       },
     }],
     ["loop-selectedRoomButtons", {
@@ -162,7 +178,7 @@ this.UITour = {
     }],
     ["loop-signInUpLink", {
       query: (aDocument) => {
-        let loopBrowser = aDocument.querySelector("#loop-notification-panel > #loop");
+        let loopBrowser = aDocument.defaultView.LoopUI.browser;
         if (!loopBrowser) {
           return null;
         }
@@ -326,13 +342,21 @@ this.UITour = {
   },
 
   onPageEvent: function(aMessage, aEvent) {
-    let contentDocument = null;
     let browser = aMessage.target;
     let window = browser.ownerDocument.defaultView;
+
+    // Does the window have tabs? We need to make sure since windowless browsers do
+    // not have tabs.
+    if (!window.gBrowser) {
+      // When using windowless browsers we don't have a valid |window|. If that's the case,
+      // use the most recent window as a target for UITour functions (see Bug 1111022).
+      window = Services.wm.getMostRecentWindow("navigator:browser");
+    }
+
     let tab = window.gBrowser.getTabForBrowser(browser);
     let messageManager = browser.messageManager;
 
-    log.debug("onPageEvent:", aEvent.detail);
+    log.debug("onPageEvent:", aEvent.detail, aMessage);
 
     if (typeof aEvent.detail != "object") {
       log.warn("Malformed event - detail not an object");
@@ -351,50 +375,65 @@ this.UITour = {
       return false;
     }
 
+    if ((aEvent.pageVisibilityState == "hidden" ||
+         aEvent.pageVisibilityState == "unloaded") &&
+        !BACKGROUND_PAGE_ACTIONS_ALLOWED.has(action)) {
+      log.warn("Ignoring disallowed action from a hidden page:", action);
+      return false;
+    }
+
     // Do this before bailing if there's no tab, so later we can pick up the pieces:
     window.gBrowser.tabContainer.addEventListener("TabSelect", this);
 
-    if (!window.gMultiProcessBrowser) { // Non-e10s. See bug 1089000.
-      contentDocument = browser.contentWindow.document;
-      if (!tab) {
-        // This should only happen while detaching a tab:
-        if (this._detachingTab) {
-          log.debug("Got event while detatching a tab");
-          this._queuedEvents.push(aEvent);
-          this._pendingDoc = Cu.getWeakReference(contentDocument);
-          return;
-        }
-        log.error("Discarding tabless UITour event (" + action + ") while not detaching a tab." +
-                       "This shouldn't happen!");
-        return;
-      }
-    }
-
     switch (action) {
       case "registerPageID": {
-        // This is only relevant if Telemtry is enabled.
+        if (typeof data.pageID != "string") {
+          log.warn("registerPageID: pageID must be a string");
+          break;
+        }
+
+        this.pageIDsForSession.set(data.pageID, {lastSeen: Date.now()});
+
+        // The rest is only relevant if Telemetry is enabled.
         if (!UITelemetry.enabled) {
-          log.debug("registerPageID: Telemery disabled, not doing anything");
+          log.debug("registerPageID: Telemetry disabled, not doing anything");
           break;
         }
 
         // We don't want to allow BrowserUITelemetry.BUCKET_SEPARATOR in the
         // pageID, as it could make parsing the telemetry bucket name difficult.
-        if (typeof data.pageID != "string" ||
-            data.pageID.contains(BrowserUITelemetry.BUCKET_SEPARATOR)) {
+        if (data.pageID.contains(BrowserUITelemetry.BUCKET_SEPARATOR)) {
           log.warn("registerPageID: Invalid page ID specified");
           break;
         }
 
         this.addSeenPageID(data.pageID);
-
-        // Store tabs and windows separately so we don't need to loop over all
-        // tabs when a window is closed.
-        this.pageIDSourceTabs.set(tab, data.pageID);
-        this.pageIDSourceWindows.set(window, data.pageID);
-
+        this.pageIDSourceBrowsers.set(browser, data.pageID);
         this.setTelemetryBucket(data.pageID);
 
+        break;
+      }
+
+      case "showHeartbeat": {
+        // Validate the input parameters.
+        if (typeof data.message !== "string" || data.message === "") {
+          log.error("showHeartbeat: Invalid message specified.");
+          break;
+        }
+
+        if (typeof data.thankyouMessage !== "string" || data.thankyouMessage === "") {
+          log.error("showHeartbeat: Invalid thank you message specified.");
+          break;
+        }
+
+        if (typeof data.flowId !== "string" || data.flowId === "") {
+          log.error("showHeartbeat: Invalid flowId specified.");
+          break;
+        }
+
+        // Finally show the Heartbeat UI.
+        this.showHeartbeat(window, messageManager, data.message, data.thankyouMessage, data.flowId,
+                           data.engagementURL);
         break;
       }
 
@@ -485,16 +524,6 @@ this.UITour = {
         break;
       }
 
-      case "addPinnedTab": {
-        this.ensurePinnedTab(window, true);
-        break;
-      }
-
-      case "removePinnedTab": {
-        this.removePinnedTab(window);
-        break;
-      }
-
       case "showMenu": {
         this.showMenu(window, data.name, () => {
           if (typeof data.showCallbackID == "string")
@@ -524,6 +553,7 @@ this.UITour = {
         }
 
         let secman = Services.scriptSecurityManager;
+        let contentDocument = browser.contentWindow.document;
         let principal = contentDocument.nodePrincipal;
         let flags = secman.DISALLOW_INHERIT_PRINCIPAL;
         try {
@@ -566,7 +596,7 @@ this.UITour = {
         // 'signup' is the only action that makes sense currently, so we don't
         // accept arbitrary actions just to be safe...
         // We want to replace the current tab.
-        contentDocument.location.href = "about:accounts?action=signup&entrypoint=uitour";
+        browser.loadURI("about:accounts?action=signup&entrypoint=uitour");
         break;
       }
 
@@ -650,101 +680,45 @@ this.UITour = {
       }
     }
 
-    if (!window.gMultiProcessBrowser) { // Non-e10s. See bug 1089000.
-      if (!this.originTabs.has(window)) {
-        this.originTabs.set(window, new Set());
-      }
-
-      this.originTabs.get(window).add(tab);
-      tab.addEventListener("TabClose", this);
-      tab.addEventListener("TabBecomingWindow", this);
-      window.addEventListener("SSWindowClosing", this);
+    if (!this.tourBrowsersByWindow.has(window)) {
+      this.tourBrowsersByWindow.set(window, new Set());
     }
+    this.tourBrowsersByWindow.get(window).add(browser);
+
+    Services.obs.addObserver(this, "message-manager-disconnect", false);
+
+    window.addEventListener("SSWindowClosing", this);
 
     return true;
   },
 
   handleEvent: function(aEvent) {
+    log.debug("handleEvent: type =", aEvent.type, "event =", aEvent);
     switch (aEvent.type) {
       case "pagehide": {
         let window = this.getChromeWindow(aEvent.target);
-        this.teardownTour(window);
-        break;
-      }
-
-      case "TabBecomingWindow":
-        this._detachingTab = true;
-        // Fall through
-      case "TabClose": {
-        let tab = aEvent.target;
-        if (this.pageIDSourceTabs.has(tab)) {
-          let pageID = this.pageIDSourceTabs.get(tab);
-
-          // Delete this from the window cache, so if the window is closed we
-          // don't expire this page ID twice.
-          let window = tab.ownerDocument.defaultView;
-          if (this.pageIDSourceWindows.get(window) == pageID)
-            this.pageIDSourceWindows.delete(window);
-
-          this.setExpiringTelemetryBucket(pageID, "closed");
-        }
-
-        let window = tab.ownerDocument.defaultView;
-        this.teardownTour(window);
+        this.teardownTourForWindow(window);
         break;
       }
 
       case "TabSelect": {
+        let window = aEvent.target.ownerDocument.defaultView;
+
+        // Teardown the browser of the tab we just switched away from.
         if (aEvent.detail && aEvent.detail.previousTab) {
           let previousTab = aEvent.detail.previousTab;
-
-          if (this.pageIDSourceTabs.has(previousTab)) {
-            let pageID = this.pageIDSourceTabs.get(previousTab);
-            this.setExpiringTelemetryBucket(pageID, "inactive");
+          let openTourWindows = this.tourBrowsersByWindow.get(window);
+          if (openTourWindows.has(previousTab.linkedBrowser)) {
+            this.teardownTourForBrowser(window, previousTab.linkedBrowser, false);
           }
         }
 
-        let window = aEvent.target.ownerDocument.defaultView;
-        let selectedTab = window.gBrowser.selectedTab;
-        let pinnedTab = this.pinnedTabs.get(window);
-        if (pinnedTab && pinnedTab.tab == selectedTab)
-          break;
-        let originTabs = this.originTabs.get(window);
-        if (originTabs && originTabs.has(selectedTab))
-          break;
-
-        let pendingDoc;
-        if (this._detachingTab && this._pendingDoc && (pendingDoc = this._pendingDoc.get())) {
-          if (selectedTab.linkedBrowser.contentDocument == pendingDoc) {
-            if (!this.originTabs.get(window)) {
-              this.originTabs.set(window, new Set());
-            }
-            this.originTabs.get(window).add(selectedTab);
-            this.pendingDoc = null;
-            this._detachingTab = false;
-            while (this._queuedEvents.length) {
-              try {
-                this.onPageEvent(this._queuedEvents.shift());
-              } catch (ex) {
-                log.error(ex);
-              }
-            }
-            break;
-          }
-        }
-
-        this.teardownTour(window);
         break;
       }
 
       case "SSWindowClosing": {
         let window = aEvent.target;
-        if (this.pageIDSourceWindows.has(window)) {
-          let pageID = this.pageIDSourceWindows.get(window);
-          this.setExpiringTelemetryBucket(pageID, "closed");
-        }
-
-        this.teardownTour(window, true);
+        this.teardownTourForWindow(window);
         break;
       }
 
@@ -752,6 +726,37 @@ this.UITour = {
         if (aEvent.target.id == "urlbar") {
           let window = aEvent.target.ownerDocument.defaultView;
           this.handleUrlbarInput(window);
+        }
+        break;
+      }
+    }
+  },
+
+  observe: function(aSubject, aTopic, aData) {
+    log.debug("observe: aTopic =", aTopic);
+    switch (aTopic) {
+      // The browser message manager is disconnected when the <browser> is
+      // destroyed and we want to teardown at that point.
+      case "message-manager-disconnect": {
+        let winEnum = Services.wm.getEnumerator("navigator:browser");
+        while (winEnum.hasMoreElements()) {
+          let window = winEnum.getNext();
+          if (window.closed)
+            continue;
+
+          let tourBrowsers = this.tourBrowsersByWindow.get(window);
+          if (!tourBrowsers)
+            continue;
+
+          for (let browser of tourBrowsers) {
+            let messageManager = browser.messageManager;
+            if (aSubject != messageManager) {
+              continue;
+            }
+
+            this.teardownTourForBrowser(window, browser, true);
+            return;
+          }
         }
         break;
       }
@@ -779,29 +784,29 @@ this.UITour = {
     };
   },
 
-  teardownTour: function(aWindow, aWindowClosing = false) {
-    log.debug("teardownTour: aWindowClosing = " + aWindowClosing);
-    aWindow.gBrowser.tabContainer.removeEventListener("TabSelect", this);
-    aWindow.removeEventListener("SSWindowClosing", this);
+  /**
+   * Tear down a tour from a tab e.g. upon switching/closing tabs.
+   */
+  teardownTourForBrowser: function(aWindow, aBrowser, aTourPageClosing = false) {
+    log.debug("teardownTourForBrowser: aBrowser = ", aBrowser, aTourPageClosing);
 
-    let originTabs = this.originTabs.get(aWindow);
-    if (originTabs) {
-      for (let tab of originTabs) {
-        tab.removeEventListener("TabClose", this);
-        tab.removeEventListener("TabBecomingWindow", this);
-      }
-    }
-    this.originTabs.delete(aWindow);
-
-    if (!aWindowClosing) {
-      this.hideHighlight(aWindow);
-      this.hideInfo(aWindow);
-      // Ensure the menu panel is hidden before calling recreatePopup so popup events occur.
-      this.hideMenu(aWindow, "appMenu");
-      this.hideMenu(aWindow, "loop");
+    if (this.pageIDSourceBrowsers.has(aBrowser)) {
+      let pageID = this.pageIDSourceBrowsers.get(aBrowser);
+      this.setExpiringTelemetryBucket(pageID, aTourPageClosing ? "closed" : "inactive");
     }
 
-    // Clean up panel listeners after we may have called hideMenu above.
+    let openTourBrowsers = this.tourBrowsersByWindow.get(aWindow);
+    if (aTourPageClosing && openTourBrowsers) {
+      openTourBrowsers.delete(aBrowser);
+    }
+
+    this.hideHighlight(aWindow);
+    this.hideInfo(aWindow);
+    // Ensure the menu panel is hidden before calling recreatePopup so popup events occur.
+    this.hideMenu(aWindow, "appMenu");
+    this.hideMenu(aWindow, "loop");
+
+    // Clean up panel listeners after calling hideMenu above.
     aWindow.PanelUI.panel.removeEventListener("popuphiding", this.hideAppMenuAnnotations);
     aWindow.PanelUI.panel.removeEventListener("ViewShowing", this.hideAppMenuAnnotations);
     aWindow.PanelUI.panel.removeEventListener("popuphidden", this.onPanelHidden);
@@ -810,8 +815,33 @@ this.UITour = {
     loopPanel.removeEventListener("popuphiding", this.hideLoopPanelAnnotations);
 
     this.endUrlbarCapture(aWindow);
-    this.removePinnedTab(aWindow);
     this.resetTheme();
+
+    // If there are no more tour tabs left in the window, teardown the tour for the whole window.
+    if (!openTourBrowsers || openTourBrowsers.size == 0) {
+      this.teardownTourForWindow(aWindow);
+    }
+  },
+
+  /**
+   * Tear down all tours for a ChromeWindow.
+   */
+  teardownTourForWindow: function(aWindow) {
+    log.debug("teardownTourForWindow");
+    aWindow.gBrowser.tabContainer.removeEventListener("TabSelect", this);
+    aWindow.removeEventListener("SSWindowClosing", this);
+
+    let openTourBrowsers = this.tourBrowsersByWindow.get(aWindow);
+    if (openTourBrowsers) {
+      for (let browser of openTourBrowsers) {
+        if (this.pageIDSourceBrowsers.has(browser)) {
+          let pageID = this.pageIDSourceBrowsers.get(browser);
+          this.setExpiringTelemetryBucket(pageID, "closed");
+        }
+      }
+    }
+
+    this.tourBrowsersByWindow.delete(aWindow);
   },
 
   getChromeWindow: function(aContentDocument) {
@@ -872,14 +902,6 @@ this.UITour = {
     if (typeof aTargetName != "string" || !aTargetName) {
       log.warn("getTarget: Invalid target name specified");
       deferred.reject("Invalid target name specified");
-      return deferred.promise;
-    }
-
-    if (aTargetName == "pinnedTab") {
-      deferred.resolve({
-          targetName: aTargetName,
-          node: this.ensurePinnedTab(aWindow, aSticky)
-      });
       return deferred.promise;
     }
 
@@ -996,34 +1018,155 @@ this.UITour = {
     LightweightThemeManager.resetPreview();
   },
 
-  ensurePinnedTab: function(aWindow, aSticky = false) {
-    let tabInfo = this.pinnedTabs.get(aWindow);
+  /**
+   * Show the Heartbeat UI to request user feedback. This function reports back to the
+   * caller using |notify|. The notification event name reflects the current status the UI
+   * is in (either "Heartbeat:NotificationOffered", "Heartbeat:NotificationClosed" or
+   * "Heartbeat:Voted"). When a "Heartbeat:Voted" event is notified the data payload contains
+   * a |score| field which holds the rating picked by the user.
+   * Please note that input parameters are already validated by the caller.
+   *
+   * @param aChromeWindow
+   *        The chrome window that the heartbeat notification is displayed in.
+   * @param aMessageManager
+   *        The message manager to communicate with the API caller.
+   * @param aMessage
+   *        The message, or question, to display on the notification.
+   * @param aThankyouMessage
+   *        The thank you message to display after user votes.
+   * @param aFlowId
+   *        An identifier for this rating flow. Please note that this is only used to
+   *        identify the notification box.
+   * @param [aEngagementURL]
+   *        The engagement URL to open in a new tab once user has voted. If this is null
+   *        or invalid, no new tab is opened.
+   */
+  showHeartbeat: function(aChromeWindow, aMessageManager, aMessage, aThankyouMessage, aFlowId,
+                          aEngagementURL = null) {
+    let nb = aChromeWindow.document.getElementById("high-priority-global-notificationbox");
 
-    if (tabInfo) {
-      tabInfo.sticky = tabInfo.sticky || aSticky;
-    } else {
-      let url = Services.urlFormatter.formatURLPref("browser.uitour.pinnedTabUrl");
+    // Create the notification. Prefix its ID to decrease the chances of collisions.
+    let notice = nb.appendNotification(aMessage, "heartbeat-" + aFlowId,
+      "chrome://branding/content/icon64.png", nb.PRIORITY_INFO_HIGH, null, function() {
+        // Let the consumer know the notification bar was closed. This also happens
+        // after voting.
+        this.notify("Heartbeat:NotificationClosed", { flowId: aFlowId, timestamp: Date.now() });
+    }.bind(this));
 
-      let tab = aWindow.gBrowser.addTab(url);
-      aWindow.gBrowser.pinTab(tab);
-      tab.addEventListener("TabClose", () => {
-        this.pinnedTabs.delete(aWindow);
-      });
+    // Get the elements we need to style.
+    let messageImage =
+      aChromeWindow.document.getAnonymousElementByAttribute(notice, "anonid", "messageImage");
+    let messageText =
+      aChromeWindow.document.getAnonymousElementByAttribute(notice, "anonid", "messageText");
 
-      tabInfo = {
-        tab: tab,
-        sticky: aSticky
-      };
-      this.pinnedTabs.set(aWindow, tabInfo);
+    // Create the fragment holding the rating UI.
+    let frag = aChromeWindow.document.createDocumentFragment();
+
+    // Build the Heartbeat star rating.
+    const numStars = 5;
+    let ratingContainer = aChromeWindow.document.createElement("hbox");
+    ratingContainer.id = "star-rating-container";
+
+    for (let i = 0; i < numStars; i++) {
+      // Create a star rating element.
+      let ratingElement = aChromeWindow.document.createElement("toolbarbutton");
+
+      // Style it.
+      let starIndex = numStars - i;
+      ratingElement.className = "plain star-x";
+      ratingElement.id = "star" + starIndex;
+      ratingElement.setAttribute("data-score", starIndex);
+
+      // Add the click handler.
+      ratingElement.addEventListener("click", function (evt) {
+        let rating = Number(evt.target.getAttribute("data-score"), 10);
+
+        // Let the consumer know user voted.
+        this.notify("Heartbeat:Voted", { flowId: aFlowId, score: rating, timestamp: Date.now() });
+
+        // Display the Heart and make it pulse twice.
+        notice.image = "chrome://browser/skin/heartbeat-icon.svg";
+        notice.label = aThankyouMessage;
+        messageImage.classList.remove("pulse-onshow");
+        messageImage.classList.add("pulse-twice");
+
+        // Remove all the children of the notice (rating container
+        // and the flex).
+        while (notice.firstChild) {
+          notice.removeChild(notice.firstChild);
+        }
+
+        // Make sure that we have a valid URL. If we haven't, do not open the engagement page.
+        let engagementURL = null;
+        try {
+          engagementURL = new URL(aEngagementURL);
+        } catch (error) {
+          log.error("showHeartbeat: Invalid URL specified.");
+        }
+
+        // Just open the engagement tab if we have a valid engagement URL.
+        if (engagementURL) {
+          // Append the score data to the engagement URL.
+          engagementURL.searchParams.append("type", "stars");
+          engagementURL.searchParams.append("score", rating);
+          engagementURL.searchParams.append("flowid", aFlowId);
+
+          // Open the engagement URL in a new tab.
+          aChromeWindow.gBrowser.selectedTab =
+            aChromeWindow.gBrowser.addTab(engagementURL.toString(), {
+              owner: aChromeWindow.gBrowser.selectedTab,
+              relatedToCurrent: true
+            });
+        }
+
+        // Remove the notification bar after 3 seconds.
+        aChromeWindow.setTimeout(() => {
+          nb.removeNotification(notice);
+        }, 3000);
+      }.bind(this));
+
+      // Add it to the container.
+      ratingContainer.appendChild(ratingElement);
     }
 
-    return tabInfo.tab;
+    frag.appendChild(ratingContainer);
+
+    // Make sure the stars are not pushed to the right by the spacer.
+    let rightSpacer = aChromeWindow.document.createElement("spacer");
+    rightSpacer.flex = 20;
+    frag.appendChild(rightSpacer);
+
+    let leftSpacer = messageText.nextSibling;
+    leftSpacer.flex = 0;
+
+    // Append the fragment and apply the styling.
+    notice.appendChild(frag);
+    notice.classList.add("heartbeat");
+    messageImage.classList.add("heartbeat", "pulse-onshow");
+    messageText.classList.add("heartbeat");
+
+    // Let the consumer know the notification was shown.
+    this.notify("Heartbeat:NotificationOffered", { flowId: aFlowId, timestamp: Date.now() });
   },
 
-  removePinnedTab: function(aWindow) {
-    let tabInfo = this.pinnedTabs.get(aWindow);
-    if (tabInfo)
-      aWindow.gBrowser.removeTab(tabInfo.tab);
+  /**
+   * The node to which a highlight or notification(-popup) is anchored is sometimes
+   * obscured because it may be inside an overflow menu. This function should figure
+   * that out and offer the overflow chevron as an alternative.
+   *
+   * @param {Node} aAnchor The element that's supposed to be the anchor
+   * @type {Node}
+   */
+  _correctAnchor: function(aAnchor) {
+    // If the target is in the overflow panel, just return the overflow button.
+    if (aAnchor.getAttribute("overflowedItem")) {
+      let doc = aAnchor.ownerDocument;
+      let placement = CustomizableUI.getPlacementOfWidget(aAnchor.id);
+      let areaNode = doc.getElementById(placement.area);
+      return areaNode.overflowable._chevron;
+    }
+
+    return aAnchor;
   },
 
   /**
@@ -1065,16 +1208,7 @@ this.UITour = {
       highlighter.parentElement.setAttribute("targetName", aTarget.targetName);
       highlighter.parentElement.hidden = false;
 
-      let highlightAnchor;
-      // If the target is in the overflow panel, just highlight the overflow button.
-      if (aTarget.node.getAttribute("overflowedItem")) {
-        let doc = aTarget.node.ownerDocument;
-        let placement = CustomizableUI.getPlacementOfWidget(aTarget.widgetName || aTarget.node.id);
-        let areaNode = doc.getElementById(placement.area);
-        highlightAnchor = areaNode.overflowable._chevron;
-      } else {
-        highlightAnchor = aTarget.node;
-      }
+      let highlightAnchor = this._correctAnchor(aTarget.node);
       let targetRect = highlightAnchor.getBoundingClientRect();
       let highlightHeight = targetRect.height;
       let highlightWidth = targetRect.width;
@@ -1127,10 +1261,6 @@ this.UITour = {
   },
 
   hideHighlight: function(aWindow) {
-    let tabData = this.pinnedTabs.get(aWindow);
-    if (tabData && !tabData.sticky)
-      this.removePinnedTab(aWindow);
-
     let highlighter = aWindow.document.getElementById("UITourHighlight");
     this._removeAnnotationPanelMutationObserver(highlighter.parentElement);
     highlighter.parentElement.hidePopup();
@@ -1277,7 +1407,7 @@ this.UITour = {
 
     this._setAppMenuStateForAnnotation(aChromeWindow, "info",
                                        this.targetIsInAppMenu(aAnchor),
-                                       showInfoPanel.bind(this, aAnchor.node));
+                                       showInfoPanel.bind(this, this._correctAnchor(aAnchor.node)));
   },
 
   hideInfo: function(aWindow) {
@@ -1294,6 +1424,7 @@ this.UITour = {
   },
 
   showMenu: function(aWindow, aMenuName, aOpenCallback = null) {
+    log.debug("showMenu:", aMenuName);
     function openMenuButton(aMenuBtn) {
       if (!aMenuBtn || !aMenuBtn.boxObject || aMenuBtn.open) {
         if (aOpenCallback)
@@ -1358,6 +1489,7 @@ this.UITour = {
   },
 
   hideMenu: function(aWindow, aMenuName) {
+    log.debug("hideMenu:", aMenuName);
     function closeMenuButton(aMenuBtn) {
       if (aMenuBtn && aMenuBtn.boxObject)
         aMenuBtn.boxObject.openMenu(false);
@@ -1468,19 +1600,19 @@ this.UITour = {
 
   getConfiguration: function(aMessageManager, aWindow, aConfiguration, aCallbackID) {
     switch (aConfiguration) {
-      case "availableTargets":
-        this.getAvailableTargets(aMessageManager, aWindow, aCallbackID);
-        break;
-      case "sync":
-        this.sendPageCallback(aMessageManager, aCallbackID, {
-          setup: Services.prefs.prefHasUserValue("services.sync.username"),
-        });
-        break;
       case "appinfo":
         let props = ["defaultUpdateChannel", "version"];
         let appinfo = {};
         props.forEach(property => appinfo[property] = Services.appinfo[property]);
         this.sendPageCallback(aMessageManager, aCallbackID, appinfo);
+        break;
+      case "availableTargets":
+        this.getAvailableTargets(aMessageManager, aWindow, aCallbackID);
+        break;
+      case "loop":
+        this.sendPageCallback(aMessageManager, aCallbackID, {
+          gettingStartedSeen: Services.prefs.getBoolPref("loop.gettingStarted.seen"),
+        });
         break;
       case "selectedSearchEngine":
         Services.search.init(rv => {
@@ -1493,6 +1625,11 @@ this.UITour = {
           this.sendPageCallback(aMessageManager, aCallbackID, {
             searchEngineIdentifier: engine.identifier
           });
+        });
+        break;
+      case "sync":
+        this.sendPageCallback(aMessageManager, aCallbackID, {
+          setup: Services.prefs.prefHasUserValue("services.sync.username"),
         });
         break;
       default:
@@ -1529,10 +1666,7 @@ this.UITour = {
       }
       let targetObjects = yield Promise.all(promises);
 
-      let targetNames = [
-        "pinnedTab",
-      ];
-
+      let targetNames = [];
       for (let targetObject of targetObjects) {
         if (targetObject.node)
           targetNames.push(targetObject.targetName);
@@ -1690,12 +1824,16 @@ this.UITour = {
       if (window.closed)
         continue;
 
-      let originTabs = this.originTabs.get(window);
-      if (!originTabs)
+      let openTourBrowsers = this.tourBrowsersByWindow.get(window);
+      if (!openTourBrowsers)
         continue;
 
-      for (let tab of originTabs) {
-        let messageManager = tab.linkedBrowser.messageManager;
+      for (let browser of openTourBrowsers) {
+        let messageManager = browser.messageManager;
+        if (!messageManager) {
+          log.error("notify: Trying to notify a browser without a messageManager", browser);
+          continue;
+        }
         let detail = {
           event: eventName,
           params: params,

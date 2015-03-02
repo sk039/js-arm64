@@ -19,6 +19,7 @@
 #include "nsWrapperCache.h"
 #include "nsAutoPtr.h"
 #include "js/TypeDecls.h"
+#include "jspubtd.h"
 
 #include "mozilla/dom/workers/bindings/WorkerFeature.h"
 
@@ -74,7 +75,7 @@ class Promise : public nsISupports,
 public:
   NS_DECLARE_STATIC_IID_ACCESSOR(NS_PROMISE_IID)
   NS_DECL_CYCLE_COLLECTING_ISUPPORTS
-  NS_DECL_CYCLE_COLLECTION_SCRIPT_HOLDER_CLASS(Promise)
+  NS_DECL_CYCLE_COLLECTION_SKIPPABLE_SCRIPT_HOLDER_CLASS(Promise)
   MOZ_DECLARE_REFCOUNTED_TYPENAME(Promise)
 
   // Promise creation tries to create a JS reflector for the Promise, so is
@@ -176,6 +177,10 @@ public:
 
   void AppendNativeHandler(PromiseNativeHandler* aRunnable);
 
+  JSObject* GlobalJSObject() const;
+
+  JSCompartment* Compartment() const;
+
 protected:
   // Do NOT call this unless you're Promise::Create.  I wish we could enforce
   // that from inside this class too, somehow.
@@ -244,7 +249,7 @@ private:
   void MaybeReportRejectedOnce() {
     MaybeReportRejected();
     RemoveFeature();
-    mResult = JS::UndefinedValue();
+    mResult.setUndefined();
   }
 
   void MaybeResolveInternal(JSContext* aCx,

@@ -18,9 +18,11 @@
     _(Double)                       \
     _(Float32)                      \
     _(SimdBox)                      \
+    _(SimdUnbox)                    \
     _(SimdSplatX4)                  \
     _(Int32x4)                      \
     _(Float32x4)                    \
+    _(SimdReinterpretCast)          \
     _(SimdExtractElementI)          \
     _(SimdExtractElementF)          \
     _(SimdInsertElementI)           \
@@ -102,7 +104,7 @@
     _(TestVAndBranch)               \
     _(TestOAndBranch)               \
     _(FunctionDispatch)             \
-    _(TypeObjectDispatch)           \
+    _(ObjectGroupDispatch)          \
     _(Compare)                      \
     _(CompareAndBranch)             \
     _(CompareD)                     \
@@ -117,10 +119,10 @@
     _(CompareVAndBranch)            \
     _(CompareVM)                    \
     _(BitAndAndBranch)              \
-    _(IsNullOrLikeUndefined)        \
-    _(IsNullOrLikeUndefinedAndBranch)\
-    _(EmulatesUndefined)            \
-    _(EmulatesUndefinedAndBranch)   \
+    _(IsNullOrLikeUndefinedV)       \
+    _(IsNullOrLikeUndefinedT)       \
+    _(IsNullOrLikeUndefinedAndBranchV)\
+    _(IsNullOrLikeUndefinedAndBranchT)\
     _(MinMaxI)                      \
     _(MinMaxD)                      \
     _(MinMaxF)                      \
@@ -200,7 +202,7 @@
     _(StoreSlotT)                   \
     _(GuardShape)                   \
     _(GuardShapePolymorphic)        \
-    _(GuardObjectType)              \
+    _(GuardObjectGroup)             \
     _(GuardObjectIdentity)          \
     _(GuardClass)                   \
     _(TypeBarrierV)                 \
@@ -218,9 +220,11 @@
     _(LoadElementHole)              \
     _(LoadUnboxedPointerV)          \
     _(LoadUnboxedPointerT)          \
+    _(UnboxObjectOrNull)            \
     _(StoreElementV)                \
     _(StoreElementT)                \
     _(StoreUnboxedPointer)          \
+    _(ConvertUnboxedObjectToNative) \
     _(ArrayPopShiftV)               \
     _(ArrayPopShiftT)               \
     _(ArrayPushV)                   \
@@ -256,7 +260,6 @@
     _(CallGetProperty)              \
     _(GetNameCache)                 \
     _(CallGetIntrinsicValue)        \
-    _(CallsiteCloneCache)           \
     _(CallGetElement)               \
     _(CallSetElement)               \
     _(CallInitElementArray)         \
@@ -305,7 +308,6 @@
     _(InterruptCheck)               \
     _(AsmJSInterruptCheck)          \
     _(InterruptCheckImplicit)       \
-    _(ProfilerStackOp)              \
     _(GetDOMProperty)               \
     _(GetDOMMemberV)                \
     _(GetDOMMemberT)                \
@@ -335,6 +337,7 @@
     _(AssertRangeV)                 \
     _(LexicalCheck)                 \
     _(ThrowUninitializedLexical)    \
+    _(NurseryObject)                \
     _(Debugger)
 
 #if defined(JS_CODEGEN_X86)

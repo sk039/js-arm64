@@ -39,10 +39,10 @@ using mozilla::Nothing;
 /* static */ DebuggerMemory *
 DebuggerMemory::create(JSContext *cx, Debugger *dbg)
 {
-
-    Value memoryProto = dbg->object->getReservedSlot(Debugger::JSSLOT_DEBUG_MEMORY_PROTO);
-    RootedNativeObject memory(cx, NewNativeObjectWithGivenProto(cx, &class_,
-                                                                &memoryProto.toObject(), nullptr));
+    Value memoryProtoValue = dbg->object->getReservedSlot(Debugger::JSSLOT_DEBUG_MEMORY_PROTO);
+    RootedObject memoryProto(cx, &memoryProtoValue.toObject());
+    RootedNativeObject memory(cx, NewNativeObjectWithGivenProto(cx, &class_, memoryProto,
+                                                                NullPtr()));
     if (!memory)
         return nullptr;
 
@@ -62,7 +62,7 @@ DebuggerMemory::getDebugger()
 /* static */ bool
 DebuggerMemory::construct(JSContext *cx, unsigned argc, Value *vp)
 {
-    JS_ReportErrorNumber(cx, js_GetErrorMessage, nullptr, JSMSG_NO_CONSTRUCTOR,
+    JS_ReportErrorNumber(cx, GetErrorMessage, nullptr, JSMSG_NO_CONSTRUCTOR,
                          "Debugger.Memory");
     return false;
 }
@@ -79,13 +79,13 @@ DebuggerMemory::checkThis(JSContext *cx, CallArgs &args, const char *fnName)
     const Value &thisValue = args.thisv();
 
     if (!thisValue.isObject()) {
-        JS_ReportErrorNumber(cx, js_GetErrorMessage, nullptr, JSMSG_NOT_NONNULL_OBJECT);
+        JS_ReportErrorNumber(cx, GetErrorMessage, nullptr, JSMSG_NOT_NONNULL_OBJECT, InformalValueTypeName(thisValue));
         return nullptr;
     }
 
     JSObject &thisObject = thisValue.toObject();
     if (!thisObject.is<DebuggerMemory>()) {
-        JS_ReportErrorNumber(cx, js_GetErrorMessage, nullptr, JSMSG_INCOMPATIBLE_PROTO,
+        JS_ReportErrorNumber(cx, GetErrorMessage, nullptr, JSMSG_INCOMPATIBLE_PROTO,
                              class_.name, fnName, thisObject.getClass()->name);
         return nullptr;
     }
@@ -95,7 +95,7 @@ DebuggerMemory::checkThis(JSContext *cx, CallArgs &args, const char *fnName)
     // of Debugger.Memory. It is the only object that is<DebuggerMemory>() but
     // doesn't have a Debugger instance.
     if (thisObject.as<DebuggerMemory>().getReservedSlot(JSSLOT_DEBUGGER).isUndefined()) {
-        JS_ReportErrorNumber(cx, js_GetErrorMessage, nullptr, JSMSG_INCOMPATIBLE_PROTO,
+        JS_ReportErrorNumber(cx, GetErrorMessage, nullptr, JSMSG_INCOMPATIBLE_PROTO,
                              class_.name, fnName, "prototype object");
         return nullptr;
     }
@@ -142,7 +142,7 @@ DebuggerMemory::setTrackingAllocationSites(JSContext *cx, unsigned argc, Value *
         for (GlobalObjectSet::Range r = dbg->debuggees.all(); !r.empty(); r.popFront()) {
             JSCompartment *compartment = r.front()->compartment();
             if (compartment->hasObjectMetadataCallback()) {
-                JS_ReportErrorNumber(cx, js_GetErrorMessage, nullptr,
+                JS_ReportErrorNumber(cx, GetErrorMessage, nullptr,
                                      JSMSG_OBJECT_METADATA_CALLBACK_ALREADY_SET);
                 return false;
             }
@@ -180,7 +180,7 @@ DebuggerMemory::drainAllocationsLog(JSContext *cx, unsigned argc, Value *vp)
     Debugger* dbg = memory->getDebugger();
 
     if (!dbg->trackingAllocationSites) {
-        JS_ReportErrorNumber(cx, js_GetErrorMessage, nullptr, JSMSG_NOT_TRACKING_ALLOCATIONS,
+        JS_ReportErrorNumber(cx, GetErrorMessage, nullptr, JSMSG_NOT_TRACKING_ALLOCATIONS,
                              "drainAllocationsLog");
         return false;
     }
@@ -203,11 +203,11 @@ DebuggerMemory::drainAllocationsLog(JSContext *cx, unsigned argc, Value *vp)
         // pop and delete together.
         Debugger::AllocationSite *allocSite = dbg->allocationsLog.getFirst();
         RootedValue frame(cx, ObjectOrNullValue(allocSite->frame));
-        if (!JSObject::defineProperty(cx, obj, cx->names().frame, frame))
+        if (!DefineProperty(cx, obj, cx->names().frame, frame))
             return false;
 
         RootedValue timestampValue(cx, NumberValue(allocSite->when));
-        if (!JSObject::defineProperty(cx, obj, cx->names().timestamp, timestampValue))
+        if (!DefineProperty(cx, obj, cx->names().timestamp, timestampValue))
             return false;
 
         result->setDenseElement(i, ObjectValue(*obj));
@@ -219,6 +219,7 @@ DebuggerMemory::drainAllocationsLog(JSContext *cx, unsigned argc, Value *vp)
         js_delete(allocSite);
     }
 
+    dbg->allocationsLogOverflowed = false;
     dbg->allocationsLogLength = 0;
     args.rval().setObject(*result);
     return true;
@@ -244,7 +245,7 @@ DebuggerMemory::setMaxAllocationsLogLength(JSContext *cx, unsigned argc, Value *
         return false;
 
     if (max < 1) {
-        JS_ReportErrorNumber(cx, js_GetErrorMessage, nullptr, JSMSG_UNEXPECTED_TYPE,
+        JS_ReportErrorNumber(cx, GetErrorMessage, nullptr, JSMSG_UNEXPECTED_TYPE,
                              "(set maxAllocationsLogLength)'s parameter",
                              "not a positive integer");
         return false;
@@ -282,7 +283,7 @@ DebuggerMemory::setAllocationSamplingProbability(JSContext *cx, unsigned argc, V
         return false;
 
     if (probability < 0.0 || probability > 1.0) {
-        JS_ReportErrorNumber(cx, js_GetErrorMessage, nullptr, JSMSG_UNEXPECTED_TYPE,
+        JS_ReportErrorNumber(cx, GetErrorMessage, nullptr, JSMSG_UNEXPECTED_TYPE,
                              "(set allocationSamplingProbability)'s parameter",
                              "not a number between 0 and 1");
         return false;
@@ -290,6 +291,14 @@ DebuggerMemory::setAllocationSamplingProbability(JSContext *cx, unsigned argc, V
 
     memory->getDebugger()->allocationSamplingProbability = probability;
     args.rval().setUndefined();
+    return true;
+}
+
+/* static */ bool
+DebuggerMemory::getAllocationsLogOverflowed(JSContext *cx, unsigned argc, Value *vp)
+{
+    THIS_DEBUGGER_MEMORY(cx, argc, vp, "(get allocationsLogOverflowed)", args, memory);
+    args.rval().setBoolean(memory->getDebugger()->allocationsLogOverflowed);
     return true;
 }
 
@@ -367,7 +376,7 @@ class Tally {
         RootedPlainObject obj(census.cx, NewBuiltinClassInstance<PlainObject>(census.cx));
         RootedValue countValue(census.cx, NumberValue(total_));
         if (!obj ||
-            !JSObject::defineProperty(census.cx, obj, census.cx->names().count, countValue))
+            !DefineProperty(census.cx, obj, census.cx->names().count, countValue))
         {
             return false;
         }
@@ -442,22 +451,22 @@ class ByJSType {
 
         RootedValue objectsReport(cx);
         if (!objects.report(census, &objectsReport) ||
-            !JSObject::defineProperty(cx, obj, cx->names().objects, objectsReport))
+            !DefineProperty(cx, obj, cx->names().objects, objectsReport))
             return false;
 
         RootedValue scriptsReport(cx);
         if (!scripts.report(census, &scriptsReport) ||
-            !JSObject::defineProperty(cx, obj, cx->names().scripts, scriptsReport))
+            !DefineProperty(cx, obj, cx->names().scripts, scriptsReport))
             return false;
 
         RootedValue stringsReport(cx);
         if (!strings.report(census, &stringsReport) ||
-            !JSObject::defineProperty(cx, obj, cx->names().strings, stringsReport))
+            !DefineProperty(cx, obj, cx->names().strings, stringsReport))
             return false;
 
         RootedValue otherReport(cx);
         if (!other.report(census, &otherReport) ||
-            !JSObject::defineProperty(cx, obj, cx->names().other, otherReport))
+            !DefineProperty(cx, obj, cx->names().other, otherReport))
             return false;
 
         report.setObject(*obj);
@@ -576,15 +585,15 @@ class ByObjectClass {
             // all "Object"), so let's make sure our hash table treats them all
             // as equivalent.
             bool has;
-            if (!JSObject::hasProperty(cx, obj, entryId, &has))
+            if (!HasOwnProperty(cx, obj, entryId, &has))
                 return false;
             if (has) {
-                fprintf(stderr, "already has %s\n", name);
+                fprintf(stderr, "already has own property '%s'\n", name);
                 MOZ_ASSERT(!has);
             }
 #endif
 
-            if (!JSObject::defineGeneric(cx, obj, entryId, assorterReport))
+            if (!DefineProperty(cx, obj, entryId, assorterReport))
                 return false;
         }
 
@@ -679,7 +688,7 @@ class ByUbinodeType {
                 return false;
             RootedId entryId(cx, AtomToId(atom));
 
-            if (!JSObject::defineGeneric(cx, obj, entryId, assorterReport))
+            if (!DefineProperty(cx, obj, entryId, assorterReport))
                 return false;
         }
 
@@ -804,6 +813,7 @@ DebuggerMemory::takeCensus(JSContext *cx, unsigned argc, Value *vp)
     JS_PSGS("trackingAllocationSites", getTrackingAllocationSites, setTrackingAllocationSites, 0),
     JS_PSGS("maxAllocationsLogLength", getMaxAllocationsLogLength, setMaxAllocationsLogLength, 0),
     JS_PSGS("allocationSamplingProbability", getAllocationSamplingProbability, setAllocationSamplingProbability, 0),
+    JS_PSG("allocationsLogOverflowed", getAllocationsLogOverflowed, 0),
     JS_PS_END
 };
 

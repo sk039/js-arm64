@@ -86,7 +86,7 @@ WeakSetObject::construct(JSContext *cx, unsigned argc, Value *vp)
     CallArgs args = CallArgsFromVp(argc, vp);
 
     if (!args.isConstructing()) {
-        JS_ReportErrorNumber(cx, js_GetErrorMessage, nullptr, JSMSG_NOT_FUNCTION, "WeakSet");
+        JS_ReportErrorNumber(cx, GetErrorMessage, nullptr, JSMSG_NOT_FUNCTION, "WeakSet");
         return false;
     }
 
@@ -94,7 +94,7 @@ WeakSetObject::construct(JSContext *cx, unsigned argc, Value *vp)
         RootedObject map(cx, &obj->getReservedSlot(WEAKSET_MAP_SLOT).toObject());
 
         RootedValue adderVal(cx);
-        if (!JSObject::getProperty(cx, obj, obj, cx->names().add, &adderVal))
+        if (!GetProperty(cx, obj, obj, cx->names().add, &adderVal))
             return false;
 
         if (!IsCallable(adderVal))
@@ -123,7 +123,10 @@ WeakSetObject::construct(JSContext *cx, unsigned argc, Value *vp)
 
             if (isOriginalAdder) {
                 if (keyVal.isPrimitive()) {
-                    JS_ReportErrorNumber(cx, js_GetErrorMessage, nullptr, JSMSG_NOT_NONNULL_OBJECT);
+                    char *bytes = DecompileValueGenerator(cx, JSDVG_SEARCH_STACK, keyVal, NullPtr());
+                    if (!bytes)
+                        return false;
+                    JS_ReportErrorNumber(cx, GetErrorMessage, nullptr, JSMSG_NOT_NONNULL_OBJECT, bytes);
                     return false;
                 }
 
@@ -150,7 +153,7 @@ WeakSetObject::construct(JSContext *cx, unsigned argc, Value *vp)
 
 
 JSObject *
-js_InitWeakSetClass(JSContext *cx, HandleObject obj)
+js::InitWeakSetClass(JSContext *cx, HandleObject obj)
 {
     return WeakSetObject::initClass(cx, obj);
 }

@@ -32,7 +32,7 @@ PRLogModuleInfo* GetAppleMediaLog();
 namespace mozilla {
 
 AppleVDADecoder::AppleVDADecoder(const mp4_demuxer::VideoDecoderConfig& aConfig,
-                               MediaTaskQueue* aVideoTaskQueue,
+                               FlushableMediaTaskQueue* aVideoTaskQueue,
                                MediaDataDecoderCallback* aCallback,
                                layers::ImageContainer* aImageContainer)
   : mConfig(aConfig)
@@ -356,10 +356,6 @@ AppleVDADecoder::SubmitFrame(mp4_demuxer::MP4Sample* aSample)
                                  block,
                                  frameInfo);
 
-  LOG("[%s]: FrameInfo retain count = %ld",
-      __func__, CFGetRetainCount(frameInfo));
-  MOZ_ASSERT(CFGetRetainCount(frameInfo) >= 2, "Bad retain count");
-
   if (rv != noErr) {
     NS_WARNING("AppleVDADecoder: Couldn't pass frame to decoder");
     return NS_ERROR_FAILURE;
@@ -499,7 +495,7 @@ AppleVDADecoder::CreateOutputConfiguration()
 already_AddRefed<AppleVDADecoder>
 AppleVDADecoder::CreateVDADecoder(
   const mp4_demuxer::VideoDecoderConfig& aConfig,
-  MediaTaskQueue* aVideoTaskQueue,
+  FlushableMediaTaskQueue* aVideoTaskQueue,
   MediaDataDecoderCallback* aCallback,
   layers::ImageContainer* aImageContainer)
 {

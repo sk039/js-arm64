@@ -61,10 +61,10 @@ CodeGeneratorARM64::generateEpilogue()
     masm.bind(&returnLabel_);
 
 #ifdef JS_TRACE_LOGGING
-    if (gen->info().executionMode() == SequentialExecution) {
-        emitTracelogStopEvent(TraceLogger_IonMonkey);
-        emitTracelogScriptStop();
-    }
+    //    if (gen->info().executionMode() == SequentialExecution) {
+    emitTracelogStopEvent(TraceLogger_IonMonkey);
+    emitTracelogScriptStop();
+        //}
 #endif
 
     masm.freeStack(frameSize());
@@ -1145,13 +1145,13 @@ CodeGeneratorARM64::visitGuardShape(LGuardShape *guard)
     bailoutIf(Assembler::NotEqual, guard->snapshot());
 
 }
-
+#if 0
 void 
 CodeGeneratorARM64::visitGuardObjectType(LGuardObjectType *guard)
 {
     MOZ_CRASH("CodeGeneratorARM64::visitGuardObjectType");
 }
-
+#endif
 void 
 CodeGeneratorARM64::visitGuardClass(LGuardClass *guard)
 {
@@ -1231,7 +1231,7 @@ CodeGeneratorARM64::visitAsmJSLoadHeap(LAsmJSLoadHeap *ins)
     const MAsmJSLoadHeap *mir = ins->mir();
     LoadStoreOp op;
     const LAllocation *ptr = ins->ptr();
-    switch (mir->viewType()) {
+    switch (mir->accessType()) {
       case Scalar::Int8:    op = LDRSB_w; break;
       case Scalar::Uint8:   op = LDRB_w; break;
       case Scalar::Int16:   op = LDRSH_w; break;
@@ -1243,7 +1243,7 @@ CodeGeneratorARM64::visitAsmJSLoadHeap(LAsmJSLoadHeap *ins)
       default: MOZ_CRASH("unexpected array type");
     }
 
-    CPURegister rt = ToCPURegister(ins->output(), mir->viewType());
+    CPURegister rt = ToCPURegister(ins->output(), mir->accessType());
     if (ptr->isConstant()) {
         int32_t ptrImm = ptr->toConstant()->toInt32();
         MOZ_ASSERT(ptrImm >= 0);
@@ -1269,7 +1269,7 @@ CodeGeneratorARM64::visitAsmJSStoreHeap(LAsmJSStoreHeap *ins)
     LoadStoreOp op;
     const LAllocation *ptr = ins->ptr();
     bool isSigned = false;
-    switch (mir->viewType()) {
+    switch (mir->accessType()) {
       case Scalar::Int8:
       case Scalar::Uint8:   op = STRB_w; break;
       case Scalar::Int16:
@@ -1284,7 +1284,7 @@ CodeGeneratorARM64::visitAsmJSStoreHeap(LAsmJSStoreHeap *ins)
     // TODO: What is the point of isSigned here?
     (void) isSigned;
 
-    CPURegister rt = ToCPURegister(ins->value(), mir->viewType());
+    CPURegister rt = ToCPURegister(ins->value(), mir->accessType());
     if (ptr->isConstant()) {
         int32_t ptrImm = ptr->toConstant()->toInt32();
         MOZ_ASSERT(ptrImm >= 0);

@@ -92,6 +92,7 @@ class MoveEmitterARM64
 
     void emit(const MoveResolver &moves);
     void finish();
+    void setScratchRegister(Register reg) {}
 };
 
 typedef MoveEmitterARM64 MoveEmitter;

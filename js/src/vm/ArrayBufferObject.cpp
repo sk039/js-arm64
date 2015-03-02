@@ -45,8 +45,6 @@
 #include "vm/WrapperObject.h"
 
 #include "jsatominlines.h"
-#include "jsinferinlines.h"
-#include "jsobjinlines.h"
 
 #include "vm/NativeObject-inl.h"
 #include "vm/Shape-inl.h"
@@ -58,7 +56,6 @@ using mozilla::UniquePtr;
 
 using namespace js;
 using namespace js::gc;
-using namespace js::types;
 
 /*
  * Convert |v| to an array index for an array of length |length| per
@@ -287,7 +284,7 @@ TransferAsmJSMappedBuffer(JSContext *cx, CallArgs args, Handle<ArrayBufferObject
 #  ifdef XP_WIN
         if (!VirtualAlloc(diffStart, diffLength, MEM_COMMIT, PAGE_READWRITE)) {
             ReleaseAsmJSMappedData(data);
-            js_ReportOutOfMemory(cx);
+            ReportOutOfMemory(cx);
             return false;
         }
 #  else
@@ -296,7 +293,7 @@ TransferAsmJSMappedBuffer(JSContext *cx, CallArgs args, Handle<ArrayBufferObject
         int flags = MAP_FIXED | MAP_PRIVATE | MAP_ANON;
         if (mmap(diffStart, diffLength, PROT_READ | PROT_WRITE, flags, -1, 0) == MAP_FAILED) {
             ReleaseAsmJSMappedData(data);
-            js_ReportOutOfMemory(cx);
+            ReportOutOfMemory(cx);
             return false;
         }
 #  endif
@@ -306,7 +303,7 @@ TransferAsmJSMappedBuffer(JSContext *cx, CallArgs args, Handle<ArrayBufferObject
 #  ifdef XP_WIN
         if (!VirtualFree(diffStart, diffLength, MEM_DECOMMIT)) {
             ReleaseAsmJSMappedData(data);
-            js_ReportOutOfMemory(cx);
+            ReportOutOfMemory(cx);
             return false;
         }
 #  else
@@ -314,7 +311,7 @@ TransferAsmJSMappedBuffer(JSContext *cx, CallArgs args, Handle<ArrayBufferObject
             mprotect(diffStart, diffLength, PROT_NONE))
         {
             ReleaseAsmJSMappedData(data);
-            js_ReportOutOfMemory(cx);
+            ReportOutOfMemory(cx);
             return false;
         }
 #  endif
@@ -347,13 +344,13 @@ ArrayBufferObject::fun_transfer(JSContext *cx, unsigned argc, Value *vp)
     HandleValue newByteLengthArg = args.get(1);
 
     if (!oldBufferArg.isObject()) {
-        JS_ReportErrorNumber(cx, js_GetErrorMessage, nullptr, JSMSG_TYPED_ARRAY_BAD_ARGS);
+        JS_ReportErrorNumber(cx, GetErrorMessage, nullptr, JSMSG_TYPED_ARRAY_BAD_ARGS);
         return false;
     }
 
     RootedObject oldBufferObj(cx, &oldBufferArg.toObject());
     if (!ObjectClassIs(oldBufferObj, ESClass_ArrayBuffer, cx)) {
-        JS_ReportErrorNumber(cx, js_GetErrorMessage, nullptr, JSMSG_TYPED_ARRAY_BAD_ARGS);
+        JS_ReportErrorNumber(cx, GetErrorMessage, nullptr, JSMSG_TYPED_ARRAY_BAD_ARGS);
         return false;
     }
 
@@ -365,14 +362,14 @@ ArrayBufferObject::fun_transfer(JSContext *cx, unsigned argc, Value *vp)
     } else {
         JSObject *unwrapped = CheckedUnwrap(oldBuffer);
         if (!unwrapped->is<ArrayBufferObject>()) {
-            JS_ReportErrorNumber(cx, js_GetErrorMessage, nullptr, JSMSG_TYPED_ARRAY_BAD_ARGS);
+            JS_ReportErrorNumber(cx, GetErrorMessage, nullptr, JSMSG_TYPED_ARRAY_BAD_ARGS);
             return false;
         }
         oldBuffer = &unwrapped->as<ArrayBufferObject>();
     }
 
     if (oldBuffer->isNeutered()) {
-        JS_ReportErrorNumber(cx, js_GetErrorMessage, nullptr, JSMSG_TYPED_ARRAY_DETACHED);
+        JS_ReportErrorNumber(cx, GetErrorMessage, nullptr, JSMSG_TYPED_ARRAY_DETACHED);
         return false;
     }
 
@@ -385,7 +382,7 @@ ArrayBufferObject::fun_transfer(JSContext *cx, unsigned argc, Value *vp)
         if (!ToInt32(cx, newByteLengthArg, &i32))
             return false;
         if (i32 < 0) {
-            JS_ReportErrorNumber(cx, js_GetErrorMessage, nullptr, JSMSG_BAD_ARRAY_LENGTH);
+            JS_ReportErrorNumber(cx, GetErrorMessage, nullptr, JSMSG_BAD_ARRAY_LENGTH);
             return false;
         }
         newByteLength = size_t(i32);
@@ -470,7 +467,7 @@ ArrayBufferObject::class_constructor(JSContext *cx, unsigned argc, Value *vp)
          * as an integer value; if someone actually ever complains (validly), then we
          * can fix.
          */
-        JS_ReportErrorNumber(cx, js_GetErrorMessage, nullptr, JSMSG_BAD_ARRAY_LENGTH);
+        JS_ReportErrorNumber(cx, GetErrorMessage, nullptr, JSMSG_BAD_ARRAY_LENGTH);
         return false;
     }
 
@@ -486,7 +483,7 @@ AllocateArrayBufferContents(JSContext *cx, uint32_t nbytes)
 {
     uint8_t *p = cx->runtime()->pod_callocCanGC<uint8_t>(nbytes);
     if (!p)
-        js_ReportOutOfMemory(cx);
+        ReportOutOfMemory(cx);
 
     return ArrayBufferObject::BufferContents::create<ArrayBufferObject::PLAIN>(p);
 }
@@ -519,11 +516,11 @@ ArrayBufferObject::neuter(JSContext *cx, Handle<ArrayBufferObject*> buffer,
     // performed. This is done by setting a compartment wide flag indicating
     // that buffers with typed object views have been neutered.
     if (buffer->hasTypedObjectViews()) {
-        // Make sure the global object's type has been instantiated, so the
+        // Make sure the global object's group has been instantiated, so the
         // flag change will be observed.
-        if (!cx->global()->getType(cx))
+        if (!cx->global()->getGroup(cx))
             CrashAtUnhandlableOOM("ArrayBufferObject::neuter");
-        types::MarkTypeObjectFlags(cx, cx->global(), types::OBJECT_FLAG_TYPED_OBJECT_NEUTERED);
+        MarkObjectGroupFlags(cx, cx->global(), OBJECT_FLAG_TYPED_OBJECT_NEUTERED);
         cx->compartment()->neuteredTypedObjects = 1;
     }
 
@@ -846,7 +843,7 @@ ArrayBufferObject::createSlice(JSContext *cx, Handle<ArrayBufferObject*> arrayBu
 {
     uint32_t bufLength = arrayBuffer->byteLength();
     if (begin > bufLength || end > bufLength || begin > end) {
-        JS_ReportErrorNumber(cx, js_GetErrorMessage, nullptr, JSMSG_TYPE_ERR_BAD_ARGS);
+        JS_ReportErrorNumber(cx, GetErrorMessage, nullptr, JSMSG_TYPE_ERR_BAD_ARGS);
         return nullptr;
     }
 
@@ -1387,13 +1384,13 @@ JS_StealArrayBufferContents(JSContext *cx, HandleObject objArg)
         return nullptr;
 
     if (!obj->is<ArrayBufferObject>()) {
-        JS_ReportErrorNumber(cx, js_GetErrorMessage, nullptr, JSMSG_TYPED_ARRAY_BAD_ARGS);
+        JS_ReportErrorNumber(cx, GetErrorMessage, nullptr, JSMSG_TYPED_ARRAY_BAD_ARGS);
         return nullptr;
     }
 
     Rooted<ArrayBufferObject*> buffer(cx, &obj->as<ArrayBufferObject>());
     if (buffer->isNeutered()) {
-        JS_ReportErrorNumber(cx, js_GetErrorMessage, nullptr, JSMSG_TYPED_ARRAY_DETACHED);
+        JS_ReportErrorNumber(cx, GetErrorMessage, nullptr, JSMSG_TYPED_ARRAY_DETACHED);
         return nullptr;
     }
 
@@ -1525,7 +1522,7 @@ js::GetArrayBufferLengthAndData(JSObject *obj, uint32_t *length, uint8_t **data)
 }
 
 JSObject *
-js_InitArrayBufferClass(JSContext *cx, HandleObject obj)
+js::InitArrayBufferClass(JSContext *cx, HandleObject obj)
 {
     Rooted<GlobalObject*> global(cx, cx->compartment()->maybeGlobal());
     if (global->isStandardClassResolved(JSProto_ArrayBuffer))
@@ -1556,7 +1553,7 @@ js_InitArrayBufferClass(JSContext *cx, HandleObject obj)
     if (!getter)
         return nullptr;
 
-    if (!DefineNativeProperty(cx, arrayBufferProto, byteLengthId, UndefinedHandleValue,
+    if (!NativeDefineProperty(cx, arrayBufferProto, byteLengthId, UndefinedHandleValue,
                               JS_DATA_TO_FUNC_PTR(PropertyOp, getter), nullptr, attrs))
         return nullptr;
 

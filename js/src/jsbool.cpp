@@ -23,7 +23,6 @@
 #include "vm/BooleanObject-inl.h"
 
 using namespace js;
-using namespace js::types;
 
 const Class BooleanObject::class_ = {
     "Boolean",
@@ -71,7 +70,7 @@ bool_toString_impl(JSContext *cx, CallArgs args)
     MOZ_ASSERT(IsBoolean(thisv));
 
     bool b = thisv.isBoolean() ? thisv.toBoolean() : thisv.toObject().as<BooleanObject>().unbox();
-    args.rval().setString(js_BooleanToString(cx, b));
+    args.rval().setString(BooleanToString(cx, b));
     return true;
 }
 
@@ -105,6 +104,7 @@ static const JSFunctionSpec boolean_methods[] = {
     JS_FN(js_toSource_str,  bool_toSource,  0, 0),
 #endif
     JS_FN(js_toString_str,  bool_toString,  0, 0),
+    JS_FN(js_valueOf_str,   bool_valueOf,   0, 0),
     JS_FS_END
 };
 
@@ -127,7 +127,7 @@ Boolean(JSContext *cx, unsigned argc, Value *vp)
 }
 
 JSObject *
-js_InitBooleanClass(JSContext *cx, HandleObject obj)
+js::InitBooleanClass(JSContext *cx, HandleObject obj)
 {
     MOZ_ASSERT(obj->isNative());
 
@@ -148,17 +148,6 @@ js_InitBooleanClass(JSContext *cx, HandleObject obj)
     if (!DefinePropertiesAndFunctions(cx, booleanProto, nullptr, boolean_methods))
         return nullptr;
 
-    Handle<PropertyName*> valueOfName = cx->names().valueOf;
-    RootedFunction
-        valueOf(cx, NewFunction(cx, NullPtr(), bool_valueOf, 0, JSFunction::NATIVE_FUN,
-                                global, valueOfName));
-    if (!valueOf)
-        return nullptr;
-
-    RootedValue value(cx, ObjectValue(*valueOf));
-    if (!JSObject::defineProperty(cx, booleanProto, valueOfName, value, nullptr, nullptr, 0))
-        return nullptr;
-
     if (!GlobalObject::initBuiltinConstructor(cx, global, JSProto_Boolean, ctor, booleanProto))
         return nullptr;
 
@@ -166,7 +155,7 @@ js_InitBooleanClass(JSContext *cx, HandleObject obj)
 }
 
 JSString *
-js_BooleanToString(ExclusiveContext *cx, bool b)
+js::BooleanToString(ExclusiveContext *cx, bool b)
 {
     return b ? cx->names().true_ : cx->names().false_;
 }
@@ -179,16 +168,4 @@ js::ToBooleanSlow(HandleValue v)
 
     MOZ_ASSERT(v.isObject());
     return !EmulatesUndefined(&v.toObject());
-}
-
-/*
- * This slow path is only ever taken for proxies wrapping Boolean objects
- * The only caller of the fast path, JSON's PreprocessValue, ensures that.
- */
-bool
-js::BooleanGetPrimitiveValueSlow(HandleObject wrappedBool)
-{
-    JSObject *obj = wrappedBool->as<ProxyObject>().target();
-    MOZ_ASSERT(obj);
-    return obj->as<BooleanObject>().unbox();
 }

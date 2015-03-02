@@ -14,6 +14,7 @@ const {LoopRooms} = Cu.import("resource:///modules/loop/LoopRooms.jsm", {});
 // if offline mode is requested multiple times in a test run.
 const WAS_OFFLINE = Services.io.offline;
 
+
 var gMozLoopAPI;
 
 function promiseGetMozLoopAPI() {
@@ -114,7 +115,6 @@ function* resetFxA() {
   global.gHawkClient = null;
   global.gFxAOAuthClientPromise = null;
   global.gFxAOAuthClient = null;
-  MozLoopServiceInternal.deferredRegistrations.delete(LOOP_SESSION_TYPE.FXA);
   MozLoopServiceInternal.fxAOAuthProfile = null;
   MozLoopServiceInternal.fxAOAuthTokenData = null;
   const fxASessionPref = MozLoopServiceInternal.getSessionTokenPrefName(LOOP_SESSION_TYPE.FXA);
@@ -176,6 +176,50 @@ function promiseOAuthGetRegistration(baseURL) {
   });
 }
 
+/**
+ * Waits for a load (or custom) event to finish in a given tab. If provided
+ * load an uri into the tab.
+ *
+ * @param tab
+ *        The tab to load into.
+ * @param [optional] url
+ *        The url to load, or the current url.
+ * @param [optional] event
+ *        The load event type to wait for.  Defaults to "load".
+ * @return {Promise} resolved when the event is handled.
+ * @resolves to the received event
+ * @rejects if a valid load event is not received within a meaningful interval
+ */
+function promiseTabLoadEvent(tab, url, eventType="load") {
+  return new Promise((resolve, reject) => {
+    info("Wait tab event: " + eventType);
+
+    function handle(event) {
+      if (event.originalTarget != tab.linkedBrowser.contentDocument ||
+          event.target.location.href == "about:blank" ||
+          (url && event.target.location.href != url)) {
+        info("Skipping spurious '" + eventType + "'' event" +
+             " for " + event.target.location.href);
+        return;
+      }
+      clearTimeout(timeout);
+      tab.linkedBrowser.removeEventListener(eventType, handle, true);
+      info("Tab event received: " + eventType);
+      resolve(event);
+    }
+
+    let timeout = setTimeout(() => {
+      if (tab.linkedBrowser)
+        tab.linkedBrowser.removeEventListener(eventType, handle, true);
+      reject(new Error("Timed out while waiting for a '" + eventType + "'' event"));
+    }, 30000);
+
+    tab.linkedBrowser.addEventListener(eventType, handle, true, true);
+    if (url)
+      tab.linkedBrowser.loadURI(url);
+  });
+}
+
 function getLoopString(stringID) {
   return MozLoopServiceInternal.localizedStrings.get(stringID);
 }
@@ -189,7 +233,7 @@ let mockPushHandler = {
   // This sets the registration result to be returned when initialize
   // is called. By default, it is equivalent to success.
   registrationResult: null,
-  registrationPushURL: null,
+  registrationPushURLs: {},
   notificationCallback: {},
   registeredChannels: {},
 
@@ -200,12 +244,24 @@ let mockPushHandler = {
     if ("mockWebSocket" in options) {
       this._mockWebSocket = options.mockWebSocket;
     }
+    this.registrationPushURLs[MozLoopService.channelIDs.callsGuest] =
+      "https://localhost/pushUrl/guest-calls";
+    this.registrationPushURLs[MozLoopService.channelIDs.roomsGuest] =
+      "https://localhost/pushUrl/guest-rooms";
+    this.registrationPushURLs[MozLoopService.channelIDs.callsFxA] =
+      "https://localhost/pushUrl/fxa-calls";
+    this.registrationPushURLs[MozLoopService.channelIDs.roomsFxA] =
+      "https://localhost/pushUrl/fxa-rooms";
   },
 
   register: function(channelId, registerCallback, notificationCallback) {
     this.notificationCallback[channelId] = notificationCallback;
-    this.registeredChannels[channelId] = this.registrationPushURL;
-    setTimeout(registerCallback(this.registrationResult, this.registrationPushURL, channelId), 0);
+    this.registeredChannels[channelId] = this.registrationPushURLs[channelId];
+    setTimeout(registerCallback(this.registrationResult, this.registeredChannels[channelId], channelId), 0);
+  },
+
+  unregister: function(channelID) {
+    return;
   },
 
   /**

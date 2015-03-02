@@ -148,8 +148,8 @@ MacroAssembler::PopRegsInMaskIgnore(RegisterSet set, RegisterSet ignore, FloatRe
     }
 
     FloatRegisterSet frs = set.fpus();
-    MOZ_ASSERT(nextOffset <= frs.getSizeInBytes());
-    nextOffset = set.fpus().getSizeInBytes();
+    MOZ_ASSERT(nextOffset <= frs.getPushSizeInBytes());
+    nextOffset = set.fpus().getPushSizeInBytes();
 
     for (GeneralRegisterIterator iter(set.gprs()); iter.more(); offset = nextOffset) {
         CPURegister src0 = NoCPUReg;
@@ -179,7 +179,7 @@ MacroAssembler::PopRegsInMaskIgnore(RegisterSet set, RegisterSet ignore, FloatRe
         nextOffset += sizeof(double);
         ldp(src0, src1, MemOperand(GetStackPointer(), offset));
     }
-    freeStack(set.gprs().size() * sizeof(int*) + set.fpus().getSizeInBytes());
+    freeStack(set.gprs().size() * sizeof(int*) + set.fpus().getPushSizeInBytes());
 }
 
 void

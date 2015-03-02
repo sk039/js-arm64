@@ -249,7 +249,7 @@ nsresult WebMReader::Init(MediaDecoderReader* aCloneDonor)
 
     InitLayersBackendType();
 
-    mVideoTaskQueue = new MediaTaskQueue(
+    mVideoTaskQueue = new FlushableMediaTaskQueue(
       SharedThreadPool::Get(NS_LITERAL_CSTRING("IntelVP8 Video Decode")));
     NS_ENSURE_TRUE(mVideoTaskQueue, NS_ERROR_FAILURE);
   }
@@ -337,7 +337,7 @@ nsresult WebMReader::ReadMetadata(MediaInfo* aInfo,
   io.tell = webm_tell;
   io.userdata = mDecoder;
   int64_t maxOffset = mDecoder->HasInitializationData() ?
-    mDecoder->GetResource()->GetLength() : -1;
+    mBufferedState->GetInitEndOffset() : -1;
   int r = nestegg_init(&mContext, io, &webm_log, maxOffset);
   if (r == -1) {
     return NS_ERROR_FAILURE;
@@ -952,10 +952,9 @@ void WebMReader::PushVideoPacket(NesteggPacketHolder* aItem)
 }
 
 nsRefPtr<MediaDecoderReader::SeekPromise>
-WebMReader::Seek(int64_t aTarget, int64_t aStartTime, int64_t aEndTime,
-                      int64_t aCurrentTime)
+WebMReader::Seek(int64_t aTarget, int64_t aEndTime)
 {
-  nsresult res = SeekInternal(aTarget, aStartTime);
+  nsresult res = SeekInternal(aTarget);
   if (NS_FAILED(res)) {
     return SeekPromise::CreateAndReject(res, __func__);
   } else {
@@ -963,7 +962,7 @@ WebMReader::Seek(int64_t aTarget, int64_t aStartTime, int64_t aEndTime,
   }
 }
 
-nsresult WebMReader::SeekInternal(int64_t aTarget, int64_t aStartTime)
+nsresult WebMReader::SeekInternal(int64_t aTarget)
 {
   NS_ASSERTION(mDecoder->OnDecodeThread(), "Should be on decode thread.");
   if (mVideoDecoder) {
@@ -980,7 +979,7 @@ nsresult WebMReader::SeekInternal(int64_t aTarget, int64_t aStartTime)
   uint64_t target = aTarget * NS_PER_USEC;
 
   if (mSeekPreroll) {
-    target = std::max(uint64_t(aStartTime * NS_PER_USEC),
+    target = std::max(uint64_t(mStartTime * NS_PER_USEC),
                       target - mSeekPreroll);
   }
   int r = nestegg_track_seek(mContext, trackToSeek, target);

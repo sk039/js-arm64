@@ -199,7 +199,7 @@ ImageWrapper::GetImageContainer(LayerManager* aManager,
   return mInnerImage->GetImageContainer(aManager, _retval);
 }
 
-NS_IMETHODIMP
+NS_IMETHODIMP_(DrawResult)
 ImageWrapper::Draw(gfxContext* aContext,
                    const nsIntSize& aSize,
                    const ImageRegion& aRegion,
@@ -224,10 +224,10 @@ ImageWrapper::StartDecoding()
   return mInnerImage->StartDecoding();
 }
 
-bool
-ImageWrapper::IsDecoded()
+NS_IMETHODIMP
+ImageWrapper::RequestDecodeForSize(const nsIntSize& aSize, uint32_t aFlags)
 {
-  return mInnerImage->IsDecoded();
+  return mInnerImage->RequestDecodeForSize(aSize, aFlags);
 }
 
 NS_IMETHODIMP

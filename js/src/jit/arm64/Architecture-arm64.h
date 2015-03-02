@@ -93,8 +93,11 @@ class Registers {
         invalid_reg
     };
     typedef RegisterID Code;
-
+    typedef RegisterID Encoding;
     typedef uint32_t SetType;
+    union RegisterContent {
+        uintptr_t r;
+    };
     static uint32_t SetSize(SetType x) {
         static_assert(sizeof(SetType) == 4, "SetType must be 32 bits");
         return mozilla::CountPopulation32(x);
@@ -302,6 +305,13 @@ class FloatRegisters
     static const uint32_t TempMask = VolatileMask & ~NonAllocatableMask;
 
     static const uint32_t AllocatableMask = AllMask & ~NonAllocatableMask;
+    union RegisterContent {
+        double d;
+    };
+    enum Kind {
+        Single,
+        Double
+    };
 };
 
 static const uint32_t ABIStackAlignment = 16;
@@ -313,26 +323,48 @@ static const bool StackKeptAligned = false; // FIXME: Verify.
 static const uint32_t StackAlignment = 8;
 static const uint32_t NativeFrameSize = 8;
 
-struct FloatRegister {
+struct FloatRegister
+{
     typedef FloatRegisters Codes;
     typedef Codes::Code Code;
+    typedef Codes::Code Encoding;
     typedef Codes::SetType SetType;
+    union RegisterContent {
+        double d;
+    };
+    MOZ_CONSTEXPR FloatRegister(uint32_t code, FloatRegisters::Kind k) :
+        code_(FloatRegisters::Code(code)),
+        k_(k) {
+    }
+    MOZ_CONSTEXPR FloatRegister(uint32_t code) :
+            code_(FloatRegisters::Code(code)),
+            k_(FloatRegisters::Double) {
+    }
+    MOZ_CONSTEXPR FloatRegister() :
+        code_(FloatRegisters::Code(-1)),
+        k_(FloatRegisters::Double) {
+    }
+
     static uint32_t SetSize(SetType x) {
         static_assert(sizeof(SetType) == 4, "SetType must be 32 bits");
         return mozilla::CountPopulation32(x);
     }
-
+    
     Code code_;
-
+    FloatRegisters::Kind k_;
     static FloatRegister FromCode(uint32_t i) {
         MOZ_ASSERT(i < FloatRegisters::Total);
-        FloatRegister r = { (FloatRegisters::Code)i };
+        FloatRegister r(i , FloatRegisters::Double);
         return r;
     }
     Code code() const {
         MOZ_ASSERT((uint32_t)code_ < FloatRegisters::Total);
         return code_;
     }
+    Encoding encoding() const {
+        return Code(code_ | (k_ << 5));
+    }
+
     const char *name() const {
         return FloatRegisters::GetName(code());
     }
@@ -373,6 +405,18 @@ struct FloatRegister {
         MOZ_ASSERT(aliasIdx == 0);
         *ret = *this;
     }
+    bool isSingle() const {
+        return k_ == FloatRegisters::Single;
+    }
+    bool isDouble() const {
+        return k_ == FloatRegisters::Double;
+    }
+    bool isInt32x4() const {
+        return false;
+    }
+    bool isFloat32x4() const {
+        return false;
+    }
     static TypedRegisterSet<FloatRegister> ReduceSetForPush(const TypedRegisterSet<FloatRegister> &s);
     static uint32_t GetSizeInBytes(const TypedRegisterSet<FloatRegister> &s);
     static uint32_t GetPushSizeInBytes(const TypedRegisterSet<FloatRegister> &s);
@@ -384,6 +428,7 @@ struct FloatRegister {
     static uint32_t LastBit(SetType x) {
         return 31 - mozilla::CountLeadingZeroes32(x); // TODO: 64?
     }
+
 };
 
 // Arm/D32 has double registers that cannot be treated as float32.
@@ -401,7 +446,13 @@ hasMultiAlias()
 {
     return false;
 }
+// See the comments above AsmJSMappedSize in AsmJSValidate.h for more info.
+// TODO: Implement this for ARM64. Note that it requires Codegen to respect the
+// offset field of AsmJSHeapAccess.
 
+static const size_t AsmJSCheckedImmediateRange = 0;
+static const size_t AsmJSImmediateRange = 0;
+static const uint32_t JitStackAlignment = 16;
 } // namespace jit
 } // namespace js
 

@@ -210,7 +210,7 @@ class HashMap
     /************************************************** Shorthand operations */
 
     bool has(const Lookup &l) const {
-        return impl.lookup(l) != nullptr;
+        return impl.lookup(l).found();
     }
 
     // Overwrite existing value with v. Return false on oom.
@@ -253,10 +253,13 @@ class HashMap
             rekeyAs(old_key, new_key, new_key);
     }
 
-    // Infallibly rekey one entry, if present.
-    void rekeyAs(const Lookup &old_lookup, const Lookup &new_lookup, const Key &new_key) {
-        if (Ptr p = lookup(old_lookup))
+    // Infallibly rekey one entry if present, and return whether that happened.
+    bool rekeyAs(const Lookup &old_lookup, const Lookup &new_lookup, const Key &new_key) {
+        if (Ptr p = lookup(old_lookup)) {
             impl.rekeyAndMaybeRehash(p, new_lookup, new_key);
+            return true;
+        }
+        return false;
     }
 
     // HashMap is movable
@@ -438,7 +441,7 @@ class HashSet
     /************************************************** Shorthand operations */
 
     bool has(const Lookup &l) const {
-        return impl.lookup(l) != nullptr;
+        return impl.lookup(l).found();
     }
 
     // Add |u| if it is not present already. Return false on oom.
@@ -471,10 +474,13 @@ class HashSet
             rekeyAs(old_value, new_value, new_value);
     }
 
-    // Infallibly rekey one entry, if present.
-    void rekeyAs(const Lookup &old_lookup, const Lookup &new_lookup, const T &new_value) {
-        if (Ptr p = lookup(old_lookup))
+    // Infallibly rekey one entry if present, and return whether that happened.
+    bool rekeyAs(const Lookup &old_lookup, const Lookup &new_lookup, const T &new_value) {
+        if (Ptr p = lookup(old_lookup)) {
             impl.rekeyAndMaybeRehash(p, new_lookup, new_value);
+            return true;
+        }
+        return false;
     }
 
     // Infallibly rekey one entry with a new key that is equivalent.
@@ -726,7 +732,6 @@ class HashTableEntry
     void removeLive()      { MOZ_ASSERT(isLive()); keyHash = sRemovedKey; mem.addr()->~T(); }
     bool isLive() const    { return isLiveHash(keyHash); }
     void setCollision()               { MOZ_ASSERT(isLive()); keyHash |= sCollisionBit; }
-    void setCollision(HashNumber bit) { MOZ_ASSERT(isLive()); keyHash |= bit; }
     void unsetCollision()             { keyHash &= ~sCollisionBit; }
     bool hasCollision() const         { return keyHash & sCollisionBit; }
     bool matchHash(HashNumber hn)     { return (keyHash & ~sCollisionBit) == hn; }
@@ -761,8 +766,6 @@ class HashTable : private AllocPolicy
     class Ptr
     {
         friend class HashTable;
-        typedef void (Ptr::* ConvertibleToBool)();
-        void nonNull() {}
 
         Entry *entry_;
 #ifdef JS_DEBUG
@@ -794,8 +797,8 @@ class HashTable : private AllocPolicy
             return entry_->isLive();
         }
 
-        operator ConvertibleToBool() const {
-            return found() ? &Ptr::nonNull : 0;
+        explicit operator bool() const {
+            return found();
         }
 
         bool operator==(const Ptr &rhs) const {
@@ -1010,18 +1013,20 @@ class HashTable : private AllocPolicy
     void operator=(const HashTable &) = delete;
 
   private:
-    static const size_t CAP_BITS = 24;
+    static const size_t CAP_BITS = 30;
 
   public:
     Entry       *table;                 // entry storage
-    uint32_t    gen;                    // entry storage generation number
-    uint32_t    entryCount;             // number of entries in table
-    uint32_t    removedCount:CAP_BITS;  // removed entry sentinels in table
+    uint32_t    gen:24;                 // entry storage generation number
     uint32_t    hashShift:8;            // multiplicative hash shift
+    uint32_t    entryCount;             // number of entries in table
+    uint32_t    removedCount;           // removed entry sentinels in table
 
 #ifdef JS_DEBUG
     uint64_t     mutationCount;
     mutable bool mEntered;
+    // Note that some updates to these stats are not thread-safe. See the
+    // comment on the three-argument overloading of HashTable::lookup().
     mutable struct Stats
     {
         uint32_t        searches;       // total number of table searches
@@ -1083,8 +1088,6 @@ class HashTable : private AllocPolicy
     {
         static_assert(sFreeKey == 0,
                       "newly-calloc'd tables have to be considered empty");
-        static_assert(sMaxCapacity <= SIZE_MAX / sizeof(Entry),
-                      "would overflow allocating max number of entries");
         return alloc.template pod_calloc<Entry>(capacity);
     }
 
@@ -1100,9 +1103,9 @@ class HashTable : private AllocPolicy
       : AllocPolicy(ap)
       , table(nullptr)
       , gen(0)
+      , hashShift(sHashBits)
       , entryCount(0)
       , removedCount(0)
-      , hashShift(sHashBits)
 #ifdef JS_DEBUG
       , mutationCount(0)
       , mEntered(false)
@@ -1116,7 +1119,7 @@ class HashTable : private AllocPolicy
         // Reject all lengths whose initial computed capacity would exceed
         // sMaxCapacity.  Round that maximum length down to the nearest power
         // of two for speedier code.
-        if (length > sMaxInit) {
+        if (MOZ_UNLIKELY(length > sMaxInit)) {
             this->reportAllocOverflow();
             return false;
         }
@@ -1219,6 +1222,11 @@ class HashTable : private AllocPolicy
         return HashPolicy::match(HashPolicy::getKey(e.get()), l);
     }
 
+    // Warning: in order for readonlyThreadsafeLookup() to be safe this
+    // function must not modify the table in any way when |collisionBit| is 0.
+    // (The use of the METER() macro to increment stats violates this
+    // restriction but we will live with that for now because it's enabled so
+    // rarely.)
     Entry &lookup(const Lookup &l, HashNumber keyHash, unsigned collisionBit) const
     {
         MOZ_ASSERT(isLiveHash(keyHash));
@@ -1249,12 +1257,13 @@ class HashTable : private AllocPolicy
         // Save the first removed entry pointer so we can recycle later.
         Entry *firstRemoved = nullptr;
 
-        while(true) {
+        while (true) {
             if (MOZ_UNLIKELY(entry->isRemoved())) {
                 if (!firstRemoved)
                     firstRemoved = entry;
             } else {
-                entry->setCollision(collisionBit);
+                if (collisionBit == sCollisionBit)
+                    entry->setCollision();
             }
 
             METER(stats.steps++);
@@ -1300,7 +1309,7 @@ class HashTable : private AllocPolicy
         // Collision: double hash.
         DoubleHash dh = hash2(keyHash);
 
-        while(true) {
+        while (true) {
             MOZ_ASSERT(!entry->isRemoved());
             entry->setCollision();
 
@@ -1324,7 +1333,7 @@ class HashTable : private AllocPolicy
         uint32_t oldCap = capacity();
         uint32_t newLog2 = sHashBits - hashShift + deltaLog2;
         uint32_t newCapacity = JS_BIT(newLog2);
-        if (newCapacity > sMaxCapacity) {
+        if (MOZ_UNLIKELY(newCapacity > sMaxCapacity)) {
             this->reportAllocOverflow();
             return RehashFailed;
         }

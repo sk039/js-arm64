@@ -47,7 +47,7 @@ Requirement::toString() const
     char *cursor = buf;
     char *end = cursor + sizeof(buf);
 
-    int n;
+    int n = -1;  // initialize to silence GCC warning
     switch (kind()) {
       case NONE:
         return "none";
@@ -647,8 +647,16 @@ LiveRangeAllocator<VREG, forLSRA>::buildLivenessInfo()
             if (ins->isCall()) {
                 for (AnyRegisterIterator iter(allRegisters_); iter.more(); iter++) {
                     if (forLSRA) {
-                        if (!addFixedRangeAtHead(*iter, inputOf(*ins), outputOf(*ins)))
-                            return false;
+                        AnyRegister reg(*iter);
+                        // AnyRegisterIterator only iterates every allocatable
+                        // register once, and skip all aliased registers. Thus,
+                        // we have to record that each typed-variant/alias of
+                        // the same register has to be spilled if it got
+                        // allocated.
+                        for (size_t i = 0; i < reg.numAliased(); i++) {
+                            if (!addFixedRangeAtHead(reg.aliased(i), inputOf(*ins), outputOf(*ins)))
+                                return false;
+                        }
                     } else {
                         bool found = false;
 

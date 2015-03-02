@@ -18,6 +18,7 @@ const {ConnectionManager, Connection} = require("devtools/client/connection-mana
 const {AppActorFront} = require("devtools/app-actor-front");
 const {getDeviceFront} = require("devtools/server/actors/device");
 const {getPreferenceFront} = require("devtools/server/actors/preference");
+const {getSettingsFront} = require("devtools/server/actors/settings");
 const {setTimeout} = require("sdk/timers");
 const {Task} = Cu.import("resource://gre/modules/Task.jsm", {});
 const {RuntimeScanners, RuntimeTypes} = require("devtools/webide/runtimes");
@@ -93,12 +94,13 @@ let AppManager = exports.AppManager = {
   },
 
   onConnectionChanged: function() {
+    console.log("Connection status changed: " + this.connection.status);
+
     if (this.connection.status == Connection.Status.DISCONNECTED) {
       this.selectedRuntime = null;
     }
 
-    if (this.connection.status != Connection.Status.CONNECTED) {
-      console.log("Connection status changed: " + this.connection.status);
+    if (!this.connected) {
       if (this._appsFront) {
         this._appsFront.off("install-progress", this.onInstallProgress);
         this._appsFront.unwatchApps();
@@ -119,11 +121,11 @@ let AppManager = exports.AppManager = {
             this._appsFront = front;
             this._listTabsResponse = response;
             this.update("list-tabs-response");
-            return front.fetchIcons();
           })
           .then(() => {
             this.checkIfProjectIsRunning();
             this.update("runtime-apps-found");
+            front.fetchIcons();
           });
         } else {
           this._listTabsResponse = response;
@@ -133,6 +135,10 @@ let AppManager = exports.AppManager = {
     }
 
     this.update("connection");
+  },
+
+  get connected() {
+    return this.connection.status == Connection.Status.CONNECTED;
   },
 
   get apps() {
@@ -272,29 +278,36 @@ let AppManager = exports.AppManager = {
   },
 
   _selectedProject: null,
-  set selectedProject(value) {
+  set selectedProject(project) {
     // A regular comparison still sees a difference when equal in some cases
-    if (JSON.stringify(this._selectedProject) !==
-        JSON.stringify(value)) {
-      this._selectedProject = value;
-
-      // Clear out tab store's selected state, if any
-      this.tabStore.selectedTab = null;
-
-      if (this.selectedProject) {
-        if (this.selectedProject.type == "packaged" ||
-            this.selectedProject.type == "hosted") {
-          this.validateProject(this.selectedProject);
-        }
-        if (this.selectedProject.type == "tab") {
-          this.tabStore.selectedTab = this.selectedProject.app;
-        }
-      }
-
-      this.update("project");
-
-      this.checkIfProjectIsRunning();
+    if (JSON.stringify(this._selectedProject) ===
+        JSON.stringify(project)) {
+      return;
     }
+
+    let cancelled = false;
+    this.update("before-project", { cancel: () => { cancelled = true; } });
+    if (cancelled)  {
+      return;
+    }
+
+    this._selectedProject = project;
+
+    // Clear out tab store's selected state, if any
+    this.tabStore.selectedTab = null;
+
+    if (project) {
+      if (project.type == "packaged" ||
+          project.type == "hosted") {
+        this.validateAndUpdateProject(project);
+      }
+      if (project.type == "tab") {
+        this.tabStore.selectedTab = project.app;
+      }
+    }
+
+    this.update("project");
+    this.checkIfProjectIsRunning();
   },
   get selectedProject() {
     return this._selectedProject;
@@ -303,8 +316,25 @@ let AppManager = exports.AppManager = {
   removeSelectedProject: function() {
     let location = this.selectedProject.location;
     AppManager.selectedProject = null;
+    // If the user cancels the removeProject operation, don't remove the project
+    if (AppManager.selectedProject != null) {
+      return;
+    }
     return AppProjects.remove(location);
   },
+
+  packageProject: Task.async(function*(project) {
+    if (!project) {
+      return;
+    }
+    if (project.type == "packaged" ||
+        project.type == "hosted") {
+      yield ProjectBuilding.build({
+        project: project,
+        logger: this.update.bind(this, "pre-package")
+      });
+    }
+  }),
 
   _selectedRuntime: null,
   set selectedRuntime(value) {
@@ -324,8 +354,7 @@ let AppManager = exports.AppManager = {
 
   connectToRuntime: function(runtime) {
 
-    if (this.connection.status == Connection.Status.CONNECTED &&
-        this.selectedRuntime === runtime) {
+    if (this.connected && this.selectedRuntime === runtime) {
       // Already connected
       return promise.resolve();
     }
@@ -338,23 +367,23 @@ let AppManager = exports.AppManager = {
       let onConnectedOrDisconnected = () => {
         this.connection.off(Connection.Events.CONNECTED, onConnectedOrDisconnected);
         this.connection.off(Connection.Events.DISCONNECTED, onConnectedOrDisconnected);
-        if (this.connection.status == Connection.Status.CONNECTED) {
+        if (this.connected) {
           deferred.resolve();
         } else {
           deferred.reject();
         }
-      }
+      };
       this.connection.on(Connection.Events.CONNECTED, onConnectedOrDisconnected);
       this.connection.on(Connection.Events.DISCONNECTED, onConnectedOrDisconnected);
       try {
         // Reset the connection's state to defaults
         this.connection.resetOptions();
-        this.selectedRuntime.connect(this.connection).then(
-          () => {},
-          deferred.reject.bind(deferred));
+        // Only watch for errors here.  Final resolution occurs above, once
+        // we've reached the CONNECTED state.
+        this.selectedRuntime.connect(this.connection)
+                            .then(null, e => deferred.reject(e));
       } catch(e) {
-        console.error(e);
-        deferred.reject();
+        deferred.reject(e);
       }
     }, deferred.reject);
 
@@ -375,6 +404,10 @@ let AppManager = exports.AppManager = {
       this.connection.once(Connection.Events.STATUS_CHANGED, () => {
         this._telemetry.stopTimer(timerId);
       });
+    }).catch(() => {
+      // Empty rejection handler to silence uncaught rejection warnings
+      // |connectToRuntime| caller should listen for rejections.
+      // Bug 1121100 may find a better way to silence these.
     });
 
     return deferred.promise;
@@ -399,8 +432,15 @@ let AppManager = exports.AppManager = {
     return getPreferenceFront(this.connection.client, this._listTabsResponse);
   },
 
+  get settingsFront() {
+     if (!this._listTabsResponse) {
+      return null;
+    }
+    return getSettingsFront(this.connection.client, this._listTabsResponse);
+  },
+
   disconnectRuntime: function() {
-    if (this.connection.status != Connection.Status.CONNECTED) {
+    if (!this.connected) {
       return promise.resolve();
     }
     let deferred = promise.defer();
@@ -454,9 +494,9 @@ let AppManager = exports.AppManager = {
     return Task.spawn(function* () {
       let self = AppManager;
 
-      let packageDir = yield ProjectBuilding.build(project);
-
-      yield self.validateProject(project);
+      // Package and validate project
+      yield self.packageProject(project);
+      yield self.validateAndUpdateProject(project);
 
       if (project.errorsCount > 0) {
         self.reportError("error_cantInstallValidationErrors");
@@ -471,7 +511,7 @@ let AppManager = exports.AppManager = {
 
       let response;
       if (project.type == "packaged") {
-        packageDir = packageDir || project.location;
+        let packageDir = yield ProjectBuilding.getPackageDir(project);
         console.log("Installing app from " + packageDir);
 
         response = yield self._appsFront.installPackaged(packageDir,
@@ -495,6 +535,12 @@ let AppManager = exports.AppManager = {
         response = yield self._appsFront.installHosted(appId,
                                             metadata,
                                             project.manifest);
+      }
+
+      // Addons don't have any document to load (yet?)
+      // So that there is no need to run them, installing is enough
+      if (project.manifest.role && project.manifest.role === "addon") {
+        return;
       }
 
       let {app} = response;
@@ -521,14 +567,20 @@ let AppManager = exports.AppManager = {
 
   /* PROJECT VALIDATION */
 
-  validateProject: function(project) {
+  validateAndUpdateProject: function(project) {
     if (!project) {
       return promise.reject();
     }
 
     return Task.spawn(function* () {
 
-      let validation = new AppValidator(project);
+      let packageDir = yield ProjectBuilding.getPackageDir(project);
+      let validation = new AppValidator({
+        type: project.type,
+        // Build process may place the manifest in a non-root directory
+        location: packageDir
+      });
+
       yield validation.validate();
 
       if (validation.manifest) {
@@ -548,7 +600,7 @@ let AppManager = exports.AppManager = {
             let origin = Services.io.newURI(manifestURL.prePath, null, null);
             project.icon = Services.io.newURI(iconPath, null, origin).spec;
           } else if (project.type == "packaged") {
-            let projectFolder = FileUtils.File(project.location);
+            let projectFolder = FileUtils.File(packageDir);
             let folderURI = Services.io.newFileURI(projectFolder).spec;
             project.icon = folderURI + iconPath.replace(/^\/|\\/, "");
           }

@@ -502,12 +502,12 @@ public:
   }
 
   virtual bool
-  RecvVibrate(const InfallibleTArray<unsigned int>& pattern,
-              const InfallibleTArray<uint64_t> &id,
+  RecvVibrate(InfallibleTArray<unsigned int>&& pattern,
+              InfallibleTArray<uint64_t>&& id,
               PBrowserParent *browserParent) MOZ_OVERRIDE
   {
     // We give all content vibration permission.
-    TabParent *tabParent = static_cast<TabParent*>(browserParent);
+    TabParent *tabParent = TabParent::GetFrom(browserParent);
     nsCOMPtr<nsIDOMWindow> window =
       do_QueryInterface(tabParent->GetBrowserDOMWindow());
     WindowIdentifier newID(id, window);
@@ -516,10 +516,10 @@ public:
   }
 
   virtual bool
-  RecvCancelVibrate(const InfallibleTArray<uint64_t> &id,
+  RecvCancelVibrate(InfallibleTArray<uint64_t> &&id,
                     PBrowserParent *browserParent) MOZ_OVERRIDE
   {
-    TabParent *tabParent = static_cast<TabParent*>(browserParent);
+    TabParent *tabParent = TabParent::GetFrom(browserParent);
     nsCOMPtr<nsIDOMWindow> window =
       do_QueryInterface(tabParent->GetBrowserDOMWindow());
     WindowIdentifier newID(id, window);

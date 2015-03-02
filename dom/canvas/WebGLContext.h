@@ -19,6 +19,7 @@
 #include "WebGLObjectModel.h"
 #include "WebGLRenderbuffer.h"
 #include "WebGLTexture.h"
+#include "WebGLShaderValidator.h"
 #include "WebGLStrongTypes.h"
 #include <stdarg.h>
 
@@ -94,6 +95,10 @@ template<typename> struct Nullable;
 
 namespace gfx {
 class SourceSurface;
+}
+
+namespace webgl {
+struct LinkedProgramInfo;
 }
 
 WebGLTexelFormat GetWebGLTexelFormat(TexInternalFormat format);
@@ -249,7 +254,9 @@ public:
     void ErrorInvalidOperation(const char* fmt = 0, ...);
     void ErrorInvalidValue(const char* fmt = 0, ...);
     void ErrorInvalidFramebufferOperation(const char* fmt = 0, ...);
-    void ErrorInvalidEnumInfo(const char* info, GLenum enumvalue);
+    void ErrorInvalidEnumInfo(const char* info, GLenum enumValue);
+    void ErrorInvalidEnumInfo(const char* info, const char* funcName,
+                              GLenum enumValue);
     void ErrorOutOfMemory(const char* fmt = 0, ...);
 
     const char* ErrorName(GLenum error);
@@ -375,7 +382,9 @@ public:
     void ClearStencil(GLint v);
     void ColorMask(WebGLboolean r, WebGLboolean g, WebGLboolean b, WebGLboolean a);
     void CompileShader(WebGLShader* shader);
-    void CompressedTexImage2D(GLenum texImageTarget, GLint level,
+    void CompileShaderANGLE(WebGLShader* shader);
+    void CompileShaderBypass(WebGLShader* shader, const nsCString& shaderSource);
+    void CompressedTexImage2D(GLenum target, GLint level,
                               GLenum internalformat, GLsizei width,
                               GLsizei height, GLint border,
                               const dom::ArrayBufferView& view);
@@ -524,6 +533,11 @@ public:
                     ErrorResult& rv);
     void RenderbufferStorage(GLenum target, GLenum internalFormat,
                              GLsizei width, GLsizei height);
+protected:
+    void RenderbufferStorage_base(const char* funcName, GLenum target,
+                                  GLsizei samples, GLenum internalformat,
+                                  GLsizei width, GLsizei height);
+public:
     void SampleCoverage(GLclampf value, WebGLboolean invert);
     void Scissor(GLint x, GLint y, GLsizei width, GLsizei height);
     void ShaderSource(WebGLShader* shader, const nsAString& source);
@@ -837,8 +851,10 @@ public:
                                const float* data);
 
     void UseProgram(WebGLProgram* prog);
+
     bool ValidateAttribArraySetter(const char* name, uint32_t count,
                                    uint32_t arrayLength);
+    bool ValidateUniformLocation(WebGLUniformLocation* loc, const char* funcName);
     bool ValidateUniformSetter(WebGLUniformLocation* loc, uint8_t setterSize,
                                GLenum setterType, const char* info,
                                GLuint* out_rawLoc);
@@ -1076,9 +1092,7 @@ protected:
                                               GLenum pname);
 
     // Returns x rounded to the next highest multiple of y.
-    static CheckedUint32 RoundedToNextMultipleOf(CheckedUint32 x,
-                                                 CheckedUint32 y)
-    {
+    static CheckedUint32 RoundedToNextMultipleOf(CheckedUint32 x, CheckedUint32 y) {
         return ((x + y - 1) / y) * y;
     }
 
@@ -1118,8 +1132,9 @@ protected:
     GLenum mUnderlyingGLError;
     GLenum GetAndFlushUnderlyingGLErrors();
 
-    // whether shader validation is supported
-    bool mShaderValidation;
+    bool mBypassShaderValidation;
+
+    webgl::ShaderValidator* CreateShaderValidator(GLenum shaderType) const;
 
     // some GL constants
     int32_t mGLMaxVertexAttribs;
@@ -1136,12 +1151,17 @@ protected:
     int32_t mGLMaxVertexUniformVectors;
     int32_t mGLMaxColorAttachments;
     int32_t mGLMaxDrawBuffers;
-    GLuint  mGLMaxTransformFeedbackSeparateAttribs;
+    uint32_t  mGLMaxTransformFeedbackSeparateAttribs;
     GLuint  mGLMaxUniformBufferBindings;
+    GLsizei mGLMaxSamples;
 
 public:
     GLuint MaxVertexAttribs() const {
         return mGLMaxVertexAttribs;
+    }
+
+    GLuint GLMaxTextureUnits() const {
+        return mGLMaxTextureUnits;
     }
 
 
@@ -1195,9 +1215,10 @@ protected:
 
     // -------------------------------------------------------------------------
     // WebGL 2 specifics (implemented in WebGL2Context.cpp)
-
+public:
     virtual bool IsWebGL2() const = 0;
 
+protected:
     bool InitWebGL2();
 
     // -------------------------------------------------------------------------
@@ -1224,10 +1245,6 @@ protected:
                                WebGLboolean normalized, GLsizei stride,
                                WebGLintptr byteOffset, const char* info);
     bool ValidateStencilParamsForDrawCall();
-
-    bool ValidateGLSLVariableName(const nsAString& name, const char* info);
-    bool ValidateGLSLCharacter(char16_t c);
-    bool ValidateGLSLString(const nsAString& string, const char* info);
 
     bool ValidateCopyTexImage(GLenum internalFormat, WebGLTexImageFunc func,
                               WebGLTexDimensions dims);
@@ -1274,6 +1291,10 @@ protected:
                                       uint32_t byteLength,
                                       WebGLTexImageFunc func,
                                       WebGLTexDimensions dims);
+
+    bool ValidateUniformLocationForProgram(WebGLUniformLocation* location,
+                                           WebGLProgram* program,
+                                           const char* funcName);
 
     void Invalidate();
     void DestroyResourcesAndContext();
@@ -1403,8 +1424,13 @@ protected:
     nsTArray<WebGLRefPtr<WebGLTexture> > mBound3DTextures;
 
     WebGLRefPtr<WebGLProgram> mCurrentProgram;
+    RefPtr<const webgl::LinkedProgramInfo> mActiveProgramLinkInfo;
 
     uint32_t mMaxFramebufferColorAttachments;
+
+    GLenum LastColorAttachment() const {
+        return LOCAL_GL_COLOR_ATTACHMENT0 + mMaxFramebufferColorAttachments - 1;
+    }
 
     bool ValidateFramebufferTarget(GLenum target, const char* const info);
 
@@ -1509,7 +1535,10 @@ protected:
         const bool mNeedsChange;
 
         static bool NeedsChange(WebGLContext& webgl) {
-            return webgl.mNeedsFakeNoAlpha &&
+            // We should only be doing this if we're about to draw to the backbuffer, but
+            // the backbuffer needs to have this fake-no-alpha workaround.
+            return !webgl.mBoundDrawFramebuffer &&
+                   webgl.mNeedsFakeNoAlpha &&
                    webgl.mColorWriteMask[3] != false;
         }
 
@@ -1595,7 +1624,7 @@ WebGLContext::ValidateObjectAssumeNonNull(const char* info, ObjectType* object)
         return false;
 
     if (object->IsDeleted()) {
-        ErrorInvalidValue("%s: deleted object passed as argument", info);
+        ErrorInvalidValue("%s: Deleted object passed as argument.", info);
         return false;
     }
 
@@ -1661,6 +1690,8 @@ private:
 
     WebGLContext* mWebGL;
 };
+
+size_t RoundUpToMultipleOf(size_t value, size_t multiple);
 
 } // namespace mozilla
 

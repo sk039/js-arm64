@@ -44,6 +44,31 @@ using mozilla::DebugOnly;
 
 namespace js {
 namespace jit {
+// Protects the icache() and redirection() properties of the
+// Simulator.
+class AutoLockSimulatorCache
+{
+  public:
+    explicit AutoLockSimulatorCache(Simulator *sim) : sim_(sim) {
+        PR_Lock(sim_->lock_);
+        MOZ_ASSERT(!sim_->lockOwner_);
+#ifdef DEBUG
+        sim_->lockOwner_ = PR_GetCurrentThread();
+#endif
+    }
+
+    ~AutoLockSimulatorCache() {
+        MOZ_ASSERT(sim_->lockOwner_);
+#ifdef DEBUG
+        sim_->lockOwner_ = nullptr;
+#endif
+        PR_Unlock(sim_->lock_);
+    }
+
+  private:
+    Simulator *const sim_;
+};
+
 
 const Instruction* Simulator::kEndOfSimAddress = nullptr;
 
@@ -74,7 +99,7 @@ SimSystemRegister::DefaultValueFor(SystemRegister id)
     }
 }
 
-Simulator::Simulator(SimulatorRuntime* srt)
+Simulator::Simulator() : lock_(nullptr), lockOwner_(nullptr)
 {
     decoder_ = js_new<Decoder>();
     if (!decoder_) {
@@ -88,7 +113,7 @@ Simulator::Simulator(SimulatorRuntime* srt)
     this->init(decoder_, stdout);
 }
 
-Simulator::Simulator(Decoder* decoder, FILE* stream)
+Simulator::Simulator(Decoder* decoder, FILE* stream) : lock_(nullptr), lockOwner_(nullptr)
 {
     this->init(decoder, stream);
 }
@@ -147,11 +172,17 @@ Simulator::init(Decoder* decoder, FILE* stream)
 
     set_coloured_trace(false);
     disasm_trace_ = false;
+
+    lock_ = PR_NewLock();
+    if (!lock_)
+        MOZ_CRASH("Could not allocate lock");
 }
 
 Simulator *
 Simulator::Current()
 {
+    return TlsPerThreadData.get()->simulator();
+#if 0
     PerThreadData *pt = TlsPerThreadData.get();
     Simulator *sim = pt->simulator();
     if (!sim) {
@@ -177,6 +208,7 @@ Simulator::Current()
     }
 
     return sim;
+#endif
 }
 
 void
@@ -290,16 +322,16 @@ Simulator::call(uint8_t* entry, int argument_count, ...)
 // offset from the svc instruction so the simulator knows what to call.
 class Redirection
 {
-    friend class SimulatorRuntime;
+    friend class Simulator;
 
-    Redirection(void *nativeFunction, ABIFunctionType type, SimulatorRuntime *srt)
+    Redirection(void *nativeFunction, ABIFunctionType type, Simulator *sim)
       : nativeFunction_(nativeFunction),
       type_(type),
       next_(nullptr)
     {
-        next_ = srt->redirection();
+        next_ = sim->redirection();
         // TODO: Flush ICache?
-        srt->setRedirection(this);
+        sim->setRedirection(this);
 
         Instruction *instr = (Instruction *)(&svcInstruction_);
         AssemblerVIXL::svc(instr, kCallRtRedirected);
@@ -311,14 +343,13 @@ class Redirection
     ABIFunctionType type() const { return type_; }
 
     static Redirection *Get(void *nativeFunction, ABIFunctionType type) {
-        PerThreadData *pt = TlsPerThreadData.get();
-        SimulatorRuntime *srt = pt->simulatorRuntime();
-        AutoLockSimulatorRuntime alsr(srt);
+        Simulator *sim = Simulator::Current();
+        AutoLockSimulatorCache alsr(sim);
 
         // TODO: Store srt_ in the simulator for this assertion.
         // MOZ_ASSERT_IF(pt->simulator(), pt->simulator()->srt_ == srt);
 
-        Redirection *current = srt->redirection();
+        Redirection *current = sim->redirection();
         for (; current != nullptr; current = current->next_) {
             if (current->nativeFunction_ == nativeFunction) {
                 MOZ_ASSERT(current->type() == type);
@@ -331,7 +362,7 @@ class Redirection
             MOZ_ReportAssertionFailure("[unhandlable oom] Simulator redirection", __FILE__, __LINE__);
             MOZ_CRASH();
         }
-        new(redir) Redirection(nativeFunction, type, srt);
+        new(redir) Redirection(nativeFunction, type, sim);
         return redir;
     }
 
@@ -3084,7 +3115,7 @@ Simulator::DoPrintf(Instruction* instr)
 
     delete[] format;
 }
-
+#if 0
 SimulatorRuntime *
 CreateSimulatorRuntime()
 {
@@ -3106,17 +3137,24 @@ DestroySimulatorRuntime(SimulatorRuntime *srt)
 {
     js_delete(srt);
 }
-
+#endif
 } // namespace jit
 } // namespace js
 
 // FIXME: All this stuff should probably be shared.
+
 js::jit::Simulator *
 js::PerThreadData::simulator() const
+{
+    return runtime_->simulator();
+}
+js::jit::Simulator *
+JSRuntime::simulator() const
 {
     return simulator_;
 }
 
+#if 0
 void
 js::PerThreadData::setSimulator(js::jit::Simulator *sim)
 {
@@ -3129,13 +3167,13 @@ js::PerThreadData::simulatorRuntime() const
 {
     return runtime_->simulatorRuntime();
 }
-
+#endif
 uintptr_t *
-js::PerThreadData::addressOfSimulatorStackLimit()
+JSRuntime::addressOfSimulatorStackLimit()
 {
-    return &simulatorStackLimit_;
+    return simulator_->addressOfStackLimit();
 }
-
+#if 0
 js::jit::SimulatorRuntime *
 JSRuntime::simulatorRuntime() const
 {
@@ -3147,4 +3185,38 @@ JSRuntime::setSimulatorRuntime(js::jit::SimulatorRuntime *srt)
 {
     MOZ_ASSERT(!simulatorRuntime_);
     simulatorRuntime_ = srt;
+}
+#endif
+js::jit::Simulator *
+js::jit::Simulator::Create()
+{
+    Simulator *sim = js_new<Simulator>();
+    if (!sim) {
+        MOZ_CRASH("NEED SIMULATOR");
+        return nullptr;
+    }
+    Decoder *decoder_ = js_new<Decoder>();
+    if (!decoder_) {
+        MOZ_ReportAssertionFailure("[unhandlable oom] Decoder", __FILE__, __LINE__);
+        MOZ_CRASH();
+    }
+
+    // FIXME: This just leaks the Decoder object for now, which is probably OK.
+    // FIXME: We should free it at some point.
+    // FIXME: Note that it can't be stored in the SimulatorRuntime due to lifetime conflicts.
+    sim->init(decoder_, stdout);
+
+    return sim;
+}
+
+void
+js::jit::Simulator::Destroy(js::jit::Simulator * sim)
+{
+    js_delete(sim);
+}
+
+uintptr_t *
+js::jit::Simulator::addressOfStackLimit()
+{
+    return (uintptr_t*)&stack_limit_;
 }

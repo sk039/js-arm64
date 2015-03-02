@@ -9,8 +9,6 @@
 #include <algorithm>
 #include <stdarg.h>
 
-#include "JavaScriptParent.h"
-
 #include "mozilla/DebugOnly.h"
 #include "mozilla/FloatingPoint.h"
 #include "mozilla/Assertions.h"
@@ -20,6 +18,7 @@
 #include "jsfriendapi.h"
 #include "nsContentUtils.h"
 #include "nsGlobalWindow.h"
+#include "nsIDocShell.h"
 #include "nsIDOMGlobalPropertyInitializer.h"
 #include "nsIPermissionManager.h"
 #include "nsIPrincipal.h"
@@ -43,6 +42,7 @@
 #include "mozilla/dom/HTMLEmbedElementBinding.h"
 #include "mozilla/dom/HTMLAppletElementBinding.h"
 #include "mozilla/dom/Promise.h"
+#include "mozilla/jsipc/CrossProcessObjectWrappers.h"
 #include "WorkerPrivate.h"
 #include "nsDOMClassInfo.h"
 
@@ -50,8 +50,8 @@ namespace mozilla {
 namespace dom {
 
 JSErrorFormatString ErrorFormatString[] = {
-#define MSG_DEF(_name, _argc, _str) \
-  { _str, _argc, JSEXN_TYPEERR },
+#define MSG_DEF(_name, _argc, _exn, _str) \
+  { _str, _argc, _exn },
 #include "mozilla/dom/Errors.msg"
 #undef MSG_DEF
 };
@@ -123,22 +123,20 @@ struct ErrorResult::Message {
 };
 
 void
-ErrorResult::ThrowTypeError(const dom::ErrNum errorNumber, ...)
+ErrorResult::ThrowErrorWithMessage(va_list ap, const dom::ErrNum errorNumber,
+                                   nsresult errorType)
 {
-  va_list ap;
-  va_start(ap, errorNumber);
   if (IsJSException()) {
     // We have rooted our mJSException, and we don't have the info
     // needed to unroot here, so just bail.
-    va_end(ap);
     MOZ_ASSERT(false,
-               "Ignoring ThrowTypeError call because we have a JS exception");
+               "Ignoring ThrowErrorWithMessage call because we have a JS exception");
     return;
   }
-  if (IsTypeError()) {
+  if (IsErrorWithMessage()) {
     delete mMessage;
   }
-  mResult = NS_ERROR_TYPE_ERR;
+  mResult = errorType;
   Message* message = new Message();
   message->mErrorNumber = errorNumber;
   uint16_t argCount = dom::GetErrorMessage(nullptr, errorNumber)->argCount;
@@ -148,13 +146,30 @@ ErrorResult::ThrowTypeError(const dom::ErrNum errorNumber, ...)
     message->mArgs.AppendElement(*va_arg(ap, nsString*));
   }
   mMessage = message;
+}
+
+void
+ErrorResult::ThrowTypeError(const dom::ErrNum errorNumber, ...)
+{
+  va_list ap;
+  va_start(ap, errorNumber);
+  ThrowErrorWithMessage(ap, errorNumber, NS_ERROR_TYPE_ERR);
   va_end(ap);
 }
 
 void
-ErrorResult::ReportTypeError(JSContext* aCx)
+ErrorResult::ThrowRangeError(const dom::ErrNum errorNumber, ...)
 {
-  MOZ_ASSERT(mMessage, "ReportTypeError() can be called only once");
+  va_list ap;
+  va_start(ap, errorNumber);
+  ThrowErrorWithMessage(ap, errorNumber, NS_ERROR_RANGE_ERR);
+  va_end(ap);
+}
+
+void
+ErrorResult::ReportErrorWithMessage(JSContext* aCx)
+{
+  MOZ_ASSERT(mMessage, "ReportErrorWithMessage() can be called only once");
 
   Message* message = mMessage;
   const uint32_t argCount = message->mArgs.Length();
@@ -174,7 +189,7 @@ ErrorResult::ReportTypeError(JSContext* aCx)
 void
 ErrorResult::ClearMessage()
 {
-  if (IsTypeError()) {
+  if (IsErrorWithMessage()) {
     delete mMessage;
     mMessage = nullptr;
   }
@@ -186,14 +201,14 @@ ErrorResult::ThrowJSException(JSContext* cx, JS::Handle<JS::Value> exn)
   MOZ_ASSERT(mMightHaveUnreportedJSException,
              "Why didn't you tell us you planned to throw a JS exception?");
 
-  if (IsTypeError()) {
+  if (IsErrorWithMessage()) {
     delete mMessage;
   }
 
   // Make sure mJSException is initialized _before_ we try to root it.  But
   // don't set it to exn yet, because we don't want to do that until after we
   // root.
-  mJSException = JS::UndefinedValue();
+  mJSException.setUndefined();
   if (!js::AddRawValueRoot(cx, &mJSException, "ErrorResult::mJSException")) {
     // Don't use NS_ERROR_DOM_JS_EXCEPTION, because that indicates we have
     // in fact rooted mJSException.
@@ -234,20 +249,11 @@ ErrorResult::ReportJSExceptionFromJSImplementation(JSContext* aCx)
   nsresult rv =
     UNWRAP_OBJECT(DOMException, &mJSException.toObject(), domException);
   if (NS_SUCCEEDED(rv)) {
-    // We actually have to create a new DOMException object, because the one we
+    // We may have to create a new DOMException object, because the one we
     // have has a stack that includes the chrome code that threw it, and in
     // particular has the wrong file/line/column information.
-    nsString message;
-    domException->GetMessageMoz(message);
-    nsString name;
-    domException->GetName(name);
-    nsRefPtr<dom::DOMException> newException =
-      new dom::DOMException(nsresult(domException->Result()),
-                            NS_ConvertUTF16toUTF8(message),
-                            NS_ConvertUTF16toUTF8(name),
-                            domException->Code());
     JS::Rooted<JS::Value> reflector(aCx);
-    if (!GetOrCreateDOMReflector(aCx, newException, &reflector)) {
+    if (!domException->Sanitize(aCx, &reflector)) {
       // Well, that threw _an_ exception.  Let's forget ours.  We can just
       // unroot and not change the value, since mJSException is completely
       // ignored if mResult is not NS_ERROR_DOM_JS_EXCEPTION and we plan to
@@ -301,6 +307,17 @@ ErrorResult::StealJSException(JSContext* cx,
   value.set(mJSException);
   js::RemoveRawValueRoot(cx, &mJSException);
   mResult = NS_OK;
+
+  if (value.isObject()) {
+    // If it's a DOMException we may need to sanitize it.
+    dom::DOMException* domException;
+    nsresult rv =
+      UNWRAP_OBJECT(DOMException, &value.toObject(), domException);
+    if (NS_SUCCEEDED(rv) && !domException->Sanitize(cx, value)) {
+      JS_GetPendingException(cx, value);
+      JS_ClearPendingException(cx);
+    }
+  }
 }
 
 void
@@ -390,7 +407,7 @@ InterfaceObjectToString(JSContext* cx, unsigned argc, JS::Value *vp)
 {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
   if (!args.thisv().isObject()) {
-    JS_ReportErrorNumber(cx, js_GetErrorMessage, nullptr,
+    JS_ReportErrorNumber(cx, js::GetErrorMessage, nullptr,
                          JSMSG_CANT_CONVERT_TO, "null", "object");
     return false;
   }
@@ -479,8 +496,8 @@ CreateInterfaceObject(JSContext* cx, JS::Handle<JSObject*> global,
   JS::Rooted<JSObject*> constructor(cx);
   if (constructorClass) {
     MOZ_ASSERT(constructorProto);
-    constructor = JS_NewObject(cx, Jsvalify(constructorClass), constructorProto,
-                               global);
+    constructor = JS_NewObjectWithGivenProto(cx, Jsvalify(constructorClass),
+                                             constructorProto);
   } else {
     MOZ_ASSERT(constructorNative);
     MOZ_ASSERT(constructorProto == JS_GetFunctionPrototype(cx, global));
@@ -1598,7 +1615,7 @@ XrayOwnPropertyKeys(JSContext* cx, JS::Handle<JSObject*> wrapper,
                                    obj, flags, props);
 }
 
-NativePropertyHooks sWorkerNativePropertyHooks = {
+NativePropertyHooks sEmptyNativePropertyHooks = {
   nullptr,
   nullptr,
   {
@@ -1757,17 +1774,19 @@ ReparentWrapper(JSContext* aCx, JS::Handle<JSObject*> aObjArg)
   JS::Rooted<JSObject*> aObj(aCx, aObjArg);
   const DOMJSClass* domClass = GetDOMClass(aObj);
 
+  // DOM things are always parented to globals.
   JS::Rooted<JSObject*> oldParent(aCx, JS_GetParent(aObj));
+  MOZ_ASSERT(js::GetGlobalForObjectCrossCompartment(oldParent) == oldParent);
+
   JS::Rooted<JSObject*> newParent(aCx, domClass->mGetParent(aCx, aObj));
+  MOZ_ASSERT(js::GetGlobalForObjectCrossCompartment(newParent) == newParent);
 
   JSAutoCompartment oldAc(aCx, oldParent);
 
   JSCompartment* oldCompartment = js::GetObjectCompartment(oldParent);
   JSCompartment* newCompartment = js::GetObjectCompartment(newParent);
   if (oldCompartment == newCompartment) {
-    if (!JS_SetParent(aCx, aObj, newParent)) {
-      MOZ_CRASH();
-    }
+    MOZ_ASSERT(oldParent == newParent);
     return NS_OK;
   }
 
@@ -1789,14 +1808,12 @@ ReparentWrapper(JSContext* aCx, JS::Handle<JSObject*> aObjArg)
   // return early we must avoid ending up with two reflectors pointing to the
   // same native. Other than that, the objects we create will just go away.
 
-  JS::Rooted<JSObject*> global(aCx,
-                               js::GetGlobalForObjectCrossCompartment(newParent));
-  JS::Handle<JSObject*> proto = (domClass->mGetProto)(aCx, global);
+  JS::Handle<JSObject*> proto = (domClass->mGetProto)(aCx, newParent);
   if (!proto) {
     return NS_ERROR_FAILURE;
   }
 
-  JS::Rooted<JSObject*> newobj(aCx, JS_CloneObject(aCx, aObj, proto, newParent));
+  JS::Rooted<JSObject*> newobj(aCx, JS_CloneObject(aCx, aObj, proto));
   if (!newobj) {
     return NS_ERROR_FAILURE;
   }
@@ -1816,8 +1833,7 @@ ReparentWrapper(JSContext* aCx, JS::Handle<JSObject*> aObjArg)
 
     JS::Rooted<JSObject*> copyFrom(aCx, isProxy ? expandoObject : aObj);
     if (copyFrom) {
-      propertyHolder = JS_NewObjectWithGivenProto(aCx, nullptr, JS::NullPtr(),
-                                                  newParent);
+      propertyHolder = JS_NewObjectWithGivenProto(aCx, nullptr, JS::NullPtr());
       if (!propertyHolder) {
         return NS_ERROR_OUT_OF_MEMORY;
       }
@@ -1886,12 +1902,7 @@ ReparentWrapper(JSContext* aCx, JS::Handle<JSObject*> aObjArg)
     htmlobject->SetupProtoChain(aCx, aObj);
   }
 
-  // Now we can just fix up the parent and return the wrapper
-
-  if (newParent && !JS_SetParent(aCx, aObj, newParent)) {
-    MOZ_CRASH();
-  }
-
+  // Now we can just return the wrapper
   return NS_OK;
 }
 
@@ -2379,12 +2390,47 @@ CheckPermissions(JSContext* aCx, JSObject* aObj, const char* const aPermissions[
   return false;
 }
 
-bool
-CheckSafetyInPrerendering(JSContext* aCx, JSObject* aObj)
+void
+HandlePrerenderingViolation(nsPIDOMWindow* aWindow)
 {
-  //TODO: Check if page is being prerendered.
-  //Returning false for now.
-  return false;
+  // Suspend the window and its workers, and its children too.
+  aWindow->SuspendTimeouts();
+
+  // Suspend event handling on the document
+  nsCOMPtr<nsIDocument> doc = aWindow->GetExtantDoc();
+  if (doc) {
+    doc->SuppressEventHandling(nsIDocument::eEvents);
+  }
+}
+
+bool
+EnforceNotInPrerendering(JSContext* aCx, JSObject* aObj)
+{
+  JS::Rooted<JSObject*> thisObj(aCx, js::CheckedUnwrap(aObj));
+  if (!thisObj) {
+    // Without a this object, we cannot check the safety.
+    return true;
+  }
+  nsGlobalWindow* window = xpc::WindowGlobalOrNull(thisObj);
+  if (!window) {
+    // Without a window, we cannot check the safety.
+    return true;
+  }
+
+  nsIDocShell* docShell = window->GetDocShell();
+  if (!docShell) {
+    // Without a docshell, we cannot check the safety.
+    return true;
+  }
+
+  if (docShell->GetIsPrerendered()) {
+    HandlePrerenderingViolation(window);
+    // When the bindings layer sees a false return value, it returns false form
+    // the JSNative in order to trigger an uncatchable exception.
+    return false;
+  }
+
+  return true;
 }
 
 bool
@@ -2570,6 +2616,9 @@ ConvertExceptionToPromise(JSContext* cx,
 
   JS::Rooted<JS::Value> exn(cx);
   if (!JS_GetPendingException(cx, &exn)) {
+    // This is very important: if there is no pending exception here but we're
+    // ending up in this code, that means the callee threw an uncatchable
+    // exception.  Just propagate that out as-is.
     return false;
   }
 
@@ -2689,6 +2738,10 @@ UnwrapArgImpl(JS::Handle<JSObject*> src,
               const nsIID &iid,
               void **ppArg)
 {
+    if (!NS_IsMainThread()) {
+      return NS_ERROR_NOT_AVAILABLE;
+    }
+
     nsISupports *iface = xpc::UnwrapReflectorToISupports(src);
     if (iface) {
         if (NS_FAILED(iface->QueryInterface(iid, ppArg))) {

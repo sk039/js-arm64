@@ -95,6 +95,9 @@ enum Stat {
     // compaction
     STAT_STOREBUFFER_OVERFLOW,
 
+    // Number of arenas relocated by compacting GC.
+    STAT_ARENA_RELOCATED,
+
     STAT_LIMIT
 };
 
@@ -166,7 +169,10 @@ struct Statistics
     void startTimingMutator();
     bool stopTimingMutator(double &mutator_ms, double &gc_ms);
 
-    void reset(const char *reason) { slices.back().resetReason = reason; }
+    void reset(const char *reason) {
+        if (!aborted)
+            slices.back().resetReason = reason;
+    }
     void nonincremental(const char *reason) { nonincrementalReason = reason; }
 
     void count(Stat s) {
@@ -194,6 +200,8 @@ struct Statistics
             return phaseNesting[0] == PHASE_MUTATOR ? PHASE_NONE : phaseNesting[0];
         return phaseNesting[phaseNestingDepth - 1];
     }
+
+    static const size_t MAX_NESTING = 20;
 
   private:
     JSRuntime *runtime;
@@ -257,7 +265,6 @@ struct Statistics
     int64_t maxPauseInInterval;
 
     /* Phases that are currently on stack. */
-    static const size_t MAX_NESTING = 8;
     Phase phaseNesting[MAX_NESTING];
     size_t phaseNestingDepth;
     size_t activeDagSlot;
@@ -277,10 +284,10 @@ struct Statistics
     JS::GCSliceCallback sliceCallback;
 
     /*
-     * True if we saw an OOM while allocating slices. Slices will not be
-     * individually recorded for the remainder of this GC.
+     * True if we saw an OOM while allocating slices. The statistics for this
+     * GC will be invalid.
      */
-    bool abortSlices;
+    bool aborted;
 
     void beginGC(JSGCInvocationKind kind);
     void endGC();

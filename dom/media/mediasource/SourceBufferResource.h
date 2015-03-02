@@ -20,22 +20,14 @@
 #include "nscore.h"
 #include "prlog.h"
 
-#ifdef PR_LOGGING
-extern PRLogModuleInfo* GetMediaSourceLog();
-extern PRLogModuleInfo* GetMediaSourceAPILog();
-
-#define MSE_DEBUG(...) PR_LOG(GetMediaSourceLog(), PR_LOG_DEBUG, (__VA_ARGS__))
-#else
-#define MSE_DEBUG(...)
-#endif
-
-#define UNIMPLEMENTED() MSE_DEBUG("SourceBufferResource(%p): UNIMPLEMENTED FUNCTION at %s:%d", this, __FILE__, __LINE__)
+#define UNIMPLEMENTED() { /* Logging this is too spammy to do by default */ }
 
 class nsIStreamListener;
 
 namespace mozilla {
 
 class MediaDecoder;
+class LargeDataBuffer;
 
 namespace dom {
 
@@ -111,14 +103,22 @@ public:
   }
 
   // Used by SourceBuffer.
-  void AppendData(const uint8_t* aData, uint32_t aLength);
+  void AppendData(LargeDataBuffer* aData);
   void Ended();
+  bool IsEnded()
+  {
+    ReentrantMonitorAutoEnter mon(mMonitor);
+    return mEnded;
+  }
   // Remove data from resource if it holds more than the threshold
   // number of bytes. Returns amount evicted.
-  uint32_t EvictData(uint32_t aThreshold);
+  uint32_t EvictData(uint64_t aPlaybackOffset, uint32_t aThreshold);
 
   // Remove data from resource before the given offset.
   void EvictBefore(uint64_t aOffset);
+
+  // Remove all data from the resource
+  uint32_t EvictAll();
 
   // Returns the amount of data currently retained by this resource.
   int64_t GetSize() {

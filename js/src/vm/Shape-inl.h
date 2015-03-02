@@ -33,21 +33,6 @@ StackBaseShape::StackBaseShape(ExclusiveContext *cx, const Class *clasp,
     compartment(cx->compartment_)
 {}
 
-inline bool
-Shape::get(JSContext* cx, HandleObject receiver, JSObject* obj, JSObject *pobj,
-           MutableHandleValue vp)
-{
-    MOZ_ASSERT(!hasDefaultGetter());
-
-    if (hasGetterValue()) {
-        Value fval = getterValue();
-        return InvokeGetterOrSetter(cx, receiver, fval, 0, 0, vp);
-    }
-
-    RootedId id(cx, propid());
-    return CallJSPropertyOp(cx, getterOp(), receiver, id, vp);
-}
-
 inline Shape *
 Shape::search(ExclusiveContext *cx, jsid id)
 {
@@ -56,10 +41,11 @@ Shape::search(ExclusiveContext *cx, jsid id)
 }
 
 inline bool
-Shape::set(JSContext* cx, HandleObject obj, HandleObject receiver, bool strict,
+Shape::set(JSContext* cx, HandleNativeObject obj, HandleObject receiver, bool strict,
            MutableHandleValue vp)
 {
     MOZ_ASSERT_IF(hasDefaultSetter(), hasGetterValue());
+    MOZ_ASSERT(!obj->is<DynamicWithObject>());  // See bug 1128681.
 
     if (attrs & JSPROP_SETTER) {
         Value fval = setterValue();
@@ -67,22 +53,12 @@ Shape::set(JSContext* cx, HandleObject obj, HandleObject receiver, bool strict,
     }
 
     if (attrs & JSPROP_GETTER)
-        return js_ReportGetterOnlyAssignment(cx, strict);
+        return ReportGetterOnlyAssignment(cx, strict);
 
     if (!setterOp())
         return true;
 
     RootedId id(cx, propid());
-
-    /*
-     * |with (it) color='red';| ends up here.
-     * Avoid exposing the With object to native setters.
-     */
-    if (obj->is<DynamicWithObject>()) {
-        RootedObject nobj(cx, &obj->as<DynamicWithObject>().object());
-        return CallJSPropertyOpSetter(cx, setterOp(), nobj, id, strict, vp);
-    }
-
     return CallJSPropertyOpSetter(cx, setterOp(), obj, id, strict, vp);
 }
 
@@ -133,7 +109,7 @@ Shape::new_(ExclusiveContext *cx, StackShape &unrootedOther, uint32_t nfixed)
     RootedGeneric<StackShape*> other(cx, &unrootedOther);
     Shape *shape = other->isAccessorShape() ? NewGCAccessorShape(cx) : NewGCShape(cx);
     if (!shape) {
-        js_ReportOutOfMemory(cx);
+        ReportOutOfMemory(cx);
         return nullptr;
     }
 
@@ -223,15 +199,6 @@ GetShapeAttributes(JSObject *obj, Shape *shape)
 
     return shape->attributes();
 }
-
-#ifdef JSGC_COMPACTING
-inline void
-BaseShape::fixupAfterMovingGC()
-{
-    if (hasTable())
-        table().fixupAfterMovingGC();
-}
-#endif
 
 } /* namespace js */
 

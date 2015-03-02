@@ -24,7 +24,7 @@ class RasterImage;
 class nsPNGDecoder : public Decoder
 {
 public:
-  explicit nsPNGDecoder(RasterImage& aImage);
+  explicit nsPNGDecoder(RasterImage* aImage);
   virtual ~nsPNGDecoder();
 
   virtual void InitInternal() MOZ_OVERRIDE;
@@ -86,7 +86,6 @@ public:
   uint32_t mCMSMode;
 
   uint8_t mChannels;
-  bool mFrameHasNoAlpha;
   bool mFrameIsHidden;
   bool mDisablePremultipliedAlpha;
 

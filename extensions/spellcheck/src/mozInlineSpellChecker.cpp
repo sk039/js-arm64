@@ -902,7 +902,11 @@ mozInlineSpellChecker::SpellCheckAfterEditorChange(
 nsresult
 mozInlineSpellChecker::SpellCheckRange(nsIDOMRange* aRange)
 {
-  NS_ENSURE_TRUE(mSpellCheck, NS_ERROR_NOT_INITIALIZED);
+  if (!mSpellCheck) {
+    NS_WARN_IF_FALSE(mPendingSpellCheck,
+                     "Trying to spellcheck, but checking seems to be disabled");
+    return NS_ERROR_NOT_INITIALIZED;
+  }
 
   mozInlineSpellStatus status(this);
   nsRange* range = static_cast<nsRange*>(aRange);
@@ -1343,7 +1347,7 @@ mozInlineSpellChecker::DoSpellCheckSelection(mozInlineSpellWordUtil& aWordUtil,
   // elements inside the selection
   nsTArray<nsRefPtr<nsRange>> ranges;
 
-  int32_t count = aSpellCheckSelection->GetRangeCount();
+  int32_t count = aSpellCheckSelection->RangeCount();
 
   for (int32_t idx = 0; idx < count; idx++) {
     nsRange *range = aSpellCheckSelection->GetRangeAt(idx);
@@ -1437,7 +1441,7 @@ nsresult mozInlineSpellChecker::DoSpellCheck(mozInlineSpellWordUtil& aWordUtil,
   // see if the selection has any ranges, if not, then we can optimize checking
   // range inclusion later (we have no ranges when we are initially checking or
   // when there are no misspelled words yet).
-  int32_t originalRangeCount = aSpellCheckSelection->GetRangeCount();
+  int32_t originalRangeCount = aSpellCheckSelection->RangeCount();
 
   // set the starting DOM position to be the beginning of our range
   {
@@ -1639,7 +1643,7 @@ mozInlineSpellChecker::ResumeCheck(mozInlineSpellStatus* aStatus)
   rv = mSpellCheck->GetCurrentDictionary(currentDictionary);
   if (NS_FAILED(rv)) {
     // no active dictionary
-    int32_t count = spellCheckSelection->GetRangeCount();
+    int32_t count = spellCheckSelection->RangeCount();
     for (int32_t index = count - 1; index >= 0; index--) {
       nsRange *checkRange = spellCheckSelection->GetRangeAt(index);
       if (checkRange) {
@@ -1710,7 +1714,7 @@ mozInlineSpellChecker::CleanupRangesInSelection(Selection *aSelection)
   if (!aSelection)
     return NS_ERROR_FAILURE;
 
-  int32_t count = aSelection->GetRangeCount();
+  int32_t count = aSelection->RangeCount();
 
   for (int32_t index = 0; index < count; index++)
   {

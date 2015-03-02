@@ -37,7 +37,6 @@
 
 using namespace js;
 using namespace js::gc;
-using namespace js::types;
 
 using mozilla::ArrayLength;
 using mozilla::PodArrayZero;
@@ -336,7 +335,7 @@ exn_finalize(FreeOp *fop, JSObject *obj)
 }
 
 JSErrorReport *
-js_ErrorFromException(JSContext *cx, HandleObject objArg)
+js::ErrorFromException(JSContext *cx, HandleObject objArg)
 {
     // It's ok to UncheckedUnwrap here, since all we do is get the
     // JSErrorReport, and consumers are careful with the information they get
@@ -427,7 +426,7 @@ exn_toSource(JSContext *cx, unsigned argc, Value *vp)
 
     RootedValue nameVal(cx);
     RootedString name(cx);
-    if (!JSObject::getProperty(cx, obj, obj, cx->names().name, &nameVal) ||
+    if (!GetProperty(cx, obj, obj, cx->names().name, &nameVal) ||
         !(name = ToString<CanGC>(cx, nameVal)))
     {
         return false;
@@ -435,7 +434,7 @@ exn_toSource(JSContext *cx, unsigned argc, Value *vp)
 
     RootedValue messageVal(cx);
     RootedString message(cx);
-    if (!JSObject::getProperty(cx, obj, obj, cx->names().message, &messageVal) ||
+    if (!GetProperty(cx, obj, obj, cx->names().message, &messageVal) ||
         !(message = ValueToSource(cx, messageVal)))
     {
         return false;
@@ -443,7 +442,7 @@ exn_toSource(JSContext *cx, unsigned argc, Value *vp)
 
     RootedValue filenameVal(cx);
     RootedString filename(cx);
-    if (!JSObject::getProperty(cx, obj, obj, cx->names().fileName, &filenameVal) ||
+    if (!GetProperty(cx, obj, obj, cx->names().fileName, &filenameVal) ||
         !(filename = ValueToSource(cx, filenameVal)))
     {
         return false;
@@ -451,7 +450,7 @@ exn_toSource(JSContext *cx, unsigned argc, Value *vp)
 
     RootedValue linenoVal(cx);
     uint32_t lineno;
-    if (!JSObject::getProperty(cx, obj, obj, cx->names().lineNumber, &linenoVal) ||
+    if (!GetProperty(cx, obj, obj, cx->names().lineNumber, &linenoVal) ||
         !ToUint32(cx, linenoVal, &lineno))
     {
         return false;
@@ -508,7 +507,7 @@ ErrorObject::createProto(JSContext *cx, JSProtoKey key)
     // instance properties.
     RootedPropertyName name(cx, ClassName(key, cx));
     RootedValue nameValue(cx, StringValue(name));
-    if (!JSObject::defineProperty(cx, err, cx->names().name, nameValue, nullptr, nullptr, 0))
+    if (!DefineProperty(cx, err, cx->names().name, nameValue, nullptr, nullptr, 0))
         return nullptr;
 
     return errorProto;
@@ -543,8 +542,8 @@ js::GetErrorTypeName(JSRuntime *rt, int16_t exnType)
 }
 
 bool
-js_ErrorToException(JSContext *cx, const char *message, JSErrorReport *reportp,
-                    JSErrorCallback callback, void *userRef)
+js::ErrorToException(JSContext *cx, const char *message, JSErrorReport *reportp,
+                     JSErrorCallback callback, void *userRef)
 {
     // Tell our caller to report immediately if this report is just a warning.
     MOZ_ASSERT(reportp);
@@ -554,7 +553,7 @@ js_ErrorToException(JSContext *cx, const char *message, JSErrorReport *reportp,
     // Find the exception index associated with this error.
     JSErrNum errorNumber = static_cast<JSErrNum>(reportp->errorNumber);
     if (!callback)
-        callback = js_GetErrorMessage;
+        callback = GetErrorMessage;
     const JSErrorFormatString *errorString = callback(userRef, errorNumber);
     JSExnType exnType = errorString ? static_cast<JSExnType>(errorString->exnType) : JSEXN_NONE;
     MOZ_ASSERT(exnType < JSEXN_LIMIT);
@@ -646,7 +645,7 @@ js::ErrorReportToString(JSContext *cx, JSErrorReport *reportp)
 }
 
 bool
-js_ReportUncaughtException(JSContext *cx)
+js::ReportUncaughtException(JSContext *cx)
 {
     if (!cx->isExceptionPending())
         return true;
@@ -687,7 +686,7 @@ ErrorReport::~ErrorReport()
     js_free(ownedMessage);
     if (ownedReport.messageArgs) {
         /*
-         * js_ExpandErrorArguments owns its messageArgs only if it had to
+         * ExpandErrorArguments owns its messageArgs only if it had to
          * inflate the arguments (from regular |char *|s), which is always in
          * our case.
          */
@@ -710,7 +709,7 @@ ErrorReport::init(JSContext *cx, HandleValue exn)
      */
     if (exn.isObject()) {
         exnObject = &exn.toObject();
-        reportp = js_ErrorFromException(cx, exnObject);
+        reportp = ErrorFromException(cx, exnObject);
 
         JSCompartment *comp = exnObject->compartment();
         JSAddonId *addonId = comp->addonId;
@@ -747,7 +746,7 @@ ErrorReport::init(JSContext *cx, HandleValue exn)
     if (!str)
         cx->clearPendingException();
 
-    // If js_ErrorFromException didn't get us a JSErrorReport, then the object
+    // If ErrorFromException didn't get us a JSErrorReport, then the object
     // was not an ErrorObject, security-wrapped or otherwise. However, it might
     // still quack like one. Give duck-typing a chance.  We start by looking for
     // "filename" (all lowercase), since that's where DOMExceptions store their
@@ -849,12 +848,16 @@ ErrorReport::init(JSContext *cx, HandleValue exn)
     if (!reportp) {
         // This is basically an inlined version of
         //
-        //   JS_ReportErrorNumber(cx, js_GetErrorMessage, nullptr,
+        //   JS_ReportErrorNumber(cx, GetErrorMessage, nullptr,
         //                        JSMSG_UNCAUGHT_EXCEPTION, message_);
         //
         // but without the reporting bits.  Instead it just puts all
         // the stuff we care about in our ownedReport and message_.
-        populateUncaughtExceptionReport(cx, message_);
+        if (!populateUncaughtExceptionReport(cx, message_)) {
+            // Just give up.  We're out of memory or something; not much we can
+            // do here.
+            return false;
+        }
     } else {
         /* Flag the error as an exception. */
         reportp->flags |= JSREPORT_EXCEPTION;
@@ -863,16 +866,17 @@ ErrorReport::init(JSContext *cx, HandleValue exn)
     return true;
 }
 
-void
+bool
 ErrorReport::populateUncaughtExceptionReport(JSContext *cx, ...)
 {
     va_list ap;
     va_start(ap, cx);
-    populateUncaughtExceptionReportVA(cx, ap);
+    bool ok = populateUncaughtExceptionReportVA(cx, ap);
     va_end(ap);
+    return ok;
 }
 
-void
+bool
 ErrorReport::populateUncaughtExceptionReportVA(JSContext *cx, va_list ap)
 {
     new (&ownedReport) JSErrorReport();
@@ -888,19 +892,20 @@ ErrorReport::populateUncaughtExceptionReportVA(JSContext *cx, va_list ap)
         ownedReport.isMuted = iter.mutedErrors();
     }
 
-    if (!js_ExpandErrorArguments(cx, js_GetErrorMessage, nullptr,
-                                 JSMSG_UNCAUGHT_EXCEPTION, &ownedMessage,
-                                 &ownedReport, ArgumentsAreASCII, ap)) {
-        return;
+    if (!ExpandErrorArguments(cx, GetErrorMessage, nullptr,
+                              JSMSG_UNCAUGHT_EXCEPTION, &ownedMessage,
+                              &ownedReport, ArgumentsAreASCII, ap)) {
+        return false;
     }
 
     reportp = &ownedReport;
     message_ = ownedMessage;
     ownsMessageAndReport = true;
+    return true;
 }
 
 JSObject *
-js_CopyErrorObject(JSContext *cx, Handle<ErrorObject*> err)
+js::CopyErrorObject(JSContext *cx, Handle<ErrorObject*> err)
 {
     js::ScopedJSFreePtr<JSErrorReport> copyReport;
     if (JSErrorReport *errorReport = err->getErrorReport()) {

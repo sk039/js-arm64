@@ -50,6 +50,7 @@ HyperTextAccessible::
   HyperTextAccessible(nsIContent* aNode, DocAccessible* aDoc) :
   AccessibleWrap(aNode, aDoc)
 {
+  mType = eHyperTextType;
   mGenericTypes |= eHyperText;
 }
 
@@ -510,7 +511,7 @@ HyperTextAccessible::FindOffset(uint32_t aOffset, nsDirection aDirection,
   nsPeekOffsetStruct pos(aAmount, aDirection, innerContentOffset,
                          nsPoint(0, 0), kIsJumpLinesOk, kIsScrollViewAStop,
                          kIsKeyboardSelect, kIsVisualBidi,
-                         aWordMovementType);
+                         false, aWordMovementType);
   nsresult rv = frameAtOffset->PeekOffset(&pos);
 
   // PeekOffset fails on last/first lines of the text in certain cases.
@@ -1168,7 +1169,7 @@ HyperTextAccessible::SetSelectionRange(int32_t aStartPos, int32_t aEndPos)
   NS_ENSURE_STATE(domSel);
 
   // Set up the selection.
-  for (int32_t idx = domSel->GetRangeCount() - 1; idx > 0; idx--)
+  for (int32_t idx = domSel->RangeCount() - 1; idx > 0; idx--)
     domSel->RemoveRange(domSel->GetRangeAt(idx));
   SetSelectionBoundsAt(0, aStartPos, aEndPos);
 
@@ -1344,7 +1345,7 @@ HyperTextAccessible::GetCaretRect(nsIWidget** aWidget)
   nsIntRect caretRect;
   caretRect = rect.ToOutsidePixels(frame->PresContext()->AppUnitsPerDevPixel());
   // ((content screen origin) - (content offset in the widget)) = widget origin on the screen
-  caretRect.MoveBy((*aWidget)->WidgetToScreenOffset() - (*aWidget)->GetClientOffset());
+  caretRect.MoveBy((*aWidget)->WidgetToScreenOffsetUntyped() - (*aWidget)->GetClientOffset());
 
   // Correct for character size, so that caret always matches the size of
   // the character. This is important for font size transitions, and is
@@ -1473,7 +1474,7 @@ HyperTextAccessible::SetSelectionBoundsAt(int32_t aSelectionNum,
     return false;
 
   nsRefPtr<nsRange> range;
-  uint32_t rangeCount = domSel->GetRangeCount();
+  uint32_t rangeCount = domSel->RangeCount();
   if (aSelectionNum == static_cast<int32_t>(rangeCount))
     range = new nsRange(mContent);
   else
@@ -1501,7 +1502,7 @@ HyperTextAccessible::RemoveFromSelection(int32_t aSelectionNum)
   if (!domSel)
     return false;
 
-  if (aSelectionNum < 0 || aSelectionNum >= domSel->GetRangeCount())
+  if (aSelectionNum < 0 || aSelectionNum >= static_cast<int32_t>(domSel->RangeCount()))
     return false;
 
   domSel->RemoveRange(domSel->GetRangeAt(aSelectionNum));
@@ -1947,7 +1948,7 @@ HyperTextAccessible::GetSpellTextAttr(nsINode* aNode,
   if (!domSel)
     return;
 
-  int32_t rangeCount = domSel->GetRangeCount();
+  int32_t rangeCount = domSel->RangeCount();
   if (rangeCount <= 0)
     return;
 

@@ -581,7 +581,7 @@ CopyFrontToBack(TextureClient* aFront,
     return false;
   }
 
-  if (!aBack->Lock(OpenMode::OPEN_WRITE)) {
+  if (!aBack->Lock(OpenMode::OPEN_READ_WRITE)) {
     NS_WARNING("Failed to lock the tile's back buffer");
     return false;
   }
@@ -1064,9 +1064,11 @@ ClientTiledLayerBuffer::UnlockTile(TileClient aTile)
   // We locked the back buffer, and flipped so we now need to unlock the front
   if (aTile.mFrontBuffer && aTile.mFrontBuffer->IsLocked()) {
     aTile.mFrontBuffer->Unlock();
+    aTile.mFrontBuffer->SyncWithObject(mCompositableClient->GetForwarder()->GetSyncObject());
   }
   if (aTile.mFrontBufferOnWhite && aTile.mFrontBufferOnWhite->IsLocked()) {
     aTile.mFrontBufferOnWhite->Unlock();
+    aTile.mFrontBufferOnWhite->SyncWithObject(mCompositableClient->GetForwarder()->GetSyncObject());
   }
   if (aTile.mBackBuffer && aTile.mBackBuffer->IsLocked()) {
     aTile.mBackBuffer->Unlock();
@@ -1168,7 +1170,7 @@ ClientTiledLayerBuffer::ValidateTile(TileClient aTile,
     } else {
       moz2DTile.mDrawTarget = dt;
     }
-    moz2DTile.mTileOrigin = gfx::IntPoint(aTileOrigin.x * mResolution, aTileOrigin.y * mResolution);
+    moz2DTile.mTileOrigin = gfx::IntPoint(aTileOrigin.x, aTileOrigin.y);
     if (!dt || (backBufferOnWhite && !dtOnWhite)) {
       aTile.DiscardFrontBuffer();
       aTile.DiscardBackBuffer();
@@ -1201,8 +1203,7 @@ ClientTiledLayerBuffer::ValidateTile(TileClient aTile,
     }
 
     // The new buffer is now validated, remove the dirty region from it.
-    aTile.mInvalidBack.Sub(nsIntRect(0, 0, GetTileSize().width, GetTileSize().height),
-                           offsetScaledDirtyRegion);
+    aTile.mInvalidBack.SubOut(offsetScaledDirtyRegion);
 
     aTile.Flip();
 
@@ -1267,12 +1268,11 @@ ClientTiledLayerBuffer::ValidateTile(TileClient aTile,
   }
 
   // The new buffer is now validated, remove the dirty region from it.
-  aTile.mInvalidBack.Sub(nsIntRect(0, 0, GetTileSize().width, GetTileSize().height),
-                         offsetScaledDirtyRegion);
+  aTile.mInvalidBack.SubOut(offsetScaledDirtyRegion);
 
 #ifdef GFX_TILEDLAYER_DEBUG_OVERLAY
   DrawDebugOverlay(drawTarget, aTileOrigin.x * mResolution,
-                   aTileOrigin.y * mPresShellResolution, GetTileLength(), GetTileLength());
+                   aTileOrigin.y * GetPresShellResolution(), GetTileLength(), GetTileLength());
 #endif
 
   ctxt = nullptr;
@@ -1285,9 +1285,8 @@ ClientTiledLayerBuffer::ValidateTile(TileClient aTile,
   tileRegion.SubOut(GetValidRegion());
   tileRegion.SubOut(aDirtyRegion); // Has now been validated
 
-  backBuffer->SetWaste(tileRegion.Area() * mResolution * mResolution);
   backBuffer->Unlock();
-  backBuffer->SyncWithObject(mCompositableClient->GetForwarder()->GetSyncObject());
+  backBuffer->SetWaste(tileRegion.Area() * mResolution * mResolution);
 
   if (createdTextureClient) {
     if (!mCompositableClient->AddTextureClient(backBuffer)) {
@@ -1361,7 +1360,7 @@ ClientTiledLayerBuffer::ComputeProgressiveUpdateRegion(const nsIntRegion& aInval
   TILING_LOG("TILING %p: Progressive update stale region %s\n", mPaintedLayer, Stringify(staleRegion).c_str());
 
   LayerMetricsWrapper scrollAncestor;
-  mPaintedLayer->GetAncestorLayers(&scrollAncestor, nullptr);
+  mPaintedLayer->GetAncestorLayers(&scrollAncestor, nullptr, nullptr);
 
   // Find out the current view transform to determine which tiles to draw
   // first, and see if we should just abort this paint. Aborting is usually

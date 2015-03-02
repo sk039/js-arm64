@@ -4,8 +4,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#include "jsproxy.h"
-
+#include "js/Proxy.h"
 #include "vm/ProxyObject.h"
 
 #include "jscntxtinlines.h"
@@ -92,10 +91,10 @@ BaseProxyHandler::set(JSContext *cx, HandleObject proxy, HandleObject receiver,
         // The spec calls this variable "parent", but that word has weird
         // connotations in SpiderMonkey, so let's go with "proto".
         RootedObject proto(cx);
-        if (!JSObject::getProto(cx, proxy, &proto))
+        if (!GetPrototype(cx, proxy, &proto))
             return false;
         if (proto)
-            return JSObject::setGeneric(cx, proto, receiver, id, vp, strict);
+            return SetProperty(cx, proto, receiver, id, vp, strict);
 
         // Change ownDesc to be a complete descriptor for a configurable,
         // writable, enumerable data property. Then fall through to step 5.
@@ -138,8 +137,8 @@ BaseProxyHandler::set(JSContext *cx, HandleObject proxy, HandleObject receiver,
         const Class *clasp = receiver->getClass();
         MOZ_ASSERT(clasp->getProperty != JS_PropertyStub);
         MOZ_ASSERT(clasp->setProperty != JS_StrictPropertyStub);
-        return JSObject::defineGeneric(cx, receiver, id, vp,
-                                       clasp->getProperty, clasp->setProperty, attrs);
+        return DefineProperty(cx, receiver, id, vp,
+                              clasp->getProperty, clasp->setProperty, attrs);
     }
 
     // Step 6.
@@ -148,7 +147,7 @@ BaseProxyHandler::set(JSContext *cx, HandleObject proxy, HandleObject receiver,
     if (ownDesc.hasSetterObject())
         setter = ownDesc.setterObject();
     if (!setter)
-        return js_ReportGetterOnlyAssignment(cx, strict);
+        return ReportGetterOnlyAssignment(cx, strict);
     RootedValue setterValue(cx, ObjectValue(*setter));
     return InvokeGetterOrSetter(cx, receiver, setterValue, 1, vp.address(), vp);
 }
@@ -186,16 +185,15 @@ js::SetPropertyIgnoringNamedGetter(JSContext *cx, const BaseProxyHandler *handle
             MOZ_ASSERT(desc.object() == proxy);
             return handler->defineProperty(cx, proxy, id, desc);
         }
-        return JSObject::defineGeneric(cx, receiver, id, desc.value(),
-                                       desc.getter(), desc.setter(), desc.attributes());
+        return DefineProperty(cx, receiver, id, desc.value(),
+                              desc.getter(), desc.setter(), desc.attributes());
     }
     desc.object().set(receiver);
     desc.value().set(vp.get());
     desc.setAttributes(JSPROP_ENUMERATE);
     desc.setGetter(nullptr);
     desc.setSetter(nullptr); // Pick up the class getter/setter.
-    return JSObject::defineGeneric(cx, receiver, id, desc.value(), nullptr, nullptr,
-                                   JSPROP_ENUMERATE);
+    return DefineProperty(cx, receiver, id, desc.value(), nullptr, nullptr, JSPROP_ENUMERATE);
 }
 
 bool
@@ -291,7 +289,7 @@ bool
 BaseProxyHandler::defaultValue(JSContext *cx, HandleObject proxy, JSType hint,
                                MutableHandleValue vp) const
 {
-    return DefaultValue(cx, proxy, hint, vp);
+    return OrdinaryToPrimitive(cx, proxy, hint, vp);
 }
 
 bool
@@ -308,8 +306,8 @@ BaseProxyHandler::hasInstance(JSContext *cx, HandleObject proxy, MutableHandleVa
 {
     assertEnteredPolicy(cx, proxy, JSID_VOID, GET);
     RootedValue val(cx, ObjectValue(*proxy.get()));
-    js_ReportValueError(cx, JSMSG_BAD_INSTANCEOF_RHS,
-                        JSDVG_SEARCH_STACK, val, js::NullPtr());
+    ReportValueError(cx, JSMSG_BAD_INSTANCEOF_RHS,
+                     JSDVG_SEARCH_STACK, val, js::NullPtr());
     return false;
 }
 
@@ -352,7 +350,7 @@ BaseProxyHandler::setPrototypeOf(JSContext *cx, HandleObject, HandleObject, bool
     // Disallow sets of protos on proxies with lazy protos, but no hook.
     // This keeps us away from the footgun of having the first proto set opt
     // you out of having dynamic protos altogether.
-    JS_ReportErrorNumber(cx, js_GetErrorMessage, nullptr, JSMSG_SETPROTOTYPEOF_FAIL,
+    JS_ReportErrorNumber(cx, GetErrorMessage, nullptr, JSMSG_SETPROTOTYPEOF_FAIL,
                          "incompatible Proxy");
     return false;
 }
@@ -367,7 +365,7 @@ BaseProxyHandler::setImmutablePrototype(JSContext *cx, HandleObject proxy, bool 
 bool
 BaseProxyHandler::watch(JSContext *cx, HandleObject proxy, HandleId id, HandleObject callable) const
 {
-    JS_ReportErrorNumber(cx, js_GetErrorMessage, nullptr, JSMSG_CANT_WATCH,
+    JS_ReportErrorNumber(cx, GetErrorMessage, nullptr, JSMSG_CANT_WATCH,
                          proxy->getClass()->name);
     return false;
 }

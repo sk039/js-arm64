@@ -52,16 +52,33 @@ class BaseWebSocketChannel : public nsIWebSocketChannel,
   NS_IMETHOD SetPingInterval(uint32_t aSeconds) MOZ_OVERRIDE;
   NS_IMETHOD GetPingTimeout(uint32_t *aSeconds) MOZ_OVERRIDE;
   NS_IMETHOD SetPingTimeout(uint32_t aSeconds) MOZ_OVERRIDE;
+  NS_IMETHOD InitLoadInfo(nsIDOMNode* aLoadingNode, nsIPrincipal* aLoadingPrincipal,
+                          nsIPrincipal* aTriggeringPrincipal, uint32_t aSecurityFlags,
+                          uint32_t aContentPolicyType) MOZ_OVERRIDE;
 
   // Off main thread URI access.
   virtual void GetEffectiveURL(nsAString& aEffectiveURL) const = 0;
   virtual bool IsEncrypted() const = 0;
 
+  class ListenerAndContextContainer MOZ_FINAL
+  {
+  public:
+    NS_INLINE_DECL_THREADSAFE_REFCOUNTING(ListenerAndContextContainer)
+
+    ListenerAndContextContainer(nsIWebSocketListener* aListener,
+                                nsISupports* aContext);
+
+    nsCOMPtr<nsIWebSocketListener> mListener;
+    nsCOMPtr<nsISupports>          mContext;
+
+  private:
+    ~ListenerAndContextContainer();
+  };
+
  protected:
   nsCOMPtr<nsIURI>                mOriginalURI;
   nsCOMPtr<nsIURI>                mURI;
-  nsCOMPtr<nsIWebSocketListener>  mListener;
-  nsCOMPtr<nsISupports>           mContext;
+  nsRefPtr<ListenerAndContextContainer> mListenerMT;
   nsCOMPtr<nsIInterfaceRequestor> mCallbacks;
   nsCOMPtr<nsILoadGroup>          mLoadGroup;
   nsCOMPtr<nsILoadInfo>           mLoadInfo;

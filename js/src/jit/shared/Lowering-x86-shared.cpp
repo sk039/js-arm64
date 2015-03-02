@@ -44,12 +44,12 @@ LIRGeneratorX86Shared::visitGuardShape(MGuardShape *ins)
 }
 
 void
-LIRGeneratorX86Shared::visitGuardObjectType(MGuardObjectType *ins)
+LIRGeneratorX86Shared::visitGuardObjectGroup(MGuardObjectGroup *ins)
 {
     MOZ_ASSERT(ins->obj()->type() == MIRType_Object);
 
-    LGuardObjectType *guard = new(alloc()) LGuardObjectType(useRegisterAtStart(ins->obj()));
-    assignSnapshot(guard, Bailout_ObjectIdentityOrTypeGuard);
+    LGuardObjectGroup *guard = new(alloc()) LGuardObjectGroup(useRegisterAtStart(ins->obj()));
+    assignSnapshot(guard, ins->bailoutKind());
     add(guard, ins);
     redefine(ins, ins->obj());
 }
@@ -102,7 +102,12 @@ LIRGeneratorX86Shared::lowerForFPU(LInstructionHelper<1, 2, Temps> *ins, MDefini
 {
     // Without AVX, we'll need to use the x86 encodings where one of the
     // inputs must be the same location as the output.
-    if (!Assembler::HasAVX()) {
+    //
+    // :TODO: (Bug 1132894) Note, we might have to allocate a different
+    // registers if the MIRType of the reused operand differs from the MIRType
+    // of returned value, as MUST_REUSE_INPUT is not yet capable of reusing the
+    // same register but with a different register type.
+    if (!Assembler::HasAVX() && mir->type() == lhs->type()) {
         ins->setOperand(0, useRegisterAtStart(lhs));
         ins->setOperand(1, lhs != rhs ? use(rhs) : useAtStart(rhs));
         defineReuseInput(ins, mir, 0);
@@ -510,7 +515,7 @@ LIRGeneratorX86Shared::visitAsmJSCompareExchangeHeap(MAsmJSCompareExchangeHeap *
     MOZ_ASSERT(ptr->type() == MIRType_Int32);
 
     bool byteArray = false;
-    switch (ins->viewType()) {
+    switch (ins->accessType()) {
       case Scalar::Int8:
       case Scalar::Uint8:
         byteArray = true;
@@ -555,7 +560,7 @@ LIRGeneratorX86Shared::visitAsmJSAtomicBinopHeap(MAsmJSAtomicBinopHeap *ins)
     MOZ_ASSERT(ptr->type() == MIRType_Int32);
 
     bool byteArray = false;
-    switch (ins->viewType()) {
+    switch (ins->accessType()) {
       case Scalar::Int8:
       case Scalar::Uint8:
         byteArray = true;
@@ -639,7 +644,7 @@ LIRGeneratorX86Shared::visitSimdBinaryArith(MSimdBinaryArith *ins)
 
     if (ins->type() == MIRType_Int32x4) {
         LSimdBinaryArithIx4 *lir = new(alloc()) LSimdBinaryArithIx4();
-        bool needsTemp = ins->operation() == MSimdBinaryArith::Mul && !MacroAssembler::HasSSE41();
+        bool needsTemp = ins->operation() == MSimdBinaryArith::Op_mul && !MacroAssembler::HasSSE41();
         lir->setTemp(0, needsTemp ? temp(LDefinition::INT32X4) : LDefinition::BogusTemp());
         lowerForFPU(lir, ins, lhs, rhs);
         return;
@@ -649,9 +654,9 @@ LIRGeneratorX86Shared::visitSimdBinaryArith(MSimdBinaryArith *ins)
 
     LSimdBinaryArithFx4 *lir = new(alloc()) LSimdBinaryArithFx4();
 
-    bool needsTemp = ins->operation() == MSimdBinaryArith::Max ||
-                     ins->operation() == MSimdBinaryArith::MinNum ||
-                     ins->operation() == MSimdBinaryArith::MaxNum;
+    bool needsTemp = ins->operation() == MSimdBinaryArith::Op_max ||
+                     ins->operation() == MSimdBinaryArith::Op_minNum ||
+                     ins->operation() == MSimdBinaryArith::Op_maxNum;
     lir->setTemp(0, needsTemp ? temp(LDefinition::FLOAT32X4) : LDefinition::BogusTemp());
 
     lowerForFPU(lir, ins, lhs, rhs);

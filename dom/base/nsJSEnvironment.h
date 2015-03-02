@@ -116,6 +116,9 @@ public:
   static void PokeShrinkGCBuffers();
   static void KillShrinkGCBuffersTimer();
 
+  static void PokeShrinkingGC();
+  static void KillShrinkingGCTimer();
+
   static void MaybePokeCC();
   static void KillCCTimer();
   static void KillICCTimer();
@@ -192,7 +195,7 @@ public:
     : mReport(aReport)
   {}
 
-  NS_IMETHOD Run()
+  NS_IMETHOD Run() MOZ_OVERRIDE
   {
     mReport->LogToConsole();
     return NS_OK;

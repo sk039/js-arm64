@@ -81,6 +81,10 @@ public:
     mURL(aURL)
   {
     MOZ_ASSERT(aBlobImpl);
+
+    DebugOnly<bool> isMutable;
+    MOZ_ASSERT(NS_SUCCEEDED(aBlobImpl->GetMutable(&isMutable)));
+    MOZ_ASSERT(!isMutable);
   }
 
   bool
@@ -114,6 +118,10 @@ public:
       }
     }
 
+    DebugOnly<bool> isMutable;
+    MOZ_ASSERT(NS_SUCCEEDED(mBlobImpl->GetMutable(&isMutable)));
+    MOZ_ASSERT(!isMutable);
+
     nsCOMPtr<nsIPrincipal> principal;
     nsIDocument* doc = nullptr;
 
@@ -127,7 +135,8 @@ public:
 
       principal = doc->NodePrincipal();
     } else {
-      MOZ_ASSERT_IF(!mWorkerPrivate->GetParent(), mWorkerPrivate->IsChromeWorker());
+      // We use the worker Principal in case this is a SharedWorker, a
+      // ChromeWorker or a ServiceWorker.
       principal = mWorkerPrivate->GetPrincipal();
     }
 
@@ -183,7 +192,8 @@ public:
 
       principal = doc->NodePrincipal();
     } else {
-      MOZ_ASSERT_IF(!mWorkerPrivate->GetParent(), mWorkerPrivate->IsChromeWorker());
+      // We use the worker Principal in case this is a SharedWorker, a
+      // ChromeWorker or a ServiceWorker.
       principal = mWorkerPrivate->GetPrincipal();
     }
 
@@ -572,10 +582,10 @@ URL::~URL()
   }
 }
 
-JSObject*
-URL::WrapObject(JSContext* aCx)
+bool
+URL::WrapObject(JSContext* aCx, JS::MutableHandle<JSObject*> aReflector)
 {
-  return URLBinding_workers::Wrap(aCx, this);
+  return URLBinding_workers::Wrap(aCx, this, aReflector);
 }
 
 void
@@ -872,19 +882,6 @@ URL::SetHash(const nsAString& aHash, ErrorResult& aRv)
 
 // static
 void
-URL::CreateObjectURL(const GlobalObject& aGlobal, JSObject* aBlob,
-                     const mozilla::dom::objectURLOptions& aOptions,
-                     nsString& aResult, mozilla::ErrorResult& aRv)
-{
-  SetDOMStringToNull(aResult);
-
-  NS_NAMED_LITERAL_STRING(argStr, "Argument 1 of URL.createObjectURL");
-  NS_NAMED_LITERAL_STRING(blobStr, "MediaStream");
-  aRv.ThrowTypeError(MSG_DOES_NOT_IMPLEMENT_INTERFACE, &argStr, &blobStr);
-}
-
-// static
-void
 URL::CreateObjectURL(const GlobalObject& aGlobal, File& aBlob,
                      const mozilla::dom::objectURLOptions& aOptions,
                      nsString& aResult, mozilla::ErrorResult& aRv)
@@ -892,8 +889,16 @@ URL::CreateObjectURL(const GlobalObject& aGlobal, File& aBlob,
   JSContext* cx = aGlobal.Context();
   WorkerPrivate* workerPrivate = GetWorkerPrivateFromContext(cx);
 
+  nsRefPtr<FileImpl> blobImpl = aBlob.Impl();
+  MOZ_ASSERT(blobImpl);
+
+  aRv = blobImpl->SetMutable(false);
+  if (NS_WARN_IF(aRv.Failed())) {
+    return;
+  }
+
   nsRefPtr<CreateURLRunnable> runnable =
-    new CreateURLRunnable(workerPrivate, aBlob.Impl(), aOptions, aResult);
+    new CreateURLRunnable(workerPrivate, blobImpl, aOptions, aResult);
 
   if (!runnable->Dispatch(cx)) {
     JS_ReportPendingException(cx);

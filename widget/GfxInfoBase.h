@@ -9,7 +9,7 @@
 #define __mozilla_widget_GfxInfoBase_h__
 
 #include "nsIGfxInfo.h"
-#ifdef XP_MACOSX
+#if defined(XP_MACOSX) || defined(XP_WIN)
 #include "nsIGfxInfo2.h"
 #endif
 #include "nsCOMPtr.h"
@@ -28,7 +28,7 @@ namespace mozilla {
 namespace widget {  
 
 class GfxInfoBase : public nsIGfxInfo,
-#ifdef XP_MACOSX
+#if defined(XP_MACOSX) || defined(XP_WIN)
                     public nsIGfxInfo2,
 #endif
                     public nsIObserver,
@@ -54,7 +54,7 @@ public:
   NS_IMETHOD GetFeatureSuggestedDriverVersion(int32_t aFeature, nsAString & _retval) MOZ_OVERRIDE;
   NS_IMETHOD GetWebGLParameter(const nsAString & aParam, nsAString & _retval) MOZ_OVERRIDE;
 
-  NS_IMETHOD GetFailures(uint32_t *failureCount, char ***failures) MOZ_OVERRIDE;
+    NS_IMETHOD GetFailures(uint32_t *failureCount, int32_t** indices, char ***failures) MOZ_OVERRIDE;
   NS_IMETHOD_(void) LogFailure(const nsACString &failure) MOZ_OVERRIDE;
   NS_IMETHOD GetInfo(JSContext*, JS::MutableHandle<JS::Value>) MOZ_OVERRIDE;
 
@@ -103,8 +103,6 @@ private:
 
   void EvaluateDownloadedBlacklist(nsTArray<GfxDriverInfo>& aDriverInfo);
 
-  nsCString mFailures[9]; // The choice of 9 is Ehsan's
-  uint32_t mFailureCount;
   Mutex mMutex;
 
 };

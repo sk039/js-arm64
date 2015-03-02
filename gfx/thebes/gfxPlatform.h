@@ -37,6 +37,7 @@ class gfxTextRun;
 class nsIURI;
 class nsIAtom;
 class nsIObserver;
+class SRGBOverrideObserver;
 struct gfxRGBA;
 
 namespace mozilla {
@@ -158,7 +159,19 @@ GetBackendName(mozilla::gfx::BackendType aBackend)
   MOZ_CRASH("Incomplete switch");
 }
 
+enum class DeviceResetReason
+{
+  OK = 0,
+  HUNG,
+  REMOVED,
+  RESET,
+  DRIVER_ERROR,
+  INVALID_CALL
+};
+
 class gfxPlatform {
+    friend class SRGBOverrideObserver;
+
 public:
     typedef mozilla::gfx::Color Color;
     typedef mozilla::gfx::DataSourceSurface DataSourceSurface;
@@ -432,7 +445,7 @@ public:
     // check whether format is supported on a platform or not (if unclear, returns true)
     virtual bool IsFontFormatSupported(nsIURI *aFontURI, uint32_t aFormatFlags) { return false; }
 
-    virtual bool DidRenderingDeviceReset() { return false; }
+    virtual bool DidRenderingDeviceReset(DeviceResetReason* aResetReason = nullptr) { return false; }
 
     void GetPrefFonts(nsIAtom *aLanguage, nsString& array, bool aAppendUnicode = true);
 
@@ -481,6 +494,7 @@ public:
 
     static bool CanUseDirect3D9();
     static bool CanUseDirect3D11();
+    static bool CanUseDXVA();
 
     /**
      * Is it possible to use buffer rotation.  Note that these
@@ -673,6 +687,8 @@ protected:
     // Hardware vsync source. Only valid on parent process
     nsRefPtr<mozilla::gfx::VsyncSource> mVsyncSource;
 
+    mozilla::RefPtr<mozilla::gfx::DrawTarget> mScreenReferenceDrawTarget;
+
 private:
     /**
      * Start up Thebes.
@@ -688,7 +704,6 @@ private:
     virtual void GetPlatformCMSOutputProfile(void *&mem, size_t &size);
 
     nsRefPtr<gfxASurface> mScreenReferenceSurface;
-    mozilla::RefPtr<mozilla::gfx::DrawTarget> mScreenReferenceDrawTarget;
     nsTArray<uint32_t> mCJKPrefLangs;
     nsCOMPtr<nsIObserver> mSRGBOverrideObserver;
     nsCOMPtr<nsIObserver> mFontPrefsObserver;

@@ -60,7 +60,7 @@ class OmxDecoder : public OMXCodecProxy::EventListener {
   int32_t mAudioChannels;
   int32_t mAudioSampleRate;
   int64_t mDurationUs;
-  int64_t mVideoLastFrameTime;
+  int64_t mLastSeekTime;
 
   VideoFrame mVideoFrame;
   AudioFrame mAudioFrame;
@@ -153,8 +153,6 @@ public:
   // extracts data from a container.
   // Note: RTSP requires a custom extractor because it doesn't have a container.
   bool Init(sp<MediaExtractor>& extractor);
-
-  bool IsDormantNeeded();
 
   // Called after resources(video/audio codec) are allocated, set the
   // mDurationUs and video/audio metadata.

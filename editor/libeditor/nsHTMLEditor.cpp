@@ -969,7 +969,6 @@ nsHTMLEditor::IsVisBreak(nsINode* aNode)
   return true;
 }
 
-
 bool
 nsHTMLEditor::IsVisBreak(nsIDOMNode* aNode)
 {
@@ -977,17 +976,6 @@ nsHTMLEditor::IsVisBreak(nsIDOMNode* aNode)
   NS_ENSURE_TRUE(node, false);
   return IsVisBreak(node);
 }
-
-NS_IMETHODIMP
-nsHTMLEditor::BreakIsVisible(nsIDOMNode *aNode, bool *aIsVisible)
-{
-  NS_ENSURE_ARG_POINTER(aNode && aIsVisible);
-
-  *aIsVisible = IsVisBreak(aNode);
-
-  return NS_OK;
-}
-
 
 NS_IMETHODIMP
 nsHTMLEditor::GetIsDocumentEditable(bool *aIsDocumentEditable)
@@ -3287,7 +3275,7 @@ nsHTMLEditor::GetIsSelectionEditable(bool* aIsSelectionEditable)
   // Per the editing spec as of June 2012: we have to have a selection whose
   // start and end nodes are editable, and which share an ancestor editing
   // host.  (Bug 766387.)
-  *aIsSelectionEditable = selection->GetRangeCount() &&
+  *aIsSelectionEditable = selection->RangeCount() &&
                           selection->GetAnchorNode()->IsEditable() &&
                           selection->GetFocusNode()->IsEditable();
 
@@ -4559,7 +4547,7 @@ nsHTMLEditor::SetCSSBackgroundColor(const nsAString& aColor)
   {
     // loop thru the ranges in the selection
     nsAutoString bgcolor; bgcolor.AssignLiteral("bgcolor");
-    uint32_t rangeCount = selection->GetRangeCount();
+    uint32_t rangeCount = selection->RangeCount();
     for (uint32_t rangeIdx = 0; rangeIdx < rangeCount; ++rangeIdx) {
       nsCOMPtr<nsIDOMNode> cachedBlockParent = nullptr;
       nsRefPtr<nsRange> range = selection->GetRangeAt(rangeIdx);

@@ -13,6 +13,7 @@
 #include "jit/MIR.h"
 #include "jit/MIRGenerator.h"
 #include "jit/MIRGraph.h"
+#include "vm/UnboxedObject.h"
 
 namespace js {
 namespace jit {
@@ -112,6 +113,10 @@ IsObjectEscaped(MInstruction *ins, JSObject *objDefault = nullptr)
     else
         obj = objDefault;
 
+    // Don't optimize unboxed objects, which aren't handled by MObjectState.
+    if (obj->is<UnboxedPlainObject>())
+        return true;
+
     // Check if the object is escaped. If the object is not the first argument
     // of either a known Store / Load, then we consider it as escaped. This is a
     // cheap and conservative escape analysis.
@@ -137,6 +142,9 @@ IsObjectEscaped(MInstruction *ins, JSObject *objDefault = nullptr)
             JitSpewDef(JitSpew_Escape, "Object ", ins);
             JitSpewDef(JitSpew_Escape, "  is escaped by\n", def);
             return true;
+
+          case MDefinition::Op_PostWriteBarrier:
+            break;
 
           case MDefinition::Op_Slots: {
 #ifdef DEBUG
@@ -240,6 +248,7 @@ class ObjectMemoryView : public MDefinitionVisitorDefaultNoop
     void visitObjectState(MObjectState *ins);
     void visitStoreFixedSlot(MStoreFixedSlot *ins);
     void visitLoadFixedSlot(MLoadFixedSlot *ins);
+    void visitPostWriteBarrier(MPostWriteBarrier *ins);
     void visitStoreSlot(MStoreSlot *ins);
     void visitLoadSlot(MLoadSlot *ins);
     void visitGuardShape(MGuardShape *ins);
@@ -441,6 +450,17 @@ ObjectMemoryView::visitLoadFixedSlot(MLoadFixedSlot *ins)
 
     // Replace load by the slot value.
     ins->replaceAllUsesWith(state_->getFixedSlot(ins->slot()));
+
+    // Remove original instruction.
+    ins->block()->discard(ins);
+}
+
+void
+ObjectMemoryView::visitPostWriteBarrier(MPostWriteBarrier *ins)
+{
+    // Skip loads made on other objects.
+    if (ins->object() != obj_)
+        return;
 
     // Remove original instruction.
     ins->block()->discard(ins);

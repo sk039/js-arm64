@@ -25,7 +25,8 @@ public:
   static already_AddRefed<BluetoothPairingListener>
     Create(nsPIDOMWindow* aWindow);
 
-  void DispatchPairingEvent(BluetoothDevice* aDevice,
+  void DispatchPairingEvent(const nsAString& aName,
+                            const nsAString& aAddress,
                             const nsAString& aPasskey,
                             const nsAString& aType);
 
@@ -38,6 +39,7 @@ public:
 
   virtual JSObject* WrapObject(JSContext* aCx) MOZ_OVERRIDE;
   virtual void DisconnectFromOwner() MOZ_OVERRIDE;
+  virtual void EventListenerAdded(nsIAtom* aType) MOZ_OVERRIDE;
 
   IMPL_EVENT_HANDLER(displaypasskeyreq);
   IMPL_EVENT_HANDLER(enterpincodereq);
@@ -47,6 +49,21 @@ public:
 private:
   BluetoothPairingListener(nsPIDOMWindow* aWindow);
   ~BluetoothPairingListener();
+
+  /**
+   * Listen to bluetooth signal if all pairing event handlers are ready.
+   *
+   * Listen to bluetooth signal only if all pairing event handlers have been
+   * attached. All pending pairing requests queued in BluetoothService would be
+   * fired when pairing listener starts listening to bluetooth signal.
+   */
+  void TryListeningToBluetoothSignal();
+
+  /**
+   * Indicate whether or not this pairing listener has started listening to
+   * Bluetooth signal.
+   */
+  bool mHasListenedToSignal;
 };
 
 END_BLUETOOTH_NAMESPACE

@@ -49,15 +49,12 @@ class BaselineFrame
 
         // Frame has execution observed by a Debugger.
         //
-        // See comment above 'debugMode' in jscompartment.h for explanation of
+        // See comment above 'isDebuggee' in jscompartment.h for explanation of
         // invariants of debuggee compartments, scripts, and frames.
         DEBUGGEE         = 1 << 6,
 
         // Eval frame, see the "eval frames" comment.
         EVAL             = 1 << 7,
-
-        // Frame has profiler entry pushed.
-        HAS_PUSHED_SPS_FRAME = 1 << 8,
 
         // Frame has over-recursed on an early check.
         OVER_RECURSED    = 1 << 9,
@@ -77,11 +74,10 @@ class BaselineFrame
         // This flag should never be set when we're executing JIT code.
         HAS_OVERRIDE_PC = 1 << 11,
 
-        // Frame has called out to Debugger code from
-        // HandleExceptionBaseline. This is set for debug mode OSR sanity
-        // checking when it handles corner cases which only arise during
-        // exception handling.
-        DEBUGGER_HANDLING_EXCEPTION = 1 << 12
+        // If set, we're handling an exception for this frame. This is set for
+        // debug mode OSR sanity checking when it handles corner cases which
+        // only arise during exception handling.
+        HANDLING_EXCEPTION = 1 << 12
     };
 
   protected: // Silence Clang warning about unused private fields.
@@ -293,31 +289,19 @@ class BaselineFrame
     }
     inline void unsetIsDebuggee();
 
-    bool isDebuggerHandlingException() const {
-        return flags_ & DEBUGGER_HANDLING_EXCEPTION;
+    bool isHandlingException() const {
+        return flags_ & HANDLING_EXCEPTION;
     }
-    void setIsDebuggerHandlingException() {
-        flags_ |= DEBUGGER_HANDLING_EXCEPTION;
+    void setIsHandlingException() {
+        flags_ |= HANDLING_EXCEPTION;
     }
-    void unsetIsDebuggerHandlingException() {
-        flags_ &= ~DEBUGGER_HANDLING_EXCEPTION;
+    void unsetIsHandlingException() {
+        flags_ &= ~HANDLING_EXCEPTION;
     }
 
     JSScript *evalScript() const {
         MOZ_ASSERT(isEvalFrame());
         return evalScript_;
-    }
-
-    bool hasPushedSPSFrame() const {
-        return flags_ & HAS_PUSHED_SPS_FRAME;
-    }
-
-    void setPushedSPSFrame() {
-        flags_ |= HAS_PUSHED_SPS_FRAME;
-    }
-
-    void unsetPushedSPSFrame() {
-        flags_ &= ~HAS_PUSHED_SPS_FRAME;
     }
 
     bool overRecursed() const {
@@ -347,13 +331,17 @@ class BaselineFrame
     void deleteDebugModeOSRInfo();
 
     // See the HAS_OVERRIDE_PC comment.
+    bool hasOverridePc() const {
+        return flags_ & HAS_OVERRIDE_PC;
+    }
+
     jsbytecode *overridePc() const {
-        MOZ_ASSERT(flags_ & HAS_OVERRIDE_PC);
+        MOZ_ASSERT(hasOverridePc());
         return script()->offsetToPC(overrideOffset_);
     }
 
     jsbytecode *maybeOverridePc() const {
-        if (flags_ & HAS_OVERRIDE_PC)
+        if (hasOverridePc())
             return overridePc();
         return nullptr;
     }

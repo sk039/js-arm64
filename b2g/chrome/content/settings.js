@@ -108,7 +108,7 @@ SettingsListener.observe('language.current', 'en-US', function(value) {
   Services.prefs.setCharPref(prefName, value);
 
   if (shell.hasStarted() == false) {
-    shell.start();
+    shell.bootstrap();
   }
 });
 
@@ -122,6 +122,11 @@ SettingsListener.observe('language.current', 'en-US', function(value) {
         Services.prefs.setIntPref('dom.' + key + '.defaultServiceId', value);
       }
     });
+  });
+
+  // Debug flag
+  SettingsListener.observe('ril.debugging.enabled', false, function(value) {
+    Services.prefs.setBoolPref('ril.debugging.enabled', value);
   });
 })();
 
@@ -617,4 +622,3 @@ for (let key in settingsToObserve) {
     setPref(prefName, value);
   });
 };
-

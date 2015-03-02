@@ -1134,6 +1134,12 @@ nsEditor::CanCopy(bool *aCanCut)
 }
 
 NS_IMETHODIMP
+nsEditor::CanDelete(bool *aCanDelete)
+{
+  return NS_ERROR_NOT_IMPLEMENTED;
+}
+
+NS_IMETHODIMP
 nsEditor::Paste(int32_t aSelectionType)
 {
   return NS_ERROR_NOT_IMPLEMENTED; 
@@ -3555,7 +3561,7 @@ nsEditor::GetStartNodeAndOffset(Selection* aSelection, nsINode** aStartNode,
   *aStartNode = nullptr;
   *aStartOffset = 0;
 
-  NS_ENSURE_TRUE(aSelection->GetRangeCount(), NS_ERROR_FAILURE);
+  NS_ENSURE_TRUE(aSelection->RangeCount(), NS_ERROR_FAILURE);
 
   const nsRange* range = aSelection->GetRangeAt(0);
   NS_ENSURE_TRUE(range, NS_ERROR_FAILURE);
@@ -3602,7 +3608,7 @@ nsEditor::GetEndNodeAndOffset(Selection* aSelection, nsINode** aEndNode,
   *aEndNode = nullptr;
   *aEndOffset = 0;
 
-  NS_ENSURE_TRUE(aSelection->GetRangeCount(), NS_ERROR_FAILURE);
+  NS_ENSURE_TRUE(aSelection->RangeCount(), NS_ERROR_FAILURE);
 
   const nsRange* range = aSelection->GetRangeAt(0);
   NS_ENSURE_TRUE(range, NS_ERROR_FAILURE);
@@ -4156,7 +4162,7 @@ nsEditor::CreateTxnForDeleteSelection(EDirection aAction,
   // allocate the out-param transaction
   nsRefPtr<EditAggregateTxn> aggTxn = new EditAggregateTxn();
 
-  for (int32_t rangeIdx = 0; rangeIdx < selection->GetRangeCount(); ++rangeIdx) {
+  for (uint32_t rangeIdx = 0; rangeIdx < selection->RangeCount(); ++rangeIdx) {
     nsRefPtr<nsRange> range = selection->GetRangeAt(rangeIdx);
     NS_ENSURE_STATE(range);
 

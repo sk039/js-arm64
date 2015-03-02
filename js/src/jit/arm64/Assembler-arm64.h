@@ -55,6 +55,9 @@ static MOZ_CONSTEXPR_VAR FloatRegister ReturnDoubleReg = { FloatRegisters::d0 };
 static MOZ_CONSTEXPR_VAR FloatRegister ReturnFloat32Reg = { FloatRegisters::s0 };
 static MOZ_CONSTEXPR_VAR FloatRegister ScratchFloat32Reg = { FloatRegisters::s31 };
 
+static MOZ_CONSTEXPR_VAR Register InvalidReg = { Registers::invalid_reg };
+static MOZ_CONSTEXPR_VAR FloatRegister InvalidFloatReg = { FloatRegisters::invalid_fpreg };
+
 // TODO: these should probably have better names....
 static MOZ_CONSTEXPR_VAR ARMFPRegister ScratchDoubleReg_ = { ScratchDoubleReg, 64 };
 static MOZ_CONSTEXPR_VAR ARMFPRegister ReturnDoubleReg_ = { ReturnDoubleReg, 64 };
@@ -62,6 +65,8 @@ static MOZ_CONSTEXPR_VAR ARMFPRegister ReturnDoubleReg_ = { ReturnDoubleReg, 64 
 static MOZ_CONSTEXPR_VAR ARMFPRegister ReturnFloat32Reg_ = { ReturnFloat32Reg, 32 };
 static MOZ_CONSTEXPR_VAR ARMFPRegister ScratchFloat32Reg_ = { ScratchFloat32Reg, 32 };
 
+static MOZ_CONSTEXPR_VAR FloatRegister ReturnInt32x4Reg = InvalidFloatReg;
+static MOZ_CONSTEXPR_VAR FloatRegister ReturnFloat32x4Reg = InvalidFloatReg;
 
 static MOZ_CONSTEXPR_VAR Register OsrFrameReg = { Registers::x3 };
 static MOZ_CONSTEXPR_VAR Register ArgumentsRectifierReg = { Registers::x8 };
@@ -74,8 +79,6 @@ static MOZ_CONSTEXPR_VAR Register CallTempReg5 = { Registers::x14 };
 
 static MOZ_CONSTEXPR_VAR Register PreBarrierReg = { Registers::x1 };
 
-static MOZ_CONSTEXPR_VAR Register InvalidReg = { Registers::invalid_reg };
-static MOZ_CONSTEXPR_VAR FloatRegister InvalidFloatReg = { FloatRegisters::invalid_fpreg };
 
 static MOZ_CONSTEXPR_VAR Register ReturnReg_ = { Registers::x0 };
 static MOZ_CONSTEXPR_VAR Register ReturnReg = { Registers::x0 };
@@ -392,6 +395,9 @@ class Assembler : public AssemblerVIXL
     static int32_t ExtractCodeLabelOffset(uint8_t *code);
     static void PatchInstructionImmediate(uint8_t *code, PatchedImmPtr imm);
 
+    static void FixupNurseryObjects(JSContext *cx, JitCode *code, CompactBufferReader &reader,
+                                    const ObjectVector &nurseryObjects);
+
     // Convert a BufferOffset to a final byte offset from the start of the code buffer.
     size_t toFinalOffset(BufferOffset offset) {
         return size_t(offset.getOffset() + armbuffer_.poolSizeBefore(offset.getOffset()));
@@ -464,6 +470,12 @@ class Assembler : public AssemblerVIXL
         LabelBase *label = absoluteLabel;
         label->bind(off.getOffset());
     }
+    void verifyHeapAccessDisassembly(uint32_t begin, uint32_t end,
+                                     const Disassembler::HeapAccess &heapAccess)
+    {
+        // Implement this if we implement a disassembler.
+    }
+
 
 };
 

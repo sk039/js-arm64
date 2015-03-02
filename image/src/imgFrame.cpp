@@ -123,7 +123,7 @@ static bool AllowedImageAndFrameDimensions(const nsIntSize& aImageSize,
   }
   nsIntRect imageRect(0, 0, aImageSize.width, aImageSize.height);
   if (!imageRect.Contains(aFrameRect)) {
-    return false;
+    NS_WARNING("Animated image frame does not fit inside bounds of image");
   }
   return true;
 }
@@ -163,6 +163,80 @@ imgFrame::~imgFrame()
 
   moz_free(mPalettedImageData);
   mPalettedImageData = nullptr;
+}
+
+nsresult
+imgFrame::ReinitForDecoder(const nsIntSize& aImageSize,
+                           const nsIntRect& aRect,
+                           SurfaceFormat aFormat,
+                           uint8_t aPaletteDepth /* = 0 */,
+                           bool aNonPremult /* = false */)
+{
+  MonitorAutoLock lock(mMonitor);
+
+  if (mDecoded.x != 0 || mDecoded.y != 0 ||
+      mDecoded.width != 0 || mDecoded.height != 0) {
+    MOZ_ASSERT_UNREACHABLE("Shouldn't reinit after write");
+    return NS_ERROR_FAILURE;
+  }
+  if (mAborted) {
+    MOZ_ASSERT_UNREACHABLE("Shouldn't reinit if aborted");
+    return NS_ERROR_FAILURE;
+  }
+  if (mLockCount < 1) {
+    MOZ_ASSERT_UNREACHABLE("Shouldn't reinit unless locked");
+    return NS_ERROR_FAILURE;
+  }
+
+  // Restore everything (except mLockCount, which we need to keep) to how it was
+  // when we were first created.
+  // XXX(seth): This is probably a little excessive, but I want to be *really*
+  // sure that nothing got missed.
+  mDecoded = nsIntRect(0, 0, 0, 0);
+  mTimeout = 100;
+  mDisposalMethod = DisposalMethod::NOT_SPECIFIED;
+  mBlendMethod = BlendMethod::OVER;
+  mHasNoAlpha = false;
+  mAborted = false;
+  mPaletteDepth = 0;
+  mNonPremult = false;
+  mSinglePixel = false;
+  mCompositingFailed = false;
+  mOptimizable = false;
+  mImageSize = IntSize();
+  mSize = IntSize();
+  mOffset = nsIntPoint();
+  mSinglePixelColor = Color();
+
+  // Release all surfaces.
+  mImageSurface = nullptr;
+  mOptSurface = nullptr;
+  mVBuf = nullptr;
+  mVBufPtr = nullptr;
+  moz_free(mPalettedImageData);
+  mPalettedImageData = nullptr;
+
+  // Reinitialize.
+  nsresult rv = InitForDecoder(aImageSize, aRect, aFormat,
+                               aPaletteDepth, aNonPremult);
+  if (NS_FAILED(rv)) {
+    return rv;
+  }
+
+  // We were locked before; perform the same actions we would've performed when
+  // we originally got locked.
+  if (mImageSurface) {
+    mVBufPtr = mVBuf;
+    return NS_OK;
+  }
+
+  if (!mPalettedImageData) {
+    MOZ_ASSERT_UNREACHABLE("We got optimized somehow during reinit");
+    return NS_ERROR_FAILURE;
+  }
+
+  // Paletted images don't have surfaces, so there's nothing to do.
+  return NS_OK;
 }
 
 nsresult
@@ -347,8 +421,8 @@ nsresult imgFrame::Optimize()
 
   /* Figure out if the entire image is a constant color */
 
-  // this should always be true
-  if (mImageSurface->Stride() == mSize.width * 4) {
+  if (gfxPrefs::ImageSingleColorOptimizationEnabled() &&
+      mImageSurface->Stride() == mSize.width * 4) {
     uint32_t *imgData = (uint32_t*) ((uint8_t *)mVBufPtr);
     uint32_t firstPixel = * (uint32_t*) imgData;
     uint32_t pixelCount = mSize.width * mSize.height + 1;
@@ -1015,9 +1089,7 @@ imgFrame::Abort()
   mAborted = true;
 
   // Wake up anyone who's waiting.
-  if (IsImageCompleteInternal()) {
-    mMonitor.NotifyAll();
-  }
+  mMonitor.NotifyAll();
 }
 
 bool
@@ -1071,7 +1143,7 @@ imgFrame::SizeOfExcludingThis(gfxMemoryLocation aLocation,
 
   // aMallocSizeOf is only used if aLocation==gfxMemoryLocation::IN_PROCESS_HEAP.  It
   // should be nullptr otherwise.
-  NS_ABORT_IF_FALSE(
+  MOZ_ASSERT(
     (aLocation == gfxMemoryLocation::IN_PROCESS_HEAP &&  aMallocSizeOf) ||
     (aLocation != gfxMemoryLocation::IN_PROCESS_HEAP && !aMallocSizeOf),
     "mismatch between aLocation and aMallocSizeOf");

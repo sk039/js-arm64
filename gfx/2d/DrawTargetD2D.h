@@ -14,11 +14,7 @@
 #include <vector>
 #include <sstream>
 
-#ifdef _MSC_VER
-#include <hash_set>
-#else
 #include <unordered_set>
-#endif
 
 struct IDWriteFactory;
 
@@ -149,6 +145,10 @@ public:
   static IDWriteFactory *GetDWriteFactory();
   ID2D1RenderTarget *GetRT() { return mRT; }
 
+  static uint32_t GetMaxSurfaceSize() {
+    return D3D10_REQ_TEXTURE2D_U_OR_V_DIMENSION;
+  }
+
   operator std::string() const {
     std::stringstream stream;
     stream << "DrawTargetD2D(" << this << ")";
@@ -165,11 +165,7 @@ private:
   friend class AutoSaveRestoreClippedOut;
   friend class SourceSurfaceD2DTarget;
 
-#ifdef _MSC_VER
-  typedef stdext::hash_set<DrawTargetD2D*> TargetSet;
-#else
   typedef std::unordered_set<DrawTargetD2D*> TargetSet;
-#endif
 
   bool InitD2DRenderTarget();
   void PrepareForDrawing(ID2D1RenderTarget *aRT);

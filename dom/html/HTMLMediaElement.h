@@ -25,13 +25,6 @@
 #endif
 #include "nsGkAtoms.h"
 
-// Something on Linux #defines None, which is an entry in the
-// MediaWaitingFor enum, so undef it here before including the binfing,
-// so that the build doesn't fail...
-#ifdef None
-#undef None
-#endif
-
 // X.h on Linux #defines CurrentTime as 0L, so we have to #undef it here.
 #ifdef CurrentTime
 #undef CurrentTime
@@ -211,14 +204,16 @@ public:
   // suspended the channel.
   virtual void NotifySuspendedByCache(bool aIsSuspended) MOZ_FINAL MOZ_OVERRIDE;
 
+  virtual bool IsActive() MOZ_FINAL MOZ_OVERRIDE;
+
+  virtual bool IsHidden() MOZ_FINAL MOZ_OVERRIDE;
+
   // Called by the media decoder and the video frame to get the
   // ImageContainer containing the video data.
   virtual VideoFrameContainer* GetVideoFrameContainer() MOZ_FINAL MOZ_OVERRIDE;
   layers::ImageContainer* GetImageContainer();
 
   // Dispatch events
-  using nsGenericHTMLElement::DispatchEvent;
-  virtual nsresult DispatchEvent(const nsAString& aName) MOZ_FINAL MOZ_OVERRIDE;
   virtual nsresult DispatchAsyncEvent(const nsAString& aName) MOZ_FINAL MOZ_OVERRIDE;
 
   // Dispatch events that were raised while in the bfcache
@@ -242,6 +237,10 @@ public:
 
   // Check if the media element had crossorigin set when loading started
   bool ShouldCheckAllowOrigin();
+
+  // Returns true if the currently loaded resource is CORS same-origin with
+  // respect to the document.
+  bool IsCORSSameOrigin();
 
   // Is the media element potentially playing as defined by the HTML 5 specification.
   // http://www.whatwg.org/specs/web-apps/current-work/#potentially-playing
@@ -280,6 +279,11 @@ public:
   void NotifyLoadError();
 
   void NotifyMediaTrackEnabled(MediaTrack* aTrack);
+
+  /**
+   * Called when tracks become available to the source media stream.
+   */
+  void NotifyMediaStreamTracksAvailable(DOMMediaStream* aStream);
 
   virtual bool IsNodeOfType(uint32_t aFlags) const MOZ_OVERRIDE;
 
@@ -334,7 +338,11 @@ public:
   MediaStream* GetSrcMediaStream() const
   {
     NS_ASSERTION(mSrcStream, "Don't call this when not playing a stream");
-    return mSrcStream->GetStream();
+    if (!mPlaybackStream) {
+      // XXX Remove this check with CameraPreviewMediaStream per bug 1124630.
+      return mSrcStream->GetStream();
+    }
+    return mPlaybackStream->GetStream();
   }
 
   // WebIDL
@@ -371,7 +379,7 @@ public:
 
   // Called by the media decoder object, on the main thread,
   // when the connection between Rtsp server and client gets lost.
-  void ResetConnectionState() MOZ_FINAL MOZ_OVERRIDE;
+  virtual void ResetConnectionState() MOZ_FINAL MOZ_OVERRIDE;
 
   // XPCOM GetPreload() is OK
   void SetPreload(const nsAString& aValue, ErrorResult& aRv)
@@ -399,6 +407,11 @@ public:
   void FastSeek(double aTime, ErrorResult& aRv);
 
   double Duration() const;
+
+  bool IsEncrypted() const
+  {
+    return mIsEncrypted;
+  }
 
   bool Paused() const
   {
@@ -513,6 +526,7 @@ public:
     mIsCasting = aShow;
   }
 
+  already_AddRefed<MediaSource> GetMozMediaSourceObject() const;
   already_AddRefed<DOMMediaStream> GetMozSrcObject() const;
 
   void SetMozSrcObject(DOMMediaStream& aValue);
@@ -530,8 +544,6 @@ public:
 
   already_AddRefed<Promise> SetMediaKeys(MediaKeys* mediaKeys,
                                          ErrorResult& aRv);
-
-  MediaWaitingFor WaitingFor() const;
 
   mozilla::dom::EventHandlerNonNull* GetOnencrypted();
   void SetOnencrypted(mozilla::dom::EventHandlerNonNull* listener);
@@ -608,13 +620,19 @@ public:
     return FinishDecoderSetup(aDecoder, aStream, nullptr, nullptr);
   }
 
+  // Returns true if the media element is being destroyed. Used in
+  // dormancy checks to prevent dormant processing for an element
+  // that will soon be gone.
+  bool IsBeingDestroyed();
+
 protected:
   virtual ~HTMLMediaElement();
 
   class MediaLoadListener;
+  class MediaStreamTracksAvailableCallback;
   class StreamListener;
 
-  virtual void GetItemValueText(nsAString& text) MOZ_OVERRIDE;
+  virtual void GetItemValueText(DOMString& text) MOZ_OVERRIDE;
   virtual void SetItemValueText(const nsAString& text) MOZ_OVERRIDE;
 
   class WakeLockBoolWrapper {
@@ -950,6 +968,8 @@ protected:
     return isPaused;
   }
 
+  void ReportMSETelemetry();
+
   // Check the permissions for audiochannel.
   bool CheckAudioChannelPermissions(const nsAString& aType);
 
@@ -974,6 +994,11 @@ protected:
   // MediaElement doesn't yet have one then it will create it.
   TextTrackManager* GetOrCreateTextTrackManager();
 
+  class nsAsyncEventRunner;
+  using nsGenericHTMLElement::DispatchEvent;
+  // For nsAsyncEventRunner.
+  nsresult DispatchEvent(const nsAString& aName);
+
   // The current decoder. Load() has been called on this decoder.
   // At most one of mDecoder and mSrcStream can be non-null.
   nsRefPtr<MediaDecoder> mDecoder;
@@ -990,6 +1015,14 @@ protected:
   // actually playing.
   // At most one of mDecoder and mSrcStream can be non-null.
   nsRefPtr<DOMMediaStream> mSrcStream;
+
+  // Holds a reference to a MediaInputPort connecting mSrcStream to mPlaybackStream.
+  nsRefPtr<MediaInputPort> mPlaybackStreamInputPort;
+
+  // Holds a reference to a stream with mSrcStream as input but intended for
+  // playback. Used so we don't block playback of other video elements
+  // playing the same mSrcStream.
+  nsRefPtr<DOMMediaStream> mPlaybackStream;
 
   // Holds references to the DOM wrappers for the MediaStreams that we're
   // writing to.
@@ -1035,6 +1068,9 @@ protected:
   //   http://www.whatwg.org/specs/web-apps/current-work/#video)
   nsMediaNetworkState mNetworkState;
   nsMediaReadyState mReadyState;
+
+  // Last value passed from codec or stream source to UpdateReadyStateForData.
+  NextFrameStatus mLastNextFrameStatus;
 
   enum LoadAlgorithmState {
     // No load algorithm instance is waiting for a source to be added to the
@@ -1270,6 +1306,9 @@ protected:
   // True if the media has a video track
   bool mHasVideo;
 
+  // True if the media has encryption information.
+  bool mIsEncrypted;
+
   // True if the media's channel's download has been suspended.
   bool mDownloadSuspendedByCache;
 
@@ -1295,8 +1334,6 @@ protected:
   nsRefPtr<AudioTrackList> mAudioTrackList;
 
   nsRefPtr<VideoTrackList> mVideoTrackList;
-
-  MediaWaitingFor mWaitingFor;
 
   enum ElementInTreeState {
     // The MediaElement is not in the DOM tree now.
