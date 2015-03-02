@@ -3204,8 +3204,20 @@ js::jit::Simulator::Create()
     // FIXME: This just leaks the Decoder object for now, which is probably OK.
     // FIXME: We should free it at some point.
     // FIXME: Note that it can't be stored in the SimulatorRuntime due to lifetime conflicts.
+    if (getenv("USE_DEBUGGER") != nullptr) {
+        DebuggerARM64 *debugger = js_new<DebuggerARM64>(decoder_, stdout);
+        if (debugger) {
+            debugger->set_log_parameters(LOG_DISASM | LOG_REGS);
+            return debugger;
+        }
+    }
+    Simulator *sim = js_new<Simulator>();
+    if (!sim) {
+        MOZ_CRASH("NEED SIMULATOR");
+        return nullptr;
+    }
     sim->init(decoder_, stdout);
-
+    
     return sim;
 }
 
