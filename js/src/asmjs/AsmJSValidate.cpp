@@ -8982,7 +8982,7 @@ GenerateOnOutOfBoundsLabelExit(ModuleCompiler &m, Label *throwLabel)
 
     // sp can be anything at this point, so ensure it is aligned when calling
     // into C++.  We unconditionally jump to throw so don't worry about restoring sp.
-    masm.andPtr(Imm32(~(ABIStackAlignment - 1)), StackPointer);
+    masm.andPtr(Imm32(~(ABIStackAlignment - 1)), masm.GetStackPointer_());
 
     // OnOutOfBounds always throws.
     masm.assertStackAlignment(ABIStackAlignment);
