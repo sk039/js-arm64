@@ -453,12 +453,7 @@ BaselineCompiler::emitEpilogue()
 
     emitProfilerExitFrame();
 
-#ifdef JS_CODEGEN_ARM64
-    // Pop into lr: RET uses lr if no register is specified.
-    masm.pop(r30);
-#endif
-
-    masm.ret();
+    masm.popReturn();
     return true;
 }
 
@@ -479,7 +474,7 @@ BaselineCompiler::emitOutOfLinePostBarrierSlot()
     regs.take(objReg);
     regs.take(BaselineFrameReg);
     Register scratch = regs.takeAny();
-#if defined(JS_CODEGEN_ARM)
+#if defined(JS_CODEGEN_ARM) || defined (JS_CODEGEN_ARM64)
     // On ARM, save the link register before calling.  It contains the return
     // address.  The |masm.ret()| later will pop this into |pc| to return.
     masm.push(lr);
@@ -495,7 +490,7 @@ BaselineCompiler::emitOutOfLinePostBarrierSlot()
     masm.callWithABI(JS_FUNC_TO_DATA_PTR(void *, PostWriteBarrier));
 
     masm.popValue(R0);
-    masm.ret();
+    masm.popReturn();
     return true;
 }
 
@@ -3779,7 +3774,11 @@ BaselineCompiler::emit_JSOP_RESUME()
         // matter what we push here, frame iterators will use the frame pc
         // set in jit::GeneratorThrowOrClose).
         masm.push(scratch1);
+        // there is no return address to push, the called function will
+        // push the "real" return address
+#ifndef JS_CODEGEN_ARM64
         masm.push(ImmWord(0));
+#endif
         masm.jump(code);
     }
 
