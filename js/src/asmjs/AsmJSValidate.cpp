@@ -8993,10 +8993,17 @@ GenerateOnOutOfBoundsLabelExit(ModuleCompiler &m, Label *throwLabel)
 }
 
 // TODO: the stack pointer is kind of determined at runtime on arm64,
+#ifndef JS_CODEGEN_ARM64
 static const RegisterSet AllRegsExceptSP =
     RegisterSet(GeneralRegisterSet(Registers::AllMask &
                                    ~(uint32_t(1) << Registers::StackPointer)),
                 FloatRegisterSet(FloatRegisters::AllDoubleMask));
+#else
+static const RegisterSet AllRegsExceptSP =
+    RegisterSet(GeneralRegisterSet(Registers::AllMask &
+                                   ~(uint32_t(1) << Registers::StackPointer | uint32_t(1) << 28)),
+                FloatRegisterSet(FloatRegisters::AllDoubleMask));
+#endif
 
 // The async interrupt-callback exit is called from arbitrarily-interrupted asm.js
 // code. That means we must first save *all* registers and restore *all*
