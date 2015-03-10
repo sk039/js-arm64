@@ -597,10 +597,28 @@ CodeGeneratorARM64::visitShiftI(LShiftI *ins)
     }
 }
 
-void 
+void
 CodeGeneratorARM64::visitUrshD(LUrshD *ins)
 {
-    MOZ_CRASH("CodeGeneratorARM64::visitUrshD");
+    ARMRegister lhs = toWRegister(ins->lhs());
+    ARMRegister temp = toWRegister(ins->temp());
+
+    const LAllocation *rhs = ins->rhs();
+    FloatRegister out = ToFloatRegister(ins->output());
+
+    if (rhs->isConstant()) {
+        int32_t shift = ToInt32(rhs) & 0x1F;
+        if (shift)
+            masm.Lsr(temp, lhs, shift);
+        else
+            masm.Mov(temp, lhs);
+    } else {
+        masm.And(temp,  toWRegister(rhs), Operand(0x1F));
+        masm.Lsr(temp, lhs, temp);
+    }
+
+    masm.convertUInt32ToDouble(ToRegister(ins->temp()), out);
+
 }
 
 void 
