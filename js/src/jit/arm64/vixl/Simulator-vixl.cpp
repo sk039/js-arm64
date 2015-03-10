@@ -3190,11 +3190,6 @@ JSRuntime::setSimulatorRuntime(js::jit::SimulatorRuntime *srt)
 js::jit::Simulator *
 js::jit::Simulator::Create()
 {
-    Simulator *sim = js_new<Simulator>();
-    if (!sim) {
-        MOZ_CRASH("NEED SIMULATOR");
-        return nullptr;
-    }
     Decoder *decoder_ = js_new<Decoder>();
     if (!decoder_) {
         MOZ_ReportAssertionFailure("[unhandlable oom] Decoder", __FILE__, __LINE__);
