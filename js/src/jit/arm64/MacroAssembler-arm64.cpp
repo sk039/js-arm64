@@ -113,7 +113,8 @@ MacroAssembler::PopRegsInMaskIgnore(RegisterSet set, RegisterSet ignore, FloatRe
     uint32_t offset = 0;
     // The offset that offset will be updated to after the current load.
     uint32_t nextOffset = 0;
-    for (FloatRegisterIterator iter(set.fpus()); iter.more(); offset = nextOffset) {
+    FloatRegisterSet fset = set.fpus().reduceSetForPush();
+    for (FloatRegisterIterator iter(fset); iter.more(); offset = nextOffset) {
         CPURegister src0 = NoCPUReg;
         CPURegister src1 = NoCPUReg;
 
@@ -127,7 +128,7 @@ MacroAssembler::PopRegsInMaskIgnore(RegisterSet set, RegisterSet ignore, FloatRe
         if (!iter.more())
             break;
 
-        src0 = ARMFPRegister(*iter, 64);
+        src0 = ARMFPRegister(*iter);
         nextOffset += sizeof(double);
         ++iter;
 
