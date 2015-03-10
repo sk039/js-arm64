@@ -782,6 +782,39 @@ class AssemblerVIXL : public AssemblerShared
         MOZ_ASSERT((cond != al) && (cond != nv));
         return static_cast<Condition>(cond ^ 1);
     }
+    // This is chaging the condition codes for cmp a, b to the same codes for cmp b, a.
+    static inline Condition InvertCmpCondition(Condition cond) {
+        // Conditions al and nv behave identically, as "always true". They can't be
+        // inverted, because there is no "always false" condition.
+        switch (cond) {
+          case eq:
+          case ne:
+            return cond;
+          case gt:
+            return le;
+          case le:
+            return gt;
+          case ge:
+            return lt;
+          case lt:
+            return ge;
+          case hi:
+            return lo;
+          case lo:
+            return hi;
+          case hs:
+            return ls;
+          case ls:
+            return hs;
+          case mi:
+            return pl;
+          case pl:
+            return mi;
+          default:
+            MOZ_CRASH("TODO: figure this case out.");
+        }
+        return static_cast<Condition>(cond ^ 1);
+    }
 
     static inline Condition ConditionFromDoubleCondition(DoubleCondition cond) {
         MOZ_ASSERT(!(cond & DoubleConditionBitSpecial));

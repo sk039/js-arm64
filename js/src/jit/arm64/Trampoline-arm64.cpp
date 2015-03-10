@@ -323,15 +323,23 @@ JitRuntime::generateArgumentsRectifier(JSContext *cx, void **returnAddrOut)
     masm.And(x6, x1, Operand(CalleeTokenMask));
     // Get the arguments from the function object
     masm.Ldrh(x6, MemOperand(x6, JSFunction::offsetOfNargs()));
+    Label noPadding;
+    masm.Mov(x7, x6);
 
+    // Calculate the position that our arguments are at before sp gets modified
+    masm.Add(x3, masm.GetStackPointer(), Operand(x8, LSL, 3));
+    masm.Add(x3, x3, Operand(sizeof(RectifierFrameLayout)));
+
+    // pad to a multiple of 16 bytes
+    masm.Tbnz(x6, 0, &noPadding);
+    masm.Push(r31);
+    masm.Add(x7, x7, Operand(1));
+    masm.bind(&noPadding);
     // Calculate the number of undefineds that need to be pushed
     masm.Sub(w2, w6, w8);
     // Put an undefined in a register so it can be pushed
     masm.moveValue(UndefinedValue(), r4);
 
-    // Calculate the position that our arguments are at before sp gets modified
-    masm.Add(x3, masm.GetStackPointer(), Operand(x8, LSL, 3));
-    masm.Add(x3, x3, Operand(sizeof(RectifierFrameLayout)));
 
     // Push undefined N times
     {
@@ -351,7 +359,7 @@ JitRuntime::generateArgumentsRectifier(JSContext *cx, void **returnAddrOut)
         masm.B(&copyLoopTop, Assembler::NotSigned);
     }
     // Fix up the size of the stack frame
-    masm.Add(x6, x6, Operand(1));
+    masm.Add(x6, x7, Operand(1));
     masm.Lsl(x6, x6, 3);
 
     // Make that into a frame descriptor.

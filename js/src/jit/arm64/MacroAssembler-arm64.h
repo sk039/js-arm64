@@ -1173,7 +1173,10 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
 
     void branch32(Condition cond, const Operand &lhs, Register rhs, Label *label) {
-        MOZ_CRASH("branch32");
+        // since rhs is an operand, do the compare backwards
+        Cmp(ARMRegister(rhs, 32), lhs);
+        // 
+        b(label, Assembler::InvertCmpCondition(cond));
     }
     void branch32(Condition cond, const Operand &lhs, Imm32 rhs, Label *label) {
         MOZ_CRASH("branch32");
@@ -2102,7 +2105,10 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
 
     void callWithExitFrame(JitCode *target, Register dynStack) {
-        MOZ_CRASH("callWithExitFrame");
+        uint32_t descriptor = MakeFrameDescriptor(framePushed(), JitFrame_IonJS);
+        Push(Imm32(descriptor)); // descriptor
+
+        call(target);
     }
 
     // FIXME: See CodeGeneratorX64 calls to noteAsmJSGlobalAccess.
