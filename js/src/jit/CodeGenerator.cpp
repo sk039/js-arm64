@@ -1007,11 +1007,11 @@ RegExpPairsVectorStartOffset(size_t inputOutputDataStartOffset)
 }
 
 static Address
-RegExpPairCountAddress(size_t inputOutputDataStartOffset)
+RegExpPairCountAddress(Register sp, size_t inputOutputDataStartOffset)
 {
-    return Address(StackPointer, inputOutputDataStartOffset
-                                 + sizeof(irregexp::InputOutputData)
-                                 + MatchPairs::offsetOfPairCount());
+    return Address(sp, inputOutputDataStartOffset
+                   + sizeof(irregexp::InputOutputData)
+                   + MatchPairs::offsetOfPairCount());
 }
 
 // Prepare an InputOutputData and optional MatchPairs which space has been
@@ -1039,7 +1039,7 @@ PrepareAndExecuteRegExp(JSContext *cx, MacroAssembler &masm, Register regexp, Re
     Address matchResultAddress(masm.GetStackPointer_(),
         inputOutputDataStartOffset + offsetof(irregexp::InputOutputData, result));
 
-    Address pairCountAddress = RegExpPairCountAddress(inputOutputDataStartOffset);
+    Address pairCountAddress = RegExpPairCountAddress(masm.GetStackPointer_(), inputOutputDataStartOffset);
     Address pairsPointerAddress(masm.GetStackPointer_(), matchPairsStartOffset + MatchPairs::offsetOfPairs());
 
     Address pairsVectorAddress(masm.GetStackPointer_(), pairsVectorStartOffset);
@@ -1350,7 +1350,7 @@ JitCompartment::generateRegExpExecStub(JSContext *cx)
 
     size_t pairsVectorStartOffset = RegExpPairsVectorStartOffset(inputOutputDataStartOffset);
     Address pairsVectorAddress(masm.GetStackPointer_(), pairsVectorStartOffset);
-    Address pairCountAddress = RegExpPairCountAddress(inputOutputDataStartOffset);
+    Address pairCountAddress = RegExpPairCountAddress(masm.GetStackPointer_(), inputOutputDataStartOffset);
 
     size_t elementsOffset = NativeObject::offsetOfFixedElements();
     BaseIndex stringAddress(object, matchIndex, TimesEight, elementsOffset);
@@ -2008,7 +2008,7 @@ CodeGenerator::visitOsrEntry(LOsrEntry *lir)
 
     // If profiling, save the current frame pointer to a per-thread global field.
     if (isProfilerInstrumentationEnabled())
-        masm.profilerEnterFrame(StackPointer, temp);
+        masm.profilerEnterFrame(masm.GetStackPointer_(), temp);
 
     // Allocate the full frame for this function
     // Note we have a new entry here. So we reset MacroAssembler::framePushed()
@@ -3123,7 +3123,7 @@ CodeGenerator::emitPushArguments(LApplyArgsGeneric *apply, Register extraStackSp
     // Reserve space for copying the arguments.
     NativeObject::elementsSizeMustNotOverflow();
     masm.lshiftPtr(Imm32(ValueShift), extraStackSpace);
-    masm.subPtr(extraStackSpace, StackPointer);
+    masm.subPtr(extraStackSpace, masm.GetStackPointer_());
 
 #ifdef DEBUG
     // Put a magic value in the space reserved for padding. Note, this code
@@ -3134,7 +3134,7 @@ CodeGenerator::emitPushArguments(LApplyArgsGeneric *apply, Register extraStackSp
         Label noPaddingNeeded;
         // if the number of arguments is odd, then we do not need any padding.
         masm.branchTestPtr(Assembler::NonZero, argcreg, Imm32(1), &noPaddingNeeded);
-        BaseValueIndex dstPtr(StackPointer, argcreg);
+        BaseValueIndex dstPtr(masm.GetStackPointer_(), argcreg);
         masm.storeValue(MagicValue(JS_ARG_POISON), dstPtr);
         masm.bind(&noPaddingNeeded);
     }
@@ -3167,7 +3167,7 @@ CodeGenerator::emitPushArguments(LApplyArgsGeneric *apply, Register extraStackSp
 
     // srcPtr = (StackPointer + extraStackSpace) + argvSrcOffset
     // dstPtr = (StackPointer                  ) + argvDstOffset
-    masm.addPtr(StackPointer, argvSrcBase);
+    masm.addPtr(masm.GetStackPointer_(), argvSrcBase);
 
     // Copy arguments.
     {
@@ -3186,7 +3186,7 @@ CodeGenerator::emitPushArguments(LApplyArgsGeneric *apply, Register extraStackSp
         // Handle 32 bits architectures.
         if (sizeof(Value) == 2 * sizeof(void*)) {
             BaseValueIndex srcPtrLow(argvSrcBase, argvIndex, argvSrcOffset - 2 * sizeof(void *));
-            BaseValueIndex dstPtrLow(StackPointer, argvIndex, argvDstOffset - 2 * sizeof(void *));
+            BaseValueIndex dstPtrLow(masm.GetStackPointer_(), argvIndex, argvDstOffset - 2 * sizeof(void *));
             masm.loadPtr(srcPtrLow, copyreg);
             masm.storePtr(copyreg, dstPtrLow);
         }
