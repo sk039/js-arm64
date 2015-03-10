@@ -375,11 +375,7 @@ JitRuntime::generateArgumentsRectifier(JSContext *cx, void **returnAddrOut)
     // add that onto the stack pointer
     masm.Add(masm.GetStackPointer(), masm.GetStackPointer(), Operand(x4, LSR, FRAMESIZE_SHIFT));
     // Do that return thing
-    masm.Pop(lr);
-    // and make sure all of these are reflected in the real stack pointer
-    masm.syncStackPtr();
-    masm.ret();
-
+    masm.popReturn();
     Linker linker(masm);
     return linker.newCode<NoGC>(cx, OTHER_CODE);
 }
@@ -946,7 +942,7 @@ JitRuntime::generateProfilerExitFrameTailStub(JSContext *cx)
         masm.addPtr(masm.GetStackPointer_(), scratch1, scratch2);
         masm.addPtr(Imm32(JitFrameLayout::Size()), scratch2, scratch2);
         masm.storePtr(scratch2, lastProfilingFrame);
-        masm.ret();
+        masm.popReturn();
     }
 
     //
@@ -989,7 +985,7 @@ JitRuntime::generateProfilerExitFrameTailStub(JSContext *cx)
         masm.loadPtr(stubFrameSavedFramePtr, scratch2);
         masm.addPtr(Imm32(sizeof(void *)), scratch2); // Skip past BL-PrevFramePtr
         masm.storePtr(scratch2, lastProfilingFrame);
-        masm.ret();
+        masm.popReturn();
     }
 
 
@@ -1058,7 +1054,7 @@ JitRuntime::generateProfilerExitFrameTailStub(JSContext *cx)
         masm.addPtr(scratch2, scratch1, scratch3);
         masm.add32(Imm32(RectifierFrameLayout::Size()), scratch3);
         masm.storePtr(scratch3, lastProfilingFrame);
-        masm.ret();
+        masm.popReturn();
 
         // Handle Rectifier <- BaselineStub <- BaselineJS
         masm.bind(&handle_Rectifier_BaselineStub);
@@ -1081,7 +1077,7 @@ JitRuntime::generateProfilerExitFrameTailStub(JSContext *cx)
         masm.loadPtr(stubFrameSavedFramePtr, scratch2);
         masm.addPtr(Imm32(sizeof(void *)), scratch2);
         masm.storePtr(scratch2, lastProfilingFrame);
-        masm.ret();
+        masm.popReturn();
     }
 
     // JitFrame_IonAccessorIC
@@ -1129,7 +1125,7 @@ JitRuntime::generateProfilerExitFrameTailStub(JSContext *cx)
         masm.addPtr(scratch2, scratch3, scratch1);
         masm.addPtr(Imm32(IonAccessorICFrameLayout::Size()), scratch1);
         masm.storePtr(scratch1, lastProfilingFrame);
-        masm.ret();
+        masm.popReturn();
     }
 
     //
@@ -1142,7 +1138,7 @@ JitRuntime::generateProfilerExitFrameTailStub(JSContext *cx)
         masm.movePtr(ImmPtr(nullptr), scratch1);
         masm.storePtr(scratch1, lastProfilingCallSite);
         masm.storePtr(scratch1, lastProfilingFrame);
-        masm.ret();
+        masm.popReturn();
     }
 
     Linker linker(masm);
