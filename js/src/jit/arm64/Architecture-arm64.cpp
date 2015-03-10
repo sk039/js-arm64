@@ -50,7 +50,11 @@ FloatRegisters::FromName(const char *name)
 FloatRegisterSet
 FloatRegister::ReduceSetForPush(const FloatRegisterSet &s)
 {
-    return s;
+    FloatRegisterSet ret;
+    for (FloatRegisterIterator iter(s); iter.more(); ++iter) {
+        ret.addUnchecked(FromCode((*iter).encoding()));
+    }
+    return ret;
 }
 
 uint32_t

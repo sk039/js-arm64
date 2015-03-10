@@ -62,7 +62,7 @@ class MoveEmitterARM64
     }
     ARMFPRegister toFPReg(const MoveOperand &operand, MoveOp::Type t) const {
         MOZ_ASSERT(operand.isFloatReg());
-        return ARMFPRegister(operand.floatReg().code(), t == MoveOp::FLOAT32 ? 32 : 64);
+        return ARMFPRegister(operand.floatReg().encoding(), t == MoveOp::FLOAT32 ? 32 : 64);
     }
 
     void emitFloat32Move(const MoveOperand &from, const MoveOperand &to);

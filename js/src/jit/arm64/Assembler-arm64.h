@@ -52,8 +52,8 @@ static MOZ_CONSTEXPR_VAR ARMRegister ScratchReg2_32 = { ScratchReg2, 32 };
 static MOZ_CONSTEXPR_VAR FloatRegister ScratchDoubleReg = { FloatRegisters::d31 };
 static MOZ_CONSTEXPR_VAR FloatRegister ReturnDoubleReg = { FloatRegisters::d0 };
 
-static MOZ_CONSTEXPR_VAR FloatRegister ReturnFloat32Reg = { FloatRegisters::s0 };
-static MOZ_CONSTEXPR_VAR FloatRegister ScratchFloat32Reg = { FloatRegisters::s31 };
+static MOZ_CONSTEXPR_VAR FloatRegister ReturnFloat32Reg = { FloatRegisters::s0 , FloatRegisters::Single };
+static MOZ_CONSTEXPR_VAR FloatRegister ScratchFloat32Reg = { FloatRegisters::s31 , FloatRegisters::Single };
 
 static MOZ_CONSTEXPR_VAR Register InvalidReg = { Registers::invalid_reg };
 static MOZ_CONSTEXPR_VAR FloatRegister InvalidFloatReg = { FloatRegisters::invalid_fpreg };

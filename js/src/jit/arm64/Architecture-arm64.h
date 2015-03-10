@@ -24,8 +24,8 @@ typedef unsigned int uint32_t;
 //   +8 for double spills
 static const uint32_t ION_FRAME_SLACK_SIZE = 24;
 
-// TODO: Cribbed from x86_64. Check if this is right.
-static const uint32_t ShadowStackSpace = 32;
+// TODO: Cribbed from arm. Check if this is right.
+static const uint32_t ShadowStackSpace = 0;
 
 // AArch64 has 32 64-bit integer registers, X0 though X31.
 //  X31 is special and functions as both the stack pointer and a zero register.
@@ -175,7 +175,6 @@ class Registers {
         (1 << Registers::ip0) | // FIXME: Make this scratch0?
         (1 << Registers::ip1) | // FIXME: Make this scratch1?
         (1 << Registers::tls) |
-        (1 << Registers::fp) |
         (1 << Registers::lr) |
         (1 << Registers::sp);
 
@@ -246,7 +245,7 @@ class FloatRegisters
     };
     typedef FPRegisterID Code;
 
-    typedef uint32_t SetType;
+    typedef uint64_t SetType;
 
     static const char *GetName(Code code) {
         static const char *const Names[] =
@@ -266,51 +265,52 @@ class FloatRegisters
 
     static const Code Invalid = invalid_fpreg;
 
-    static const uint32_t Total = 32;
+    static const uint32_t Total = 64;
     static const uint32_t TotalPhys = 32;
-    static const uint32_t AllMask = 0xFFFFFFFF;
-
+    static const SetType AllMask = 0xFFFFFFFFFFFFFFFF;
+    static const SetType AllPhysMask = 0xFFFFFFFF;
+    static const SetType SpreadCoefficent = 0x100000001;
     // FIXME: Validate
-    static const uint32_t Allocatable = 31; // Without d31, the scratch register.
+    static const uint32_t Allocatable = 62; // Without d31, the scratch register.
 
     // FIXME: Validate
     // d31 is the ScratchFloatReg.
     static const uint32_t NonVolatileMask =
-        (1 << FloatRegisters::d8) | (1 << FloatRegisters::d9) |
-        (1 << FloatRegisters::d10) | (1 << FloatRegisters::d11) |
-        (1 << FloatRegisters::d12) | (1 << FloatRegisters::d13) |
-        (1 << FloatRegisters::d14) | (1 << FloatRegisters::d15) |
-        (1 << FloatRegisters::d16) | (1 << FloatRegisters::d17) |
-        (1 << FloatRegisters::d18) | (1 << FloatRegisters::d19) |
-        (1 << FloatRegisters::d20) | (1 << FloatRegisters::d21) |
-        (1 << FloatRegisters::d22) | (1 << FloatRegisters::d23) |
-        (1 << FloatRegisters::d24) | (1 << FloatRegisters::d25) |
-        (1 << FloatRegisters::d26) | (1 << FloatRegisters::d27) |
-        (1 << FloatRegisters::d28) | (1 << FloatRegisters::d29) |
-        (1 << FloatRegisters::d30);
+        SetType((1 << FloatRegisters::d8) | (1 << FloatRegisters::d9) |
+                (1 << FloatRegisters::d10) | (1 << FloatRegisters::d11) |
+                (1 << FloatRegisters::d12) | (1 << FloatRegisters::d13) |
+                (1 << FloatRegisters::d14) | (1 << FloatRegisters::d15) |
+                (1 << FloatRegisters::d16) | (1 << FloatRegisters::d17) |
+                (1 << FloatRegisters::d18) | (1 << FloatRegisters::d19) |
+                (1 << FloatRegisters::d20) | (1 << FloatRegisters::d21) |
+                (1 << FloatRegisters::d22) | (1 << FloatRegisters::d23) |
+                (1 << FloatRegisters::d24) | (1 << FloatRegisters::d25) |
+                (1 << FloatRegisters::d26) | (1 << FloatRegisters::d27) |
+                (1 << FloatRegisters::d28) | (1 << FloatRegisters::d29) |
+                (1 << FloatRegisters::d30)) * SpreadCoefficent;
 
     // FIXME: Validate
-    static const uint32_t VolatileMask = AllMask & ~NonVolatileMask;
-    static const uint32_t AllDoubleMask = AllMask;
+    static const SetType VolatileMask = AllMask & ~NonVolatileMask;
+    static const SetType AllDoubleMask = AllMask;
 
     // FIXME: Validate
-    static const uint32_t WrapperMask = VolatileMask;
+    static const SetType WrapperMask = VolatileMask;
 
     // d31 is the ScratchFloatReg.
     // FIXME: Validate
-    static const uint32_t NonAllocatableMask = (1 << FloatRegisters::d31);
+    static const SetType NonAllocatableMask = (SetType(1) << FloatRegisters::d31) * SpreadCoefficent;
 
     // Registers that can be allocated without being saved, generally.
     // FIXME: Validate
-    static const uint32_t TempMask = VolatileMask & ~NonAllocatableMask;
+    static const SetType TempMask = VolatileMask & ~NonAllocatableMask;
 
-    static const uint32_t AllocatableMask = AllMask & ~NonAllocatableMask;
+    static const SetType AllocatableMask = AllMask & ~NonAllocatableMask;
     union RegisterContent {
         double d;
     };
     enum Kind {
-        Single,
-        Double
+        Double,
+        Single
     };
 };
 
@@ -333,12 +333,12 @@ struct FloatRegister
         double d;
     };
     MOZ_CONSTEXPR FloatRegister(uint32_t code, FloatRegisters::Kind k) :
-        code_(FloatRegisters::Code(code)),
+        code_(FloatRegisters::Code(code & 31)),
         k_(k) {
     }
     MOZ_CONSTEXPR FloatRegister(uint32_t code) :
-            code_(FloatRegisters::Code(code)),
-            k_(FloatRegisters::Double) {
+            code_(FloatRegisters::Code(code & 31)),
+            k_(FloatRegisters::Kind(code >> 5)) {
     }
     MOZ_CONSTEXPR FloatRegister() :
         code_(FloatRegisters::Code(-1)),
@@ -346,30 +346,32 @@ struct FloatRegister
     }
 
     static uint32_t SetSize(SetType x) {
-        static_assert(sizeof(SetType) == 4, "SetType must be 32 bits");
+        static_assert(sizeof(SetType) == 8, "SetType must be 64 bits");
+        x |= x >> FloatRegisters::TotalPhys;
+        x &= FloatRegisters::AllPhysMask;
         return mozilla::CountPopulation32(x);
     }
-    
+
     Code code_;
     FloatRegisters::Kind k_;
     static FloatRegister FromCode(uint32_t i) {
         MOZ_ASSERT(i < FloatRegisters::Total);
-        FloatRegister r(i , FloatRegisters::Double);
+        FloatRegister r(i);
         return r;
     }
     Code code() const {
         MOZ_ASSERT((uint32_t)code_ < FloatRegisters::Total);
-        return code_;
+        return Code(code_ | (k_ << 5));
     }
     Encoding encoding() const {
-        return Code(code_ | (k_ << 5));
+        return code_;
     }
 
     const char *name() const {
         return FloatRegisters::GetName(code());
     }
     bool volatile_() const {
-        return !!((1 << code()) & FloatRegisters::VolatileMask);
+        return !!((SetType(1) << code()) & FloatRegisters::VolatileMask);
     }
     bool operator !=(FloatRegister other) const {
         return other.code_ != code_;
@@ -395,8 +397,8 @@ struct FloatRegister
     bool equiv(FloatRegister other) const {
         return true;
     }
-    uint32_t size() const {
-        return sizeof(double);
+    MOZ_CONSTEXPR uint32_t size() const {
+        return k_ == FloatRegisters::Double ? sizeof(double) : sizeof(float);
     }
     uint32_t numAlignedAliased() {
         return 1;
@@ -423,10 +425,10 @@ struct FloatRegister
     uint32_t getRegisterDumpOffsetInBytes();
 
     static uint32_t FirstBit(SetType x) {
-        return mozilla::CountTrailingZeroes32(x); // TODO: 64?
+        return mozilla::CountTrailingZeroes64(x); // TODO: 64?
     }
     static uint32_t LastBit(SetType x) {
-        return 31 - mozilla::CountLeadingZeroes32(x); // TODO: 64?
+        return 63 - mozilla::CountLeadingZeroes64(x); // TODO: 64?
     }
 
 };

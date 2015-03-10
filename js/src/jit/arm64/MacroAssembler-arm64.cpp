@@ -72,31 +72,31 @@ MacroAssembler::PushRegsInMask(RegisterSet set, FloatRegisterSet simdSet)
 
         MacroAssemblerVIXL::Push(src0, src1, src2, src3);
     }
-
-    for (FloatRegisterBackwardIterator iter(set.fpus()); iter.more(); ) {
+    FloatRegisterSet fset = set.fpus().reduceSetForPush();
+    for (FloatRegisterBackwardIterator iter(fset); iter.more(); ) {
         CPURegister src0 = NoCPUReg;
         CPURegister src1 = NoCPUReg;
         CPURegister src2 = NoCPUReg;
         CPURegister src3 = NoCPUReg;
 
-        src0 = ARMFPRegister(*iter, 64);
+        src0 = ARMFPRegister(*iter);
         ++iter;
         adjustFrame(8);
 
         if (iter.more()) {
-            src1 = ARMFPRegister(*iter, 64);
+            src1 = ARMFPRegister(*iter);
             ++iter;
             adjustFrame(8);
         }
 
         if (iter.more()) {
-            src2 = ARMFPRegister(*iter, 64);
+            src2 = ARMFPRegister(*iter);
             ++iter;
             adjustFrame(8);
         }
 
         if (iter.more()) {
-            src3 = ARMFPRegister(*iter, 64);
+            src3 = ARMFPRegister(*iter);
             ++iter;
             adjustFrame(8);
         }
@@ -139,7 +139,7 @@ MacroAssembler::PopRegsInMaskIgnore(RegisterSet set, RegisterSet ignore, FloatRe
         }
 
         // There is both more, and it isn't being ignored.
-        src1 = ARMFPRegister(*iter, 64);
+        src1 = ARMFPRegister(*iter);
         nextOffset += sizeof(double);
         ++iter;
 
@@ -186,7 +186,7 @@ void
 MacroAssembler::clampDoubleToUint8(FloatRegister input, Register output)
 {
     ARMRegister dest(output, 32);
-    fcvtns(dest, ARMFPRegister(input, 64));
+    fcvtns(dest, ARMFPRegister(input));
     Mov(ScratchReg2_32, Operand(255));
     Cmp(dest, ScratchReg2_32);
     csel(dest, dest, ScratchReg2_32, LessThan);

@@ -48,7 +48,8 @@ ABIArgGenerator::next(MIRType type)
             stackOffset_ += sizeof(double);
             break;
         }
-        current_ = ABIArg(FloatRegister::FromCode(floatRegIndex_));
+        current_ = ABIArg(FloatRegister(floatRegIndex_,
+                                        type == MIRType_Double ? FloatRegisters::Double : FloatRegisters::Single));
         floatRegIndex_++;
         break;
       default:
