@@ -117,8 +117,8 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         }
 
         // Store operations should not clobber.
-        MOZ_ASSERT(!rt.Is(ScratchReg2_32));
-        MOZ_ASSERT(!rt.Is(ScratchReg2_64));
+        MOZ_ASSERT(!rt.Is(ScratchReg32));
+        MOZ_ASSERT(!rt.Is(ScratchReg64));
 
         // TODO: should only add here when we can fit it into a single operand.
         Add(ScratchReg64,
@@ -678,7 +678,8 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         doBaseIndex(ARMRegister(src, 32), address, STRB_w);
     }
     void store8(Imm32 imm, const BaseIndex &address) {
-        MOZ_CRASH("store8"); // Careful -- doBaseIndex may use both scratch regs!
+        Mov(ScratchReg2_32, Operand(imm.value));
+        doBaseIndex(ScratchReg2_32, address, STRB_w);
     }
 
     void store16(Register src, const Address &address) {
@@ -692,7 +693,8 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         doBaseIndex(ARMRegister(src, 32), address, STRH_w);
     }
     void store16(Imm32 imm, const BaseIndex &address) {
-        MOZ_CRASH("store16"); // Careful -- doBaseIndex may use both scratch regs!
+        Mov(ScratchReg2_32, Operand(imm.value));
+        doBaseIndex(ScratchReg2_32, address, STRH_w);
     }
 
     void storePtr(ImmWord imm, const Address &address) {
@@ -712,7 +714,8 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
 
     void storePtr(ImmWord imm, const BaseIndex &address) {
-        MOZ_CRASH("storePtr"); // Careful -- doBaseIndex() may use both scratch regs!
+        Mov(ScratchReg2_64, Operand(imm.value));
+        doBaseIndex(ScratchReg2_64, address, STR_x);
     }
     void storePtr(ImmGCPtr imm, const BaseIndex &address) {
         MOZ_CRASH("storePtr"); // Careful -- doBaseIndex() may use both scratch regs!
@@ -1204,7 +1207,8 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         branch32(cond, Address(ScratchReg2, 0), rhs, label);
     }
     void branch32(Condition cond, BaseIndex lhs, Imm32 rhs, Label *label) {
-        MOZ_CRASH("branch32 BaseIndex");
+        doBaseIndex(ScratchReg2_32, lhs, LDR_w);
+        branch32(cond, ScratchReg2, rhs, label);
     }
 
     void branchSub32(Condition cond, const Address &lhs, Register rhs, Label *label) {
