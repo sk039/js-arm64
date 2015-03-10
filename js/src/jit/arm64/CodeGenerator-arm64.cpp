@@ -221,7 +221,9 @@ CodeGeneratorARM64::bailoutFrom(Label *label, LSnapshot *snapshot)
 void 
 CodeGeneratorARM64::bailout(LSnapshot *snapshot)
 {
-    MOZ_CRASH("CodeGeneratorARM64::bailout");
+    Label label;
+    masm.b(&label);
+    bailoutFrom(&label, snapshot);
 }
 
 void
