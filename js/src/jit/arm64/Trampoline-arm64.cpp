@@ -414,8 +414,8 @@ PushBailoutFrame(MacroAssembler &masm, uint32_t frameClass, Register spArg)
     // Since our datastructures for stack inspection are compile-time fixed,
     // if there are only 16 double registers, then we need to reserve
     // space on the stack for the missing 16.
-    masm.Sub(masm.GetStackPointer(), masm.GetStackPointer(), Operand(FloatRegisters::Total * sizeof(void*)));
-    for (uint32_t i = 0; i < FloatRegisters::Total; i+=2)
+    masm.Sub(masm.GetStackPointer(), masm.GetStackPointer(), Operand(FloatRegisters::TotalPhys * sizeof(double)));
+    for (uint32_t i = 0; i < FloatRegisters::TotalPhys; i+=2)
         masm.Stp(ARMFPRegister::DRegFromCode(i),
                  ARMFPRegister::DRegFromCode(i+1),
                  MemOperand(masm.GetStackPointer(), i * sizeof(void*)));
@@ -460,7 +460,7 @@ GenerateBailoutThunk(JSContext *cx, MacroAssembler &masm, uint32_t frameClass)
     masm.Add(masm.GetStackPointer(), masm.GetStackPointer(), Operand(sizeOfBailoutInfo));
 
     static const uint32_t BailoutDataSize = sizeof(void *) * Registers::Total +
-                                            sizeof(double) * FloatRegisters::Total;
+                                            sizeof(double) * FloatRegisters::TotalPhys;
     if (frameClass == NO_FRAME_SIZE_CLASS_ID) {
         masm.Ldr(ScratchReg2_64, MemOperand(masm.GetStackPointer(), sizeof(uintptr_t)));
         masm.Add(masm.GetStackPointer(), masm.GetStackPointer(), Operand(BailoutDataSize + 32));

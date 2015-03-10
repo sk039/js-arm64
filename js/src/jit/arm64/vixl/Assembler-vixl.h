@@ -245,6 +245,9 @@ class ARMFPRegister : public CPURegister
     MOZ_CONSTEXPR inline ARMFPRegister(FloatRegister r, unsigned size)
         : CPURegister(r.code_, size, kARMFPRegister)
     { }
+    MOZ_CONSTEXPR inline ARMFPRegister(FloatRegister r)
+        : CPURegister(r.code_, r.size() * 8, kARMFPRegister)
+    { }
     MOZ_CONSTEXPR inline ARMFPRegister(unsigned code, unsigned size)
       : CPURegister(code, size, kARMFPRegister)
     { }
