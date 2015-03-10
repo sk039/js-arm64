@@ -976,7 +976,12 @@ class MacroAssemblerVIXL : public Assembler
         return sp_;
     }
     const Register GetStackPointer_() const {
-        return Register::FromCode(sp_.code());
+        int code = sp_.code();
+        if (code == kSPRegInternalCode) {
+            code = 31;
+        }
+        return Register::FromCode(code);
+        
     }
     CPURegList* TmpList() { return &tmp_list_; }
     CPURegList* FPTmpList() { return &fptmp_list_; }
