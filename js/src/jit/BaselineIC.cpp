@@ -10887,9 +10887,6 @@ ICCall_ScriptedFunCall::Compiler::generateStubCode(MacroAssembler &masm)
 
     pushCallArguments(masm, regs, argcReg, /* isJitCall = */ true);
 
-    // Discard callee (function.call).
-    masm.addPtr(Imm32(sizeof(Value)), BaselineStackReg);
-
     // Pop scripted callee (the original |this|).
     ValueOperand val = regs.takeAnyValue();
     masm.popValue(val);
