@@ -5952,15 +5952,15 @@ JitCompartment::generateStringConcatStub(JSContext *cx)
     // Store left and right nodes.
     masm.storePtr(lhs, Address(output, JSRope::offsetOfLeft()));
     masm.storePtr(rhs, Address(output, JSRope::offsetOfRight()));
-    masm.ret();
+    masm.popReturn();
 
     masm.bind(&leftEmpty);
     masm.movePtr(rhs, output);
-    masm.ret();
+    masm.popReturn();
 
     masm.bind(&rightEmpty);
     masm.movePtr(lhs, output);
-    masm.ret();
+    masm.popReturn();
 
     masm.bind(&isFatInlineTwoByte);
     ConcatInlineString(masm, lhs, rhs, output, temp1, temp2, temp3,
@@ -5976,7 +5976,7 @@ JitCompartment::generateStringConcatStub(JSContext *cx)
 
     masm.bind(&failure);
     masm.movePtr(ImmPtr(nullptr), output);
-    masm.ret();
+    masm.popReturn();
 
     Linker linker(masm);
     AutoFlushICache afc("StringConcatStub");
