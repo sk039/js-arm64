@@ -1038,28 +1038,77 @@ CodeGeneratorARM64::visitCompareFAndBranch(LCompareFAndBranch *comp)
     emitBranch(Assembler::ConditionFromDoubleCondition(cond), comp->ifTrue(), comp->ifFalse());
 }
 
-void 
+void
 CodeGeneratorARM64::visitCompareB(LCompareB *lir)
 {
-    MOZ_CRASH("CodeGeneratorARM64::visitCompareB");
+    MCompare *mir = lir->mir();
+
+    const ValueOperand lhs = ToValue(lir, LCompareB::Lhs);
+    const LAllocation *rhs = lir->rhs();
+    const Register output = ToRegister(lir->output());
+
+    MOZ_ASSERT(mir->jsop() == JSOP_STRICTEQ || mir->jsop() == JSOP_STRICTNE);
+
+    // Load boxed boolean in ScratchReg.
+    if (rhs->isConstant())
+        masm.moveValue(*rhs->toConstant(), ScratchReg);
+    else
+        masm.boxValue(JSVAL_TYPE_BOOLEAN, ToRegister(rhs), ScratchReg);
+
+    // Perform the comparison.
+    masm.cmpPtr(lhs.valueReg(), ScratchReg);
+    masm.emitSet(JSOpToCondition(mir->compareType(), mir->jsop()), output);
 }
 
-void 
+void
 CodeGeneratorARM64::visitCompareBAndBranch(LCompareBAndBranch *lir)
 {
-    MOZ_CRASH("CodeGeneratorARM64::visitCompareBAndBranch");
+    MCompare *mir = lir->cmpMir();
+
+    const ValueOperand lhs = ToValue(lir, LCompareBAndBranch::Lhs);
+    const LAllocation *rhs = lir->rhs();
+
+    MOZ_ASSERT(mir->jsop() == JSOP_STRICTEQ || mir->jsop() == JSOP_STRICTNE);
+
+    // Load boxed boolean in ScratchReg.
+    if (rhs->isConstant())
+        masm.moveValue(*rhs->toConstant(), ScratchReg);
+    else
+        masm.boxValue(JSVAL_TYPE_BOOLEAN, ToRegister(rhs), ScratchReg);
+
+    // Perform the comparison.
+    masm.cmpPtr(lhs.valueReg(), ScratchReg);
+    emitBranch(JSOpToCondition(mir->compareType(), mir->jsop()), lir->ifTrue(), lir->ifFalse());
+
 }
 
-void 
+void
 CodeGeneratorARM64::visitCompareV(LCompareV *lir)
 {
-    MOZ_CRASH("CodeGeneratorARM64::visitCompareV");
+    MCompare *mir = lir->mir();
+    const ValueOperand lhs = ToValue(lir, LCompareV::LhsInput);
+    const ValueOperand rhs = ToValue(lir, LCompareV::RhsInput);
+    const Register output = ToRegister(lir->output());
+
+    MOZ_ASSERT(IsEqualityOp(mir->jsop()));
+
+    masm.cmpPtr(lhs.valueReg(), rhs.valueReg());
+    masm.emitSet(JSOpToCondition(mir->compareType(), mir->jsop()), output);
 }
 
-void 
+void
 CodeGeneratorARM64::visitCompareVAndBranch(LCompareVAndBranch *lir)
 {
-    MOZ_CRASH("CodeGeneratorARM64::visitCompareVAndBranch");
+    MCompare *mir = lir->cmpMir();
+
+    const ValueOperand lhs = ToValue(lir, LCompareVAndBranch::LhsInput);
+    const ValueOperand rhs = ToValue(lir, LCompareVAndBranch::RhsInput);
+
+    MOZ_ASSERT(mir->jsop() == JSOP_EQ || mir->jsop() == JSOP_STRICTEQ ||
+               mir->jsop() == JSOP_NE || mir->jsop() == JSOP_STRICTNE);
+
+    masm.cmpPtr(lhs.valueReg(), rhs.valueReg());
+    emitBranch(JSOpToCondition(mir->compareType(), mir->jsop()), lir->ifTrue(), lir->ifFalse());
 }
 
 void 
