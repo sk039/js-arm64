@@ -143,7 +143,7 @@ UnboxedLayout::makeConstructorCode(JSContext *cx, HandleObjectGroup group)
     masm.jump(&allocated);
     masm.bind(&postBarrier);
 
-    masm.mov(ImmPtr(cx->runtime()), scratch1);
+    masm.movePtr(ImmPtr(cx->runtime()), scratch1);
     masm.setupUnalignedABICall(2, scratch2);
     masm.passABIArg(scratch1);
     masm.passABIArg(object);
