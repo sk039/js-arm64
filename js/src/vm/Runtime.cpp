@@ -328,8 +328,6 @@ JSRuntime::init(uint32_t maxbytes, uint32_t maxNurseryBytes)
 
 #if defined(JS_ARM_SIMULATOR) || defined(JS_ARM64_SIMULATOR) || defined(JS_MIPS_SIMULATOR)
     simulator_ = js::jit::Simulator::Create();
-    fprintf(stderr, "Simulator created as %p\n", simulator_);
-
     if (!simulator_)
         return false;
 #endif
