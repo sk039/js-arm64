@@ -791,7 +791,6 @@ CodeGeneratorARM64::visitFloorF(LFloorF *lir)
     Label bail;
     masm.floorf(input, output, &bail);
     bailoutFrom(&bail, lir->snapshot());
-    MOZ_CRASH("TEST ME");
 }
 
 void 
