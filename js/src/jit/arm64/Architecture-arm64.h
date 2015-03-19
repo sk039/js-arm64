@@ -428,8 +428,8 @@ struct FloatRegister
 
 };
 
-// Arm/D32 has double registers that cannot be treated as float32.
-// Luckily, our ARMv8 doesn't have the same malfunction.
+// ARM/D32 has double registers that cannot be treated as float32.
+// Luckily, ARMv8 doesn't have the same misfortune.
 inline bool
 hasUnaliasedDouble()
 {
@@ -443,9 +443,6 @@ hasMultiAlias()
 {
     return false;
 }
-// See the comments above AsmJSMappedSize in AsmJSValidate.h for more info.
-// TODO: Implement this for ARM64. Note that it requires Codegen to respect the
-// offset field of AsmJSHeapAccess.
 
 static const size_t AsmJSCheckedImmediateRange = 0;
 static const size_t AsmJSImmediateRange = 0;
