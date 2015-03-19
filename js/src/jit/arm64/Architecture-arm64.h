@@ -15,9 +15,6 @@
 namespace js {
 namespace jit {
 
-// TODO: find out which header uint32_t is defined in.
-typedef unsigned int uint32_t;
-
 // In bytes: slots needed for potential memory->memory move spills.
 //   +8 for cycles
 //   +8 for gpr spills
