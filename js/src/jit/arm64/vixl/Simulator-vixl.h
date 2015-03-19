@@ -334,7 +334,8 @@ class Simulator : public DecoderVisitor
         increment_pc();
         if (MOZ_UNLIKELY(rpc != 0)) {
             fflush(stdout);
-            printf("Setting pc from signal handler: %p->%p!\n", get_pc(), rpc);
+            // FIXME: Marty, is this debug code?
+            printf("Setting pc from signal handler: %p->%ld!\n", get_pc(), rpc);
             JSRuntime::innermostAsmJSActivation()->setResumePC((void *)get_pc());
             set_pc(reinterpret_cast<Instruction*>(rpc));
             // Just calling set_pc turns the pc_modified_ flag on, which means it doesn't
