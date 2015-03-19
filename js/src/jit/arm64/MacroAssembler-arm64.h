@@ -596,6 +596,11 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         armbuffer_.align(alignment);
     }
 
+    void haltingAlign(int alignment) {
+        // TODO: Implement a proper halting align.
+        armbuffer_.align(alignment);
+    }
+
     void movePtr(Register src, Register dest) {
         Mov(ARMRegister(dest, 64), ARMRegister(src, 64));
     }
