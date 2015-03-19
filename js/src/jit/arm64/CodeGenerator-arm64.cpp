@@ -772,16 +772,26 @@ CodeGeneratorARM64::visitMathF(LMathF *math)
 
 }
 
-void 
+void
 CodeGeneratorARM64::visitFloor(LFloor *lir)
 {
-    MOZ_CRASH("CodeGeneratorARM64::visitFloor");
+    FloatRegister input = ToFloatRegister(lir->input());
+    Register output = ToRegister(lir->output());
+    Label bail;
+    masm.floor(input, output, &bail);
+    bailoutFrom(&bail, lir->snapshot());
+
 }
 
-void 
+void
 CodeGeneratorARM64::visitFloorF(LFloorF *lir)
 {
-    MOZ_CRASH("CodeGeneratorARM64::visitFloorF");
+    FloatRegister input = ToFloatRegister(lir->input());
+    Register output = ToRegister(lir->output());
+    Label bail;
+    masm.floorf(input, output, &bail);
+    bailoutFrom(&bail, lir->snapshot());
+    MOZ_CRASH("TEST ME");
 }
 
 void 
