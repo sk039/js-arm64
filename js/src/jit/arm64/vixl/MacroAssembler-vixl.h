@@ -174,7 +174,7 @@ class MacroAssemblerVIXL : public Assembler
     BufferOffset LoadStoreMacro(const CPURegister& rt, const MemOperand& addr, LoadStoreOp op);
 
     // Push or pop up to 4 registers of the same width to or from the stack,
-    // using the current stack pointer as set by SetStackPointer.
+    // using the current stack pointer as set by SetStackPointer64.
     //
     // If an argument register is 'NoReg', all further arguments are also assumed
     // to be 'NoReg', and are thus not pushed or popped.
@@ -188,7 +188,7 @@ class MacroAssemblerVIXL : public Assembler
     // It is not valid to pop into the same register more than once in one
     // operation, not even into the zero register.
     //
-    // If the current stack pointer (as set by SetStackPointer) is sp, then it
+    // If the current stack pointer (as set by SetStackPointer64) is sp, then it
     // must be aligned to 16 bytes on entry and the total size of the specified
     // registers must also be a multiple of 16 bytes.
     //
@@ -255,19 +255,19 @@ class MacroAssemblerVIXL : public Assembler
 
     // Poke 'src' onto the stack. The offset is in bytes.
     //
-    // If the current stack pointer (as set by SetStackPointer) is sp, then sp
+    // If the current stack pointer (as set by SetStackPointer64) is sp, then sp
     // must be aligned to 16 bytes.
     void Poke(const ARMRegister& src, const Operand& offset);
 
     // Peek at a value on the stack, and put it in 'dst'. The offset is in bytes.
     //
-    // If the current stack pointer (as set by SetStackPointer) is sp, then sp
+    // If the current stack pointer (as set by SetStackPointer64) is sp, then sp
     // must be aligned to 16 bytes.
     void Peek(const ARMRegister& dst, const Operand& offset);
 
     // Claim or drop stack space without actually accessing memory.
     //
-    // If the current stack pointer (as set by SetStackPointer) is sp, then it
+    // If the current stack pointer (as set by SetStackPointer64) is sp, then it
     // must be aligned to 16 bytes and the size claimed or dropped must be a
     // multiple of 16 bytes.
     void Claim(const Operand& size);
@@ -280,7 +280,7 @@ class MacroAssemblerVIXL : public Assembler
     // Floating-point registers are pushed before general-purpose registers, and
     // thus get higher addresses.
     //
-    // This method must not be called unless GetStackPointer() is sp, and it is
+    // This method must not be called unless GetStackPointer64() is sp, and it is
     // aligned to 16 bytes.
     void PushCalleeSavedRegisters();
 
@@ -291,7 +291,7 @@ class MacroAssemblerVIXL : public Assembler
     // Floating-point registers are popped after general-purpose registers, and
     // thus come from higher addresses.
     //
-    // This method must not be called unless GetStackPointer() is sp, and it is
+    // This method must not be called unless GetStackPointer64() is sp, and it is
     // aligned to 16 bytes.
     void PopCalleeSavedRegisters();
 
@@ -951,14 +951,14 @@ class MacroAssemblerVIXL : public Assembler
     }
 
     // Push the system stack pointer (sp) down to allow the same to be done to
-    // the current stack pointer (according to GetStackPointer()). This must be
+    // the current stack pointer (according to GetStackPointer64()). This must be
     // called _before_ accessing the memory.
     //
     // This is necessary when pushing or otherwise adding things to the stack, to
     // satisfy the AAPCS64 constraint that the memory below the system stack
     // pointer is not accessed.
     //
-    // This method asserts that GetStackPointer() is not sp, since the call does
+    // This method asserts that GetStackPointer64() is not sp, since the call does
     // not make sense in that context.
     //
     // TODO: This method can only accept values of 'space' that can be encoded in
@@ -966,18 +966,19 @@ class MacroAssemblerVIXL : public Assembler
     void BumpSystemStackPointer(const Operand& space);
 
     // Set the current stack pointer, but don't generate any code.
-    void SetStackPointer(const ARMRegister& stack_pointer) {
+    void SetStackPointer64(const ARMRegister& stack_pointer) {
         MOZ_ASSERT(!TmpList()->IncludesAliasOf(stack_pointer));
         sp_ = stack_pointer;
     }
 
-    // Return the current stack pointer, as set by SetStackPointer.
-    const ARMRegister& GetStackPointer() const {
+    // Return the current stack pointer, as set by SetStackPointer64.
+    const ARMRegister& GetStackPointer64() const {
         return sp_;
     }
     const Register GetStackPointer_() const {
         return Register::FromCode(sp_.code());
     }
+
     CPURegList* TmpList() { return &tmp_list_; }
     CPURegList* FPTmpList() { return &fptmp_list_; }
 

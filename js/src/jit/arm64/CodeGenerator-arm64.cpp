@@ -1327,7 +1327,7 @@ void
 CodeGeneratorARM64::visitAsmJSPassStackArg(LAsmJSPassStackArg *ins)
 {
     const MAsmJSPassStackArg *mir = ins->mir();
-    MemOperand dst(masm.GetStackPointer(), mir->spOffset());
+    MemOperand dst(masm.GetStackPointer64(), mir->spOffset());
     if (ins->arg()->isConstant()) {
         ARMRegister tmp = ScratchReg2_32;
         if (ToInt32(ins->arg()) == 0) {

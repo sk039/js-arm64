@@ -9185,8 +9185,8 @@ GenerateAsyncInterruptExit(ModuleCompiler &m, Label *throwLabel)
 
     // Align the stack, sp was previously copied to r19.
     masm.And(sp, x25, Operand(~15));
-    ARMRegister fake_sp = masm.GetStackPointer();
-    masm.SetStackPointer(sp);
+    ARMRegister fake_sp = masm.GetStackPointer64();
+    masm.SetStackPointer64(sp);
 
     // When this platform supports SIMD extensions, we'll need to push and pop
     // high lanes of SIMD registers as well.
@@ -9226,7 +9226,7 @@ GenerateAsyncInterruptExit(ModuleCompiler &m, Label *throwLabel)
     masm.PopRegsInMask(RegisterSet(GeneralRegisterSet(0), FloatRegisterSet(FloatRegisters::AllDoubleMask)));   // restore all FP registers
     masm.Mov(sp,x25);
 
-    masm.SetStackPointer(fake_sp);
+    masm.SetStackPointer64(fake_sp);
 
 
     // Restore all GP registers

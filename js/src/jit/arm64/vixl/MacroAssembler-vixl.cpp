@@ -825,10 +825,10 @@ MacroAssemblerVIXL::Push(const CPURegister& src0, const CPURegister& src1,
     // which pre-decrements the stack pointer, storing the decremented value.
     //
     // Instead, we must use a scratch register. This hijacks ip1.
-    if (src0.Is(GetStackPointer())) {
+    if (src0.Is(GetStackPointer64())) {
         // Only pushing the pseudo-stackpointer by itself is handled.
         MOZ_ASSERT(!src1.IsValid() && !src2.IsValid() && !src3.IsValid());
-        MOZ_ASSERT(!GetStackPointer().Is(sp));
+        MOZ_ASSERT(!GetStackPointer64().Is(sp));
         PushPseudoStackPointerHelper();
     } else {
         PushHelper(count, size, src0, src1, src2, src3);
@@ -922,8 +922,8 @@ MacroAssemblerVIXL::PushPseudoStackPointerHelper()
     // FIXME: This is gross. The helper register should be required in the call.
     ARMRegister scratch(ip1, 64);
 
-    add(scratch, GetStackPointer(), Operand(0));
-    str(scratch, MemOperand(GetStackPointer(), -8, PreIndex));
+    add(scratch, GetStackPointer64(), Operand(0));
+    str(scratch, MemOperand(GetStackPointer64(), -8, PreIndex));
 }
 
 void
@@ -938,10 +938,10 @@ MacroAssemblerVIXL::PushHelper(int count, int size, const CPURegister& src0,
     MOZ_ASSERT(size == src0.SizeInBytes());
 
     // Pushing the stack pointer has unexpected behavior. See Push().
-    MOZ_ASSERT(!src0.Is(GetStackPointer()) && !src0.Is(sp));
-    MOZ_ASSERT(!src1.Is(GetStackPointer()) && !src1.Is(sp));
-    MOZ_ASSERT(!src2.Is(GetStackPointer()) && !src2.Is(sp));
-    MOZ_ASSERT(!src3.Is(GetStackPointer()) && !src3.Is(sp));
+    MOZ_ASSERT(!src0.Is(GetStackPointer64()) && !src0.Is(sp));
+    MOZ_ASSERT(!src1.Is(GetStackPointer64()) && !src1.Is(sp));
+    MOZ_ASSERT(!src2.Is(GetStackPointer64()) && !src2.Is(sp));
+    MOZ_ASSERT(!src3.Is(GetStackPointer64()) && !src3.Is(sp));
 
     // The JS engine should never push 4 bytes, since we're trying to keep
     // 8-byte alignment at all times for sanity.
@@ -952,23 +952,23 @@ MacroAssemblerVIXL::PushHelper(int count, int size, const CPURegister& src0,
     switch (count) {
       case 1:
         MOZ_ASSERT(src1.IsNone() && src2.IsNone() && src3.IsNone());
-        str(src0, MemOperand(GetStackPointer(), -1 * size, PreIndex));
+        str(src0, MemOperand(GetStackPointer64(), -1 * size, PreIndex));
         break;
       case 2:
         MOZ_ASSERT(src2.IsNone() && src3.IsNone());
-        stp(src1, src0, MemOperand(GetStackPointer(), -2 * size, PreIndex));
+        stp(src1, src0, MemOperand(GetStackPointer64(), -2 * size, PreIndex));
         break;
       case 3:
         MOZ_ASSERT(src3.IsNone());
-        stp(src2, src1, MemOperand(GetStackPointer(), -3 * size, PreIndex));
-        str(src0, MemOperand(GetStackPointer(), 2 * size));
+        stp(src2, src1, MemOperand(GetStackPointer64(), -3 * size, PreIndex));
+        str(src0, MemOperand(GetStackPointer64(), 2 * size));
         break;
       case 4:
         // Skip over 4 * size, then fill in the gap. This allows four W registers
         // to be pushed using sp, whilst maintaining 16-byte alignment for sp at
         // all times.
-        stp(src3, src2, MemOperand(GetStackPointer(), -4 * size, PreIndex));
-        stp(src1, src0, MemOperand(GetStackPointer(), 2 * size));
+        stp(src3, src2, MemOperand(GetStackPointer64(), -4 * size, PreIndex));
+        stp(src1, src0, MemOperand(GetStackPointer64(), 2 * size));
         break;
       default:
         VIXL_UNREACHABLE();
@@ -991,24 +991,24 @@ MacroAssemblerVIXL::PopHelper(int count, int size, const CPURegister& dst0,
     switch (count) {
       case 1:
         MOZ_ASSERT(dst1.IsNone() && dst2.IsNone() && dst3.IsNone());
-        ldr(dst0, MemOperand(GetStackPointer(), 1 * size, PostIndex));
+        ldr(dst0, MemOperand(GetStackPointer64(), 1 * size, PostIndex));
         break;
       case 2:
         MOZ_ASSERT(dst2.IsNone() && dst3.IsNone());
-        ldp(dst0, dst1, MemOperand(GetStackPointer(), 2 * size, PostIndex));
+        ldp(dst0, dst1, MemOperand(GetStackPointer64(), 2 * size, PostIndex));
         break;
       case 3:
         MOZ_ASSERT(dst3.IsNone());
-        ldr(dst2, MemOperand(GetStackPointer(), 2 * size));
-        ldp(dst0, dst1, MemOperand(GetStackPointer(), 3 * size, PostIndex));
+        ldr(dst2, MemOperand(GetStackPointer64(), 2 * size));
+        ldp(dst0, dst1, MemOperand(GetStackPointer64(), 3 * size, PostIndex));
         break;
       case 4:
         // Load the higher addresses first, then load the lower addresses and skip
         // the whole block in the second instruction. This allows four W registers
         // to be popped using sp, whilst maintaining 16-byte alignment for sp at
         // all times.
-        ldp(dst2, dst3, MemOperand(GetStackPointer(), 2 * size));
-        ldp(dst0, dst1, MemOperand(GetStackPointer(), 4 * size, PostIndex));
+        ldp(dst2, dst3, MemOperand(GetStackPointer64(), 2 * size));
+        ldp(dst0, dst1, MemOperand(GetStackPointer64(), 4 * size, PostIndex));
         break;
       default:
         VIXL_UNREACHABLE();
@@ -1018,7 +1018,7 @@ MacroAssemblerVIXL::PopHelper(int count, int size, const CPURegister& dst0,
 void
 MacroAssemblerVIXL::PrepareForPush(int count, int size)
 {
-    if (sp.Is(GetStackPointer())) {
+    if (sp.Is(GetStackPointer64())) {
         // If the current stack pointer is sp, then it must be aligned to 16 bytes
         // on entry and the total size of the specified registers must also be a
         // multiple of 16 bytes.
@@ -1034,7 +1034,7 @@ MacroAssemblerVIXL::PrepareForPush(int count, int size)
 void
 MacroAssemblerVIXL::PrepareForPop(int count, int size)
 {
-    if (sp.Is(GetStackPointer())) {
+    if (sp.Is(GetStackPointer64())) {
         // If the current stack pointer is sp, then it must be aligned to 16 bytes
         // on entry and the total size of the specified registers must also be a
         // multiple of 16 bytes.
@@ -1048,7 +1048,7 @@ MacroAssemblerVIXL::Poke(const ARMRegister& src, const Operand& offset)
     if (offset.IsImmediate())
         MOZ_ASSERT(offset.immediate() >= 0);
 
-    Str(src, MemOperand(GetStackPointer(), offset));
+    Str(src, MemOperand(GetStackPointer64(), offset));
 }
 
 void
@@ -1057,7 +1057,7 @@ MacroAssemblerVIXL::Peek(const ARMRegister& dst, const Operand& offset)
     if (offset.IsImmediate())
         MOZ_ASSERT(offset.immediate() >= 0);
 
-    Ldr(dst, MemOperand(GetStackPointer(), offset));
+    Ldr(dst, MemOperand(GetStackPointer64(), offset));
 }
 
 void
@@ -1068,14 +1068,14 @@ MacroAssemblerVIXL::Claim(const Operand& size)
 
     if (size.IsImmediate()) {
         MOZ_ASSERT(size.immediate() > 0);
-        if (sp.Is(GetStackPointer()))
+        if (sp.Is(GetStackPointer64()))
             MOZ_ASSERT((size.immediate() % 16) == 0);
     }
 
-    if (!sp.Is(GetStackPointer()))
+    if (!sp.Is(GetStackPointer64()))
         BumpSystemStackPointer(size);
 
-    Sub(GetStackPointer(), GetStackPointer(), size);
+    Sub(GetStackPointer64(), GetStackPointer64(), size);
 }
 
 void
@@ -1086,11 +1086,11 @@ MacroAssemblerVIXL::Drop(const Operand& size)
 
     if (size.IsImmediate()) {
         MOZ_ASSERT(size.immediate() > 0);
-        if (sp.Is(GetStackPointer()))
+        if (sp.Is(GetStackPointer64()))
             MOZ_ASSERT((size.immediate() % 16) == 0);
     }
 
-    Add(GetStackPointer(), GetStackPointer(), size);
+    Add(GetStackPointer64(), GetStackPointer64(), size);
 }
 
 void
@@ -1100,7 +1100,7 @@ MacroAssemblerVIXL::PushCalleeSavedRegisters()
     InstructionAccurateScope scope(this);
 
     // This method must not be called unless the current stack pointer is sp.
-    MOZ_ASSERT(sp.Is(GetStackPointer()));
+    MOZ_ASSERT(sp.Is(GetStackPointer64()));
 
     MemOperand tos(sp, -2 * kXRegSizeInBytes, PreIndex);
 
@@ -1124,7 +1124,7 @@ MacroAssemblerVIXL::PopCalleeSavedRegisters()
     InstructionAccurateScope scope(this);
 
     // This method must not be called unless the current stack pointer is sp.
-    MOZ_ASSERT(sp.Is(GetStackPointer()));
+    MOZ_ASSERT(sp.Is(GetStackPointer64()));
 
     MemOperand tos(sp, 2 * kXRegSizeInBytes, PostIndex);
 
@@ -1144,12 +1144,12 @@ MacroAssemblerVIXL::PopCalleeSavedRegisters()
 void
 MacroAssemblerVIXL::BumpSystemStackPointer(const Operand& space)
 {
-    MOZ_ASSERT(!sp.Is(GetStackPointer()));
+    MOZ_ASSERT(!sp.Is(GetStackPointer64()));
     // TODO: Several callers rely on this not using scratch registers, so we use
     // the assembler directly here. However, this means that large immediate
     // values of 'space' cannot be handled.
     InstructionAccurateScope scope(this);
-    sub(sp, GetStackPointer(), space);
+    sub(sp, GetStackPointer64(), space);
 }
 
 // This is the main Printf implementation. All callee-saved registers are
@@ -1161,7 +1161,7 @@ MacroAssemblerVIXL::PrintfNoPreserve(const char * format, const CPURegister& arg
 {
     // We cannot handle a caller-saved stack pointer. It doesn't make much sense
     // in most cases anyway, so this restriction shouldn't be too serious.
-    MOZ_ASSERT(!kCallerSaved.IncludesAliasOf(GetStackPointer()));
+    MOZ_ASSERT(!kCallerSaved.IncludesAliasOf(GetStackPointer64()));
 
     // The provided arguments, and their proper PCS registers.
     CPURegister args[kPrintfMaxArgCount] = {arg0, arg1, arg2, arg3};
@@ -1268,8 +1268,8 @@ MacroAssemblerVIXL::PrintfNoPreserve(const char * format, const CPURegister& arg
 
     // We don't pass any arguments on the stack, but we still need to align the C
     // stack pointer to a 16-byte boundary for PCS compliance.
-    if (!sp.Is(GetStackPointer()))
-        Bic(sp, GetStackPointer(), 0xf);
+    if (!sp.Is(GetStackPointer64()))
+        Bic(sp, GetStackPointer64(), 0xf);
 
     // Actually call printf. This part needs special handling for the simulator,
     // since the system printf function will use a different instruction set and
@@ -1306,7 +1306,7 @@ MacroAssemblerVIXL::Printf(const char * format, CPURegister arg0, CPURegister ar
                            CPURegister arg2, CPURegister arg3)
 {
     // We can only print sp if it is the current stack pointer.
-    if (!sp.Is(GetStackPointer())) {
+    if (!sp.Is(GetStackPointer64())) {
         MOZ_ASSERT(!sp.Aliases(arg0));
         MOZ_ASSERT(!sp.Aliases(arg1));
         MOZ_ASSERT(!sp.Aliases(arg2));
@@ -1333,15 +1333,15 @@ MacroAssemblerVIXL::Printf(const char * format, CPURegister arg0, CPURegister ar
         // If any of the arguments are the current stack pointer, allocate a new
         // register for them, and adjust the value to compensate for pushing the
         // caller-saved registers.
-        bool arg0_sp = GetStackPointer().Aliases(arg0);
-        bool arg1_sp = GetStackPointer().Aliases(arg1);
-        bool arg2_sp = GetStackPointer().Aliases(arg2);
-        bool arg3_sp = GetStackPointer().Aliases(arg3);
+        bool arg0_sp = GetStackPointer64().Aliases(arg0);
+        bool arg1_sp = GetStackPointer64().Aliases(arg1);
+        bool arg2_sp = GetStackPointer64().Aliases(arg2);
+        bool arg3_sp = GetStackPointer64().Aliases(arg3);
         if (arg0_sp || arg1_sp || arg2_sp || arg3_sp) {
             // Allocate a register to hold the original stack pointer value, to pass
             // to PrintfNoPreserve as an argument.
             ARMRegister arg_sp = temps.AcquireX();
-            Add(arg_sp, GetStackPointer(),
+            Add(arg_sp, GetStackPointer64(),
                 kCallerSaved.TotalSizeInBytes() + kCallerSavedFP.TotalSizeInBytes());
             if (arg0_sp) arg0 = ARMRegister(arg_sp.code(), arg0.size());
             if (arg1_sp) arg1 = ARMRegister(arg_sp.code(), arg1.size());

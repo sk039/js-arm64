@@ -276,12 +276,12 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
 
     // Update sp with the value of the current active stack pointer, if necessary.
     void syncStackPtr() {
-        if (!GetStackPointer().Is(sp))
-            Add(sp, GetStackPointer(), Operand(0));
+        if (!GetStackPointer64().Is(sp))
+            Add(sp, GetStackPointer64(), Operand(0));
     }
     void initStackPtr() {
-        if (!GetStackPointer().Is(sp))
-            Add(GetStackPointer(), sp, Operand(0));
+        if (!GetStackPointer64().Is(sp))
+            Add(GetStackPointer64(), sp, Operand(0));
     }
     void storeValue(ValueOperand val, const Address &dest) {
         storePtr(val.valueReg(), dest);
@@ -1157,7 +1157,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
 
     void retn(Imm32 n) {
         // ip0 <- [sp]; sp += n; ret ip0
-        Ldr(ip0_64, MemOperand(GetStackPointer(), ptrdiff_t(n.value), PostIndex));
+        Ldr(ip0_64, MemOperand(GetStackPointer64(), ptrdiff_t(n.value), PostIndex));
         syncStackPtr(); // SP is always used to transmit the stack between calls.
         Ret(ip0_64);
     }
@@ -2535,10 +2535,10 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
 
     void checkStackAlignment() {
 #ifdef DEBUG
-        checkARMRegAlignment(GetStackPointer());
+        checkARMRegAlignment(GetStackPointer64());
 
         // If another register is being used to track pushes, check sp explicitly.
-        if (!GetStackPointer().Is(sp))
+        if (!GetStackPointer64().Is(sp))
             checkARMRegAlignment(sp);
 #endif
     }
