@@ -92,7 +92,7 @@ JitRuntime::generateEnterJIT(JSContext *cx, EnterJitType type)
 
     // Save stack pointer for pushing in Baseline's emitPrologue().
     if (type == EnterJitBaseline)
-        masm.movePtr(PseudoStackPointer, BaselineFrameReg); // x11
+        masm.movePtr(PseudoStackPointer, BaselineFrameReg); // x23
 
     // JitFrameLayout is as follows (higher is higher in memory):
     //  N*8  - [ JS argument vector ] (base 16-byte aligned)

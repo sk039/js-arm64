@@ -1120,7 +1120,7 @@ CodeGeneratorARM64::visitCompareVAndBranch(LCompareVAndBranch *lir)
     emitBranch(JSOpToCondition(mir->compareType(), mir->jsop()), lir->ifTrue(), lir->ifFalse());
 }
 
-void 
+void
 CodeGeneratorARM64::visitBitAndAndBranch(LBitAndAndBranch *baab)
 {
     if (baab->right()->isConstant())
@@ -1156,7 +1156,7 @@ CodeGeneratorARM64::visitNotI(LNotI *ins)
 // ==  -> 0110
 // <   -> 1000
 // >   -> 0010
-void 
+void
 CodeGeneratorARM64::visitNotD(LNotD *ins)
 {
     ARMFPRegister input(ToFloatRegister(ins->input()), 64);
