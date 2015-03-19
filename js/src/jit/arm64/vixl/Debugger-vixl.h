@@ -83,6 +83,17 @@ const Instr kInvariantOpcode = 0xdeb4;
 const unsigned kInvariantCommandOffset = 1 * kInstructionSize;
 const unsigned kInvariantLength = 2 * kInstructionSize;
 
+const Instr kStackCheckOpcode = 0xdeb5;
+const unsigned kStackCheckIndexOffset = 1 * kInstructionSize;
+const unsigned kStackCheckValueOffset = 2 * kInstructionSize;
+const unsigned kStackCheckLength = 3 * kInstructionSize;
+
+const Instr kStackCheckPushPopOpcode = 0xdeb6;
+const unsigned kStackCheckPushPopIndexOffset = 1 * kInstructionSize;
+const unsigned kStackCheckPushPopValueOffset = 2 * kInstructionSize;
+const unsigned kStackCheckPushPopDirOffset = 3 * kInstructionSize;
+const unsigned kStackCheckPushPopLength = 4 * kInstructionSize;
+
 // Trace commands.
 enum TraceCommand {
     TRACE_ENABLE   = 1,
@@ -179,6 +190,12 @@ class DebuggerARM64 : public Simulator
     void DoUnreachable(Instruction* instr);
     void DoTrace(Instruction* instr);
     void DoLog(Instruction* instr);
+    void DoStackCheck(Instruction *instr);
+    void DoStackCheckPushPop(Instruction *instr);
+    static const int numStacks = 5;
+    char *stackCheck[numStacks][1024];
+    int stackCheckDepth[numStacks];
+
     int  log_parameters_;
     int  debug_parameters_;
     bool pending_request_;

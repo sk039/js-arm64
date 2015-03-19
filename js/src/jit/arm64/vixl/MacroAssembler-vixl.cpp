@@ -1443,7 +1443,54 @@ MacroAssemblerVIXL::AnnotateInstrumentation(const char* marker_name)
     InstructionAccurateScope scope(this, 1);
     movn(xzr, (marker_name[1] << 8) | marker_name[0]);
 }
-    
+void
+MacroAssemblerVIXL::StackCheck(int index, int value)
+{
+#ifdef JS_ARM64_SIMULATOR
+    // The arguments to the trace pseudo instruction need to be contiguous in
+    // memory, so make sure we don't try to emit a literal pool.
+    InstructionAccurateScope scope(this, kTraceLength / kInstructionSize);
+
+    Label start;
+    bind(&start);
+    AutoForbidPools afp(this, 3);
+    // Refer to instructions-a64.h for a description of the marker and its
+    // arguments.
+    hlt(kStackCheckOpcode);
+
+    //MOZ_ASSERT(SizeOfCodeGeneratedSince(&start) == kTraceParamsOffset);
+    dc32(index);
+    dc32(value);
+#else
+    // Emit nothing on real hardware.
+#endif
+}
+
+void
+MacroAssemblerVIXL::StackCheckPushPop(int index, int value, int direction)
+{
+#ifdef JS_ARM64_SIMULATOR
+    // The arguments to the trace pseudo instruction need to be contiguous in
+    // memory, so make sure we don't try to emit a literal pool.
+    InstructionAccurateScope scope(this, kTraceLength / kInstructionSize);
+
+    Label start;
+    bind(&start);
+
+    // Refer to instructions-a64.h for a description of the marker and its
+    // arguments.
+    AutoForbidPools afp(this, 4);
+    hlt(kStackCheckPushPopOpcode);
+
+    //MOZ_ASSERT(SizeOfCodeGeneratedSince(&start) == kTraceParamsOffset);
+    dc32(index);
+    dc32(value);
+    dc32(direction);
+#else
+    // Emit nothing on real hardware.
+#endif
+}
+
 UseScratchRegisterScope::~UseScratchRegisterScope()
 {
     available_->set_list(old_available_);

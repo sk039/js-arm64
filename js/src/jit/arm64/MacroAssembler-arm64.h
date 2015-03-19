@@ -2642,10 +2642,30 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         uint32_t offset = nextOffset().getOffset();
         return offset;
     }
-
+    void simPushFrame() {
+        if (getenv("USE_DEBUGGER") && getenv("CHECK_STACK"))
+            StackCheckPushPop(0, framePushed(), 1);
+    }
+    void simPopFrame() {
+        if (getenv("USE_DEBUGGER") && getenv("CHECK_STACK"))
+            StackCheckPushPop(0, framePushed(), -1);
+    }
+    void simReplaceFrame() {
+        if (getenv("USE_DEBUGGER") && getenv("CHECK_STACK"))
+            StackCheckPushPop(0, framePushed(), 0);
+    }
+    void simCheckFrame() {
+        if (getenv("USE_DEBUGGER") && getenv("CHECK_STACK"))
+            StackCheck(0, framePushed());
+    }
   protected:
     bool buildOOLFakeExitFrame(void *fakeReturnAddr) {
-        MOZ_CRASH("buildOOLFakeExitFrame");
+    uint32_t descriptor = MakeFrameDescriptor(framePushed(), JitFrame_IonJS);
+
+    Push(Imm32(descriptor)); // descriptor_
+    Push(ImmPtr(fakeReturnAddr));
+
+    return true;
     }
 };
 

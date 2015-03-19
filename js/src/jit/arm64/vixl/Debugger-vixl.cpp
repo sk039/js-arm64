@@ -726,6 +726,12 @@ DebuggerARM64::VisitException(Instruction* instr)
           case kLogOpcode:
             DoLog(instr);
             return;
+          case kStackCheckOpcode:
+            DoStackCheck(instr);
+            return;
+          case kStackCheckPushPopOpcode:
+            DoStackCheckPushPop(instr);
+            return;
         }
         // Fall through
       default: Simulator::VisitException(instr);
@@ -909,6 +915,68 @@ DebuggerARM64::DoLog(Instruction* instr)
     if (parameters & LOG_FP_REGS) PrintFloatRegisters(true);
 
     set_pc(instr->InstructionAtOffset(kLogLength));
+}
+void
+DebuggerARM64::DoStackCheck(Instruction* instr)
+{
+    fflush(stdout);
+    MOZ_ASSERT((instr->Mask(ExceptionMask) == HLT) &&
+               (instr->ImmException() == kStackCheckOpcode));
+
+    // Read the arguments encoded inline in the instruction stream.
+    uint32_t index;
+    uint32_t value;
+
+    JS_STATIC_ASSERT(sizeof(*instr) == 1);
+    memcpy(&index, instr + kStackCheckIndexOffset, sizeof(index));
+    memcpy(&value, instr + kStackCheckValueOffset, sizeof(value));
+
+    set_pc(instr->InstructionAtOffset(kStackCheckLength));
+    if (stackCheckDepth[index] >= 1024) {
+        return;
+    }
+    MOZ_ASSERT(stackCheckDepth[index] > 0);
+    char *curVal = stackCheck[index][stackCheckDepth[index]-1];
+    printf("Stack Check Succeed[%d]: %p ?= %p + 0x%x\n", stackCheckDepth[index]-1, curVal, xreg(28), value);
+    if (uintptr_t(curVal) != xreg(28) + value) {
+        printf("Stack Check Fail: [%d]%p != %p\n", stackCheckDepth[index]-1, curVal, xreg(28) + value);
+        fflush(stdout);
+        MOZ_CRASH(":-(");
+    }
+}
+void
+DebuggerARM64::DoStackCheckPushPop(Instruction* instr)
+{
+    MOZ_ASSERT((instr->Mask(ExceptionMask) == HLT) &&
+               (instr->ImmException() == kStackCheckPushPopOpcode));
+
+    // Read the arguments encoded inline in the instruction stream.
+    uint32_t index;
+    uint32_t value;
+    uint32_t direction;
+
+    JS_STATIC_ASSERT(sizeof(*instr) == 1);
+    memcpy(&index, instr + kStackCheckPushPopIndexOffset, sizeof(index));
+    memcpy(&value, instr + kStackCheckPushPopValueOffset, sizeof(value));
+    memcpy(&direction, instr + kStackCheckPushPopDirOffset, sizeof(direction));
+
+    set_pc(instr->InstructionAtOffset(kStackCheckPushPopLength));
+    if (direction == -1) {
+        stackCheckDepth[index]--;
+        printf("stackCheckDepth <- %d\n", stackCheckDepth[index]);
+    } else if (direction == 0) {
+        if (stackCheckDepth[index] < 1024) {
+            printf("stackCheck: d <- %p\n", stackCheckDepth[index], (char *)(xreg(28) + value));
+            stackCheck[index][stackCheckDepth[index]] = (char *)(xreg(28) + value);
+        }
+    } else {
+        if (stackCheckDepth[index] < 1024) {
+            printf("stackCheck: d <- %p\n", stackCheckDepth[index], (char *)(xreg(28) + value));
+            stackCheck[index][stackCheckDepth[index]] = (char *)(xreg(28) + value);
+        }
+        stackCheckDepth[index]++;
+
+    }
 }
 
 static bool

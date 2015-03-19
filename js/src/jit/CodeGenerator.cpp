@@ -2015,7 +2015,8 @@ CodeGenerator::visitOsrEntry(LOsrEntry *lir)
     // to 0, before reserving the stack.
     MOZ_ASSERT(masm.framePushed() == frameSize());
     masm.setFramePushed(0);
-
+    setOsrEntryOffset(masm.size());
+    masm.simPushFrame();
     // Ensure that the Ion frames is properly aligned.
     masm.assertStackAlignment(JitStackAlignment, 0);
 
@@ -3977,6 +3978,7 @@ CodeGenerator::generateBody()
             // Track the end native offset of optimizations.
             if (iter->mirRaw() && iter->mirRaw()->trackedOptimizations())
                 extendTrackedOptimizationsEntry(iter->mirRaw()->trackedOptimizations());
+            masm.simCheckFrame();
 
 #ifdef DEBUG
             if (!counts)
@@ -3990,7 +3992,7 @@ CodeGenerator::generateBody()
         perfSpewer->endBasicBlock(masm);
 #endif
     }
-
+    masm.simPopFrame();
     return true;
 }
 
@@ -7313,6 +7315,7 @@ CodeGenerator::generate()
         return false;
 
     masm.bind(&skipPrologue);
+    masm.simPushFrame();
 
 #ifdef DEBUG
     // Assert that the argument types are correct.

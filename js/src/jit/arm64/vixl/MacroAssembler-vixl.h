@@ -1049,7 +1049,8 @@ class MacroAssemblerVIXL : public Assembler
     // The name is a two character string that will be attached to the marker in
     // the output data.
     void AnnotateInstrumentation(const char* marker_name);
-
+    void StackCheck(int index, int value);
+    void StackCheckPushPop(int index, int value, int direction);
   private:
     // The actual Push and Pop implementations. These don't generate any code
     // other than that required for the push or pop. This allows
