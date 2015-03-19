@@ -261,7 +261,7 @@ class Assembler : public AssemblerVIXL
         return armbuffer_.nextOffset();
     }
 
-    bool addCodeLabel(CodeLabel label) {
+    void addCodeLabel(CodeLabel label) {
         propagateOOM(codeLabels_.append(label));
     }
     size_t numCodeLabels() const {
