@@ -614,6 +614,7 @@ DebuggerARM64::Run()
             LogProcessorState();
             RunDebuggerShell();
         }
+        fflush(stdout);
         ExecuteInstruction();
     }
 }

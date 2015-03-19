@@ -311,6 +311,8 @@ Simulator::call(uint8_t* entry, int argument_count, ...)
     MOZ_ASSERT(entryStack == exitStack);
 
     int64_t result = xreg(0);
+    if (getenv("USE_DEBUGGER"))
+        printf("LEAVE\n");
     return result;
 }
 
@@ -3008,6 +3010,8 @@ Simulator::VisitCallRedirection(Instruction *instr)
     // Simulate a return.
     set_lr(savedLR);
     set_pc((Instruction *)savedLR);
+    if (getenv("USE_DEBUGGER"))
+        printf("SVCRET\n");
 }
 
 void
@@ -3202,7 +3206,7 @@ js::jit::Simulator::Create()
     if (getenv("USE_DEBUGGER") != nullptr) {
         DebuggerARM64 *debugger = js_new<DebuggerARM64>(decoder_, stdout);
         if (debugger) {
-            debugger->set_log_parameters(LOG_DISASM | LOG_REGS);
+            debugger->set_log_parameters(LOG_DISASM | LOG_REGS | LOG_FP_REGS);
             return debugger;
         }
     }

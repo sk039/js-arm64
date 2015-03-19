@@ -683,8 +683,10 @@ class Simulator : public DecoderVisitor
         address = AddressUntag(address);
         MOZ_ASSERT((sizeof(value) == 1) || (sizeof(value) == 2) ||
                    (sizeof(value) == 4) || (sizeof(value) == 8));
-        if (getenv("USE_DEBUGGER"))
+        if (getenv("USE_DEBUGGER")) {
             printf("Read: %p\n", address);
+            fflush(stdout);
+        }
         memcpy(&value, reinterpret_cast<const char *>(address), sizeof(value));
         return value;
     }
@@ -694,14 +696,15 @@ class Simulator : public DecoderVisitor
         address = AddressUntag(address);
         MOZ_ASSERT((sizeof(value) == 1) || (sizeof(value) == 2) ||
                    (sizeof(value) == 4) || (sizeof(value) == 8));
-        memcpy(reinterpret_cast<char *>(address), &value, sizeof(value));
         if (getenv("USE_DEBUGGER")) {
             uint8_t *ptr = reinterpret_cast<uint8_t *>(&value);
             printf("Write: 0x");
             for(int i = 1; i <= sizeof(T); i++)
                 printf("%02x", ptr[sizeof(T) - i]);
             printf(" -> %p\n", address);
+            fflush(stdout);
         }
+        memcpy(reinterpret_cast<char *>(address), &value, sizeof(value));
 
     }
 
