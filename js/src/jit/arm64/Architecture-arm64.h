@@ -425,7 +425,6 @@ struct FloatRegister
     static uint32_t LastBit(SetType x) {
         return 31 - mozilla::CountLeadingZeroes32(x); // TODO: 64?
     }
-
 };
 
 // ARM/D32 has double registers that cannot be treated as float32.
@@ -447,6 +446,7 @@ hasMultiAlias()
 static const size_t AsmJSCheckedImmediateRange = 0;
 static const size_t AsmJSImmediateRange = 0;
 static const uint32_t JitStackAlignment = 16;
+
 } // namespace jit
 } // namespace js
 
