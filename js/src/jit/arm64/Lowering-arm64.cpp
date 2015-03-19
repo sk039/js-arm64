@@ -506,5 +506,12 @@ LIRGeneratorARM64::visitCompareExchangeTypedArrayElement(MCompareExchangeTypedAr
 void
 LIRGeneratorARM64::visitSubstr(MSubstr *ins)
 {
-    MOZ_CRASH("NYI");
+    LSubstr *lir = new (alloc()) LSubstr(useRegister(ins->string()),
+                                         useRegister(ins->begin()),
+                                         useRegister(ins->length()),
+                                         temp(),
+                                         temp(),
+                                         temp());
+    define(lir, ins);
+    assignSafepoint(lir, ins);
 }
