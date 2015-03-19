@@ -575,6 +575,55 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         B(fail, Assembler::Above);
         And(Dest, Dest, Operand(0xffffffff));
     }
+    void floor(FloatRegister input, Register output, Label *bail) {
+        Label handleZero;
+        //Label handleNeg;
+        Label fin;
+        ARMFPRegister iDbl(input, 64);
+        ARMRegister o64(output, 64);
+        ARMRegister o32(output, 32);
+        Fcmp(iDbl, 0.0);
+        B(Assembler::Equal, &handleZero);
+        //B(Assembler::Signed, &handleNeg);
+        // NaN is always a bail condition, just bail directly.
+        B(Assembler::Overflow, bail);
+        Fcvtms(o64, iDbl);
+        Cmp(o64, Operand(o64, SXTW));
+        B(NotEqual, bail);
+        B(&fin);
+
+        bind(&handleZero);
+        // Move the top word of the double into the output reg, if it is non-zero,
+        // then the original value was -0.0.
+        Fmov(o64, iDbl);
+        Cbnz(o64, bail);
+        bind(&fin);
+    }
+
+    void floorf(FloatRegister input, Register output, Label *bail) {
+        Label handleZero;
+        //Label handleNeg;
+        Label fin;
+        ARMFPRegister iFlt(input, 32);
+        ARMRegister o64(output, 64);
+        ARMRegister o32(output, 32);
+        Fcmp(iFlt, 0.0);
+        B(Assembler::Equal, &handleZero);
+        //B(Assembler::Signed, &handleNeg);
+        // NaN is always a bail condition, just bail directly.
+        B(Assembler::Overflow, bail);
+        Fcvtms(o64, iFlt);
+        Cmp(o64, Operand(o64, SXTW));
+        B(NotEqual, bail);
+        B(&fin);
+
+        bind(&handleZero);
+        // Move the top word of the double into the output reg, if it is non-zero,
+        // then the original value was -0.0.
+        Fmov(o32, iFlt);
+        Cbnz(o32, bail);
+        bind(&fin);
+    }
     void jump(Label *label) {
         B(label);
     }
