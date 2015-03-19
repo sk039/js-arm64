@@ -284,7 +284,7 @@ class Assembler : public AssemblerVIXL
     bool nextLink(BufferOffset cur, BufferOffset *next) {
         Instruction *link = getInstructionAt(cur);
         uint32_t nextLinkOffset = uint32_t(link->ImmPCRawOffset());
-        if (nextLinkOffset == LabelBase::INVALID_OFFSET)
+        if (nextLinkOffset == uint32_t(LabelBase::INVALID_OFFSET))
             return false;
         *next = BufferOffset(nextLinkOffset + cur.getOffset());
         return true;
