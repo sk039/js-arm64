@@ -376,7 +376,9 @@ class Assembler : public AssemblerVIXL
         MOZ_CRASH("AlignDoubleArg()");
     }
     static uint8_t *NextInstruction(uint8_t *instruction, uint32_t *count = nullptr) {
-        MOZ_CRASH("NextInstruction()");
+        if (count != nullptr)
+            *count += 4;
+        return (uint8_t*)(instruction + 4);
     }
     static uintptr_t GetPointer(uint8_t *ptr) {
         Instruction *i = reinterpret_cast<Instruction *>(ptr);
