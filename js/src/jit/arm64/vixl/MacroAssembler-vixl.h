@@ -413,7 +413,6 @@ class MacroAssemblerVIXL : public Assembler
     void Csinc(const ARMRegister& rd, const ARMRegister& rn, const ARMRegister& rm, Condition cond) {
         MOZ_ASSERT(!rd.IsZero());
         MOZ_ASSERT(!rn.IsZero());
-        MOZ_ASSERT(!rm.IsZero());
         MOZ_ASSERT((cond != al) && (cond != nv));
         csinc(rd, rn, rm, cond);
     }
@@ -427,7 +426,6 @@ class MacroAssemblerVIXL : public Assembler
     void Csneg(const ARMRegister& rd, const ARMRegister& rn, const ARMRegister& rm, Condition cond) {
         MOZ_ASSERT(!rd.IsZero());
         MOZ_ASSERT(!rn.IsZero());
-        MOZ_ASSERT(!rm.IsZero());
         MOZ_ASSERT((cond != al) && (cond != nv));
         csneg(rd, rn, rm, cond);
     }

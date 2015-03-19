@@ -1165,10 +1165,10 @@ CodeGeneratorARM64::visitNotD(LNotD *ins)
     masm.Cset(output, Assembler::Equal);
     // dest is 1 iff input == 0, 0 otherwise
     // make it 1 if overflow was set.
-    masm.Csneg(output, output, ZeroRegister32, Assembler::Overflow);
+    masm.Csinc(output, output, ZeroRegister32, Assembler::NoOverflow);
 }
 
-void 
+void
 CodeGeneratorARM64::visitNotF(LNotF *ins)
 {
     ARMFPRegister input(ToFloatRegister(ins->input()), 32);
@@ -1177,7 +1177,7 @@ CodeGeneratorARM64::visitNotF(LNotF *ins)
     masm.Cset(output, Assembler::Equal);
     // dest is 1 iff input == 0, 0 otherwise
     // make it 1 if overflow was set.
-    masm.Csneg(output, output, ZeroRegister32, Assembler::Overflow);
+    masm.Csinc(output, output, ZeroRegister32, Assembler::NoOverflow);
 }
 
 void 
