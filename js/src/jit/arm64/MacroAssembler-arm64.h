@@ -2241,25 +2241,35 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
 
   private:
-    template<typename T>
+    template <typename T>
     void compareExchange(int nbytes, bool signExtend, const T &address, Register oldval,
                          Register newval, Register output)
     {
         MOZ_CRASH("compareExchange");
     }
 
-    template<typename T>
+    template <typename T>
     void atomicFetchOp(int nbytes, bool signExtend, AtomicOp op, const Imm32 &value,
                        const T &address, Register temp, Register output)
     {
         MOZ_CRASH("atomicFetchOp");
     }
 
-    template<typename T>
+    template <typename T>
     void atomicFetchOp(int nbytes, bool signExtend, AtomicOp op, const Register &value,
                        const T &address, Register temp, Register output)
     {
         MOZ_CRASH("atomicFetchOp");
+    }
+
+    template <typename T>
+    void atomicEffectOp(int nbytes, AtomicOp op, const Register &value, const T &mem) {
+        MOZ_CRASH("atomicEffectOp");
+    }
+
+    template <typename T>
+    void atomicEffectOp(int nbytes, AtomicOp op, const Imm32 &value, const T &mem) {
+        MOZ_CRASH("atomicEffectOp");
     }
 
   public:
@@ -2311,6 +2321,20 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     void atomicFetchAdd32(const S &value, const T &mem, Register temp, Register output) {
         atomicFetchOp(4, false, AtomicFetchAddOp, value, mem, temp, output);
     }
+
+    template <typename T, typename S>
+    void atomicAdd8(const S &value, const T &mem) {
+        atomicEffectOp(1, AtomicFetchAddOp, value, mem);
+    }
+    template <typename T, typename S>
+    void atomicAdd16(const S &value, const T &mem) {
+        atomicEffectOp(2, AtomicFetchAddOp, value, mem);
+    }
+    template <typename T, typename S>
+    void atomicAdd32(const S &value, const T &mem) {
+        atomicEffectOp(4, AtomicFetchAddOp, value, mem);
+    }
+
     template<typename T, typename S>
     void atomicFetchSub8SignExtend(const S &value, const T &mem, Register temp, Register output) {
         atomicFetchOp(1, true, AtomicFetchSubOp, value, mem, temp, output);
@@ -2330,6 +2354,19 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     template<typename T, typename S>
     void atomicFetchSub32(const S &value, const T &mem, Register temp, Register output) {
         atomicFetchOp(4, false, AtomicFetchSubOp, value, mem, temp, output);
+    }
+
+    template <typename T, typename S>
+    void atomicSub8(const S &value, const T &mem) {
+        atomicEffectOp(1, AtomicFetchSubOp, value, mem);
+    }
+    template <typename T, typename S>
+    void atomicSub16(const S &value, const T &mem) {
+        atomicEffectOp(2, AtomicFetchSubOp, value, mem);
+    }
+    template <typename T, typename S>
+    void atomicSub32(const S &value, const T &mem) {
+        atomicEffectOp(4, AtomicFetchSubOp, value, mem);
     }
 
     template<typename T, typename S>
@@ -2353,6 +2390,19 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         atomicFetchOp(4, false, AtomicFetchAndOp, value, mem, temp, output);
     }
 
+    template <typename T, typename S>
+    void atomicAnd8(const S &value, const T &mem) {
+        atomicEffectOp(1, AtomicFetchAndOp, value, mem);
+    }
+    template <typename T, typename S>
+    void atomicAnd16(const S &value, const T &mem) {
+        atomicEffectOp(2, AtomicFetchAndOp, value, mem);
+    }
+    template <typename T, typename S>
+    void atomicAnd32(const S &value, const T &mem) {
+        atomicEffectOp(4, AtomicFetchAndOp, value, mem);
+    }
+
     template<typename T, typename S>
     void atomicFetchOr8SignExtend(const S &value, const T &mem, Register temp, Register output) {
         atomicFetchOp(1, true, AtomicFetchOrOp, value, mem, temp, output);
@@ -2374,6 +2424,19 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         atomicFetchOp(4, false, AtomicFetchOrOp, value, mem, temp, output);
     }
 
+    template <typename T, typename S>
+    void atomicOr8(const S &value, const T &mem) {
+        atomicEffectOp(1, AtomicFetchOrOp, value, mem);
+    }
+    template <typename T, typename S>
+    void atomicOr16(const S &value, const T &mem) {
+        atomicEffectOp(2, AtomicFetchOrOp, value, mem);
+    }
+    template <typename T, typename S>
+    void atomicOr32(const S &value, const T &mem) {
+        atomicEffectOp(4, AtomicFetchOrOp, value, mem);
+    }
+
     template<typename T, typename S>
     void atomicFetchXor8SignExtend(const S &value, const T &mem, Register temp, Register output) {
         atomicFetchOp(1, true, AtomicFetchXorOp, value, mem, temp, output);
@@ -2393,6 +2456,19 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     template<typename T, typename S>
     void atomicFetchXor32(const S &value, const T &mem, Register temp, Register output) {
         atomicFetchOp(4, false, AtomicFetchXorOp, value, mem, temp, output);
+    }
+
+    template <typename T, typename S>
+    void atomicXor8(const S &value, const T &mem) {
+        atomicEffectOp(1, AtomicFetchXorOp, value, mem);
+    }
+    template <typename T, typename S>
+    void atomicXor16(const S &value, const T &mem) {
+        atomicEffectOp(2, AtomicFetchXorOp, value, mem);
+    }
+    template <typename T, typename S>
+    void atomicXor32(const S &value, const T &mem) {
+        atomicEffectOp(4, AtomicFetchXorOp, value, mem);
     }
 
     // Emit a BLR or NOP instruction. ToggleCall can be used to patch
