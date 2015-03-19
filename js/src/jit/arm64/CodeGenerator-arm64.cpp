@@ -286,12 +286,19 @@ CodeGeneratorARM64::visitSqrtF(LSqrtF *ins)
     masm.Fsqrt(output, input);
 }
 
-template<typename T>
-ARMRegister toWRegister(const T *a) {
+// FIXME: Uh, is this a static function? It looks like it is...
+template <typename T>
+ARMRegister
+toWRegister(const T *a)
+{
     return ARMRegister(ToRegister(a), 32);
 }
-template<typename T>
-ARMRegister toXRegister(const T *a) {
+
+// FIXME: Uh, is this a static function? It looks like it is...
+template <typename T>
+ARMRegister
+toXRegister(const T *a)
+{
     return ARMRegister(ToRegister(a), 64);
 }
 
