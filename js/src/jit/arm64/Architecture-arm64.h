@@ -383,11 +383,18 @@ struct FloatRegister
         return other.code_ == code_;
     }
     uint32_t numAliased() const {
-        return 1;
+        return 2;
+    }
+    static FloatRegisters::Kind otherkind(FloatRegisters::Kind k) {
+        if (k == FloatRegisters::Double)
+            return FloatRegisters::Single;
+        return FloatRegisters::Double;
     }
     void aliased(uint32_t aliasIdx, FloatRegister *ret) {
-        MOZ_ASSERT(aliasIdx == 0);
-        *ret = *this;
+        if (aliasIdx == 0)
+            *ret = *this;
+        else
+            *ret = FloatRegister(code_, otherkind(k_));
     }
     // This function mostly exists for the ARM backend.  It is to ensure that two
     // floating point registers' types are equivalent.  e.g. S0 is not equivalent
