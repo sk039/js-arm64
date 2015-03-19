@@ -563,7 +563,21 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     void convertFloat32ToInt32(FloatRegister src, Register dest, Label *fail,
                                bool negativeZeroCheck = true)
     {
-        MOZ_CRASH("convertFloat32ToInt32");
+        ARMFPRegister fsrc(src, 32);
+        ARMRegister dest32(dest, 32);
+        ARMRegister dest64(dest, 64);
+        Fcvtzs(dest32, fsrc); // Convert, rounding toward zero.
+        Scvtf(ScratchFloat32Reg_, dest32); // Convert back, using FPCR rounding mode.
+        Fcmp(ScratchFloat32Reg_, fsrc);
+        B(fail, Assembler::NotEqual);
+
+        if (negativeZeroCheck) {
+            Label nonzero;
+            Cbnz(dest32, &nonzero);
+            Fmov(dest64, fsrc);
+            Cbnz(dest64, fail);
+            bind(&nonzero);
+        }
     }
 
     void branchTruncateFloat32(FloatRegister src, Register dest, Label *fail) {
