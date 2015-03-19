@@ -1279,7 +1279,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     CodeOffsetJump branchPtrWithPatch(Condition cond, Address addr, T ptr, RepatchLabel *label) {
         loadPtr(addr, ScratchReg2);
         cmpPtr(ScratchReg2, ptr);
-        jumpWithPatch(label, cond);
+        return jumpWithPatch(label, cond);
     }
 
     void branchPtr(Condition cond, AsmJSAbsoluteAddress lhs, Register rhs, Label *label) {
