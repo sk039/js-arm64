@@ -1358,6 +1358,19 @@ HttpBaseChannel::SetRedirectionLimit(uint32_t value)
   return NS_OK;
 }
 
+nsresult
+HttpBaseChannel::OverrideSecurityInfo(nsISupports* aSecurityInfo)
+{
+  MOZ_RELEASE_ASSERT(!mSecurityInfo,
+                     "This can only be called when we don't have a security info object already");
+  MOZ_RELEASE_ASSERT(aSecurityInfo,
+                     "This can only be called with a valid security info object");
+  MOZ_RELEASE_ASSERT(ShouldIntercept(),
+                     "This can only be called on channels that can be intercepted");
+  mSecurityInfo = aSecurityInfo;
+  return NS_OK;
+}
+
 NS_IMETHODIMP
 HttpBaseChannel::IsNoStoreResponse(bool *value)
 {
@@ -2010,7 +2023,8 @@ void
 HttpBaseChannel::DoNotifyListener()
 {
   if (mListener) {
-    mListener->OnStartRequest(this, mListenerContext);
+    nsCOMPtr<nsIStreamListener> listener = mListener;
+    listener->OnStartRequest(this, mListenerContext);
   }
 
   // Make sure mIsPending is set to false. At this moment we are done from
@@ -2019,7 +2033,8 @@ HttpBaseChannel::DoNotifyListener()
   mIsPending = false;
 
   if (mListener) {
-    mListener->OnStopRequest(this, mListenerContext, mStatus);
+    nsCOMPtr<nsIStreamListener> listener = mListener;
+    listener->OnStopRequest(this, mListenerContext, mStatus);
   }
 
   // We have to make sure to drop the references to listeners and callbacks

@@ -16,6 +16,7 @@
 #include "VideoFrameContainer.h"
 #include "VideoSegment.h"
 #include "MainThreadUtils.h"
+#include "MediaTaskQueue.h"
 #include "nsAutoRef.h"
 #include "GraphDriver.h"
 #include <speex/speex_resampler.h>
@@ -177,6 +178,13 @@ public:
                                         StreamTime aTrackOffset,
                                         uint32_t aTrackEvents,
                                         const MediaSegment& aQueuedMedia) {}
+
+  /**
+   * Notify that all new tracks this iteration have been created.
+   * This is to ensure that tracks added atomically to MediaStreamGraph
+   * are also notified of atomically to MediaStreamListeners.
+   */
+  virtual void NotifyFinishedTrackCreation(MediaStreamGraph* aGraph) {}
 };
 
 /**
@@ -389,7 +397,7 @@ public:
    *
    * Main thread only.
    */
-  void RunAfterPendingUpdates(nsRefPtr<nsIRunnable> aRunnable);
+  void RunAfterPendingUpdates(already_AddRefed<nsIRunnable> aRunnable);
 
   // Signal that the client is done with this MediaStream. It will be deleted later.
   virtual void Destroy();
@@ -776,7 +784,7 @@ public:
    * does not exist. No op if a runnable is already present for this track.
    */
   void DispatchWhenNotEnoughBuffered(TrackID aID,
-      nsIEventTarget* aSignalThread, nsIRunnable* aSignalRunnable);
+      MediaTaskQueue* aSignalQueue, nsIRunnable* aSignalRunnable);
   /**
    * Indicate that a track has ended. Do not do any more API calls
    * affecting this track.
@@ -840,14 +848,14 @@ public:
 
 protected:
   struct ThreadAndRunnable {
-    void Init(nsIEventTarget* aTarget, nsIRunnable* aRunnable)
+    void Init(MediaTaskQueue* aTarget, nsIRunnable* aRunnable)
     {
       mTarget = aTarget;
       mRunnable = aRunnable;
     }
 
-    nsCOMPtr<nsIEventTarget> mTarget;
-    nsCOMPtr<nsIRunnable> mRunnable;
+    nsRefPtr<MediaTaskQueue> mTarget;
+    RefPtr<nsIRunnable> mRunnable;
   };
   enum TrackCommands {
     TRACK_CREATE = MediaStreamListener::TRACK_EVENT_CREATED,
@@ -1174,7 +1182,7 @@ public:
   //
 
   // Main thread only
-  static MediaStreamGraph* GetInstance(DOMMediaStream::TrackTypeHints aHint = DOMMediaStream::HINT_CONTENTS_UNKNOWN,
+  static MediaStreamGraph* GetInstance(bool aStartWithAudioDriver = false,
                                        dom::AudioChannel aChannel = dom::AudioChannel::Normal);
   static MediaStreamGraph* CreateNonRealtimeInstance(TrackRate aSampleRate);
   // Idempotent

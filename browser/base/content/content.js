@@ -32,6 +32,8 @@ XPCOMUtils.defineLazyModuleGetter(this, "AboutReader",
   "resource://gre/modules/AboutReader.jsm");
 XPCOMUtils.defineLazyModuleGetter(this, "ReaderMode",
   "resource://gre/modules/ReaderMode.jsm");
+XPCOMUtils.defineLazyModuleGetter(this, "PageMetadata",
+  "resource://gre/modules/PageMetadata.jsm");
 XPCOMUtils.defineLazyGetter(this, "SimpleServiceDiscovery", function() {
   let ssdp = Cu.import("resource://gre/modules/SimpleServiceDiscovery.jsm", {}).SimpleServiceDiscovery;
   // Register targets
@@ -103,6 +105,9 @@ addMessageListener("MixedContent:ReenableProtection", function() {
 });
 
 addMessageListener("SecondScreen:tab-mirror", function(message) {
+  if (!Services.prefs.getBoolPref("browser.casting.enabled")) {
+    return;
+  }
   let app = SimpleServiceDiscovery.findAppForService(message.data.service);
   if (app) {
     let width = content.innerWidth;
@@ -153,6 +158,13 @@ let handleContentContextMenu = function (event) {
   subject.wrappedJSObject = subject;
   Services.obs.notifyObservers(subject, "content-contextmenu", null);
 
+  let doc = event.target.ownerDocument;
+  let docLocation = doc.location.href;
+  let charSet = doc.characterSet;
+  let baseURI = doc.baseURI;
+  let referrer = doc.referrer;
+  let referrerPolicy = doc.referrerPolicy;
+
   if (Services.appinfo.processType == Services.appinfo.PROCESS_TYPE_CONTENT) {
     let editFlags = SpellCheckHelper.isEditable(event.target, content);
     let spellInfo;
@@ -163,9 +175,11 @@ let handleContentContextMenu = function (event) {
     }
 
     let customMenuItems = PageMenuChild.build(event.target);
-    let principal = event.target.ownerDocument.nodePrincipal;
+    let principal = doc.nodePrincipal;
     sendSyncMessage("contextmenu",
-                    { editFlags, spellInfo, customMenuItems, addonInfo, principal },
+                    { editFlags, spellInfo, customMenuItems, addonInfo,
+                      principal, docLocation, charSet, baseURI, referrer,
+                      referrerPolicy },
                     { event, popupNode: event.target });
   }
   else {
@@ -178,6 +192,11 @@ let handleContentContextMenu = function (event) {
       popupNode: event.target,
       browser: browser,
       addonInfo: addonInfo,
+      documentURIObject: doc.documentURIObject,
+      docLocation: docLocation,
+      charSet: charSet,
+      referrer: referrer,
+      referrerPolicy: referrerPolicy,
     };
   }
 }
@@ -461,19 +480,21 @@ let AboutHomeListener = {
 AboutHomeListener.init(this);
 
 let AboutReaderListener = {
-  _savedArticle: null,
+
+  _articlePromise: null,
 
   init: function() {
     addEventListener("AboutReaderContentLoaded", this, false, true);
     addEventListener("pageshow", this, false);
     addEventListener("pagehide", this, false);
-    addMessageListener("Reader:SavedArticleGet", this);
+    addMessageListener("Reader:ParseDocument", this);
   },
 
   receiveMessage: function(message) {
     switch (message.name) {
-      case "Reader:SavedArticleGet":
-        sendAsyncMessage("Reader:SavedArticleData", { article: this._savedArticle });
+      case "Reader:ParseDocument":
+        this._articlePromise = ReaderMode.parseDocument(content.document).catch(Cu.reportError);
+        content.document.location = "about:reader?url=" + encodeURIComponent(message.data.url);
         break;
     }
   },
@@ -496,7 +517,7 @@ let AboutReaderListener = {
         if (content.document.body) {
           // Update the toolbar icon to show the "reader active" icon.
           sendAsyncMessage("Reader:UpdateReaderButton");
-          new AboutReader(global, content);
+          new AboutReader(global, content, this._articlePromise);
         }
         break;
 
@@ -509,27 +530,8 @@ let AboutReaderListener = {
           return;
         }
 
-        // Reader mode is disabled until proven enabled.
-        this._savedArticle = null;
-
-        ReaderMode.parseDocument(content.document).then(article => {
-          // Do nothing if there is no article, or if the content window has been destroyed.
-          if (article === null || content === null) {
-            return;
-          }
-
-          // The loaded page may have changed while we were parsing the document.
-          // Make sure we've got the current one.
-          let currentURL = Services.io.newURI(content.document.documentURI, null, null).specIgnoringRef;
-          if (article.url !== currentURL) {
-            return;
-          }
-
-          this._savedArticle = article;
-          sendAsyncMessage("Reader:UpdateReaderButton", { isArticle: true });
-
-        }).catch(e => Cu.reportError("Error parsing document: " + e));
-        break;
+        let isArticle = ReaderMode.isProbablyReaderable(content.document);
+        sendAsyncMessage("Reader:UpdateReaderButton", { isArticle: isArticle });
     }
   }
 };
@@ -659,7 +661,7 @@ let ClickEventHandler = {
     let json = { button: event.button, shiftKey: event.shiftKey,
                  ctrlKey: event.ctrlKey, metaKey: event.metaKey,
                  altKey: event.altKey, href: null, title: null,
-                 bookmark: false };
+                 bookmark: false, referrerPolicy: ownerDoc.referrerPolicy };
 
     if (href) {
       json.href = href;
@@ -1000,30 +1002,29 @@ addEventListener("pageshow", function(event) {
   }
 });
 
-let SocialMessenger = {
-  init: function() {
-    addMessageListener("Social:GetPageData", this);
-    addMessageListener("Social:GetMicrodata", this);
-
-    XPCOMUtils.defineLazyGetter(this, "og", function() {
-      let tmp = {};
-      Cu.import("resource:///modules/Social.jsm", tmp);
-      return tmp.OpenGraphBuilder;
-    });
+let PageMetadataMessenger = {
+  init() {
+    addMessageListener("PageMetadata:GetPageData", this);
+    addMessageListener("PageMetadata:GetMicrodata", this);
   },
-  receiveMessage: function(aMessage) {
-    switch(aMessage.name) {
-      case "Social:GetPageData":
-        sendAsyncMessage("Social:PageDataResult", this.og.getData(content.document));
+  receiveMessage(message) {
+    switch(message.name) {
+      case "PageMetadata:GetPageData": {
+        let result = PageMetadata.getData(content.document);
+        sendAsyncMessage("PageMetadata:PageDataResult", result);
         break;
-      case "Social:GetMicrodata":
-        let target = aMessage.objects;
-        sendAsyncMessage("Social:PageDataResult", this.og.getMicrodata(content.document, target));
+      }
+
+      case "PageMetadata:GetMicrodata": {
+        let target = message.objects;
+        let result = PageMetadata.getMicrodata(content.document, target);
+        sendAsyncMessage("PageMetadata:MicrodataResult", result);
         break;
+      }
     }
   }
 }
-SocialMessenger.init();
+PageMetadataMessenger.init();
 
 addEventListener("ActivateSocialFeature", function (aEvent) {
   let document = content.document;
@@ -1110,4 +1111,9 @@ addMessageListener("ContextMenu:MediaCommand", (message) => {
         media.mozRequestFullScreen();
       break;
   }
+});
+
+addMessageListener("ContextMenu:Canvas:ToDataURL", (message) => {
+  let dataURL = message.objects.target.toDataURL();
+  sendAsyncMessage("ContextMenu:Canvas:ToDataURL:Result", { dataURL });
 });

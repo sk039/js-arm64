@@ -195,31 +195,6 @@ SandboxImport(JSContext *cx, unsigned argc, Value *vp)
 }
 
 static bool
-SandboxCreateXMLHttpRequest(JSContext *cx, unsigned argc, jsval *vp)
-{
-    CallArgs args = CallArgsFromVp(argc, vp);
-
-    RootedObject global(cx, JS::CurrentGlobalOrNull(cx));
-    MOZ_ASSERT(global);
-
-    nsIScriptObjectPrincipal *sop =
-        static_cast<nsIScriptObjectPrincipal *>(xpc_GetJSPrivate(global));
-    nsCOMPtr<nsIGlobalObject> iglobal = do_QueryInterface(sop);
-
-    nsCOMPtr<nsIXMLHttpRequest> xhr = new nsXMLHttpRequest();
-    nsresult rv = xhr->Init(nsContentUtils::SubjectPrincipal(), nullptr,
-                            iglobal, nullptr, nullptr);
-    if (NS_FAILED(rv))
-        return false;
-
-    rv = nsContentUtils::WrapNative(cx, xhr, args.rval());
-    if (NS_FAILED(rv))
-        return false;
-
-    return true;
-}
-
-static bool
 SandboxCreateCrypto(JSContext *cx, JS::HandleObject obj)
 {
     MOZ_ASSERT(JS_IsGlobalObject(obj));
@@ -378,13 +353,14 @@ sandbox_convert(JSContext *cx, HandleObject obj, JSType type, MutableHandleValue
 
 static bool
 writeToProto_setProperty(JSContext *cx, JS::HandleObject obj, JS::HandleId id,
-                    bool strict, JS::MutableHandleValue vp)
+                         JS::MutableHandleValue vp, JS::ObjectOpResult &result)
 {
     RootedObject proto(cx);
     if (!JS_GetPrototype(cx, obj, &proto))
         return false;
 
-    return JS_SetPropertyById(cx, proto, id, vp);
+    RootedValue receiver(cx, ObjectValue(*proto));
+    return JS_ForwardSetPropertyTo(cx, proto, id, vp, receiver, result);
 }
 
 static bool
@@ -464,7 +440,7 @@ sandbox_addProperty(JSContext *cx, HandleObject obj, HandleId id, MutableHandleV
     // readonly. We have to use JS_CopyPropertyFrom since it ignores the
     // readonly attribute (as it calls JSObject::defineProperty). See bug
     // 1019181.
-    if (pd.object() && pd.isPermanent()) {
+    if (pd.object() && !pd.configurable()) {
         if (!JS_SetPropertyById(cx, proto, id, vp))
             return false;
     } else {
@@ -759,10 +735,10 @@ bool
 xpc::SandboxProxyHandler::set(JSContext *cx, JS::Handle<JSObject*> proxy,
                               JS::Handle<JSObject*> receiver,
                               JS::Handle<jsid> id,
-                              bool strict,
-                              JS::MutableHandle<Value> vp) const
+                              JS::MutableHandle<Value> vp,
+                              JS::ObjectOpResult &result) const
 {
-    return BaseProxyHandler::set(cx, proxy, receiver, id, strict, vp);
+    return BaseProxyHandler::set(cx, proxy, receiver, id, vp, result);
 }
 
 bool
@@ -843,7 +819,7 @@ xpc::GlobalProperties::Define(JSContext *cx, JS::HandleObject obj)
         return false;
 
     if (XMLHttpRequest &&
-        !JS_DefineFunction(cx, obj, "XMLHttpRequest", SandboxCreateXMLHttpRequest, 0, JSFUN_CONSTRUCTOR))
+        !dom::XMLHttpRequestBinding::GetConstructorObject(cx, obj))
         return false;
 
     if (TextEncoder &&
@@ -1556,8 +1532,8 @@ xpc::EvalInSandbox(JSContext *cx, HandleObject sandboxArg, const nsAString& sour
         JS::CompileOptions options(sandcx);
         options.setFileAndLine(filenameBuf.get(), lineNo)
                .setVersion(jsVersion);
-        JS::RootedObject rootedSandbox(sandcx, sandbox);
-        ok = JS::Evaluate(sandcx, rootedSandbox, options,
+        MOZ_ASSERT(JS_IsGlobalObject(sandbox));
+        ok = JS::Evaluate(sandcx, options,
                           PromiseFlatString(source).get(), source.Length(), &v);
 
         // If the sandbox threw an exception, grab it off the context.

@@ -926,8 +926,8 @@ protected:
     WebGLRefPtr<WebGLBuffer> mBoundTransformFeedbackBuffer;
     WebGLRefPtr<WebGLBuffer> mBoundUniformBuffer;
 
-    UniquePtr<WebGLRefPtr<WebGLBuffer>[]> mBoundUniformBuffers;
-    UniquePtr<WebGLRefPtr<WebGLBuffer>[]> mBoundTransformFeedbackBuffers;
+    nsTArray<WebGLRefPtr<WebGLBuffer>> mBoundUniformBuffers;
+    nsTArray<WebGLRefPtr<WebGLBuffer>> mBoundTransformFeedbackBuffers;
 
     WebGLRefPtr<WebGLBuffer>& GetBufferSlotByTarget(GLenum target);
     WebGLRefPtr<WebGLBuffer>& GetBufferSlotByTargetIndexed(GLenum target,
@@ -965,6 +965,7 @@ private:
     realGLboolean mDitherEnabled;
     realGLboolean mRasterizerDiscardEnabled;
     realGLboolean mScissorTestEnabled;
+    realGLboolean mStencilTestEnabled;
 
     bool ValidateCapabilityEnum(GLenum cap, const char* info);
     realGLboolean* GetStateTrackingSlot(GLenum cap);
@@ -1529,17 +1530,26 @@ protected:
     uint64_t mLastUseIndex;
 
     bool mNeedsFakeNoAlpha;
+    bool mNeedsFakeNoStencil;
 
     struct ScopedMaskWorkaround {
         WebGLContext& mWebGL;
-        const bool mNeedsChange;
+        const bool mFakeNoAlpha;
+        const bool mFakeNoStencil;
 
-        static bool NeedsChange(WebGLContext& webgl) {
+        static bool ShouldFakeNoAlpha(WebGLContext& webgl) {
             // We should only be doing this if we're about to draw to the backbuffer, but
             // the backbuffer needs to have this fake-no-alpha workaround.
             return !webgl.mBoundDrawFramebuffer &&
                    webgl.mNeedsFakeNoAlpha &&
                    webgl.mColorWriteMask[3] != false;
+        }
+
+        static bool ShouldFakeNoStencil(WebGLContext& webgl) {
+            // We should only be doing this if we're about to draw to the backbuffer.
+            return !webgl.mBoundDrawFramebuffer &&
+                   webgl.mNeedsFakeNoStencil &&
+                   webgl.mStencilTestEnabled;
         }
 
         explicit ScopedMaskWorkaround(WebGLContext& webgl);

@@ -352,11 +352,7 @@ IsElementAnchor(nsIContent* aContent)
 {
   // Make sure we are dealing with either an <A> or <AREA> element in the HTML
   // or XHTML namespace.
-  if (!aContent->IsHTML()) {
-    return false;
-  }
-  nsIAtom* nameAtom = aContent->Tag();
-  return nameAtom == nsGkAtoms::a || nameAtom == nsGkAtoms::area;
+  return aContent->IsAnyOfHTMLElements(nsGkAtoms::a, nsGkAtoms::area);
 }
 
 static void
@@ -2620,7 +2616,7 @@ nsDocShell::GetFullscreenAllowed(bool* aFullscreenAllowed)
   }
   nsCOMPtr<Element> frameElement = win->GetFrameElementInternal();
   if (frameElement &&
-      frameElement->IsHTML(nsGkAtoms::iframe) &&
+      frameElement->IsHTMLElement(nsGkAtoms::iframe) &&
       !frameElement->HasAttr(kNameSpaceID_None, nsGkAtoms::allowfullscreen) &&
       !frameElement->HasAttr(kNameSpaceID_None, nsGkAtoms::mozallowfullscreen)) {
     return NS_OK;
@@ -4739,17 +4735,19 @@ nsDocShell::LoadURI(const char16_t* aURI,
                     nsIInputStream* aPostStream,
                     nsIInputStream* aHeaderStream)
 {
-  return LoadURIWithBase(aURI, aLoadFlags, aReferringURI, aPostStream,
-                         aHeaderStream, nullptr);
+  return LoadURIWithOptions(aURI, aLoadFlags, aReferringURI,
+                            mozilla::net::RP_Default, aPostStream,
+                            aHeaderStream, nullptr);
 }
 
 NS_IMETHODIMP
-nsDocShell::LoadURIWithBase(const char16_t* aURI,
-                            uint32_t aLoadFlags,
-                            nsIURI* aReferringURI,
-                            nsIInputStream* aPostStream,
-                            nsIInputStream* aHeaderStream,
-                            nsIURI* aBaseURI)
+nsDocShell::LoadURIWithOptions(const char16_t* aURI,
+                               uint32_t aLoadFlags,
+                               nsIURI* aReferringURI,
+                               uint32_t aReferrerPolicy,
+                               nsIInputStream* aPostStream,
+                               nsIInputStream* aHeaderStream,
+                               nsIURI* aBaseURI)
 {
   NS_ASSERTION((aLoadFlags & 0xf) == 0, "Unexpected flags");
 
@@ -4859,6 +4857,7 @@ nsDocShell::LoadURIWithBase(const char16_t* aURI,
   loadInfo->SetLoadType(ConvertLoadTypeToDocShellLoadInfo(loadType));
   loadInfo->SetPostDataStream(postStream);
   loadInfo->SetReferrer(aReferringURI);
+  loadInfo->SetReferrerPolicy(aReferrerPolicy);
   loadInfo->SetHeadersStream(aHeaderStream);
   loadInfo->SetBaseURI(aBaseURI);
 
@@ -13396,7 +13395,8 @@ nsDocShell::OnLinkClickSync(nsIContent* aContent,
   // XXX When the linking node was HTMLFormElement, it is synchronous event.
   //     That is, the caller of this method is not |OnLinkClickEvent::Run()|
   //     but |HTMLFormElement::SubmitSubmission(...)|.
-  if (nsGkAtoms::form == aContent->Tag() && ShouldBlockLoadingForBackButton()) {
+  if (aContent->IsHTMLElement(nsGkAtoms::form) &&
+      ShouldBlockLoadingForBackButton()) {
     return NS_OK;
   }
 
@@ -13426,7 +13426,7 @@ nsDocShell::OnLinkClickSync(nsIContent* aContent,
 
   uint32_t flags = INTERNAL_LOAD_FLAGS_NONE;
   if (IsElementAnchor(aContent)) {
-    MOZ_ASSERT(aContent->IsHTML());
+    MOZ_ASSERT(aContent->IsHTMLElement());
     nsAutoString referrer;
     aContent->GetAttr(kNameSpaceID_None, nsGkAtoms::rel, referrer);
     nsWhitespaceTokenizerTemplate<nsContentUtils::IsHTMLWhitespace> tok(referrer);

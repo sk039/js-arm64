@@ -1550,7 +1550,7 @@ gfxWindowsPlatform::GetD3D9DeviceManager()
        CompositorParent::IsInCompositorThread())) {
     mDeviceManager = new DeviceManagerD3D9();
     if (!mDeviceManager->Init()) {
-      NS_WARNING("Could not initialise device manager");
+      gfxCriticalError() << "[D3D9] Could not Initialize the DeviceManagerD3D9";
       mDeviceManager = nullptr;
     }
   }
@@ -1581,6 +1581,19 @@ gfxWindowsPlatform::GetD3D11ContentDevice()
 
   return mD3D11ContentDevice;
 }
+
+ID3D11Device*
+gfxWindowsPlatform::GetD3D11MediaDevice()
+{
+  if (mD3D11DeviceInitialized) {
+    return mD3D11MediaDevice;
+  }
+
+  InitD3D11Devices();
+
+  return mD3D11MediaDevice;
+}
+
 
 ReadbackManagerD3D11*
 gfxWindowsPlatform::GetReadbackManager()
@@ -1942,6 +1955,25 @@ gfxWindowsPlatform::InitD3D11Devices()
     Factory::SetDirect3D11Device(mD3D11ContentDevice);
   }
 
+  if (!useWARP || gfxPrefs::LayersD3D11ForceWARP()) {
+    hr = E_INVALIDARG;
+    MOZ_SEH_TRY{
+      hr = d3d11CreateDevice(adapter, useWARP ? D3D_DRIVER_TYPE_WARP : D3D_DRIVER_TYPE_UNKNOWN, nullptr,
+                             D3D11_CREATE_DEVICE_BGRA_SUPPORT,
+                             featureLevels.Elements(), featureLevels.Length(),
+                             D3D11_SDK_VERSION, byRef(mD3D11MediaDevice), nullptr, nullptr);
+    } MOZ_SEH_EXCEPT(EXCEPTION_EXECUTE_HANDLER) {
+      mD3D11MediaDevice = nullptr;
+    }
+
+    if (FAILED(hr)) {
+      d3d11Module.disown();
+      return;
+    }
+
+    mD3D11MediaDevice->SetExceptionMode(0);
+  }
+
   // We leak these everywhere and we need them our entire runtime anyway, let's
   // leak it here as well.
   d3d11Module.disown();
@@ -1971,11 +2003,13 @@ public:
         mVsyncThread = new base::Thread("WindowsVsyncThread");
         const double rate = 1000 / 60.0;
         mSoftwareVsyncRate = TimeDuration::FromMilliseconds(rate);
+        MOZ_RELEASE_ASSERT(mVsyncThread->Start(), "Could not start Windows vsync thread");
       }
 
       virtual void EnableVsync() MOZ_OVERRIDE
       {
         MOZ_ASSERT(NS_IsMainThread());
+        MOZ_ASSERT(mVsyncThread->IsRunning());
         { // scope lock
           MonitorAutoLock lock(mVsyncEnabledLock);
           if (mVsyncEnabled) {
@@ -1984,7 +2018,6 @@ public:
           mVsyncEnabled = true;
         }
 
-        MOZ_RELEASE_ASSERT(mVsyncThread->Start(), "Could not start Windows vsync thread");
         CancelableTask* vsyncStart = NewRunnableMethod(this,
             &D3DVsyncDisplay::VBlankLoop);
         mVsyncThread->message_loop()->PostTask(FROM_HERE, vsyncStart);
@@ -1993,15 +2026,12 @@ public:
       virtual void DisableVsync() MOZ_OVERRIDE
       {
         MOZ_ASSERT(NS_IsMainThread());
-        { // scope lock
-          MonitorAutoLock lock(mVsyncEnabledLock);
-          if (!mVsyncEnabled) {
-            return;
-          }
-          mVsyncEnabled = false;
+        MOZ_ASSERT(mVsyncThread->IsRunning());
+        MonitorAutoLock lock(mVsyncEnabledLock);
+        if (!mVsyncEnabled) {
+          return;
         }
-
-        mVsyncThread->Stop();
+        mVsyncEnabled = false;
       }
 
       virtual bool IsVsyncEnabled() MOZ_OVERRIDE
@@ -2079,6 +2109,7 @@ public:
       {
         MOZ_ASSERT(NS_IsMainThread());
         DisableVsync();
+        mVsyncThread->Stop();
         delete mVsyncThread;
       }
 

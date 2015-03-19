@@ -858,7 +858,7 @@ Console::Assert(JSContext* aCx, bool aCondition,
 METHOD(Count, "count")
 
 void
-Console::__noSuchMethod__()
+Console::NoopMethod()
 {
   // Nothing to do.
 }
@@ -1157,8 +1157,8 @@ Console::ProcessCallData(ConsoleCallData* aData)
     event.mInnerID.Value().SetAsString() = aData->mInnerIDString;
   } else {
     MOZ_ASSERT(aData->mIDType == ConsoleCallData::eNumber);
-    event.mID.Value().SetAsUnsignedLong() = aData->mOuterIDNumber;
-    event.mInnerID.Value().SetAsUnsignedLong() = aData->mInnerIDNumber;
+    event.mID.Value().SetAsUnsignedLongLong() = aData->mOuterIDNumber;
+    event.mInnerID.Value().SetAsUnsignedLongLong() = aData->mInnerIDNumber;
   }
 
   event.mLevel = aData->mMethodString;
@@ -1243,7 +1243,7 @@ Console::ProcessCallData(ConsoleCallData* aData)
       }
     } else {
       JSFunction* fun = js::NewFunctionWithReserved(cx, LazyStackGetter, 0, 0,
-                                                    eventObj, "stacktrace");
+                                                    "stacktrace");
       if (!fun) {
         return;
       }

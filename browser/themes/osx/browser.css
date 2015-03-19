@@ -1286,6 +1286,10 @@ toolbar .toolbarbutton-1 > .toolbarbutton-menubutton-dropmarker > .dropmarker-ic
     -moz-image-region: rect(0px, 832px, 64px, 768px);
   }
 
+  #feed-button[cui-areatype="menu-panel"][panel-multiview-anchor=true] {
+    -moz-image-region: rect(64px, 832px, 128px, 768px);
+  }
+
   #social-share-button[cui-areatype="menu-panel"],
   toolbarpaletteitem[place="palette"] > #social-share-button {
     -moz-image-region: rect(0px, 896px, 64px, 832px);
@@ -2522,6 +2526,8 @@ richlistitem[type~="action"][actiontype="switchtab"][selected="true"] > .ac-url-
     -moz-image-region: rect(0, 64px, 32px, 32px);
   }
 }
+
+%include ../shared/readinglist.inc.css
 
 /* Reader mode button */
 
@@ -4116,6 +4122,27 @@ menulist.translate-infobar-element > .menulist-dropmarker {
   }
 }
 
+/* Loop/ Hello browser styles */
+
+notification[value="loop-sharing-notification"] .notification-button {
+  padding: 1px 5px;
+}
+
+notification[value="loop-sharing-notification"] .button-menubutton-button {
+  -moz-appearance: none;
+  min-width: 0;
+  margin: 0;
+}
+
+notification[value="loop-sharing-notification"] .messageImage {
+  list-style-image: url(chrome://browser/skin/webRTC-sharingScreen-menubar.png);
+}
+@media (min-resolution: 2dppx) {
+  notification[value="loop-sharing-notification"] .messageImage {
+    list-style-image: url(chrome://browser/skin/webRTC-sharingScreen-menubar@2x.png);
+  }
+}
+
 
 .popup-notification-icon {
   width: 64px;
@@ -4193,8 +4220,7 @@ menulist.translate-infobar-element > .menulist-dropmarker {
   list-style-image: url(chrome://global/skin/icons/question-64.png);
 }
 
-.popup-notification-icon[popupid="password-save"],
-.popup-notification-icon[popupid="password-change"] {
+.popup-notification-icon[popupid="password"] {
   list-style-image: url(chrome://mozapps/skin/passwordmgr/key-64.png);
 }
 
@@ -4635,6 +4661,17 @@ window > chatbox {
 
 #eme-notification-icon:hover:active {
   list-style-image: url("chrome://browser/skin/drm-icon.svg#chains-pressed");
+}
+
+#eme-notification-icon[firstplay=true] {
+  animation: emeTeachingMoment 0.2s linear 0s 5 normal;
+}
+
+@keyframes emeTeachingMoment {
+  0% {transform: translateX(0); }
+  25% {transform: translateX(3px) }
+  75% {transform: translateX(-3px) }
+  100% { transform: translateX(0); }
 }
 
 /* Customization mode */

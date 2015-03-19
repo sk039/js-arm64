@@ -151,6 +151,8 @@ struct Zone : public JS::shadow::Zone,
 
     bool canCollect();
 
+    void notifyObservingDebuggers();
+
     enum GCState {
         NoGC,
         Mark,
@@ -163,6 +165,8 @@ struct Zone : public JS::shadow::Zone,
         MOZ_ASSERT(runtimeFromMainThread()->isHeapBusy());
         MOZ_ASSERT_IF(state != NoGC, canCollect());
         gcState_ = state;
+        if (state == Finished)
+            notifyObservingDebuggers();
     }
 
     bool isCollecting() const {
@@ -359,14 +363,14 @@ class ZonesIter
 
 struct CompartmentsInZoneIter
 {
-    explicit CompartmentsInZoneIter(JS::Zone *zone) {
+    explicit CompartmentsInZoneIter(JS::Zone *zone) : zone(zone) {
         it = zone->compartments.begin();
-        end = zone->compartments.end();
     }
 
     bool done() const {
         MOZ_ASSERT(it);
-        return it == end;
+        return it < zone->compartments.begin() ||
+               it >= zone->compartments.end();
     }
     void next() {
         MOZ_ASSERT(!done());
@@ -382,10 +386,11 @@ struct CompartmentsInZoneIter
     JSCompartment *operator->() const { return get(); }
 
   private:
-    JSCompartment **it, **end;
+    JS::Zone *zone;
+    JSCompartment **it;
 
     CompartmentsInZoneIter()
-      : it(nullptr), end(nullptr)
+      : zone(nullptr), it(nullptr)
     {}
 
     // This is for the benefit of CompartmentsIterT::comp.

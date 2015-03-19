@@ -7,6 +7,7 @@
 const {classes: Cc, interfaces: Ci, utils: Cu, results: Cr} = Components;
 
 Cu.import("resource://gre/modules/Services.jsm");
+Cu.import("resource://gre/modules/Task.jsm");
 Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 Cu.import("resource:///modules/readinglist/ReadingList.jsm");
 
@@ -20,6 +21,12 @@ let RLSidebar = {
    * @type {Element}
    */
   list: null,
+
+  /**
+   * A promise that's resolved when building the initial list completes.
+   * @type {Promise}
+   */
+  listPromise: null,
 
   /**
    * <template> element used for constructing list item elements.
@@ -47,13 +54,14 @@ let RLSidebar = {
     addEventListener("unload", () => this.uninit());
 
     this.list = document.getElementById("list");
+    this.emptyListInfo = document.getElementById("emptyListInfo");
     this.itemTemplate = document.getElementById("item-template");
 
     this.list.addEventListener("click", event => this.onListClick(event));
     this.list.addEventListener("mousemove", event => this.onListMouseMove(event));
     this.list.addEventListener("keydown", event => this.onListKeyDown(event), true);
 
-    this.ensureListItems();
+    this.listPromise = this.ensureListItems();
     ReadingList.addListener(this);
 
     let initEvent = new CustomEvent("Initialized", {bubbles: true});
@@ -74,7 +82,7 @@ let RLSidebar = {
    * TODO: We may not want to show this new item right now.
    * TODO: We should guard against the list growing here.
    *
-   * @param {Readinglist.Item} item - Item that was added.
+   * @param {ReadinglistItem} item - Item that was added.
    */
   onItemAdded(item) {
     log.trace(`onItemAdded: ${item}`);
@@ -84,11 +92,13 @@ let RLSidebar = {
     this.list.appendChild(itemNode);
     this.itemNodesById.set(item.id, itemNode);
     this.itemsById.set(item.id, item);
+
+    this.emptyListInfo.hidden = true;
   },
 
   /**
    * Handle an item being deleted from the ReadingList.
-   * @param {ReadingList.Item} item - Item that was deleted.
+   * @param {ReadingListItem} item - Item that was deleted.
    */
   onItemDeleted(item) {
     log.trace(`onItemDeleted: ${item}`);
@@ -99,11 +109,13 @@ let RLSidebar = {
     this.itemsById.delete(item.id);
     // TODO: ensureListItems doesn't yet cope with needing to add one item.
     //this.ensureListItems();
+
+    this.emptyListInfo.hidden = (this.numItems > 0);
   },
 
   /**
    * Handle an item in the ReadingList having any of its properties changed.
-   * @param {ReadingList.Item} item - Item that was updated.
+   * @param {ReadingListItem} item - Item that was updated.
    */
   onItemUpdated(item) {
     log.trace(`onItemUpdated: ${item}`);
@@ -118,12 +130,12 @@ let RLSidebar = {
   /**
    * Update the element representing an item, ensuring it's in sync with the
    * underlying data.
-   * @param {ReadingList.Item} item - Item to use as a source.
+   * @param {ReadingListItem} item - Item to use as a source.
    * @param {Element} itemNode - Element to update.
    */
   updateItem(item, itemNode) {
     itemNode.setAttribute("id", "item-" + item.id);
-    itemNode.setAttribute("title", `${item.title}\n${item.url.spec}`);
+    itemNode.setAttribute("title", `${item.title}\n${item.url}`);
 
     itemNode.querySelector(".item-title").textContent = item.title;
     itemNode.querySelector(".item-domain").textContent = item.domain;
@@ -132,18 +144,17 @@ let RLSidebar = {
   /**
    * Ensure that the list is populated with the correct items.
    */
-  ensureListItems() {
-    ReadingList.getItems().then(items => {
-      for (let item of items) {
-        // TODO: Should be batch inserting via DocumentFragment
-        try {
-          this.onItemAdded(item);
-        } catch (e) {
-          log.warn("Error adding item", e);
-        }
+  ensureListItems: Task.async(function* () {
+    yield ReadingList.forEachItem(item => {
+      // TODO: Should be batch inserting via DocumentFragment
+      try {
+        this.onItemAdded(item);
+      } catch (e) {
+        log.warn("Error adding item", e);
       }
     });
-  },
+    this.emptyListInfo.hidden = (this.numItems > 0);
+  }),
 
   /**
    * Get the number of items currently displayed in the list.
@@ -265,9 +276,7 @@ let RLSidebar = {
    * @param {Event} event - KeyEvent or MouseEvent that triggered this action.
    */
   openURL(url, event) {
-    // TODO: Disabled while working on the listbox mechanics.
     log.debug(`Opening page ${url}`);
-    return;
 
     let mainWindow = window.QueryInterface(Ci.nsIInterfaceRequestor)
                            .getInterface(Ci.nsIWebNavigation)
@@ -317,7 +326,7 @@ let RLSidebar = {
     }
 
     let item = this.getItemFromNode(itemNode);
-    this.openURL(item.url.spec, event);
+    this.openURL(item.url, event);
   },
 
   /**
@@ -346,6 +355,11 @@ let RLSidebar = {
     let itemNode = this.findParentItemNode(event.target);
     if (!itemNode)
       return;
+
+    if (event.target.classList.contains("remove-button")) {
+      ReadingList.deleteItem(this.getItemFromNode(itemNode));
+      return;
+    }
 
     this.activeItem = itemNode;
     this.openActiveItem(event);

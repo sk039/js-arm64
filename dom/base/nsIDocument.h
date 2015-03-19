@@ -16,6 +16,8 @@
 #include "nsILoadGroup.h"                // for member (in nsCOMPtr)
 #include "nsINode.h"                     // for base class
 #include "nsIScriptGlobalObject.h"       // for member (in nsCOMPtr)
+#include "nsIServiceManager.h"
+#include "nsIUUIDGenerator.h"
 #include "nsPIDOMWindow.h"               // for use in inline functions
 #include "nsPropertyTable.h"             // for member
 #include "nsTHashtable.h"                // for member
@@ -146,10 +148,9 @@ struct FullScreenOptions {
 } // namespace dom
 } // namespace mozilla
 
-// 137c6144-513e-4edf-840e-5e3156638ed6
 #define NS_IDOCUMENT_IID \
-{ 0x137c6144, 0x513e, 0x4edf, \
-  { 0x84, 0x0e, 0x5e, 0x31, 0x56, 0x63, 0x8e, 0xd6 } }
+{ 0x0b78eabe, 0x8b94, 0x4ea1, \
+  { 0x93, 0x31, 0x5d, 0x48, 0xe8, 0x3a, 0xda, 0x95 } }
 
 // Enum for requesting a particular type of document when creating a doc
 enum DocumentFlavor {
@@ -182,7 +183,7 @@ class nsIDocument : public nsINode
 {
   typedef mozilla::dom::GlobalObject GlobalObject;
 public:
-  typedef mozilla::net::ReferrerPolicy ReferrerPolicy;
+  typedef mozilla::net::ReferrerPolicy ReferrerPolicyEnum;
   typedef mozilla::dom::Element Element;
 
   NS_DECLARE_STATIC_IID_ACCESSOR(NS_IDOCUMENT_IID)
@@ -289,9 +290,17 @@ public:
    * Return the referrer policy of the document. Return "default" if there's no
    * valid meta referrer tag found in the document.
    */
-  ReferrerPolicy GetReferrerPolicy() const
+  ReferrerPolicyEnum GetReferrerPolicy() const
   {
     return mReferrerPolicy;
+  }
+
+  /**
+   * GetReferrerPolicy() for Document.webidl.
+   */
+  uint32_t ReferrerPolicy() const
+  {
+    return GetReferrerPolicy();
   }
 
   /**
@@ -747,6 +756,8 @@ public:
   nsTArray<nsRefPtr<mozilla::dom::AnonymousContent>>& GetAnonymousContents() {
     return mAnonymousContents;
   }
+
+  nsresult GetId(nsAString& aId);
 
 protected:
   virtual Element *GetRootElementInternal() const = 0;
@@ -1302,7 +1313,7 @@ public:
    * media documents).  Returns false for XHTML and any other documents parsed
    * by the XML parser.
    */
-  bool IsHTML() const
+  bool IsHTMLDocument() const
   {
     return mType == eHTML;
   }
@@ -1310,15 +1321,15 @@ public:
   {
     return mType == eHTML || mType == eXHTML;
   }
-  bool IsXML() const
+  bool IsXMLDocument() const
   {
-    return !IsHTML();
+    return !IsHTMLDocument();
   }
-  bool IsSVG() const
+  bool IsSVGDocument() const
   {
     return mType == eSVG;
   }
-  bool IsXUL() const
+  bool IsXULDocument() const
   {
     return mType == eXUL;
   }
@@ -1328,7 +1339,7 @@ public:
   }
   bool LoadsFullXULStyleSheetUpFront()
   {
-    return IsXUL() || AllowXULXBL();
+    return IsXULDocument() || AllowXULXBL();
   }
 
   virtual bool IsScriptEnabled() = 0;
@@ -1966,7 +1977,7 @@ public:
    */
   virtual void MaybePreLoadImage(nsIURI* uri,
                                  const nsAString& aCrossOriginAttr,
-                                 ReferrerPolicy aReferrerPolicy) = 0;
+                                 ReferrerPolicyEnum aReferrerPolicy) = 0;
 
   /**
    * Called by images to forget an image preload when they start doing
@@ -1981,7 +1992,7 @@ public:
    */
   virtual void PreloadStyle(nsIURI* aURI, const nsAString& aCharset,
                             const nsAString& aCrossOriginAttr,
-                            ReferrerPolicy aReferrerPolicy) = 0;
+                            ReferrerPolicyEnum aReferrerPolicy) = 0;
 
   /**
    * Called by the chrome registry to load style sheets.  Can be put
@@ -2197,6 +2208,16 @@ public:
   void SetMayHaveDOMMutationObservers()
   {
     mMayHaveDOMMutationObservers = true;
+  }
+
+  bool MayHaveAnimationObservers()
+  {
+    return mMayHaveAnimationObservers;
+  }
+
+  void SetMayHaveAnimationObservers()
+  {
+    mMayHaveAnimationObservers = true;
   }
 
   bool IsInSyncOperation()
@@ -2568,7 +2589,7 @@ protected:
   nsWeakPtr mDocumentLoadGroup;
 
   bool mReferrerPolicySet;
-  ReferrerPolicy mReferrerPolicy;
+  ReferrerPolicyEnum mReferrerPolicy;
 
   mozilla::WeakPtr<nsDocShell> mDocumentContainer;
 
@@ -2695,6 +2716,9 @@ protected:
   // True if a DOMMutationObserver is perhaps attached to a node in the document.
   bool mMayHaveDOMMutationObservers;
 
+  // True if an nsIAnimationObserver is perhaps attached to a node in the document.
+  bool mMayHaveAnimationObservers;
+
   // True if a document has loaded Mixed Active Script (see nsMixedContentBlocker.cpp)
   bool mHasMixedActiveContentLoaded;
 
@@ -2786,6 +2810,7 @@ protected:
   nsCOMPtr<nsIChannel> mChannel;
 private:
   nsCString mContentType;
+  nsString mId;
 protected:
 
   // The document's security info

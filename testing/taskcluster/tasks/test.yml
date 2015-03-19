@@ -16,12 +16,14 @@ task:
     - 'queue:define-task:aws-provisioner/test-c4-2xlarge'
     - 'queue:create-task:aws-provisioner/test-c4-2xlarge'
     - 'docker-worker:cache:tc-vcs'
+    - 'docker-worker:cache:buildshare'
 
   payload:
     image: '{{#docker_image}}tester{{/docker_image}}'
     maxRunTime: 3600
     cache:
       tc-vcs: '/home/worker/.tc-vcs'
+      buildshare: '/builds/'
     env:
       GAIA_HEAD_REPOSITORY: '{{{gaia_head_repository}}}'
       GAIA_BASE_REPOSITORY: '{{{gaia_base_repository}}}'
@@ -42,6 +44,9 @@ task:
         expires: '{{#from_now}}1 year{{/from_now}}'
 
   extra:
+    chunks:
+      total: 1
+      current: {{chunk}}
     treeherder:
       groupSymbol: tc
       groupName: Submitted by taskcluster

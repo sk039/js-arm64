@@ -1106,7 +1106,7 @@ HandleFault(int signum, siginfo_t *info, void *ctx)
 # if defined(JS_CODEGEN_X64)
     // These checks aren't necessary, but, since we can, check anyway to make
     // sure we aren't covering up a real bug.
-    uint8_t *faultingAddress = static_cast<uint8_t *>(info->si_addr);
+    uint8_t *faultingAddress = reinterpret_cast<uint8_t *>(info->si_addr);
     if (!module.maybeHeap() ||
         faultingAddress < module.maybeHeap() ||
         faultingAddress >= module.maybeHeap() + AsmJSMappedSize)
@@ -1168,7 +1168,7 @@ RedirectIonBackedgesToInterruptCheck(JSRuntime *rt)
     }
 }
 
-static void
+static bool
 RedirectJitCodeToInterruptCheck(JSRuntime *rt, CONTEXT *context)
 {
     RedirectIonBackedgesToInterruptCheck(rt);
@@ -1189,8 +1189,11 @@ RedirectJitCodeToInterruptCheck(JSRuntime *rt, CONTEXT *context)
         if (module.containsFunctionPC(pc)) {
             activation->setResumePC(pc);
             *ppc = module.interruptExit();
+            return true;
         }
     }
+
+    return false;
 }
 
 #if !defined(XP_WIN)
@@ -1328,8 +1331,8 @@ js::InterruptRunningJitCode(JSRuntime *rt)
         CONTEXT context;
         context.ContextFlags = CONTEXT_CONTROL;
         if (GetThreadContext(thread, &context)) {
-            RedirectJitCodeToInterruptCheck(rt, &context);
-            SetThreadContext(thread, &context);
+            if (RedirectJitCodeToInterruptCheck(rt, &context))
+                SetThreadContext(thread, &context);
         }
         ResumeThread(thread);
     }

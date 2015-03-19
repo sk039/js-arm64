@@ -50,6 +50,7 @@
 #include "nsINetworkLinkService.h"
 
 #include "mozilla/net/NeckoChild.h"
+#include "mozilla/ipc/URIUtils.h"
 #include "mozilla/Telemetry.h"
 
 #if defined(XP_UNIX)
@@ -169,6 +170,7 @@ nsHttpHandler::nsHttpHandler()
     , mLegacyAppName("Mozilla")
     , mLegacyAppVersion("5.0")
     , mProduct("Gecko")
+    , mCompatFirefoxEnabled(false)
     , mUserAgentIsDirty(true)
     , mUseCache(true)
     , mPromptTempRedirect(true)
@@ -203,6 +205,7 @@ nsHttpHandler::nsHttpHandler()
     , mRequestTokenBucketMinParallelism(6)
     , mRequestTokenBucketHz(100)
     , mRequestTokenBucketBurst(32)
+    , mCriticalRequestPrioritization(true)
     , mTCPKeepaliveShortLivedEnabled(false)
     , mTCPKeepaliveShortLivedTimeS(60)
     , mTCPKeepaliveShortLivedIdleTimeS(10)
@@ -1989,6 +1992,13 @@ NS_IMETHODIMP
 nsHttpHandler::SpeculativeConnect(nsIURI *aURI,
                                   nsIInterfaceRequestor *aCallbacks)
 {
+    if (IsNeckoChild()) {
+        ipc::URIParams params;
+        SerializeURI(aURI, params);
+        gNeckoChild->SendSpeculativeConnect(params);
+        return NS_OK;
+    }
+
     if (!mHandlerActive)
         return NS_OK;
 

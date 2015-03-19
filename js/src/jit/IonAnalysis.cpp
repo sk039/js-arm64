@@ -373,6 +373,9 @@ MaybeFoldAndOrBlock(MIRGraph &graph, MBasicBlock *initialBlock)
     MDefinition *branchResult = phi->getOperand(phiBlock->indexForPredecessor(branchBlock));
     MDefinition *initialResult = phi->getOperand(phiBlock->indexForPredecessor(initialBlock));
 
+    if (initialResult != initialTest->input())
+        return;
+
     // OK, we found the desired pattern, now transform the graph.
 
     // Remove the phi from phiBlock.
@@ -557,7 +560,8 @@ jit::EliminateDeadResumePointOperands(MIRGenerator *mir, MIRGraph &graph)
 bool
 js::jit::DeadIfUnused(const MDefinition *def)
 {
-    return !def->isEffectful() && !def->isGuard() && !def->isControlInstruction() &&
+    return !def->isEffectful() && !def->isGuard() && !def->isGuardRangeBailouts() &&
+           !def->isControlInstruction() &&
            (!def->isInstruction() || !def->toInstruction()->resumePoint());
 }
 
@@ -1834,7 +1838,7 @@ CheckOperand(const MNode *consumer, const MUse *use, int32_t *usesBalance)
 #ifdef _DEBUG_CHECK_OPERANDS_USES_BALANCE
     fprintf(stderr, "==Check Operand\n");
     use->producer()->dump(stderr);
-    fprintf(stderr, "  index: %zu\n", use->consumer()->indexOf(use));
+    fprintf(stderr, "  index: %" PRIuSIZE "\n", use->consumer()->indexOf(use));
     use->consumer()->dump(stderr);
     fprintf(stderr, "==End\n");
 #endif
@@ -1852,7 +1856,7 @@ CheckUse(const MDefinition *producer, const MUse *use, int32_t *usesBalance)
 #ifdef _DEBUG_CHECK_OPERANDS_USES_BALANCE
     fprintf(stderr, "==Check Use\n");
     use->producer()->dump(stderr);
-    fprintf(stderr, "  index: %zu\n", use->consumer()->indexOf(use));
+    fprintf(stderr, "  index: %" PRIuSIZE "\n", use->consumer()->indexOf(use));
     use->consumer()->dump(stderr);
     fprintf(stderr, "==End\n");
 #endif
@@ -3036,11 +3040,6 @@ AnalyzePoppedThis(JSContext *cx, ObjectGroup *group,
             if ((*accessedProperties)[i] == setprop->name())
                 return true;
         }
-
-        // Don't add definite properties to an object which won't fit in its
-        // fixed slots.
-        if (GetGCKindSlots(gc::GetGCObjectKind(baseobj->slotSpan() + 1)) <= baseobj->slotSpan())
-            return true;
 
         // Assignments to new properties must always execute.
         if (!definitelyExecuted)

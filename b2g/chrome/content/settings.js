@@ -123,11 +123,6 @@ SettingsListener.observe('language.current', 'en-US', function(value) {
       }
     });
   });
-
-  // Debug flag
-  SettingsListener.observe('ril.debugging.enabled', false, function(value) {
-    Services.prefs.setBoolPref('ril.debugging.enabled', value);
-  });
 })();
 
 //=================== DeviceInfo ====================
@@ -527,7 +522,9 @@ let settingsToObserve = {
   'layers.effect.invert': false,
   'layers.effect.grayscale': false,
   'layers.effect.contrast': "0.0",
+  'network.debugging.enabled': false,
   'privacy.donottrackheader.enabled': false,
+  'ril.debugging.enabled': false,
   'ril.radio.disabled': false,
   'ril.mms.requestReadReport.enabled': {
     prefName: 'dom.mms.requestReadReport',

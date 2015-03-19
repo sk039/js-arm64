@@ -427,10 +427,10 @@ pref("media.getusermedia.screensharing.enabled", true);
 #endif
 
 #ifdef RELEASE_BUILD
-pref("media.getusermedia.screensharing.allowed_domains", "webex.com,*.webex.com,collaborate.com,*.collaborate.com,projectsquared.com,*.projectsquared.com,*.room.co,room.co,beta.talky.io,talky.io,*.clearslide.com,appear.in,*.appear.in,tokbox.com,*.tokbox.com,example.com");
+pref("media.getusermedia.screensharing.allowed_domains", "webex.com,*.webex.com,ciscospark.com,*.ciscospark.com,projectsquared.com,*.projectsquared.com,*.room.co,room.co,beta.talky.io,talky.io,*.clearslide.com,appear.in,*.appear.in,tokbox.com,*.tokbox.com,*.sso.francetelecom.fr,*.si.francetelecom.fr,*.sso.infra.ftgroup,*.multimedia-conference.orange-business.com,*.espacecollaboration.orange-business.com,free.gotomeeting.com,g2m.me,*.g2m.me,example.com");
 #else
  // temporary value, not intended for release - bug 1049087
-pref("media.getusermedia.screensharing.allowed_domains", "mozilla.github.io,webex.com,*.webex.com,collaborate.com,*.collaborate.com,projectsquared.com,*.projectsquared.com,*.room.co,room.co,beta.talky.io,talky.io,*.clearslide.com,appear.in,*.appear.in,tokbox.com,*.tokbox.com,example.com");
+pref("media.getusermedia.screensharing.allowed_domains", "mozilla.github.io,webex.com,*.webex.com,ciscospark.com,*.ciscospark.com,projectsquared.com,*.projectsquared.com,*.room.co,room.co,beta.talky.io,talky.io,*.clearslide.com,appear.in,*.appear.in,tokbox.com,*.tokbox.com,*.sso.francetelecom.fr,*.si.francetelecom.fr,*.sso.infra.ftgroup,*.multimedia-conference.orange-business.com,*.espacecollaboration.orange-business.com,free.gotomeeting.com,g2m.me,*.g2m.me,example.com");
 #endif
 // OS/X 10.6 and XP have screen/window sharing off by default due to various issues - Caveat emptor
 pref("media.getusermedia.screensharing.allow_on_old_platforms", false);
@@ -446,30 +446,20 @@ pref("media.track.enabled", false);
 // We want to enable on non-release  builds and on release windows and mac
 // but on release builds restrict to YouTube. We don't enable for other
 // configurations because code for those platforms isn't ready yet.
-#if defined(XP_WIN) || defined(XP_MACOSX) || !defined(RELEASE_BUILD)
+#if defined(XP_WIN) || defined(XP_MACOSX)
 pref("media.mediasource.enabled", true);
 #else
 pref("media.mediasource.enabled", false);
 #endif
 
 #ifdef RELEASE_BUILD
-pref("media.mediasource.youtubeonly", true);
+pref("media.mediasource.whitelist", true);
 #else
-pref("media.mediasource.youtubeonly", false);
+pref("media.mediasource.whitelist", false);
 #endif // RELEASE_BUILD
 
-#ifdef MOZ_WIDGET_GONK
-pref("media.mediasource.mp4.enabled", false);
-pref("media.mediasource.webm.enabled", false);
-#else
-#if defined(XP_WIN) || defined(XP_MACOSX)
 pref("media.mediasource.mp4.enabled", true);
 pref("media.mediasource.webm.enabled", false);
-#else
-pref("media.mediasource.mp4.enabled", false);
-pref("media.mediasource.webm.enabled", true);
-#endif
-#endif
 
 #ifdef MOZ_WEBSPEECH
 pref("media.webspeech.recognition.enable", false);
@@ -497,9 +487,6 @@ pref("media.audio_data.enabled", false);
 
 // Whether to use async panning and zooming
 pref("layers.async-pan-zoom.enabled", false);
-
-// Whether to enable containerless async scrolling
-pref("layout.async-containerless-scrolling.enabled", true);
 
 // Whether to enable event region building during painting
 pref("layout.event-regions.enabled", false);
@@ -1055,7 +1042,7 @@ pref("dom.webcomponents.enabled",           false);
 pref("javascript.enabled",                  true);
 pref("javascript.options.strict",           false);
 #ifdef DEBUG
-pref("javascript.options.strict.debug",     true);
+pref("javascript.options.strict.debug",     false);
 #endif
 pref("javascript.options.baselinejit",      true);
 pref("javascript.options.ion",              true);
@@ -1373,6 +1360,12 @@ pref("network.http.enforce-framing.soft", true);
 pref("network.ftp.data.qos", 0);
 pref("network.ftp.control.qos", 0);
 
+// If this pref is false only one xpcom event will be served per poll
+// iteration. This is the original behavior.
+// If it is true multiple events will be served.
+pref("network.sts.serve_multiple_events_per_poll_iteration", true);
+// The max time to spend on xpcom events between two polls in ms.
+pref("network.sts.max_time_for_events_between_two_polls", 100);
 // </http>
 
 // 2147483647 == PR_INT32_MAX == ~2 GB
@@ -1581,7 +1574,7 @@ pref("network.dnsCacheEntries", 400);
 pref("network.dnsCacheExpiration", 60);
 
 // Get TTL; not supported on all platforms; nop on the unsupported ones.
-pref("network.dns.get-ttl", true);
+pref("network.dns.get-ttl", false);
 
 // The grace period allows the DNS cache to use expired entries, while kicking off
 // a revalidation in the background.
@@ -1600,6 +1593,9 @@ pref("network.standard-url.escape-utf8", true);
 // This preference controls whether or not URLs are always encoded and sent as
 // UTF-8.
 pref("network.standard-url.encode-utf8", true);
+
+// The maximum allowed length for a URL - 1MB default
+pref("network.standard-url.max-length", 1048576);
 
 // Idle timeout for ftp control connections - 5 minute default
 pref("network.ftp.idleConnectionTimeout", 300);
@@ -1724,6 +1720,11 @@ pref("network.stricttransportsecurity.preloadlist", true);
 
 pref("converter.html2txt.structs",          true); // Output structured phrases (strong, em, code, sub, sup, b, i, u)
 pref("converter.html2txt.header_strategy",  1); // 0 = no indention; 1 = indention, increased with header level; 2 = numbering and slight indention
+// Whether we include ruby annotation in the text despite whether it
+// is requested. This was true because we didn't explicitly strip out
+// annotations. Set false by default to provide a better behavior, but
+// we want to be able to pref-off it if user doesn't like it.
+pref("converter.html2txt.always_include_ruby", false);
 
 pref("intl.accept_languages",               "chrome://global/locale/intl.properties");
 pref("intl.menuitems.alwaysappendaccesskeys","chrome://global/locale/intl.properties");
@@ -2101,6 +2102,23 @@ pref("layout.css.isolation.enabled", true);
 // Is support for CSS Filters enabled?
 pref("layout.css.filters.enabled", true);
 
+// Is support for scroll-snap enabled?
+pref("layout.css.scroll-snap.enabled", false);
+
+// Set the threshold distance in CSS pixels below which scrolling will snap to
+// an edge, when scroll snapping is set to "proximity".
+pref("layout.css.scroll-snap.proximity-threshold", 200);
+
+// When selecting the snap point for CSS scroll snapping, the velocity of the
+// scroll frame is clamped to this speed, in CSS pixels / s.
+pref("layout.css.scroll-snap.prediction-max-velocity", 2000);
+
+// When selecting the snap point for CSS scroll snapping, the velocity of the
+// scroll frame is integrated over this duration, in seconds.  The snap point
+// best suited for this position is selected, enabling the user to perform fling
+// gestures.
+pref("layout.css.scroll-snap.prediction-sensitivity", "0.750");
+
 // Is support for basic shapes in clip-path enabled?
 pref("layout.css.clip-path-shapes.enabled", false);
 
@@ -2156,7 +2174,7 @@ pref("layout.css.prefixes.font-features", true);
 
 // Is the CSS Unprefixing Service enabled? (This service emulates support
 // for certain vendor-prefixed properties & values, for sites on a "fixlist".)
-pref("layout.css.unprefixing-service.enabled", false);
+pref("layout.css.unprefixing-service.enabled", true);
 
 // Is support for the :scope selector enabled?
 pref("layout.css.scope-pseudo.enabled", true);
@@ -2983,7 +3001,7 @@ pref("intl.keyboard.per_window_layout", false);
 
 #ifdef NS_ENABLE_TSF
 // Enable/Disable TSF support on Vista or later.
-#ifdef NIGHTLY_BUILD
+#ifndef RELEASE_BUILD
 pref("intl.tsf.enable", true);
 #else
 pref("intl.tsf.enable", false);
@@ -3006,6 +3024,14 @@ pref("intl.tsf.hack.atok.create_native_caret", true);
 pref("intl.tsf.hack.free_chang_jie.do_not_return_no_layout_error", true);
 // For Easy Changjei
 pref("intl.tsf.hack.easy_changjei.do_not_return_no_layout_error", true);
+// Whether use previous character rect for the result of
+// ITfContextView::GetTextExt() if the specified range is the first character
+// of selected clause of composition string.
+pref("intl.tsf.hack.google_ja_input.do_not_return_no_layout_error_at_first_char", true);
+// Whether use previous character rect for the result of
+// ITfContextView::GetTextExt() if the specified range is the caret of
+// composition string.
+pref("intl.tsf.hack.google_ja_input.do_not_return_no_layout_error_at_caret", true);
 #endif
 
 // See bug 448927, on topmost panel, some IMEs are not usable on Windows.
@@ -3793,7 +3819,7 @@ pref("image.cache.size", 5242880);
 pref("image.cache.timeweight", 500);
 
 // Whether we attempt to downscale images during decoding.
-pref("image.downscale-during-decode.enabled", false);
+pref("image.downscale-during-decode.enabled", true);
 
 // The default Accept header sent for images loaded over HTTP(S)
 pref("image.http.accept", "image/png,image/*;q=0.8,*/*;q=0.5");
@@ -4162,6 +4188,11 @@ pref("dom.imagecapture.enabled", false);
 // W3C touch-action css property (related to touch and pointer events)
 pref("layout.css.touch_action.enabled", false);
 
+// Enables some assertions in nsStyleContext that are too expensive
+// for general use, but might be useful to enable for specific tests.
+// This only has an effect in DEBUG-builds.
+pref("layout.css.expensive-style-struct-assertions.enabled", false);
+
 // enable JS dump() function.
 pref("browser.dom.window.dump.enabled", false);
 
@@ -4441,8 +4472,10 @@ pref("beacon.enabled", true);
 // Camera prefs
 pref("camera.control.face_detection.enabled", true);
 
-// Fetch API.
-pref("dom.fetch.enabled", false);
+
+// SW Cache API
+pref("dom.caches.enabled", false);
+
 #ifdef MOZ_WIDGET_GONK
 // Empirically, this is the value returned by hal::GetTotalSystemMemory()
 // when Flame's memory is limited to 512MiB. If the camera stack determines
@@ -4595,9 +4628,9 @@ pref("media.gmp.insecure.allow", false);
 
 // Use vsync aligned rendering. b2g prefs are in b2g.js
 // Only supported on windows, os x, and b2g
-#if defined(XP_WIN) || defined(XP_MACOSX)
-pref("gfx.vsync.hw-vsync.enabled", false);
-pref("gfx.vsync.compositor", false);
+#if defined(XP_MACOSX) || defined(XP_WIN)
+pref("gfx.vsync.hw-vsync.enabled", true);
+pref("gfx.vsync.compositor", true);
 pref("gfx.vsync.refreshdriver", false);
 #endif
 

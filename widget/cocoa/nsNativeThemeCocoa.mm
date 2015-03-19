@@ -280,9 +280,9 @@ static BOOL IsToolbarStyleContainer(nsIFrame* aFrame)
   if (!content)
     return NO;
 
-  if (content->Tag() == nsGkAtoms::toolbar ||
-      content->Tag() == nsGkAtoms::toolbox ||
-      content->Tag() == nsGkAtoms::statusbar)
+  if (content->IsAnyOfXULElements(nsGkAtoms::toolbar,
+                                  nsGkAtoms::toolbox,
+                                  nsGkAtoms::statusbar))
     return YES;
 
   switch (aFrame->StyleDisplay()->mAppearance) {
@@ -1741,7 +1741,7 @@ nsNativeThemeCocoa::DrawMeter(CGContextRef cgContext, const HIRect& inBoxRect,
   // When using -moz-meterbar on an non meter element, we will not be able to
   // get all the needed information so we just draw an empty meter.
   nsIContent* content = aFrame->GetContent();
-  if (!(content && content->IsHTML(nsGkAtoms::meter))) {
+  if (!(content && content->IsHTMLElement(nsGkAtoms::meter))) {
     DrawCellWithSnapping(mMeterBarCell, cgContext, inBoxRect,
                          meterSetting, VerticalAlignFactor(aFrame),
                          mCellDrawView, IsFrameRTL(aFrame));
@@ -2256,17 +2256,36 @@ nsNativeThemeCocoa::DrawResizer(CGContextRef cgContext, const HIRect& aRect,
 
 static void
 DrawVibrancyBackground(CGContextRef cgContext, CGRect inBoxRect,
-                       nsIFrame* aFrame, nsITheme::ThemeGeometryType aThemeGeometryType)
+                       nsIFrame* aFrame, nsITheme::ThemeGeometryType aThemeGeometryType,
+                       int aCornerRadiusIfOpaque = 0)
 {
   ChildView* childView = ChildViewForFrame(aFrame);
   if (childView) {
     NSRect rect = NSRectFromCGRect(inBoxRect);
     NSGraphicsContext* savedContext = [NSGraphicsContext currentContext];
     [NSGraphicsContext setCurrentContext:[NSGraphicsContext graphicsContextWithGraphicsPort:cgContext flipped:YES]];
+    [NSGraphicsContext saveGraphicsState];
 
-    [[childView vibrancyFillColorForThemeGeometryType:aThemeGeometryType] set];
+    NSColor* fillColor = [childView vibrancyFillColorForThemeGeometryType:aThemeGeometryType];
+    if ([fillColor alphaComponent] == 1.0 && aCornerRadiusIfOpaque > 0) {
+      // The fillColor being opaque means that the system-wide pref "reduce
+      // transparency" is set. In that scenario, we still go through all the
+      // vibrancy rendering paths (VibrancyManager::SystemSupportsVibrancy()
+      // will still return true), but the result just won't look "vibrant".
+      // However, there's one unfortunate change of behavior that this pref
+      // has: It stops the window server from applying window masks. We use
+      // a window mask to get rounded corners on menus. So since the mask
+      // doesn't work in "reduce vibrancy" mode, we need to do our own rounded
+      // corner clipping here.
+      [[NSBezierPath bezierPathWithRoundedRect:rect
+                                       xRadius:aCornerRadiusIfOpaque
+                                       yRadius:aCornerRadiusIfOpaque] addClip];
+    }
+
+    [fillColor set];
     NSRectFill(rect);
 
+    [NSGraphicsContext restoreGraphicsState];
     [NSGraphicsContext setCurrentContext:savedContext];
   }
 }
@@ -2384,7 +2403,7 @@ nsNativeThemeCocoa::DrawWidgetBackground(nsRenderingContext* aContext,
 
     case NS_THEME_MENUPOPUP:
       if (VibrancyManager::SystemSupportsVibrancy()) {
-        DrawVibrancyBackground(cgContext, macRect, aFrame, eThemeGeometryTypeMenu);
+        DrawVibrancyBackground(cgContext, macRect, aFrame, eThemeGeometryTypeMenu, 4);
       } else {
         HIThemeMenuDrawInfo mdi;
         memset(&mdi, 0, sizeof(mdi));
@@ -2514,7 +2533,7 @@ nsNativeThemeCocoa::DrawWidgetBackground(nsRenderingContext* aContext,
 
     case NS_THEME_SPINNER: {
       nsIContent* content = aFrame->GetContent();
-      if (content->IsHTML()) {
+      if (content->IsHTMLElement()) {
         // In HTML the theming for the spin buttons is drawn individually into
         // their own backgrounds instead of being drawn into the background of
         // their spinner parent as it is for XUL.
@@ -2597,12 +2616,6 @@ nsNativeThemeCocoa::DrawWidgetBackground(nsRenderingContext* aContext,
     }
       break;
 
-    case NS_THEME_TOOLBOX: {
-      HIThemeHeaderDrawInfo hdi = { 0, kThemeStateActive, kHIThemeHeaderKindWindow };
-      HIThemeDrawHeader(&macRect, &hdi, cgContext, HITHEME_ORIENTATION);
-    }
-      break;
-
     case NS_THEME_STATUSBAR: 
       DrawStatusBar(cgContext, macRect, aFrame);
       break;
@@ -2634,7 +2647,7 @@ nsNativeThemeCocoa::DrawWidgetBackground(nsRenderingContext* aContext,
       // though, check the focused attribute of xul textboxes in this case.
       // On Mac, focus rings are always shown for textboxes, so we do not need
       // to check the window's focus ring state here
-      if (aFrame->GetContent()->IsXUL() && IsFocused(aFrame)) {
+      if (aFrame->GetContent()->IsXULElement() && IsFocused(aFrame)) {
         eventState |= NS_EVENT_STATE_FOCUS;
       }
 
@@ -3206,7 +3219,7 @@ nsNativeThemeCocoa::GetMinimumWidgetSize(nsPresContext* aPresContext,
     case NS_THEME_SPINNER_DOWN_BUTTON:
     {
       SInt32 buttonHeight = 0, buttonWidth = 0;
-      if (aFrame->GetContent()->IsXUL()) {
+      if (aFrame->GetContent()->IsXULElement()) {
         ::GetThemeMetric(kThemeMetricLittleArrowsWidth, &buttonWidth);
         ::GetThemeMetric(kThemeMetricLittleArrowsHeight, &buttonHeight);
       } else {
@@ -3600,7 +3613,7 @@ nsNativeThemeCocoa::ThemeSupportsWidget(nsPresContext* aPresContext, nsIFrame* a
     case NS_THEME_TEXTFIELD:
     case NS_THEME_TEXTFIELD_MULTILINE:
     case NS_THEME_SEARCHFIELD:
-    //case NS_THEME_TOOLBOX:
+    case NS_THEME_TOOLBOX:
     //case NS_THEME_TOOLBAR_BUTTON:
     case NS_THEME_PROGRESSBAR:
     case NS_THEME_PROGRESSBAR_VERTICAL:
@@ -3812,6 +3825,8 @@ nsNativeThemeCocoa::ThemeGeometryTypeForWidget(nsIFrame* aFrame, uint8_t aWidget
     case NS_THEME_TOOLBAR:
     case NS_THEME_MOZ_MAC_UNIFIED_TOOLBAR:
       return eThemeGeometryTypeToolbar;
+    case NS_THEME_TOOLBOX:
+      return eThemeGeometryTypeToolbox;
     case NS_THEME_WINDOW_BUTTON_BOX:
       return eThemeGeometryTypeWindowButtons;
     case NS_THEME_MOZ_MAC_FULLSCREEN_BUTTON:

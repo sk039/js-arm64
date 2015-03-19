@@ -228,10 +228,7 @@ FetchName(JSContext *cx, HandleObject obj, HandleObject obj2, HandlePropertyName
             vp.setUndefined();
             return true;
         }
-        JSAutoByteString printable;
-        if (AtomToPrintableString(cx, name, &printable))
-            ReportIsNotDefined(cx, printable.ptr());
-        return false;
+        return ReportIsNotDefined(cx, name);
     }
 
     /* Take the slow path if shape was not found in a native object. */
@@ -313,19 +310,34 @@ SetNameOperation(JSContext *cx, JSScript *script, jsbytecode *pc, HandleObject s
     RootedPropertyName name(cx, script->getName(pc));
     RootedValue valCopy(cx, val);
 
-    /*
-     * In strict-mode, we need to trigger an error when trying to assign to an
-     * undeclared global variable. To do this, we call NativeSetProperty
-     * directly and pass Unqualified.
-     */
+    // In strict mode, assigning to an undeclared global variable is an
+    // error. To detect this, we call NativeSetProperty directly and pass
+    // Unqualified. It stores the error, if any, in |result|.
+    bool ok;
+    ObjectOpResult result;
+    RootedId id(cx, NameToId(name));
     if (scope->isUnqualifiedVarObj()) {
         MOZ_ASSERT(!scope->getOps()->setProperty);
-        RootedId id(cx, NameToId(name));
-        return NativeSetProperty(cx, scope.as<NativeObject>(), scope.as<NativeObject>(), id,
-                                 Unqualified, &valCopy, strict);
+        ok = NativeSetProperty(cx, scope.as<NativeObject>(), scope.as<NativeObject>(), id,
+                               Unqualified, &valCopy, result);
+    } else {
+        ok = SetProperty(cx, scope, scope, id, &valCopy, result);
+    }
+    return ok && result.checkStrictErrorOrWarning(cx, scope, id, strict);
+}
+
+inline bool
+InitPropertyOperation(JSContext *cx, JSOp op, HandleObject obj, HandleId id, HandleValue rhs)
+{
+    if (obj->is<PlainObject>() || obj->is<JSFunction>()) {
+        unsigned propAttrs = GetInitDataPropAttrs(op);
+        return NativeDefineProperty(cx, obj.as<NativeObject>(), id, rhs, nullptr, nullptr,
+                                    propAttrs);
     }
 
-    return SetProperty(cx, scope, scope, name, &valCopy, strict);
+    MOZ_ASSERT(obj->as<UnboxedPlainObject>().layout().lookup(id));
+    RootedValue v(cx, rhs);
+    return PutProperty(cx, obj, id, &v, false);
 }
 
 inline bool
@@ -354,10 +366,11 @@ DefVarOrConstOperation(JSContext *cx, HandleObject varobj, HandlePropertyName dn
 
         JSAutoByteString bytes;
         if (AtomToPrintableString(cx, dn, &bytes)) {
+            bool isConst = desc.hasWritable() && !desc.writable();
             JS_ALWAYS_FALSE(JS_ReportErrorFlagsAndNumber(cx, JSREPORT_ERROR,
                                                          GetErrorMessage,
                                                          nullptr, JSMSG_REDECLARED_VAR,
-                                                         desc.isReadonly() ? "const" : "var",
+                                                         isConst ? "const" : "var",
                                                          bytes.ptr()));
         }
         return false;

@@ -27,6 +27,9 @@ PRLogModuleInfo* GetAppleMediaLog() {
 
 namespace mozilla {
 
+// This defines the resolution height over which VDA will be prefered.
+#define VDA_RESOLUTION_THRESHOLD 720
+
 bool AppleDecoderModule::sInitialized = false;
 bool AppleDecoderModule::sIsVTAvailable = false;
 bool AppleDecoderModule::sIsVTHWAvailable = false;
@@ -47,11 +50,11 @@ AppleDecoderModule::Init()
 {
   MOZ_ASSERT(NS_IsMainThread(), "Must be on main thread.");
 
-  sForceVDA = Preferences::GetBool("media.apple.forcevda", false);
-
   if (sInitialized) {
     return;
   }
+
+  Preferences::AddBoolVarCache(&sForceVDA, "media.apple.forcevda", false);
 
   // dlopen VideoDecodeAcceleration.framework if it's available.
   sIsVDAAvailable = AppleVDALinker::Link();
@@ -93,7 +96,7 @@ AppleDecoderModule::CanDecode()
     if (NS_IsMainThread()) {
       Init();
     } else {
-      nsRefPtr<nsIRunnable> task(new InitTask());
+      nsCOMPtr<nsIRunnable> task(new InitTask());
       NS_DispatchToMainThread(task, NS_DISPATCH_SYNC);
     }
   }
@@ -124,7 +127,7 @@ AppleDecoderModule::Startup()
     return NS_ERROR_FAILURE;
   }
 
-  nsRefPtr<nsIRunnable> task(new LinkTask());
+  nsCOMPtr<nsIRunnable> task(new LinkTask());
   NS_DispatchToMainThread(task, NS_DISPATCH_SYNC);
 
   return NS_OK;
@@ -149,7 +152,7 @@ public:
 nsresult
 AppleDecoderModule::Shutdown()
 {
-  nsRefPtr<nsIRunnable> task(new UnlinkTask());
+  nsCOMPtr<nsIRunnable> task(new UnlinkTask());
   NS_DispatchToMainThread(task);
   return NS_OK;
 }
@@ -163,7 +166,9 @@ AppleDecoderModule::CreateVideoDecoder(const mp4_demuxer::VideoDecoderConfig& aC
 {
   nsRefPtr<MediaDataDecoder> decoder;
 
-  if (sIsVDAAvailable && (!sIsVTHWAvailable || sForceVDA)) {
+  if (sIsVDAAvailable &&
+      (!sIsVTHWAvailable || sForceVDA ||
+       aConfig.image_height >= VDA_RESOLUTION_THRESHOLD)) {
     decoder =
       AppleVDADecoder::CreateVDADecoder(aConfig,
                                         aVideoTaskQueue,

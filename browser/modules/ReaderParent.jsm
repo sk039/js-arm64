@@ -14,8 +14,9 @@ Cu.import("resource://gre/modules/Services.jsm");
 Cu.import("resource://gre/modules/Task.jsm");
 
 XPCOMUtils.defineLazyModuleGetter(this, "ReaderMode", "resource://gre/modules/ReaderMode.jsm");
+XPCOMUtils.defineLazyModuleGetter(this, "ReadingList", "resource:///modules/readinglist/ReadingList.jsm");
 
-const gStringBundle = Services.strings.createBundle("chrome://browser/locale/readerMode.properties");
+const gStringBundle = Services.strings.createBundle("chrome://global/locale/aboutReader.properties");
 
 let ReaderParent = {
 
@@ -42,7 +43,7 @@ let ReaderParent = {
   receiveMessage: function(message) {
     switch (message.name) {
       case "Reader:AddToList":
-        // XXX: To implement.
+        ReadingList.addItem(message.data.article);
         break;
 
       case "Reader:ArticleGet":
@@ -59,11 +60,21 @@ let ReaderParent = {
         break;
       }
       case "Reader:ListStatusRequest":
-        // XXX: To implement.
+        ReadingList.containsURL(message.data.url).then(inList => {
+          let mm = message.target.messageManager
+          // Make sure the target browser is still alive before trying to send data back.
+          if (mm) {
+            mm.sendAsyncMessage("Reader:ListStatusData",
+                                { inReadingList: inList, url: message.data.url });
+          }
+        });
         break;
 
       case "Reader:RemoveFromList":
-        // XXX: To implement.
+        // We need to get the "real" item to delete it.
+        ReadingList.getItemForURL(message.data.url).then(item => {
+          ReadingList.deleteItem(item)
+        });
         break;
 
       case "Reader:Share":
@@ -107,7 +118,7 @@ let ReaderParent = {
     if (browser.currentURI.spec.startsWith("about:reader")) {
       button.setAttribute("readeractive", true);
       button.hidden = false;
-      button.setAttribute("tooltiptext", gStringBundle.GetStringFromName("readerView.exit"));
+      button.setAttribute("tooltiptext", gStringBundle.GetStringFromName("readerView.close"));
     } else {
       button.removeAttribute("readeractive");
       button.setAttribute("tooltiptext", gStringBundle.GetStringFromName("readerView.enter"));
@@ -125,7 +136,8 @@ let ReaderParent = {
     }
 
     let win = event.target.ownerDocument.defaultView;
-    let url = win.gBrowser.selectedBrowser.currentURI.spec;
+    let browser = win.gBrowser.selectedBrowser;
+    let url = browser.currentURI.spec;
 
     if (url.startsWith("about:reader")) {
       let originalURL = this._getOriginalUrl(url);
@@ -135,7 +147,7 @@ let ReaderParent = {
         win.openUILinkIn(originalURL, "current", {"allowPinnedTabHostChange": true});
       }
     } else {
-      win.openUILinkIn("about:reader?url=" + encodeURIComponent(url), "current", {"allowPinnedTabHostChange": true});
+      browser.messageManager.sendAsyncMessage("Reader:ParseDocument", { url: url });
     }
   },
 
@@ -162,8 +174,7 @@ let ReaderParent = {
   },
 
   /**
-   * Gets an article for a given URL. This method will download and parse a document
-   * if it does not find the article in the tab data or the cache.
+   * Gets an article for a given URL. This method will download and parse a document.
    *
    * @param url The article URL.
    * @param browser The browser where the article is currently loaded.
@@ -171,33 +182,6 @@ let ReaderParent = {
    * @resolves JS object representing the article, or null if no article is found.
    */
   _getArticle: Task.async(function* (url, browser) {
-    // First, look for a saved article.
-    let article = yield this._getSavedArticle(browser);
-    if (article && article.url == url) {
-      return article;
-    }
-
-    // Next, try to find a parsed article in the cache.
-    let uri = Services.io.newURI(url, null, null);
-    article = yield ReaderMode.getArticleFromCache(uri);
-    if (article) {
-      return article;
-    }
-
-    // Article hasn't been found in the cache, we need to
-    // download the page and parse the article out of it.
     return yield ReaderMode.downloadAndParseDocument(url);
-  }),
-
-  _getSavedArticle: function(browser) {
-    return new Promise((resolve, reject) => {
-      let mm = browser.messageManager;
-      let listener = (message) => {
-        mm.removeMessageListener("Reader:SavedArticleData", listener);
-        resolve(message.data.article);
-      };
-      mm.addMessageListener("Reader:SavedArticleData", listener);
-      mm.sendAsyncMessage("Reader:SavedArticleGet");
-    });
-  }
+  })
 };

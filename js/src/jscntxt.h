@@ -606,8 +606,11 @@ PrintError(JSContext *cx, FILE *file, const char *message, JSErrorReport *report
 void
 CallErrorReporter(JSContext *cx, const char *message, JSErrorReport *report);
 
-extern void
-ReportIsNotDefined(JSContext *cx, const char *name);
+extern bool
+ReportIsNotDefined(JSContext *cx, HandlePropertyName name);
+
+extern bool
+ReportIsNotDefined(JSContext *cx, HandleId id);
 
 /*
  * Report an attempt to access the property of a null or undefined value (v).
@@ -840,7 +843,12 @@ bool intrinsic_IsArrayIterator(JSContext *cx, unsigned argc, Value *vp);
 bool intrinsic_IsStringIterator(JSContext *cx, unsigned argc, Value *vp);
 
 bool intrinsic_IsTypedArray(JSContext *cx, unsigned argc, Value *vp);
+bool intrinsic_TypedArrayBuffer(JSContext *cx, unsigned argc, Value *vp);
+bool intrinsic_TypedArrayByteOffset(JSContext *cx, unsigned argc, Value *vp);
+bool intrinsic_TypedArrayElementShift(JSContext *cx, unsigned argc, Value *vp);
 bool intrinsic_TypedArrayLength(JSContext *cx, unsigned argc, Value *vp);
+
+bool intrinsic_MoveTypedArrayElements(JSContext *cx, unsigned argc, Value *vp);
 
 class AutoLockForExclusiveAccess
 {

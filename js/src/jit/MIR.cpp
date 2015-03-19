@@ -8,6 +8,7 @@
 
 #include "mozilla/FloatingPoint.h"
 #include "mozilla/MathAlgorithms.h"
+#include "mozilla/SizePrintfMacros.h"
 
 #include <ctype.h>
 
@@ -614,6 +615,22 @@ MDefinition::optimizeOutAllUses(TempAllocator &alloc)
     this->uses_.clear();
 }
 
+void
+MDefinition::replaceAllLiveUsesWith(MDefinition *dom)
+{
+    for (MUseIterator i(usesBegin()), e(usesEnd()); i != e; ) {
+        MUse *use = *i++;
+        MNode *consumer = use->consumer();
+        if (consumer->isResumePoint())
+            continue;
+        if (consumer->isDefinition() && consumer->toDefinition()->isRecoveredOnBailout())
+            continue;
+
+        // Update the operand to use the dominating definition.
+        use->replaceProducer(dom);
+    }
+}
+
 bool
 MDefinition::emptyResultTypeSet() const
 {
@@ -761,8 +778,8 @@ MConstant::printOpcode(FILE *fp) const
             }
             if (fun->hasScript()) {
                 JSScript *script = fun->nonLazyScript();
-                fprintf(fp, " (%s:%d)",
-                        script->filename() ? script->filename() : "", (int) script->lineno());
+                fprintf(fp, " (%s:%" PRIuSIZE ")",
+                        script->filename() ? script->filename() : "", script->lineno());
             }
             fprintf(fp, " at %p", (void *) fun);
             break;
@@ -885,7 +902,7 @@ MSimdValueX4::foldsTo(TempAllocator &alloc)
     }
 
     MOZ_ASSERT(allSame);
-    return MSimdSplatX4::New(alloc, type(), getOperand(0));
+    return MSimdSplatX4::New(alloc, getOperand(0), type());
 }
 
 MDefinition*
@@ -947,6 +964,56 @@ MSimdSwizzle::foldsTo(TempAllocator &alloc)
     return this;
 }
 
+MDefinition *
+MSimdGeneralSwizzle::foldsTo(TempAllocator &alloc)
+{
+    int32_t lanes[4];
+    for (size_t i = 0; i < 4; i++) {
+        if (!lane(i)->isConstant() || lane(i)->type() != MIRType_Int32)
+            return this;
+        lanes[i] = lane(i)->toConstant()->value().toInt32();
+        if (lanes[i] < 0 || lanes[i] >= 4)
+            return this;
+    }
+    return MSimdSwizzle::New(alloc, input(), type(), lanes[0], lanes[1], lanes[2], lanes[3]);
+}
+
+template <typename T>
+static void
+PrintOpcodeOperation(T *mir, FILE *fp)
+{
+    mir->MDefinition::printOpcode(fp);
+    fprintf(fp, " (%s)", T::OperationName(mir->operation()));
+}
+
+void
+MSimdBinaryArith::printOpcode(FILE *fp) const
+{
+    PrintOpcodeOperation(this, fp);
+}
+void
+MSimdBinaryBitwise::printOpcode(FILE *fp) const
+{
+    PrintOpcodeOperation(this, fp);
+}
+void
+MSimdUnaryArith::printOpcode(FILE *fp) const
+{
+    PrintOpcodeOperation(this, fp);
+}
+void
+MSimdBinaryComp::printOpcode(FILE *fp) const
+{
+    PrintOpcodeOperation(this, fp);
+}
+
+void
+MSimdInsertElement::printOpcode(FILE *fp) const
+{
+    MDefinition::printOpcode(fp);
+    fprintf(fp, " (%s)", MSimdInsertElement::LaneName(lane()));
+}
+
 MCloneLiteral *
 MCloneLiteral::New(TempAllocator &alloc, MDefinition *obj)
 {
@@ -976,10 +1043,10 @@ MConstantElements::printOpcode(FILE *fp) const
 }
 
 void
-MLoadTypedArrayElement::printOpcode(FILE *fp) const
+MLoadUnboxedScalar::printOpcode(FILE *fp) const
 {
     MDefinition::printOpcode(fp);
-    fprintf(fp, " %s", ScalarTypeDescr::typeName(arrayType()));
+    fprintf(fp, " %s", ScalarTypeDescr::typeName(indexType()));
 }
 
 void
@@ -1334,7 +1401,7 @@ MFloor::trySpecializeFloat32(TempAllocator &alloc)
 {
     MOZ_ASSERT(type() == MIRType_Int32);
     if (EnsureFloatInputOrConvert(this, alloc))
-        setPolicyType(MIRType_Float32);
+        specialization_ = MIRType_Float32;
 }
 
 void
@@ -1342,7 +1409,7 @@ MCeil::trySpecializeFloat32(TempAllocator &alloc)
 {
     MOZ_ASSERT(type() == MIRType_Int32);
     if (EnsureFloatInputOrConvert(this, alloc))
-        setPolicyType(MIRType_Float32);
+        specialization_ = MIRType_Float32;
 }
 
 void
@@ -1350,7 +1417,7 @@ MRound::trySpecializeFloat32(TempAllocator &alloc)
 {
     MOZ_ASSERT(type() == MIRType_Int32);
     if (EnsureFloatInputOrConvert(this, alloc))
-        setPolicyType(MIRType_Float32);
+        specialization_ = MIRType_Float32;
 }
 
 MCompare *
@@ -1913,6 +1980,26 @@ MUrsh::infer(BaselineInspector *inspector, jsbytecode *pc)
 }
 
 static inline bool
+CanProduceNegativeZero(MDefinition *def) {
+    // Test if this instruction can produce negative zero even when bailing out
+    // and changing types.
+    switch (def->op()) {
+        case MDefinition::Op_Constant:
+            if (def->type() == MIRType_Double && def->constantValue().toDouble() == -0.0)
+                return true;
+        case MDefinition::Op_BitAnd:
+        case MDefinition::Op_BitOr:
+        case MDefinition::Op_BitXor:
+        case MDefinition::Op_BitNot:
+        case MDefinition::Op_Lsh:
+        case MDefinition::Op_Rsh:
+            return false;
+        default:
+            return true;
+    }
+}
+
+static inline bool
 NeedNegativeZeroCheck(MDefinition *def)
 {
     // Test if all uses have the same semantics for -0 and 0
@@ -1932,55 +2019,59 @@ NeedNegativeZeroCheck(MDefinition *def)
             // Figure out the order in which the addition's operands will
             // execute. EdgeCaseAnalysis::analyzeLate has renumbered the MIR
             // definitions for us so that this just requires comparing ids.
-            MDefinition *first = use_def->toAdd()->getOperand(0);
-            MDefinition *second = use_def->toAdd()->getOperand(1);
+            MDefinition *first = use_def->toAdd()->lhs();
+            MDefinition *second = use_def->toAdd()->rhs();
             if (first->id() > second->id()) {
                 MDefinition *temp = first;
                 first = second;
                 second = temp;
             }
-
-            if (def == first) {
-                // Negative zero checks can be removed on the first executed
-                // operand only if it is guaranteed the second executed operand
-                // will produce a value other than -0. While the second is
-                // typed as an int32, a bailout taken between execution of the
-                // operands may change that type and cause a -0 to flow to the
-                // second.
-                //
-                // There is no way to test whether there are any bailouts
-                // between execution of the operands, so remove negative
-                // zero checks from the first only if the second's type is
-                // independent from type changes that may occur after bailing.
-                switch (second->op()) {
-                  case MDefinition::Op_Constant:
-                  case MDefinition::Op_BitAnd:
-                  case MDefinition::Op_BitOr:
-                  case MDefinition::Op_BitXor:
-                  case MDefinition::Op_BitNot:
-                  case MDefinition::Op_Lsh:
-                  case MDefinition::Op_Rsh:
-                    break;
-                  default:
-                    return true;
-                }
-            }
+            // Negative zero checks can be removed on the first executed
+            // operand only if it is guaranteed the second executed operand
+            // will produce a value other than -0. While the second is
+            // typed as an int32, a bailout taken between execution of the
+            // operands may change that type and cause a -0 to flow to the
+            // second.
+            //
+            // There is no way to test whether there are any bailouts
+            // between execution of the operands, so remove negative
+            // zero checks from the first only if the second's type is
+            // independent from type changes that may occur after bailing.
+            if (def == first && CanProduceNegativeZero(second))
+                return true;
 
             // The negative zero check can always be removed on the second
             // executed operand; by the time this executes the first will have
             // been evaluated as int32 and the addition's result cannot be -0.
             break;
           }
-          case MDefinition::Op_Sub:
+          case MDefinition::Op_Sub: {
             // If sub is truncating -0 and 0 are observed as the same
             if (use_def->toSub()->isTruncated())
                 break;
+
+            // x + y gives -0, when x is -0 and y is 0
+
+            // We can remove the negative zero check on the rhs, only if we
+            // are sure the lhs isn't negative zero.
+
+            // The lhs is typed as integer (i.e. not -0.0), but it can bailout
+            // and change type. This should be fine if the lhs is executed
+            // first. However if the rhs is executed first, the lhs can bail,
+            // change type and become -0.0 while the rhs has already been
+            // optimized to not make a difference between zero and negative zero.
+            MDefinition *lhs = use_def->toSub()->lhs();
+            MDefinition *rhs = use_def->toSub()->rhs();
+            if (rhs->id() < lhs->id() && CanProduceNegativeZero(lhs))
+                return true;
+
             /* Fall through...  */
+          }
           case MDefinition::Op_StoreElement:
           case MDefinition::Op_StoreElementHole:
           case MDefinition::Op_LoadElement:
           case MDefinition::Op_LoadElementHole:
-          case MDefinition::Op_LoadTypedArrayElement:
+          case MDefinition::Op_LoadUnboxedScalar:
           case MDefinition::Op_LoadTypedArrayElementHole:
           case MDefinition::Op_CharCodeAt:
           case MDefinition::Op_Mod:
@@ -2283,7 +2374,7 @@ MMathFunction::trySpecializeFloat32(TempAllocator &alloc)
     }
 
     setResultType(MIRType_Float32);
-    setPolicyType(MIRType_Float32);
+    specialization_ = MIRType_Float32;
 }
 
 MHypot *MHypot::New(TempAllocator &alloc, const MDefinitionVector & vector)
@@ -2814,6 +2905,7 @@ MTypeOf::foldsTo(TempAllocator &alloc)
 
     switch (inputType()) {
       case MIRType_Double:
+      case MIRType_Float32:
       case MIRType_Int32:
         type = JSTYPE_NUMBER;
         break;
@@ -3269,8 +3361,79 @@ MCompare::tryFoldEqualOperands(bool *result)
             return false;
     }
 
+    if (DeadIfUnused(lhs()))
+        lhs()->setGuardRangeBailouts();
+
     *result = (jsop() == JSOP_STRICTEQ);
     return true;
+}
+
+bool
+MCompare::tryFoldTypeOf(bool *result)
+{
+    if (!lhs()->isTypeOf() && !rhs()->isTypeOf())
+        return false;
+    if (!lhs()->isConstantValue() && !rhs()->isConstantValue())
+        return false;
+
+    MTypeOf *typeOf = lhs()->isTypeOf() ? lhs()->toTypeOf() : rhs()->toTypeOf();
+    const Value *constant = lhs()->isConstantValue() ? lhs()->constantVp() : rhs()->constantVp();
+
+    if (!constant->isString())
+        return false;
+
+    if (jsop() != JSOP_STRICTEQ && jsop() != JSOP_STRICTNE &&
+        jsop() != JSOP_EQ && jsop() != JSOP_NE)
+    {
+        return false;
+    }
+
+    const JSAtomState &names = GetJitContext()->runtime->names();
+    if (constant->toString() == TypeName(JSTYPE_VOID, names)) {
+        if (!typeOf->input()->mightBeType(MIRType_Undefined) &&
+            !typeOf->inputMaybeCallableOrEmulatesUndefined())
+        {
+            *result = (jsop() == JSOP_STRICTNE || jsop() == JSOP_NE);
+            return true;
+        }
+    } else if (constant->toString() == TypeName(JSTYPE_BOOLEAN, names)) {
+        if (!typeOf->input()->mightBeType(MIRType_Boolean)) {
+            *result = (jsop() == JSOP_STRICTNE || jsop() == JSOP_NE);
+            return true;
+        }
+    } else if (constant->toString() == TypeName(JSTYPE_NUMBER, names)) {
+        if (!typeOf->input()->mightBeType(MIRType_Int32) &&
+            !typeOf->input()->mightBeType(MIRType_Float32) &&
+            !typeOf->input()->mightBeType(MIRType_Double))
+        {
+            *result = (jsop() == JSOP_STRICTNE || jsop() == JSOP_NE);
+            return true;
+        }
+    } else if (constant->toString() == TypeName(JSTYPE_STRING, names)) {
+        if (!typeOf->input()->mightBeType(MIRType_String)) {
+            *result = (jsop() == JSOP_STRICTNE || jsop() == JSOP_NE);
+            return true;
+        }
+    } else if (constant->toString() == TypeName(JSTYPE_SYMBOL, names)) {
+        if (!typeOf->input()->mightBeType(MIRType_Symbol)) {
+            *result = (jsop() == JSOP_STRICTNE || jsop() == JSOP_NE);
+            return true;
+        }
+    } else if (constant->toString() == TypeName(JSTYPE_OBJECT, names)) {
+        if (!typeOf->input()->mightBeType(MIRType_Object) &&
+            !typeOf->input()->mightBeType(MIRType_Null))
+        {
+            *result = (jsop() == JSOP_STRICTNE || jsop() == JSOP_NE);
+            return true;
+        }
+    } else if (constant->toString() == TypeName(JSTYPE_FUNCTION, names)) {
+        if (!typeOf->inputMaybeCallableOrEmulatesUndefined()) {
+            *result = (jsop() == JSOP_STRICTNE || jsop() == JSOP_NE);
+            return true;
+        }
+    }
+
+    return false;
 }
 
 bool
@@ -3279,6 +3442,9 @@ MCompare::tryFold(bool *result)
     JSOp op = jsop();
 
     if (tryFoldEqualOperands(result))
+        return true;
+
+    if (tryFoldTypeOf(result))
         return true;
 
     if (compareType_ == Compare_Null || compareType_ == Compare_Undefined) {
@@ -3665,8 +3831,9 @@ MBeta::printOpcode(FILE *fp) const
 bool
 MNewObject::shouldUseVM() const
 {
-    PlainObject *obj = templateObject();
-    return obj->isSingleton() || obj->hasDynamicSlots();
+    if (JSObject *obj = templateObject())
+        return obj->is<PlainObject>() && obj->as<PlainObject>().hasDynamicSlots();
+    return true;
 }
 
 bool
@@ -3685,7 +3852,7 @@ MObjectState::MObjectState(MDefinition *obj)
     setRecoveredOnBailout();
     NativeObject *templateObject = nullptr;
     if (obj->isNewObject())
-        templateObject = obj->toNewObject()->templateObject();
+        templateObject = &obj->toNewObject()->templateObject()->as<PlainObject>();
     else if (obj->isCreateThisWithTemplate())
         templateObject = &obj->toCreateThisWithTemplate()->templateObject()->as<PlainObject>();
     else
@@ -3981,18 +4148,116 @@ MLoadElement::foldsTo(TempAllocator &alloc)
     return foldsToStoredValue(alloc, store->value());
 }
 
-bool
-MGuardShapePolymorphic::congruentTo(const MDefinition *ins) const
+// Gets the MDefinition* representing the source/target object's storage.
+// Usually this is just an MElements*, but sometimes there are layers
+// of indirection or inlining, which are handled elsewhere.
+static inline const MElements *
+MaybeUnwrapElements(const MDefinition *elementsOrObj)
 {
-    if (!ins->isGuardShapePolymorphic())
+    // Sometimes there is a level of indirection for conversion.
+    if (elementsOrObj->isConvertElementsToDoubles())
+        return MaybeUnwrapElements(elementsOrObj->toConvertElementsToDoubles()->elements());
+
+    // For inline elements, the object may be passed directly, for example as MUnbox.
+    if (elementsOrObj->type() == MIRType_Object)
+        return nullptr;
+
+    return elementsOrObj->toElements();
+}
+
+// Gets the MDefinition of the target Object for the given store operation.
+static inline const MDefinition *
+GetStoreObject(const MDefinition *store)
+{
+    switch (store->op()) {
+      case MDefinition::Op_StoreElement: {
+        const MDefinition *elementsOrObj = store->toStoreElement()->elements();
+        const MDefinition *elements = MaybeUnwrapElements(elementsOrObj);
+        if (elements)
+            return elements->toElements()->input();
+
+        MOZ_ASSERT(elementsOrObj->type() == MIRType_Object);
+        return elementsOrObj;
+      }
+
+      case MDefinition::Op_StoreElementHole:
+        return store->toStoreElementHole()->object();
+
+      default:
+        return nullptr;
+    }
+}
+
+// Implements mightAlias() logic common to all load operations.
+static bool
+GenericLoadMightAlias(const MDefinition *elementsOrObj, const MDefinition *store)
+{
+    const MElements *elements = MaybeUnwrapElements(elementsOrObj);
+    if (elements)
+        return elements->mightAlias(store);
+
+    // If MElements couldn't be extracted, then storage must be inline.
+    // Refer to IsValidElementsType().
+    const MDefinition *object = elementsOrObj;
+    MOZ_ASSERT(object->type() == MIRType_Object);
+    if (!object->resultTypeSet())
+        return true;
+
+    const MDefinition *storeObject = GetStoreObject(store);
+    if (!storeObject)
+        return true;
+    if (!storeObject->resultTypeSet())
+        return true;
+
+    return object->resultTypeSet()->objectsIntersect(storeObject->resultTypeSet());
+}
+
+bool
+MElements::mightAlias(const MDefinition *store) const
+{
+    if (!input()->resultTypeSet())
+        return true;
+
+    const MDefinition *storeObj = GetStoreObject(store);
+    if (!storeObj)
+        return true;
+    if (!storeObj->resultTypeSet())
+        return true;
+
+    return input()->resultTypeSet()->objectsIntersect(storeObj->resultTypeSet());
+}
+
+bool
+MLoadElement::mightAlias(const MDefinition *store) const
+{
+    return GenericLoadMightAlias(elements(), store);
+}
+
+bool
+MInitializedLength::mightAlias(const MDefinition *store) const
+{
+    return GenericLoadMightAlias(elements(), store);
+}
+
+bool
+MGuardReceiverPolymorphic::congruentTo(const MDefinition *ins) const
+{
+    if (!ins->isGuardReceiverPolymorphic())
         return false;
 
-    const MGuardShapePolymorphic *other = ins->toGuardShapePolymorphic();
+    const MGuardReceiverPolymorphic *other = ins->toGuardReceiverPolymorphic();
+
     if (numShapes() != other->numShapes())
         return false;
-
     for (size_t i = 0; i < numShapes(); i++) {
         if (getShape(i) != other->getShape(i))
+            return false;
+    }
+
+    if (numUnboxedGroups() != other->numUnboxedGroups())
+        return false;
+    for (size_t i = 0; i < numUnboxedGroups(); i++) {
+        if (getUnboxedGroup(i) != other->getUnboxedGroup(i))
             return false;
     }
 
@@ -4050,6 +4315,16 @@ InlinePropertyTable::hasFunction(JSFunction *func) const
 {
     for (size_t i = 0; i < numEntries(); i++) {
         if (entries_[i]->func == func)
+            return true;
+    }
+    return false;
+}
+
+bool
+InlinePropertyTable::hasObjectGroup(ObjectGroup *group) const
+{
+    for (size_t i = 0; i < numEntries(); i++) {
+        if (entries_[i]->group == group)
             return true;
     }
     return false;
@@ -4229,7 +4504,7 @@ MSqrt::trySpecializeFloat32(TempAllocator &alloc) {
     }
 
     setResultType(MIRType_Float32);
-    setPolicyType(MIRType_Float32);
+    specialization_ = MIRType_Float32;
 }
 
 MDefinition *
@@ -4461,7 +4736,7 @@ jit::PropertyReadNeedsTypeBarrier(JSContext *propertycx,
         if (key->isSingleton())
             obj = key->singleton();
         else
-            obj = key->proto().toObjectOrNull();
+            obj = key->proto().isLazy() ? nullptr : key->proto().toObjectOrNull();
 
         while (obj) {
             if (!obj->getClass()->isNative())
@@ -4749,7 +5024,8 @@ AddGroupGuard(TempAllocator &alloc, MBasicBlock *current, MDefinition *obj,
 
     if (key->isGroup()) {
         guard = MGuardObjectGroup::New(alloc, obj, key->group(), bailOnEquality,
-                                       Bailout_ObjectIdentityOrTypeGuard);
+                                       Bailout_ObjectIdentityOrTypeGuard,
+                                       /* checkUnboxedExpando = */ false);
     } else {
         MConstant *singletonConst = MConstant::NewConstraintlessObject(alloc, key->singleton());
         current->add(singletonConst);

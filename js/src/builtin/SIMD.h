@@ -29,8 +29,8 @@
   V(fromInt32x4Bits, (FuncConvertBits<Int32x4, Float32x4>), 1, 0)                   \
   V(neg, (UnaryFunc<Float32x4, Neg, Float32x4>), 1, 0)                              \
   V(not, (CoercedUnaryFunc<Float32x4, Int32x4, Not, Float32x4>), 1, 0)              \
-  V(reciprocal, (UnaryFunc<Float32x4, Rec, Float32x4>), 1, 0)                       \
-  V(reciprocalSqrt, (UnaryFunc<Float32x4, RecSqrt, Float32x4>), 1, 0)               \
+  V(reciprocalApproximation, (UnaryFunc<Float32x4, RecApprox, Float32x4>), 1, 0)    \
+  V(reciprocalSqrtApproximation, (UnaryFunc<Float32x4, RecSqrtApprox, Float32x4>), 1, 0) \
   V(splat, (FuncSplat<Float32x4>), 1, 0)                                            \
   V(sqrt, (UnaryFunc<Float32x4, Sqrt, Float32x4>), 1, 0)
 
@@ -88,8 +88,8 @@
   V(fromInt32x4, (FuncConvert<Int32x4, Float64x2> ), 1, 0)                          \
   V(fromInt32x4Bits, (FuncConvertBits<Int32x4, Float64x2>), 1, 0)                   \
   V(neg, (UnaryFunc<Float64x2, Neg, Float64x2>), 1, 0)                              \
-  V(reciprocal, (UnaryFunc<Float64x2, Rec, Float64x2>), 1, 0)                       \
-  V(reciprocalSqrt, (UnaryFunc<Float64x2, RecSqrt, Float64x2>), 1, 0)               \
+  V(reciprocalApproximation, (UnaryFunc<Float64x2, RecApprox, Float64x2>), 1, 0)    \
+  V(reciprocalSqrtApproximation, (UnaryFunc<Float64x2, RecSqrtApprox, Float64x2>), 1, 0) \
   V(splat, (FuncSplat<Float64x2>), 1, 0)                                            \
   V(sqrt, (UnaryFunc<Float64x2, Sqrt, Float64x2>), 1, 0)
 
@@ -187,24 +187,28 @@
   INT32X4_QUARTERNARY_FUNCTION_LIST(V)                                              \
   INT32X4_SHUFFLE_FUNCTION_LIST(V)
 
+#define CONVERSION_INT32X4_SIMD_OP(_) \
+    _(fromFloat32x4)                  \
+    _(fromFloat32x4Bits)
 #define FOREACH_INT32X4_SIMD_OP(_)   \
-    _(fromFloat32x4)                 \
-    _(fromFloat32x4Bits)             \
+    CONVERSION_INT32X4_SIMD_OP(_)    \
     _(shiftLeftByScalar)             \
     _(shiftRightArithmeticByScalar)  \
     _(shiftRightLogicalByScalar)
-#define ARITH_FLOAT32X4_SIMD_OP(_)   \
+#define UNARY_ARITH_FLOAT32X4_SIMD_OP(_) \
+    _(abs)                           \
+    _(sqrt)                          \
+    _(reciprocalApproximation)       \
+    _(reciprocalSqrtApproximation)
+#define BINARY_ARITH_FLOAT32X4_SIMD_OP(_) \
     _(div)                           \
     _(max)                           \
     _(min)                           \
     _(maxNum)                        \
     _(minNum)
 #define FOREACH_FLOAT32X4_SIMD_OP(_) \
-    ARITH_FLOAT32X4_SIMD_OP(_)       \
-    _(abs)                           \
-    _(sqrt)                          \
-    _(reciprocal)                    \
-    _(reciprocalSqrt)                \
+    UNARY_ARITH_FLOAT32X4_SIMD_OP(_) \
+    BINARY_ARITH_FLOAT32X4_SIMD_OP(_)\
     _(fromInt32x4)                   \
     _(fromInt32x4Bits)
 #define ARITH_COMMONX4_SIMD_OP(_)    \
@@ -215,35 +219,42 @@
     _(and)                           \
     _(or)                            \
     _(xor)
-#define FOREACH_COMMONX4_SIMD_OP(_)  \
-    ARITH_COMMONX4_SIMD_OP(_)        \
-    BITWISE_COMMONX4_SIMD_OP(_)      \
+#define COMP_COMMONX4_TO_INT32X4_SIMD_OP(_) \
     _(lessThan)                      \
     _(lessThanOrEqual)               \
     _(equal)                         \
     _(notEqual)                      \
     _(greaterThan)                   \
-    _(greaterThanOrEqual)            \
-    _(bitselect)                     \
-    _(select)                        \
-    _(swizzle)                       \
-    _(shuffle)                       \
-    _(splat)                         \
+    _(greaterThanOrEqual)
+#define WITH_COMMONX4_SIMD_OP(_)     \
     _(withX)                         \
     _(withY)                         \
     _(withZ)                         \
-    _(withW)                         \
+    _(withW)
+// TODO: remove when all SIMD calls are inlined (bug 1112155)
+#define ION_COMMONX4_SIMD_OP(_)      \
+    ARITH_COMMONX4_SIMD_OP(_)        \
+    BITWISE_COMMONX4_SIMD_OP(_)      \
+    WITH_COMMONX4_SIMD_OP(_)         \
+    _(bitselect)                     \
+    _(select)                        \
+    _(splat)                         \
     _(not)                           \
     _(neg)                           \
+    _(swizzle)                       \
     _(load)                          \
+    _(store)                         \
+    _(check)
+#define FOREACH_COMMONX4_SIMD_OP(_)  \
+    ION_COMMONX4_SIMD_OP(_)          \
+    COMP_COMMONX4_TO_INT32X4_SIMD_OP(_) \
+    _(shuffle)                       \
     _(loadX)                         \
     _(loadXY)                        \
     _(loadXYZ)                       \
-    _(store)                         \
     _(storeX)                        \
     _(storeXY)                       \
-    _(storeXYZ)                      \
-    _(check)
+    _(storeXYZ)
 #define FORALL_SIMD_OP(_)            \
     FOREACH_INT32X4_SIMD_OP(_)       \
     FOREACH_FLOAT32X4_SIMD_OP(_)     \

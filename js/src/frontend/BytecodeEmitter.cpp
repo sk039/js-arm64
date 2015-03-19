@@ -4243,8 +4243,11 @@ EmitAssignment(ExclusiveContext *cx, BytecodeEmitter *bce, ParseNode *lhs, JSOp 
 }
 
 bool
-ParseNode::getConstantValue(ExclusiveContext *cx, AllowConstantObjects allowObjects, MutableHandleValue vp)
+ParseNode::getConstantValue(ExclusiveContext *cx, AllowConstantObjects allowObjects, MutableHandleValue vp,
+                            NewObjectKind newKind)
 {
+    MOZ_ASSERT(newKind == TenuredObject || newKind == SingletonObject);
+
     switch (getKind()) {
       case PNK_NUMBER:
         vp.setNumber(pn_dval);
@@ -4284,8 +4287,7 @@ ParseNode::getConstantValue(ExclusiveContext *cx, AllowConstantObjects allowObje
             pn = pn_head;
         }
 
-        RootedArrayObject obj(cx, NewDenseFullyAllocatedArray(cx, count, NullPtr(),
-                                                              MaybeSingletonObject));
+        RootedArrayObject obj(cx, NewDenseFullyAllocatedArray(cx, count, NullPtr(), newKind));
         if (!obj)
             return false;
 
@@ -4319,11 +4321,7 @@ ParseNode::getConstantValue(ExclusiveContext *cx, AllowConstantObjects allowObje
         if (allowObjects == DontAllowNestedObjects)
             allowObjects = DontAllowObjects;
 
-        gc::AllocKind kind = GuessObjectGCKind(pn_count);
-        RootedPlainObject obj(cx,
-            NewBuiltinClassInstance<PlainObject>(cx, kind, MaybeSingletonObject));
-        if (!obj)
-            return false;
+        AutoIdValueVector properties(cx);
 
         RootedValue value(cx), idvalue(cx);
         for (ParseNode *pn = pn_head; pn; pn = pn->pn_next) {
@@ -4343,31 +4341,19 @@ ParseNode::getConstantValue(ExclusiveContext *cx, AllowConstantObjects allowObje
                 idvalue = StringValue(pnid->pn_atom);
             }
 
-            uint32_t index;
-            if (IsDefinitelyIndex(idvalue, &index)) {
-                if (!DefineElement(cx, obj, index, value, nullptr, nullptr, JSPROP_ENUMERATE))
-                    return false;
-
-                continue;
-            }
-
-            JSAtom *name = ToAtom<CanGC>(cx, idvalue);
-            if (!name)
+            RootedId id(cx);
+            if (!ValueToId<CanGC>(cx, idvalue, &id))
                 return false;
 
-            if (name->isIndex(&index)) {
-                if (!DefineElement(cx, obj, index, value, nullptr, nullptr, JSPROP_ENUMERATE))
-                    return false;
-            } else {
-                if (!DefineProperty(cx, obj, name->asPropertyName(), value,
-                                    nullptr, nullptr, JSPROP_ENUMERATE))
-                {
-                    return false;
-                }
-            }
+            if (!properties.append(IdValuePair(id, value)))
+                return false;
         }
 
-        ObjectGroup::fixPlainObjectGroup(cx, obj);
+        JSObject *obj = ObjectGroup::newPlainObject(cx, properties.begin(), properties.length(),
+                                                    newKind);
+        if (!obj)
+            return false;
+
         vp.setObject(*obj);
         return true;
       }
@@ -4380,15 +4366,15 @@ ParseNode::getConstantValue(ExclusiveContext *cx, AllowConstantObjects allowObje
 static bool
 EmitSingletonInitialiser(ExclusiveContext *cx, BytecodeEmitter *bce, ParseNode *pn)
 {
+    NewObjectKind newKind = (pn->getKind() == PNK_OBJECT) ? SingletonObject : TenuredObject;
+
     RootedValue value(cx);
-    if (!pn->getConstantValue(cx, ParseNode::AllowObjects, &value))
+    if (!pn->getConstantValue(cx, ParseNode::AllowObjects, &value, newKind))
         return false;
 
-    RootedNativeObject obj(cx, &value.toObject().as<NativeObject>());
-    if (!obj->is<ArrayObject>() && !JSObject::setSingleton(cx, obj))
-        return false;
+    MOZ_ASSERT_IF(newKind == SingletonObject, value.toObject().isSingleton());
 
-    ObjectBox *objbox = bce->parser->newObjectBox(obj);
+    ObjectBox *objbox = bce->parser->newObjectBox(&value.toObject());
     if (!objbox)
         return false;
 
@@ -5360,7 +5346,7 @@ EmitFor(ExclusiveContext *cx, BytecodeEmitter *bce, ParseNode *pn, ptrdiff_t top
 }
 
 static MOZ_NEVER_INLINE bool
-EmitFunc(ExclusiveContext *cx, BytecodeEmitter *bce, ParseNode *pn)
+EmitFunc(ExclusiveContext *cx, BytecodeEmitter *bce, ParseNode *pn, bool needsProto = false)
 {
     FunctionBox *funbox = pn->pn_funbox;
     RootedFunction fun(cx, funbox->function());
@@ -5459,7 +5445,13 @@ EmitFunc(ExclusiveContext *cx, BytecodeEmitter *bce, ParseNode *pn)
         MOZ_ASSERT(fun->isArrow() == (pn->getOp() == JSOP_LAMBDA_ARROW));
         if (fun->isArrow() && Emit1(cx, bce, JSOP_THIS) < 0)
             return false;
+        if (needsProto) {
+            MOZ_ASSERT(pn->getOp() == JSOP_LAMBDA);
+            pn->setOp(JSOP_FUNWITHPROTO);
+        }
         return EmitIndex32(cx, pn->getOp(), index, bce);
+    } else {
+        MOZ_ASSERT(!needsProto);
     }
 
     /*
@@ -6942,12 +6934,9 @@ EmitClass(ExclusiveContext *cx, BytecodeEmitter *bce, ParseNode *pn)
 
     ClassNames *names = classNode.names();
 
-    MOZ_ASSERT(!classNode.heritage(), "For now, no heritage expressions");
-    LexicalScopeNode *innerBlock = classNode.scope();
+    ParseNode *heritageExpression = classNode.heritage();
 
-    ParseNode *classMethods = innerBlock->pn_expr;
-    MOZ_ASSERT(classMethods->isKind(PNK_CLASSMETHODLIST));
-
+    ParseNode *classMethods = classNode.methodList();
     ParseNode *constructor = nullptr;
     for (ParseNode *mn = classMethods->pn_head; mn; mn = mn->pn_next) {
         ClassMethod &method = mn->as<ClassMethod>();
@@ -6964,14 +6953,32 @@ EmitClass(ExclusiveContext *cx, BytecodeEmitter *bce, ParseNode *pn)
     bool savedStrictness = bce->sc->setLocalStrictMode(true);
 
     StmtInfoBCE stmtInfo(cx);
-    if (!EnterBlockScope(cx, bce, &stmtInfo, innerBlock->pn_objbox, JSOP_UNINITIALIZED))
+    if (names) {
+        if (!EnterBlockScope(cx, bce, &stmtInfo, classNode.scopeObject(), JSOP_UNINITIALIZED))
+            return false;
+    }
+
+    if (heritageExpression) {
+        if (!EmitTree(cx, bce, heritageExpression))
+            return false;
+        if (Emit1(cx, bce, JSOP_CLASSHERITAGE) < 0)
+            return false;
+    }
+
+    if (!EmitFunc(cx, bce, constructor, !!heritageExpression))
         return false;
 
-    if (!EmitFunc(cx, bce, constructor))
-        return false;
-
-    if (!EmitNewInit(cx, bce, JSProto_Object))
-        return false;
+    if (heritageExpression) {
+        // JSOP_CLASSHERITAGE leaves both prototypes on the stack. After
+        // creating the constructor, trickly it to the bottom to make the object.
+        if (Emit1(cx, bce, JSOP_SWAP) < 0)
+            return false;
+        if (Emit1(cx, bce, JSOP_OBJWITHPROTO) < 0)
+            return false;
+    } else {
+        if (!EmitNewInit(cx, bce, JSProto_Object))
+            return false;
+    }
 
     if (Emit1(cx, bce, JSOP_DUP2) < 0)
         return false;
@@ -6987,20 +6994,25 @@ EmitClass(ExclusiveContext *cx, BytecodeEmitter *bce, ParseNode *pn)
     if (Emit1(cx, bce, JSOP_POP) < 0)
         return false;
 
-    // That DEFCONST is never gonna be used, but use it here for logical consistency.
-    ParseNode *innerName = names->innerBinding();
-    if (!EmitLexicalInitialization(cx, bce, innerName, JSOP_DEFCONST))
-        return false;
+    if (names) {
+        // That DEFCONST is never gonna be used, but use it here for logical consistency.
+        ParseNode *innerName = names->innerBinding();
+        if (!EmitLexicalInitialization(cx, bce, innerName, JSOP_DEFCONST))
+            return false;
 
-    if (!LeaveNestedScope(cx, bce, &stmtInfo))
-        return false;
+        if (!LeaveNestedScope(cx, bce, &stmtInfo))
+            return false;
 
-    ParseNode *outerName = names->outerBinding();
-    if (!EmitLexicalInitialization(cx, bce, outerName, JSOP_DEFVAR))
-        return false;
-
-    if (Emit1(cx, bce, JSOP_POP) < 0)
-        return false;
+        ParseNode *outerName = names->outerBinding();
+        if (outerName) {
+            if (!EmitLexicalInitialization(cx, bce, outerName, JSOP_DEFVAR))
+                return false;
+            // Only class statements make outer bindings, and they do not leave
+            // themselves on the stack.
+            if (Emit1(cx, bce, JSOP_POP) < 0)
+                return false;
+        }
+    }
 
     MOZ_ALWAYS_TRUE(bce->sc->setLocalStrictMode(savedStrictness));
 
@@ -7768,7 +7780,7 @@ CGObjectList::finish(ObjectArray *array)
     MOZ_ASSERT(length <= INDEX_LIMIT);
     MOZ_ASSERT(length == array->length);
 
-    js::HeapPtrNativeObject *cursor = array->vector + array->length;
+    js::HeapPtrObject *cursor = array->vector + array->length;
     ObjectBox *objbox = lastbox;
     do {
         --cursor;
@@ -7896,7 +7908,7 @@ SrcNoteArity(jssrcnote *sn)
 }
 
 JS_FRIEND_API(unsigned)
-js_SrcNoteLength(jssrcnote *sn)
+js::SrcNoteLength(jssrcnote *sn)
 {
     unsigned arity;
     jssrcnote *base;
@@ -7910,7 +7922,7 @@ js_SrcNoteLength(jssrcnote *sn)
 }
 
 JS_FRIEND_API(ptrdiff_t)
-js_GetSrcNoteOffset(jssrcnote *sn, unsigned which)
+js::GetSrcNoteOffset(jssrcnote *sn, unsigned which)
 {
     /* Find the offset numbered which (i.e., skip exactly which offsets). */
     MOZ_ASSERT(SN_TYPE(sn) != SRC_XDELTA);

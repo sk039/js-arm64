@@ -15,7 +15,7 @@ namespace mozilla {
 namespace dom {
 
 class Promise;
-struct RegistrationOptionList;
+struct RegistrationOptions;
 
 namespace workers {
 class ServiceWorker;
@@ -40,7 +40,7 @@ public:
 
   already_AddRefed<Promise>
   Register(const nsAString& aScriptURL,
-           const RegistrationOptionList& aOptions,
+           const RegistrationOptions& aOptions,
            ErrorResult& aRv);
 
   already_AddRefed<workers::ServiceWorker>
@@ -57,18 +57,8 @@ public:
   GetReady(ErrorResult& aRv);
 
   // Testing only.
-  already_AddRefed<Promise>
-  ClearAllServiceWorkerData(ErrorResult& aRv);
-
-  // Testing only.
   void
   GetScopeForUrl(const nsAString& aUrl, nsString& aScope, ErrorResult& aRv);
-
-  // Testing only.
-  void
-  GetControllingWorkerScriptURLForPath(const nsAString& aPath,
-                                       nsString& aScriptURL,
-                                       ErrorResult& aRv);
 
   // DOMEventTargetHelper
   void DisconnectFromOwner() MOZ_OVERRIDE;

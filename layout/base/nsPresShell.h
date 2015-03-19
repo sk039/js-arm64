@@ -32,6 +32,7 @@
 #include "nsStyleSet.h"
 #include "nsContentUtils.h" // For AddScriptBlocker().
 #include "nsRefreshDriver.h"
+#include "TouchManager.h"
 #include "mozilla/Attributes.h"
 #include "mozilla/EventForwards.h"
 #include "mozilla/MemoryReporting.h"
@@ -197,14 +198,14 @@ public:
 
   virtual void SetIgnoreViewportScrolling(bool aIgnore) MOZ_OVERRIDE;
 
-  virtual nsresult SetResolution(float aXResolution, float aYResolution) MOZ_OVERRIDE {
-    return SetResolutionImpl(aXResolution, aYResolution, /* aScaleToResolution = */ false);
+  virtual nsresult SetResolution(float aResolution) MOZ_OVERRIDE {
+    return SetResolutionImpl(aResolution, /* aScaleToResolution = */ false);
   }
-  virtual nsresult SetResolutionAndScaleTo(float aXResolution, float aYResolution) MOZ_OVERRIDE {
-    return SetResolutionImpl(aXResolution, aYResolution, /* aScaleToResolution = */ true);
+  virtual nsresult SetResolutionAndScaleTo(float aResolution) MOZ_OVERRIDE {
+    return SetResolutionImpl(aResolution, /* aScaleToResolution = */ true);
   }
   virtual bool ScaleToResolution() const MOZ_OVERRIDE;
-  virtual gfxSize GetCumulativeResolution() MOZ_OVERRIDE;
+  virtual float GetCumulativeResolution() MOZ_OVERRIDE;
 
   //nsIViewObserver interface
 
@@ -234,8 +235,6 @@ public:
   // touch caret
   virtual already_AddRefed<mozilla::TouchCaret> GetTouchCaret() const MOZ_OVERRIDE;
   virtual mozilla::dom::Element* GetTouchCaretElement() const MOZ_OVERRIDE;
-  virtual void SetMayHaveTouchCaret(bool aSet) MOZ_OVERRIDE;
-  virtual bool MayHaveTouchCaret() MOZ_OVERRIDE;
   // selection caret
   virtual already_AddRefed<mozilla::SelectionCarets> GetSelectionCarets() const MOZ_OVERRIDE;
   virtual mozilla::dom::Element* GetSelectionCaretsStartElement() const MOZ_OVERRIDE;
@@ -463,12 +462,10 @@ protected:
 
   struct RenderingState {
     explicit RenderingState(PresShell* aPresShell)
-      : mXResolution(aPresShell->mXResolution)
-      , mYResolution(aPresShell->mYResolution)
+      : mResolution(aPresShell->mResolution)
       , mRenderFlags(aPresShell->mRenderFlags)
     { }
-    float mXResolution;
-    float mYResolution;
+    float mResolution;
     RenderFlags mRenderFlags;
   };
 
@@ -481,8 +478,7 @@ protected:
     ~AutoSaveRestoreRenderingState()
     {
       mPresShell->mRenderFlags = mOldState.mRenderFlags;
-      mPresShell->mXResolution = mOldState.mXResolution;
-      mPresShell->mYResolution = mOldState.mYResolution;
+      mPresShell->mResolution = mOldState.mResolution;
     }
 
     PresShell* mPresShell;
@@ -740,8 +736,6 @@ protected:
   static void MarkImagesInListVisible(const nsDisplayList& aList);
   void MarkImagesInSubtreeVisible(nsIFrame* aFrame, const nsRect& aRect);
 
-  void EvictTouches();
-
   // Methods for dispatching KeyboardEvent and BeforeAfterKeyboardEvent.
   void HandleKeyboardEvent(nsINode* aTarget,
                            mozilla::WidgetKeyboardEvent& aEvent,
@@ -763,7 +757,7 @@ protected:
   // A list of images that are visible or almost visible.
   nsTHashtable< nsRefPtrHashKey<nsIImageLoadingContent> > mVisibleImages;
 
-  nsresult SetResolutionImpl(float aXResolution, float aYResolution, bool aScaleToResolution);
+  nsresult SetResolutionImpl(float aResolution, bool aScaleToResolution);
 
 #ifdef DEBUG
   // The reflow root under which we're currently reflowing.  Null when
@@ -811,6 +805,9 @@ protected:
   nsRefPtr<nsCaret>         mOriginalCaret;
   nsCallbackEventRequest*   mFirstCallbackEventRequest;
   nsCallbackEventRequest*   mLastCallbackEventRequest;
+
+  // TouchManager
+  TouchManager              mTouchManager;
 
   // TouchCaret
   nsRefPtr<mozilla::TouchCaret> mTouchCaret;

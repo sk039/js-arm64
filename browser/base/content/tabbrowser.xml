@@ -981,7 +981,7 @@
             // Strip out any null bytes in the content title, since the
             // underlying widget implementations of nsWindow::SetTitle pass
             // null-terminated strings to system APIs.
-            var docTitle = aBrowser.contentTitle.replace("\0", "", "g");
+            var docTitle = aBrowser.contentTitle.replace(/\0/g, "");
 
             if (!docTitle)
               docTitle = docElement.getAttribute("titledefault");
@@ -1374,6 +1374,7 @@
         <parameter name="aAllowThirdPartyFixup"/>
         <body>
           <![CDATA[
+            var aReferrerPolicy;
             var aFromExternal;
             var aRelatedToCurrent;
             var aAllowMixedContent;
@@ -1385,6 +1386,7 @@
                 !(arguments[1] instanceof Ci.nsIURI)) {
               let params = arguments[1];
               aReferrerURI          = params.referrerURI;
+              aReferrerPolicy       = params.referrerPolicy;
               aCharset              = params.charset;
               aPostData             = params.postData;
               aLoadInBackground     = params.inBackground;
@@ -1402,6 +1404,7 @@
             var owner = bgLoad ? null : this.selectedTab;
             var tab = this.addTab(aURI, {
                                   referrerURI: aReferrerURI,
+                                  referrerPolicy: aReferrerPolicy,
                                   charset: aCharset,
                                   postData: aPostData,
                                   ownerTab: owner,
@@ -1498,7 +1501,7 @@
             aBrowser.setAttribute("remote", aShouldBeRemote ? "true" : "false");
             // Tearing down the browser gives a new permanentKey but we want to
             // keep the old one. Re-set it explicitly after unbinding from DOM.
-            aBrowser.permanentKey = permanentKey;
+            aBrowser._permanentKey = permanentKey;
             parent.appendChild(aBrowser);
 
             // Restore the progress listener.
@@ -1686,6 +1689,7 @@
         <body>
           <![CDATA[
             const NS_XUL = "http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul";
+            var aReferrerPolicy;
             var aFromExternal;
             var aRelatedToCurrent;
             var aSkipAnimation;
@@ -1697,6 +1701,7 @@
                 !(arguments[1] instanceof Ci.nsIURI)) {
               let params = arguments[1];
               aReferrerURI          = params.referrerURI;
+              aReferrerPolicy       = params.referrerPolicy;
               aCharset              = params.charset;
               aPostData             = params.postData;
               aOwner                = params.ownerTab;
@@ -1850,9 +1855,13 @@
               if (aAllowMixedContent)
                 flags |= Ci.nsIWebNavigation.LOAD_FLAGS_ALLOW_MIXED_CONTENT;
               try {
-                b.loadURIWithFlags(aURI, flags,
-                                   aNoReferrer ? null : aReferrerURI,
-                                   aCharset, aPostData);
+                b.loadURIWithFlags(aURI, {
+                                   flags: flags,
+                                   referrerURI: aNoReferrer ? null: aReferrerURI,
+                                   referrerPolicy: aReferrerPolicy,
+                                   charset: aCharset,
+                                   postData: aPostData,
+                                   });
               } catch (ex) {
                 Cu.reportError(ex);
               }
@@ -2475,12 +2484,6 @@
             // Make sure to unregister any open URIs.
             this._swapRegisteredOpenURIs(ourBrowser, aOtherBrowser);
 
-            // Give others a chance to swap state.
-            let event = new CustomEvent("SwapDocShells", {"detail": aOtherBrowser});
-            ourBrowser.dispatchEvent(event);
-            event = new CustomEvent("SwapDocShells", {"detail": ourBrowser});
-            aOtherBrowser.dispatchEvent(event);
-
             // Swap the docshells
             ourBrowser.swapDocShells(aOtherBrowser);
 
@@ -2935,6 +2938,11 @@
         <parameter name="aPostData"/>
         <body>
           <![CDATA[
+            // Note - the callee understands both:
+            // (a) loadURIWithFlags(aURI, aFlags, ...)
+            // (b) loadURIWithFlags(aURI, { flags: aFlags, ... })
+            // Forwarding it as (a) here actually supports both (a) and (b),
+            // so you can call us either way too.
             return this.mCurrentBrowser.loadURIWithFlags(aURI, aFlags, aReferrerURI, aCharset, aPostData);
           ]]>
         </body>
@@ -3218,6 +3226,9 @@
               let spellInfo = aMessage.data.spellInfo;
               if (spellInfo)
                 spellInfo.target = aMessage.target.messageManager;
+              let documentURIObject = makeURI(aMessage.data.docLocation,
+                                              aMessage.data.charSet,
+                                              makeURI(aMessage.data.baseURI));
               gContextMenuContentData = { isRemote: true,
                                           event: aMessage.objects.event,
                                           popupNode: aMessage.objects.popupNode,
@@ -3226,7 +3237,13 @@
                                           spellInfo: spellInfo,
                                           principal: aMessage.data.principal,
                                           customMenuItems: aMessage.data.customMenuItems,
-                                          addonInfo: aMessage.data.addonInfo };
+                                          addonInfo: aMessage.data.addonInfo,
+                                          documentURIObject: documentURIObject,
+                                          docLocation: aMessage.data.docLocation,
+                                          charSet: aMessage.data.charSet,
+                                          referrer: aMessage.data.referrer,
+                                          referrerPolicy: aMessage.data.referrerPolicy,
+                                        };
               let popup = browser.ownerDocument.getElementById("contentAreaContextMenu");
               let event = gContextMenuContentData.event;
               let pos = browser.mapScreenCoordinatesFromContent(event.screenX, event.screenY);
@@ -5504,6 +5521,8 @@
           if (this._selectedPanel != panel) {
             var event = document.createEvent("Events");
             event.initEvent("select", true, true);
+            event.fromTab = fromTab;
+            event.toTab = toTab;
             this.dispatchEvent(event);
 
             this._selectedIndex = val;
@@ -5548,7 +5567,16 @@
         <parameter name="aPostData"/>
         <body>
           <![CDATA[
-            _loadURIWithFlags(this, aURI, aFlags, aReferrerURI, aCharset, aPostData);
+            var params = arguments[1];
+            if (typeof(params) == "number") {
+              params = {
+                flags: aFlags,
+                referrerURI: aReferrerURI,
+                charset: aCharset,
+                postData: aPostData,
+              };
+            }
+            _loadURIWithFlags(this, aURI, params);
           ]]>
         </body>
       </method>
@@ -5567,7 +5595,16 @@
         <parameter name="aPostData"/>
         <body>
           <![CDATA[
-            _loadURIWithFlags(this, aURI, aFlags, aReferrerURI, aCharset, aPostData);
+            var params = arguments[1];
+            if (typeof(params) == "number") {
+              params = {
+                flags: aFlags,
+                referrerURI: aReferrerURI,
+                charset: aCharset,
+                postData: aPostData,
+              };
+            }
+            _loadURIWithFlags(this, aURI, params);
           ]]>
         </body>
       </method>

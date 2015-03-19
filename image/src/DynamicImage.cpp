@@ -184,6 +184,10 @@ DynamicImage::GetFrame(uint32_t aWhichFrame,
   RefPtr<DrawTarget> dt = gfxPlatform::GetPlatform()->
     CreateOffscreenContentDrawTarget(IntSize(size.width, size.height),
                                      SurfaceFormat::B8G8R8A8);
+  if (!dt) {
+    gfxWarning() << "DynamicImage::GetFrame failed in CreateOffscreenContentDrawTarget";
+    return nullptr;
+  }
   nsRefPtr<gfxContext> context = new gfxContext(dt);
 
   auto result = Draw(context, size, ImageRegion::Create(size),
@@ -201,12 +205,10 @@ DynamicImage::IsOpaque()
   return false;
 }
 
-NS_IMETHODIMP
-DynamicImage::GetImageContainer(LayerManager* aManager,
-                                ImageContainer** _retval)
+NS_IMETHODIMP_(already_AddRefed<ImageContainer>)
+DynamicImage::GetImageContainer(LayerManager* aManager, uint32_t aFlags)
 {
-  *_retval = nullptr;
-  return NS_OK;
+  return nullptr;
 }
 
 NS_IMETHODIMP_(DrawResult)

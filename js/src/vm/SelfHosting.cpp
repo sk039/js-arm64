@@ -6,6 +6,7 @@
 
 #include "vm/SelfHosting.h"
 
+#include "mozilla/Casting.h"
 #include "mozilla/DebugOnly.h"
 
 #include "jscntxt.h"
@@ -172,7 +173,7 @@ js::intrinsic_ThrowError(JSContext *cx, unsigned argc, Value *vp)
         } else if (val.isString()) {
             errorArgs[i - 1].encodeLatin1(cx, val.toString());
         } else {
-            errorArgs[i - 1].initBytes(DecompileValueGenerator(cx, JSDVG_SEARCH_STACK, val, NullPtr()));
+            errorArgs[i - 1].initBytes(DecompileValueGenerator(cx, JSDVG_SEARCH_STACK, val, NullPtr()).release());
         }
         if (!errorArgs[i - 1])
             return false;
@@ -337,7 +338,8 @@ js::intrinsic_UnsafePutElements(JSContext *cx, unsigned argc, Value *vp)
             MOZ_ASSERT_IF(arrobj->is<TypedObject>(), idx < uint32_t(arrobj->as<TypedObject>().length()));
             RootedValue tmp(cx, args[elemi]);
             // XXX: Always non-strict.
-            if (!SetElement(cx, arrobj, arrobj, idx, &tmp, false))
+            ObjectOpResult ignored;
+            if (!SetElement(cx, arrobj, arrobj, idx, &tmp, ignored))
                 return false;
         } else {
             MOZ_ASSERT(idx < arrobj->as<ArrayObject>().getDenseInitializedLength());
@@ -365,28 +367,27 @@ js::intrinsic_DefineDataProperty(JSContext *cx, unsigned argc, Value *vp)
     RootedValue value(cx, args[2]);
     unsigned attributes = args[3].toInt32();
 
-    Rooted<PropDesc> desc(cx);
+    Rooted<PropertyDescriptor> desc(cx);
+    unsigned attrs = 0;
 
     MOZ_ASSERT(bool(attributes & ATTR_ENUMERABLE) != bool(attributes & ATTR_NONENUMERABLE),
                "_DefineDataProperty must receive either ATTR_ENUMERABLE xor ATTR_NONENUMERABLE");
-    PropDesc::Enumerability enumerable =
-        PropDesc::Enumerability(bool(attributes & ATTR_ENUMERABLE));
+    if (attributes & ATTR_ENUMERABLE)
+        attrs |= JSPROP_ENUMERATE;
 
     MOZ_ASSERT(bool(attributes & ATTR_CONFIGURABLE) != bool(attributes & ATTR_NONCONFIGURABLE),
                "_DefineDataProperty must receive either ATTR_CONFIGURABLE xor "
                "ATTR_NONCONFIGURABLE");
-    PropDesc::Configurability configurable =
-        PropDesc::Configurability(bool(attributes & ATTR_CONFIGURABLE));
+    if (attributes & ATTR_NONCONFIGURABLE)
+        attrs |= JSPROP_PERMANENT;
 
     MOZ_ASSERT(bool(attributes & ATTR_WRITABLE) != bool(attributes & ATTR_NONWRITABLE),
                "_DefineDataProperty must receive either ATTR_WRITABLE xor ATTR_NONWRITABLE");
-    PropDesc::Writability writable =
-        PropDesc::Writability(bool(attributes & ATTR_WRITABLE));
+    if (attributes & ATTR_NONWRITABLE)
+        attrs |= JSPROP_READONLY;
 
-    desc = PropDesc(value, writable, enumerable, configurable);
-
-    bool result;
-    return StandardDefineProperty(cx, obj, id, desc, true, &result);
+    desc.setDataDescriptor(value, attrs);
+    return StandardDefineProperty(cx, obj, id, desc);
 }
 
 bool
@@ -491,7 +492,7 @@ intrinsic_NewArrayIterator(JSContext *cx, unsigned argc, Value *vp)
     if (!proto)
         return false;
 
-    JSObject *obj = NewObjectWithGivenProto(cx, &ArrayIteratorObject::class_, proto, cx->global());
+    JSObject *obj = NewObjectWithGivenProto(cx, &ArrayIteratorObject::class_, proto);
     if (!obj)
         return false;
 
@@ -520,7 +521,7 @@ intrinsic_NewStringIterator(JSContext *cx, unsigned argc, Value *vp)
     if (!proto)
         return false;
 
-    JSObject *obj = NewObjectWithGivenProto(cx, &StringIteratorObject::class_, proto, cx->global());
+    JSObject *obj = NewObjectWithGivenProto(cx, &StringIteratorObject::class_, proto);
     if (!obj)
         return false;
 
@@ -653,8 +654,47 @@ js::intrinsic_IsTypedArray(JSContext *cx, unsigned argc, Value *vp)
     MOZ_ASSERT(args.length() == 1);
     MOZ_ASSERT(args[0].isObject());
 
-    RootedObject obj(cx, &args[0].toObject());
-    args.rval().setBoolean(obj->is<TypedArrayObject>());
+    args.rval().setBoolean(args[0].toObject().is<TypedArrayObject>());
+    return true;
+}
+
+bool
+js::intrinsic_TypedArrayBuffer(JSContext *cx, unsigned argc, Value *vp)
+{
+    CallArgs args = CallArgsFromVp(argc, vp);
+    MOZ_ASSERT(args.length() == 1);
+    MOZ_ASSERT(TypedArrayObject::is(args[0]));
+
+    Rooted<TypedArrayObject*> tarray(cx, &args[0].toObject().as<TypedArrayObject>());
+    if (!TypedArrayObject::ensureHasBuffer(cx, tarray))
+        return false;
+
+    args.rval().set(TypedArrayObject::bufferValue(tarray));
+    return true;
+}
+
+bool
+js::intrinsic_TypedArrayByteOffset(JSContext *cx, unsigned argc, Value *vp)
+{
+    CallArgs args = CallArgsFromVp(argc, vp);
+    MOZ_ASSERT(args.length() == 1);
+    MOZ_ASSERT(TypedArrayObject::is(args[0]));
+
+    args.rval().set(TypedArrayObject::byteOffsetValue(&args[0].toObject().as<TypedArrayObject>()));
+    return true;
+}
+
+bool
+js::intrinsic_TypedArrayElementShift(JSContext *cx, unsigned argc, Value *vp)
+{
+    CallArgs args = CallArgsFromVp(argc, vp);
+    MOZ_ASSERT(args.length() == 1);
+    MOZ_ASSERT(TypedArrayObject::is(args[0]));
+
+    unsigned shift = TypedArrayShift(args[0].toObject().as<TypedArrayObject>().type());
+    MOZ_ASSERT(shift == 0 || shift == 1 || shift == 2 || shift == 3);
+
+    args.rval().setInt32(mozilla::AssertedCast<int32_t>(shift));
     return true;
 }
 
@@ -668,6 +708,57 @@ js::intrinsic_TypedArrayLength(JSContext *cx, unsigned argc, Value *vp)
     RootedObject obj(cx, &args[0].toObject());
     MOZ_ASSERT(obj->is<TypedArrayObject>());
     args.rval().setInt32(obj->as<TypedArrayObject>().length());
+    return true;
+}
+
+bool
+js::intrinsic_MoveTypedArrayElements(JSContext *cx, unsigned argc, Value *vp)
+{
+    CallArgs args = CallArgsFromVp(argc, vp);
+    MOZ_ASSERT(args.length() == 4);
+
+    Rooted<TypedArrayObject*> tarray(cx, &args[0].toObject().as<TypedArrayObject>());
+    uint32_t to = uint32_t(args[1].toInt32());
+    uint32_t from = uint32_t(args[2].toInt32());
+    uint32_t count = uint32_t(args[3].toInt32());
+
+    MOZ_ASSERT(count > 0,
+               "don't call this method if copying no elements, because then "
+               "the not-neutered requirement is wrong");
+
+    if (tarray->hasBuffer() && tarray->buffer()->isNeutered()) {
+        JS_ReportErrorNumber(cx, GetErrorMessage, nullptr, JSMSG_TYPED_ARRAY_BAD_ARGS);
+        return false;
+    }
+
+    // Don't multiply by |tarray->bytesPerElement()| in case the compiler can't
+    // strength-reduce multiplication by 1/2/4/8 into the equivalent shift.
+    const size_t ElementShift = TypedArrayShift(tarray->type());
+
+    MOZ_ASSERT((UINT32_MAX >> ElementShift) > to);
+    uint32_t byteDest = to << ElementShift;
+
+    MOZ_ASSERT((UINT32_MAX >> ElementShift) > from);
+    uint32_t byteSrc = from << ElementShift;
+
+    MOZ_ASSERT((UINT32_MAX >> ElementShift) >= count);
+    uint32_t byteSize = count << ElementShift;
+
+#ifdef DEBUG
+    {
+        uint32_t viewByteLength = tarray->byteLength();
+        MOZ_ASSERT(byteSize <= viewByteLength);
+        MOZ_ASSERT(byteDest < viewByteLength);
+        MOZ_ASSERT(byteSrc < viewByteLength);
+        MOZ_ASSERT(byteDest <= viewByteLength - byteSize);
+        MOZ_ASSERT(byteSrc <= viewByteLength - byteSize);
+    }
+#endif
+
+    uint8_t *data = static_cast<uint8_t*>(tarray->viewData());
+    mozilla::PodMove(&data[byteDest], &data[byteSrc], byteSize);
+
+    args.rval().setUndefined();
     return true;
 }
 
@@ -907,7 +998,12 @@ static const JSFunctionSpec intrinsic_functions[] = {
     JS_FN("GeneratorSetClosed",      intrinsic_GeneratorSetClosed,      1,0),
 
     JS_FN("IsTypedArray",            intrinsic_IsTypedArray,            1,0),
+    JS_FN("TypedArrayBuffer",        intrinsic_TypedArrayBuffer,        1,0),
+    JS_FN("TypedArrayByteOffset",    intrinsic_TypedArrayByteOffset,    1,0),
+    JS_FN("TypedArrayElementShift",  intrinsic_TypedArrayElementShift,  1,0),
     JS_FN("TypedArrayLength",        intrinsic_TypedArrayLength,        1,0),
+
+    JS_FN("MoveTypedArrayElements",  intrinsic_MoveTypedArrayElements,  4,0),
 
     JS_FN("CallTypedArrayMethodIfWrapped",
           CallNonGenericSelfhostedMethod<Is<TypedArrayObject>>, 2, 0),
@@ -1097,7 +1193,7 @@ JSRuntime::initSelfHosting(JSContext *cx)
             ok = false;
         }
 
-        ok = ok && Evaluate(cx, shg, options, src, srcLen, &rv);
+        ok = ok && Evaluate(cx, options, src, srcLen, &rv);
     }
     JS_SetErrorReporter(cx->runtime(), oldReporter);
     return ok;
@@ -1277,7 +1373,7 @@ CloneObject(JSContext *cx, HandleNativeObject selfHostedObject)
         clone = NewDenseEmptyArray(cx, NullPtr(), TenuredObject);
     } else {
         MOZ_ASSERT(selfHostedObject->isNative());
-        clone = NewObjectWithGivenProto(cx, selfHostedObject->getClass(), NullPtr(), cx->global(),
+        clone = NewObjectWithGivenProto(cx, selfHostedObject->getClass(), NullPtr(),
                                         selfHostedObject->asTenured().getAllocKind(),
                                         SingletonObject);
     }

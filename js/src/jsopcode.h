@@ -11,6 +11,8 @@
  * JS bytecode definitions.
  */
 
+#include "mozilla/UniquePtr.h"
+
 #include "jsbytecode.h"
 #include "jstypes.h"
 #include "NamespaceImports.h"
@@ -452,7 +454,7 @@ class SrcNoteLineScanner
      */
     bool lineHeader;
 
-public:
+  public:
     SrcNoteLineScanner(jssrcnote *sn, uint32_t lineno)
         : offset(0), sn(sn), lineno(lineno)
     {
@@ -491,7 +493,7 @@ public:
             SrcNoteType type = (SrcNoteType) SN_TYPE(sn);
             if (type == SRC_SETLINE || type == SRC_NEWLINE) {
                 if (type == SRC_SETLINE)
-                    lineno = js_GetSrcNoteOffset(sn, 0);
+                    lineno = GetSrcNoteOffset(sn, 0);
                 else
                     lineno++;
 
@@ -560,7 +562,7 @@ GetVariableBytecodeLength(jsbytecode *pc);
  *
  * The caller must call JS_free on the result after a successful call.
  */
-char *
+mozilla::UniquePtr<char[], JS::FreePolicy>
 DecompileValueGenerator(JSContext *cx, int spindex, HandleValue v,
                         HandleString fallback, int skipStackHits = 0);
 

@@ -55,6 +55,7 @@
 
 #include "prmjtime.h"
 
+#include "js/Class.h"
 #include "vm/GlobalObject.h"
 #include "vm/SharedTypedArrayObject.h"
 #include "vm/TypedArrayObject.h"
@@ -1242,7 +1243,7 @@ AtomicsObject::initClass(JSContext *cx, Handle<GlobalObject *> global)
     if (!objProto)
         return nullptr;
     RootedObject Atomics(cx, NewObjectWithGivenProto(cx, &AtomicsObject::class_, objProto,
-                                                     global, SingletonObject));
+                                                     SingletonObject));
     if (!Atomics)
         return nullptr;
 

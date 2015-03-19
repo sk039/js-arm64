@@ -18,7 +18,11 @@
 
   function simpleRegister() {
     var p = navigator.serviceWorker.register("fetch_event_worker.js", { scope: "./fetch" });
-    return p;
+    return p.then(function(swr) {
+      return new Promise(function(resolve) {
+        swr.installing.onstatechange = resolve;
+      });
+    });
   }
 
   function testController() {
@@ -51,9 +55,9 @@
 
   SimpleTest.waitForExplicitFinish();
   SpecialPowers.pushPrefEnv({"set": [
+    ["dom.serviceWorkers.exemptFromPerDomainMax", true],
     ["dom.serviceWorkers.enabled", true],
     ["dom.serviceWorkers.testing.enabled", true],
-    ["dom.fetch.enabled", true]
   ]}, runTest);
 </script>
 </pre>

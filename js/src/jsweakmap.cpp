@@ -14,6 +14,7 @@
 #include "jsobj.h"
 #include "jswrapper.h"
 
+#include "js/GCAPI.h"
 #include "vm/GlobalObject.h"
 #include "vm/WeakMapObject.h"
 
@@ -24,6 +25,8 @@
 
 using namespace js;
 using namespace js::gc;
+
+using mozilla::UniquePtr;
 
 WeakMapBase::WeakMapBase(JSObject *memOf, JSCompartment *c)
   : memberOf(memOf),
@@ -43,7 +46,7 @@ void
 WeakMapBase::trace(JSTracer *tracer)
 {
     MOZ_ASSERT(isInList());
-    if (IS_GC_MARKING_TRACER(tracer)) {
+    if (IsMarkingTracer(tracer)) {
         // We don't trace any of the WeakMap entries at this time, just record
         // record the fact that the WeakMap has been marked. Enties are marked
         // in the iterative marking phase by markAllIteratively(), which happens
@@ -132,8 +135,11 @@ WeakMapBase::traceAllMappings(WeakMapTracer *tracer)
 {
     JSRuntime *rt = tracer->runtime;
     for (CompartmentsIter c(rt, SkipAtoms); !c.done(); c.next()) {
-        for (WeakMapBase *m = c->gcWeakMapList; m; m = m->next)
+        for (WeakMapBase *m = c->gcWeakMapList; m; m = m->next) {
+            // The WeakMapTracer callback is not allowed to GC.
+            JS::AutoSuppressGCAnalysis nogc;
             m->traceMappings(tracer);
+        }
     }
 }
 
@@ -384,10 +390,11 @@ WeakMap_set_impl(JSContext *cx, CallArgs args)
     MOZ_ASSERT(IsWeakMap(args.thisv()));
 
     if (!args.get(0).isObject()) {
-        char *bytes = DecompileValueGenerator(cx, JSDVG_SEARCH_STACK, args.get(0), NullPtr());
+        UniquePtr<char[], JS::FreePolicy> bytes =
+            DecompileValueGenerator(cx, JSDVG_SEARCH_STACK, args.get(0), NullPtr());
         if (!bytes)
             return false;
-        JS_ReportErrorNumber(cx, GetErrorMessage, nullptr, JSMSG_NOT_NONNULL_OBJECT, bytes);
+        JS_ReportErrorNumber(cx, GetErrorMessage, nullptr, JSMSG_NOT_NONNULL_OBJECT, bytes.get());
         return false;
     }
 
@@ -568,10 +575,11 @@ WeakMap_construct(JSContext *cx, unsigned argc, Value *vp)
             // Steps 12k-l.
             if (isOriginalAdder) {
                 if (keyVal.isPrimitive()) {
-                    char *bytes = DecompileValueGenerator(cx, JSDVG_SEARCH_STACK, keyVal, NullPtr());
+                    UniquePtr<char[], JS::FreePolicy> bytes =
+                        DecompileValueGenerator(cx, JSDVG_SEARCH_STACK, keyVal, NullPtr());
                     if (!bytes)
                         return false;
-                    JS_ReportErrorNumber(cx, GetErrorMessage, nullptr, JSMSG_NOT_NONNULL_OBJECT, bytes);
+                    JS_ReportErrorNumber(cx, GetErrorMessage, nullptr, JSMSG_NOT_NONNULL_OBJECT, bytes.get());
                     return false;
                 }
 

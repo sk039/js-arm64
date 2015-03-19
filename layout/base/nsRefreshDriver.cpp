@@ -510,7 +510,9 @@ protected:
         this,
         (aNowTime - mTargetTime).ToMilliseconds(),
         delay);
+#ifndef ANDROID  /* bug 1142079 */
     Telemetry::Accumulate(Telemetry::FX_REFRESH_DRIVER_FRAME_DELAY_MS, (aNowTime - mTargetTime).ToMilliseconds());
+#endif
 
     // then schedule the timer
     LOG("[%p] scheduling callback for %d ms (2)", this, delay);
@@ -625,7 +627,9 @@ protected:
         this,
         (aNowTime - mTargetTime).ToMilliseconds(),
         delay);
+#ifndef ANDROID  /* bug 1142079 */
     Telemetry::Accumulate(Telemetry::FX_REFRESH_DRIVER_FRAME_DELAY_MS, (aNowTime - mTargetTime).ToMilliseconds());
+#endif
 
     // then schedule the timer
     LOG("[%p] scheduling callback for %d ms (2)", this, delay);
@@ -849,9 +853,13 @@ CreateVsyncRefreshTimer()
   // ready.
   gfxPrefs::GetSingleton();
 
-  if (!gfxPrefs::VsyncAlignedRefreshDriver() || !gfxPrefs::HardwareVsyncEnabled()) {
+  if (!gfxPrefs::VsyncAlignedRefreshDriver()
+        || !gfxPrefs::HardwareVsyncEnabled()
+        || gfxPlatform::IsInLayoutAsapMode()) {
     return;
   }
+
+  NS_WARNING("Enabling vsync refresh driver\n");
 
   if (XRE_IsParentProcess()) {
     // Make sure all vsync systems are ready.
@@ -1696,7 +1704,6 @@ nsRefreshDriver::Tick(int64_t aNowEpoch, TimeStamp aNowTime)
       profilingDocShells[i]->AddProfileTimelineMarker("Paint",
                                                       TRACING_INTERVAL_START);
     }
-    profiler_tracing("Paint", "DisplayList", TRACING_INTERVAL_START);
 #ifdef MOZ_DUMP_PAINTING
     if (nsLayoutUtils::InvalidationDebuggingIsEnabled()) {
       printf_stderr("Starting ProcessPendingUpdates\n");
@@ -1715,7 +1722,6 @@ nsRefreshDriver::Tick(int64_t aNowEpoch, TimeStamp aNowTime)
       profilingDocShells[i]->AddProfileTimelineMarker("Paint",
                                                       TRACING_INTERVAL_END);
     }
-    profiler_tracing("Paint", "DisplayList", TRACING_INTERVAL_END);
 
     if (nsContentUtils::XPConnect()) {
       nsContentUtils::XPConnect()->NotifyDidPaint();
@@ -1723,7 +1729,9 @@ nsRefreshDriver::Tick(int64_t aNowEpoch, TimeStamp aNowTime)
     }
   }
 
+#ifndef ANDROID  /* bug 1142079 */
   mozilla::Telemetry::AccumulateTimeDelta(mozilla::Telemetry::REFRESH_DRIVER_TICK, mTickStart);
+#endif
 
   for (uint32_t i = 0; i < mPostRefreshObservers.Length(); ++i) {
     mPostRefreshObservers[i]->DidRefresh();

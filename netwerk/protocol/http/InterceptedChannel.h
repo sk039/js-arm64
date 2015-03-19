@@ -41,6 +41,7 @@ protected:
 
   void EnsureSynthesizedResponse();
   void DoNotifyController();
+  nsresult DoSynthesizeStatus(uint16_t aStatus, const nsACString& aReason);
   nsresult DoSynthesizeHeader(const nsACString& aName, const nsACString& aValue);
 
   virtual ~InterceptedChannelBase();
@@ -73,8 +74,10 @@ public:
   NS_IMETHOD ResetInterception() MOZ_OVERRIDE;
   NS_IMETHOD FinishSynthesizedResponse() MOZ_OVERRIDE;
   NS_IMETHOD GetChannel(nsIChannel** aChannel) MOZ_OVERRIDE;
+  NS_IMETHOD SynthesizeStatus(uint16_t aStatus, const nsACString& aReason) MOZ_OVERRIDE;
   NS_IMETHOD SynthesizeHeader(const nsACString& aName, const nsACString& aValue) MOZ_OVERRIDE;
   NS_IMETHOD Cancel() MOZ_OVERRIDE;
+  NS_IMETHOD SetSecurityInfo(nsISupports* aSecurityInfo) MOZ_OVERRIDE;
 
   virtual void NotifyController() MOZ_OVERRIDE;
 };
@@ -101,8 +104,10 @@ public:
   NS_IMETHOD ResetInterception() MOZ_OVERRIDE;
   NS_IMETHOD FinishSynthesizedResponse() MOZ_OVERRIDE;
   NS_IMETHOD GetChannel(nsIChannel** aChannel) MOZ_OVERRIDE;
+  NS_IMETHOD SynthesizeStatus(uint16_t aStatus, const nsACString& aReason) MOZ_OVERRIDE;
   NS_IMETHOD SynthesizeHeader(const nsACString& aName, const nsACString& aValue) MOZ_OVERRIDE;
   NS_IMETHOD Cancel() MOZ_OVERRIDE;
+  NS_IMETHOD SetSecurityInfo(nsISupports* aSecurityInfo) MOZ_OVERRIDE;
 
   virtual void NotifyController() MOZ_OVERRIDE;
 };

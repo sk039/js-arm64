@@ -78,8 +78,9 @@ public:
 
   // nsWindowBase
   virtual bool DispatchWindowEvent(mozilla::WidgetGUIEvent* aEvent) MOZ_OVERRIDE;
-  virtual bool DispatchKeyboardEvent(mozilla::WidgetGUIEvent* aEvent) MOZ_OVERRIDE;
-  virtual bool DispatchScrollEvent(mozilla::WidgetGUIEvent* aEvent) MOZ_OVERRIDE;
+  virtual bool DispatchKeyboardEvent(mozilla::WidgetKeyboardEvent* aEvent) MOZ_OVERRIDE;
+  virtual bool DispatchWheelEvent(mozilla::WidgetWheelEvent* aEvent) MOZ_OVERRIDE;
+  virtual bool DispatchContentCommandEvent(mozilla::WidgetContentCommandEvent* aEvent) MOZ_OVERRIDE;
   virtual bool DispatchPluginEvent(const MSG &aMsg) MOZ_OVERRIDE { return false; }
   virtual bool IsTopLevelWidget() MOZ_OVERRIDE { return true; }
   virtual nsWindowBase* GetParentWindowBase(bool aIncludeOwner) MOZ_OVERRIDE { return nullptr; }
@@ -204,7 +205,6 @@ public:
   TouchBehaviorFlags ContentGetAllowedTouchBehavior(const nsIntPoint& aPoint);
 
   // apzc controller related api
-  void ApzcGetAllowedTouchBehavior(mozilla::WidgetInputEvent* aTransformedEvent, nsTArray<TouchBehaviorFlags>& aOutBehaviors);
   void ApzcSetAllowedTouchBehavior(uint64_t aInputBlockId, nsTArray<TouchBehaviorFlags>& aBehaviors);
 
   // Hit test a point to see if an apzc would consume input there

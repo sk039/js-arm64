@@ -233,9 +233,25 @@ MediaSource::AddSourceBuffer(const nsAString& aType, ErrorResult& aRv)
     return nullptr;
   }
   mSourceBuffers->Append(sourceBuffer);
-  mActiveSourceBuffers->Append(sourceBuffer);
   MSE_DEBUG("sourceBuffer=%p", sourceBuffer.get());
   return sourceBuffer.forget();
+}
+
+void
+MediaSource::SourceBufferIsActive(SourceBuffer* aSourceBuffer)
+{
+  MOZ_ASSERT(NS_IsMainThread());
+  mActiveSourceBuffers->ClearSimple();
+  bool found = false;
+  for (uint32_t i = 0; i < mSourceBuffers->Length(); i++) {
+    SourceBuffer* sourceBuffer = mSourceBuffers->IndexedGetter(i, found);
+    MOZ_ALWAYS_TRUE(found);
+    if (sourceBuffer == aSourceBuffer) {
+      mActiveSourceBuffers->Append(aSourceBuffer);
+    } else if (sourceBuffer->IsActive()) {
+      mActiveSourceBuffers->AppendSimple(sourceBuffer);
+    }
+  }
 }
 
 void
@@ -334,8 +350,8 @@ MediaSource::Enabled(JSContext* cx, JSObject* aGlobal)
     return false;
   }
 
-  // Check whether it's enabled everywhere or just YouTube.
-  bool restrict = Preferences::GetBool("media.mediasource.youtubeonly", false);
+  // Check whether it's enabled everywhere or just whitelisted sites.
+  bool restrict = Preferences::GetBool("media.mediasource.whitelist", false);
   if (!restrict) {
     return true;
   }
@@ -359,7 +375,8 @@ MediaSource::Enabled(JSContext* cx, JSObject* aGlobal)
    }
 
    return eTLDplusOne.EqualsLiteral("youtube.com") ||
-          eTLDplusOne.EqualsLiteral("youtube-nocookie.com");
+          eTLDplusOne.EqualsLiteral("youtube-nocookie.com") ||
+          eTLDplusOne.EqualsLiteral("netflix.com");
 }
 
 bool
@@ -506,7 +523,7 @@ MediaSource::QueueInitializationEvent()
   }
   mFirstSourceBufferInitialized = true;
   MSE_DEBUG("");
-  nsRefPtr<nsIRunnable> task =
+  nsCOMPtr<nsIRunnable> task =
     NS_NewRunnableMethod(this, &MediaSource::InitializationEvent);
   NS_DispatchToMainThread(task);
 }
