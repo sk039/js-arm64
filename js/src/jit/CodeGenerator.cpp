@@ -1551,7 +1551,7 @@ JitCompartment::generateRegExpTestStub(JSContext *cx)
 
     masm.bind(&done);
     masm.freeStack(sizeof(irregexp::InputOutputData));
-    masm.ret();
+    masm.popReturn();
 
     Linker linker(masm);
     AutoFlushICache afc("RegExpTestStub");
@@ -3741,7 +3741,7 @@ CodeGenerator::emitObjectOrStringResultChecks(LInstruction *lir, MDefinition *mi
     regs.take(output);
 
     Register temp = regs.takeAny();
-    masm.push(temp);
+    masm.Push(temp);
 
     // Don't check if the script has been invalidated. In that case invalid
     // types are expected (until we reach the OsiPoint and bailout).
@@ -5764,7 +5764,7 @@ ConcatInlineString(MacroAssembler &masm, Register lhs, Register rhs, Register ou
             masm.store8(Imm32(0), Address(temp2, 0));
     }
 
-    masm.ret();
+    masm.popReturn();
 }
 
 typedef JSString *(*SubstringKernelFn)(JSContext *cx, HandleString str, int32_t begin, int32_t len);
