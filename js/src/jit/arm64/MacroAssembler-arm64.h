@@ -1253,7 +1253,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         load32(address, ScratchReg2);
         branchTest32(cond, ScratchReg2, imm, label);
     }
-    void branchTest32(Condition cond, AbsoluteAddress &address, Imm32 imm, Label *label) {
+    void branchTest32(Condition cond, AbsoluteAddress address, Imm32 imm, Label *label) {
         MOZ_CRASH("branchTest32");
     }
     CodeOffsetJump jumpWithPatch(RepatchLabel *label, Condition cond = Always) {
