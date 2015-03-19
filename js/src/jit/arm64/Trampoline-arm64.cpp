@@ -885,7 +885,7 @@ JitRuntime::generateProfilerExitFrameTailStub(JSContext *cx)
         masm.loadPtr(lastProfilingFrame, scratch1);
         Label checkOk;
         masm.branchPtr(Assembler::Equal, scratch1, ImmWord(0), &checkOk);
-        masm.branchPtr(Assembler::Equal, masm.GetStackPointer_(), scratch1, &checkOk);
+        masm.branchPtr(Assembler::Equal, masm.GetStackPointer(), scratch1, &checkOk);
         masm.assumeUnreachable(
             "Mismatch between stored lastProfilingFrame and current stack pointer.");
         masm.bind(&checkOk);
@@ -893,7 +893,7 @@ JitRuntime::generateProfilerExitFrameTailStub(JSContext *cx)
 #endif
 
     // Load the frame descriptor into |scratch1|, figure out what to do depending on its type.
-    masm.loadPtr(Address(masm.GetStackPointer_(), JitFrameLayout::offsetOfDescriptor()), scratch1);
+    masm.loadPtr(Address(masm.GetStackPointer(), JitFrameLayout::offsetOfDescriptor()), scratch1);
 
     // Going into the conditionals, we will have:
     //      FrameDescriptor.size in scratch1
@@ -938,12 +938,12 @@ JitRuntime::generateProfilerExitFrameTailStub(JSContext *cx)
 
         // returning directly to an IonJS frame.  Store return addr to frame
         // in lastProfilingCallSite.
-        masm.loadPtr(Address(masm.GetStackPointer_(), JitFrameLayout::offsetOfReturnAddress()), scratch2);
+        masm.loadPtr(Address(masm.GetStackPointer(), JitFrameLayout::offsetOfReturnAddress()), scratch2);
         masm.storePtr(scratch2, lastProfilingCallSite);
 
         // Store return frame in lastProfilingFrame.
-        // scratch2 := masm.GetStackPointer_() + Descriptor.size*1 + JitFrameLayout::Size();
-        masm.addPtr(masm.GetStackPointer_(), scratch1, scratch2);
+        // scratch2 := masm.GetStackPointer() + Descriptor.size*1 + JitFrameLayout::Size();
+        masm.addPtr(masm.GetStackPointer(), scratch1, scratch2);
         masm.addPtr(Imm32(JitFrameLayout::Size()), scratch2, scratch2);
         masm.storePtr(scratch2, lastProfilingFrame);
         masm.ret();
@@ -977,7 +977,7 @@ JitRuntime::generateProfilerExitFrameTailStub(JSContext *cx)
     //
     masm.bind(&handle_BaselineStub);
     {
-        masm.addPtr(masm.GetStackPointer_(), scratch1, scratch3);
+        masm.addPtr(masm.GetStackPointer(), scratch1, scratch3);
         Address stubFrameReturnAddr(scratch3,
                                     JitFrameLayout::Size() +
                                     BaselineStubFrameLayout::offsetOfReturnAddress());
@@ -1034,7 +1034,7 @@ JitRuntime::generateProfilerExitFrameTailStub(JSContext *cx)
     masm.bind(&handle_Rectifier);
     {
         // scratch2 := StackPointer + Descriptor.size*1 + JitFrameLayout::Size();
-        masm.addPtr(masm.GetStackPointer_(), scratch1, scratch2);
+        masm.addPtr(masm.GetStackPointer(), scratch1, scratch2);
         masm.add32(Imm32(JitFrameLayout::Size()), scratch2);
         masm.loadPtr(Address(scratch2, RectifierFrameLayout::offsetOfDescriptor()), scratch3);
         masm.rshiftPtr(Imm32(FRAMESIZE_SHIFT), scratch3, scratch1);
@@ -1102,7 +1102,7 @@ JitRuntime::generateProfilerExitFrameTailStub(JSContext *cx)
     masm.bind(&handle_IonAccessorIC);
     {
         // scratch2 := StackPointer + Descriptor.size + JitFrameLayout::Size()
-        masm.addPtr(masm.GetStackPointer_(), scratch1, scratch2);
+        masm.addPtr(masm.GetStackPointer(), scratch1, scratch2);
         masm.addPtr(Imm32(JitFrameLayout::Size()), scratch2);
 
         // scratch3 := AccFrame-Descriptor.Size

@@ -348,15 +348,8 @@ class AssemblerX86Shared : public AssemblerShared
     void setPrinter(Sprinter *sp) {
         masm.setPrinter(sp);
     }
-    Register GetStackPointer_() {
-#ifdef JS_CODEGEN_X64
-        return rsp;
-#else
-        return esp;
-#endif
-    }
-    Register GetStackPointer() {
-        return GetStackPointer_();
+    Register GetStackPointer() const {
+        return esp; // == rsp on x64.
     }
     void executableCopy(void *buffer);
     void processCodeLabels(uint8_t *rawCode);

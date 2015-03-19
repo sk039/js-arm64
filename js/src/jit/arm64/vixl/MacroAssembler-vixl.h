@@ -975,7 +975,7 @@ class MacroAssemblerVIXL : public Assembler
     const ARMRegister& GetStackPointer64() const {
         return sp_;
     }
-    const Register GetStackPointer_() const {
+    const Register GetStackPointer() const {
         return Register::FromCode(sp_.code());
     }
 
