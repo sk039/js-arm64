@@ -3800,7 +3800,7 @@ CodeGenerator::emitObjectOrStringResultChecks(LInstruction *lir, MDefinition *mi
     restoreVolatile();
 
     masm.bind(&done);
-    masm.pop(temp);
+    masm.Pop(temp);
 }
 
 void
