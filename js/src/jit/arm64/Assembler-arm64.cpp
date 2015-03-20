@@ -555,8 +555,7 @@ void
 Assembler::FixupNurseryObjects(JSContext *cx, JitCode *code, CompactBufferReader &reader,
                                const ObjectVector &nurseryObjects)
 {
-    MOZ_CRASH("FixupNurseryObjects");
-#if 0
+
     MOZ_ASSERT(!nurseryObjects.empty());
 
     uint8_t *buffer = code->raw();
@@ -564,38 +563,27 @@ Assembler::FixupNurseryObjects(JSContext *cx, JitCode *code, CompactBufferReader
 
     while (reader.more()) {
         size_t offset = reader.readUnsigned();
-        InstructionIterator iter((Instruction*)(buffer + offset));
-        Instruction *ins = iter.cur();
-        Register dest;
-        Assembler::RelocStyle rs;
-        const void *prior = Assembler::GetPtr32Target(&iter, &dest, &rs);
-        void *ptr = const_cast<void *>(prior);
-        uintptr_t word = reinterpret_cast<uintptr_t>(ptr);
-
-        if (!(word & 0x1))
+        Instruction *ins = (Instruction*)(buffer + offset);
+        uintptr_t *word_ptr = reinterpret_cast<uintptr_t*>(ins->LiteralAddress());
+        if (*word_ptr >> JSVAL_TAG_SHIFT)
             continue;
-
-        uint32_t index = word >> 1;
+        if (!(*word_ptr & 0x1))
+            continue;
+        uint32_t index = *word_ptr >> 1;
         JSObject *obj = nurseryObjects[index];
-        MacroAssembler::ma_mov_patch(Imm32(int32_t(obj)), dest, Assembler::Always, rs, ins);
+        *word_ptr = uintptr_t(obj);
 
-        if (rs != Assembler::L_LDR) {
-            // L_LDR won't cause any instructions to be updated.
-            AutoFlushICache::flush(uintptr_t(ins), 4);
-            AutoFlushICache::flush(uintptr_t(ins->next()), 4);
-        }
-
-        // Either all objects are still in the nursery, or all objects are
+                // Either all objects are still in the nursery, or all objects are
         // tenured.
         MOZ_ASSERT_IF(hasNurseryPointers, IsInsideNursery(obj));
 
         if (!hasNurseryPointers && IsInsideNursery(obj))
             hasNurseryPointers = true;
+
     }
 
     if (hasNurseryPointers)
         cx->runtime()->gc.storeBuffer.putWholeCellFromMainThread(code);
-#endif
 }
 int32_t
 Assembler::ExtractCodeLabelOffset(uint8_t *code)
