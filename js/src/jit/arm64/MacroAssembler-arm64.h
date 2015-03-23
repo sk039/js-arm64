@@ -2169,8 +2169,9 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
 
     void callWithExitFrame(JitCode *target, Register dynStack) {
-        uint32_t descriptor = MakeFrameDescriptor(framePushed(), JitFrame_IonJS);
-        Push(Imm32(descriptor)); // descriptor
+        add32(Imm32(framePushed()), dynStack);
+        makeFrameDescriptor(dynStack, JitFrame_IonJS);
+        Push(dynStack); // descriptor
 
         call(target);
     }
