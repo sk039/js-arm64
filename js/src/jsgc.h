@@ -618,11 +618,11 @@ class ArenaLists
 
   public:
     explicit ArenaLists(JSRuntime *rt) : runtime_(rt) {
-        for (ALL_ALLOC_KINDS(i))
+        for (auto i : AllAllocKinds())
             freeLists[i].initAsEmpty();
-        for (ALL_ALLOC_KINDS(i))
+        for (auto i : AllAllocKinds())
             backgroundFinalizeState[i] = BFS_DONE;
-        for (ALL_ALLOC_KINDS(i))
+        for (auto i : AllAllocKinds())
             arenaListsToSweep[i] = nullptr;
         incrementalSweptArenaKind = AllocKind::LIMIT;
         gcShapeArenasToUpdate = nullptr;
@@ -662,7 +662,7 @@ class ArenaLists
     }
 
     bool arenaListsAreEmpty() const {
-        for (ALL_ALLOC_KINDS(i)) {
+        for (auto i : AllAllocKinds()) {
             /*
              * The arena cannot be empty if the background finalization is not yet
              * done.
@@ -676,7 +676,7 @@ class ArenaLists
     }
 
     void unmarkAll() {
-        for (ALL_ALLOC_KINDS(i)) {
+        for (auto i : AllAllocKinds()) {
             /* The background finalization must have stopped at this point. */
             MOZ_ASSERT(backgroundFinalizeState[i] == BFS_DONE);
             for (ArenaHeader *aheader = arenaLists[i].head(); aheader; aheader = aheader->next)
@@ -697,7 +697,7 @@ class ArenaLists
      * run the finalizers over unitialized bytes from free things.
      */
     void purge() {
-        for (ALL_ALLOC_KINDS(i))
+        for (auto i : AllAllocKinds())
             purge(i);
     }
 
@@ -718,7 +718,7 @@ class ArenaLists
      * outside the GC.
      */
     void copyFreeListsToArenas() {
-        for (ALL_ALLOC_KINDS(i))
+        for (auto i : AllAllocKinds())
             copyFreeListToArena(i);
     }
 
@@ -736,7 +736,7 @@ class ArenaLists
      * copyToArenas.
      */
     void clearFreeListsInArenas() {
-        for (ALL_ALLOC_KINDS(i))
+        for (auto i : AllAllocKinds())
             clearFreeListInArena(i);
     }
 
@@ -792,7 +792,7 @@ class ArenaLists
 
     void checkEmptyFreeLists() {
 #ifdef DEBUG
-        for (ALL_ALLOC_KINDS(i))
+        for (auto i : AllAllocKinds())
             checkEmptyFreeList(i);
 #endif
     }
@@ -992,6 +992,9 @@ class GCParallelTask
 
   public:
     GCParallelTask() : state(NotStarted), duration_(0) {}
+
+    // Derived classes must override this to ensure that join() gets called
+    // before members get destructed.
     virtual ~GCParallelTask();
 
     // Time spent in the most recent invocation of this task.
@@ -1322,7 +1325,7 @@ MaybeVerifyBarriers(JSContext *cx, bool always = false)
 /*
  * Instances of this class set the |JSRuntime::suppressGC| flag for the duration
  * that they are live. Use of this class is highly discouraged. Please carefully
- * read the comment in jscntxt.h above |suppressGC| and take all appropriate
+ * read the comment in vm/Runtime.h above |suppressGC| and take all appropriate
  * precautions before instantiating this class.
  */
 class AutoSuppressGC
@@ -1391,6 +1394,9 @@ class ZoneList
     ZoneList(const ZoneList &other) = delete;
     ZoneList &operator=(const ZoneList &other) = delete;
 };
+
+JSObject *
+NewMemoryStatisticsObject(JSContext *cx);
 
 } /* namespace gc */
 

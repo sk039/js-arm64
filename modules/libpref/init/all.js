@@ -828,14 +828,17 @@ pref("devtools.dump.emit", false);
 
 // Disable device discovery logging
 pref("devtools.discovery.log", false);
-// Disable scanning for DevTools devices via WiFi
-pref("devtools.remote.wifi.scan", false);
-// Hide UI options for controlling device visibility over WiFi
+// Whether to scan for DevTools devices via WiFi
+pref("devtools.remote.wifi.scan", true);
+// Whether UI options for controlling device visibility over WiFi are shown
 // N.B.: This does not set whether the device can be discovered via WiFi, only
 // whether the UI control to make such a choice is shown to the user
-pref("devtools.remote.wifi.visible", false);
+pref("devtools.remote.wifi.visible", true);
 // Client must complete TLS handshake within this window (ms)
 pref("devtools.remote.tls-handshake-timeout", 10000);
+
+// URL of the remote JSON catalog used for device simulation
+pref("devtools.devices.url", "https://code.cdn.mozilla.net/devices/devices.json");
 
 // view source
 pref("view_source.syntax_highlight", true);
@@ -2183,7 +2186,11 @@ pref("layout.css.scope-pseudo.enabled", true);
 pref("layout.css.background-blend-mode.enabled", true);
 
 // Is support for CSS vertical text enabled?
+#ifdef RELEASE_BUILD
 pref("layout.css.vertical-text.enabled", false);
+#else
+pref("layout.css.vertical-text.enabled", true);
+#endif
 
 // Is support for object-fit and object-position enabled?
 pref("layout.css.object-fit-and-position.enabled", true);
@@ -3818,8 +3825,12 @@ pref("image.cache.size", 5242880);
 // Size is given a weight of 1000 - timeweight.
 pref("image.cache.timeweight", 500);
 
+// Prevents images from automatically being decoded on load, instead allowing
+// them to be decoded on demand when they are drawn.
+pref("image.decode-only-on-draw.enabled", true);
+
 // Whether we attempt to downscale images during decoding.
-pref("image.downscale-during-decode.enabled", true);
+pref("image.downscale-during-decode.enabled", false);
 
 // The default Accept header sent for images loaded over HTTP(S)
 pref("image.http.accept", "image/png,image/*;q=0.8,*/*;q=0.5");
@@ -3844,10 +3855,6 @@ pref("image.single-color-optimization.enabled", true);
 // Discards inactive image frames and re-decodes them on demand from
 // compressed data.
 pref("image.mem.discardable", true);
-
-// Prevents images from automatically being decoded on load, instead allowing
-// them to be decoded on demand when they are drawn.
-pref("image.mem.decodeondraw", true);
 
 // Allows image locking of decoded image data in content processes.
 pref("image.mem.allow_locking_in_content_processes", true);
@@ -4474,7 +4481,11 @@ pref("camera.control.face_detection.enabled", true);
 
 
 // SW Cache API
+#ifdef RELEASE_BUILD
 pref("dom.caches.enabled", false);
+#else
+pref("dom.caches.enabled", true);
+#endif // RELEASE_BUILD
 
 #ifdef MOZ_WIDGET_GONK
 // Empirically, this is the value returned by hal::GetTotalSystemMemory()
@@ -4525,7 +4536,7 @@ pref("browser.addon-watch.interval", 15000);
 #else
 pref("browser.addon-watch.interval", -1);
 #endif
-pref("browser.addon-watch.ignore", "[\"mochikit@mozilla.org\",\"special-powers@mozilla.org\"]");
+pref("browser.addon-watch.ignore", "[\"mochikit@mozilla.org\",\"special-powers@mozilla.org\",\"fxdevtools-adapters@mozilla.org\",\"fx-devtools\"]");
 // the percentage of time addons are allowed to use without being labeled slow
 pref("browser.addon-watch.percentage-limit", 5);
 
@@ -4585,9 +4596,6 @@ pref("media.gmp-manager.certs.1.issuerName", "CN=DigiCert Secure Server CA,O=Dig
 pref("media.gmp-manager.certs.1.commonName", "aus4.mozilla.org");
 pref("media.gmp-manager.certs.2.issuerName", "CN=Thawte SSL CA,O=\"Thawte, Inc.\",C=US");
 pref("media.gmp-manager.certs.2.commonName", "aus4.mozilla.org");
-
-// Adobe EME is currently pref'd off by default and hidden in the addon manager.
-pref("media.gmp-eme-adobe.hidden", true);
 #endif
 
 // Whether or not to perform reader mode article parsing on page load.
@@ -4631,6 +4639,11 @@ pref("media.gmp.insecure.allow", false);
 #if defined(XP_MACOSX) || defined(XP_WIN)
 pref("gfx.vsync.hw-vsync.enabled", true);
 pref("gfx.vsync.compositor", true);
+#endif
+
+#if defined(XP_MACOSX)
+pref("gfx.vsync.refreshdriver", true);
+#else
 pref("gfx.vsync.refreshdriver", false);
 #endif
 

@@ -765,7 +765,7 @@ Debugger::wrapEnvironment(JSContext *cx, Handle<Env*> env, MutableHandleValue rv
      * DebuggerEnv should only wrap a debug scope chain obtained (transitively)
      * from GetDebugScopeFor(Frame|Function).
      */
-    MOZ_ASSERT(IsValidTerminatingScope(env));
+    MOZ_ASSERT(!IsSyntacticScope(env));
 
     NativeObject *envobj;
     DependentAddPtr<ObjectWeakMap> p(cx, environments, env);
@@ -1571,10 +1571,7 @@ Debugger::onSingleStep(JSContext *cx, MutableHandleValue vp)
                 }
             }
         }
-        if (trappingScript->compileAndGo())
-            MOZ_ASSERT(stepperCount == trappingScript->stepModeCount());
-        else
-            MOZ_ASSERT(stepperCount <= trappingScript->stepModeCount());
+        MOZ_ASSERT(stepperCount == trappingScript->stepModeCount());
     }
 #endif
 
@@ -3229,6 +3226,9 @@ Debugger::removeDebuggeeGlobal(FreeOp *fop, GlobalObject *global,
      */
     if (trackingAllocationSites)
         global->compartment()->forgetObjectMetadataCallback();
+
+    // Clear out all object metadata in the compartment.
+    global->compartment()->clearObjectMetadata();
 
     if (global->getDebuggers()->empty()) {
         global->compartment()->unsetIsDebuggee();
@@ -6142,6 +6142,7 @@ EvaluateInEnv(JSContext *cx, Handle<Env*> env, HandleValue thisv, AbstractFrameP
         return false;
     CompileOptions options(cx);
     options.setCompileAndGo(true)
+           .setHasPollutedScope(true)
            .setForEval(true)
            .setNoScriptRval(false)
            .setFileAndLine(filename, lineno)
@@ -6746,7 +6747,7 @@ DebuggerObject_getAllocationSite(JSContext *cx, unsigned argc, Value *vp)
 {
     THIS_DEBUGOBJECT_REFERENT(cx, argc, vp, "get allocationSite", args, obj);
 
-    RootedObject metadata(cx, obj->getMetadata());
+    RootedObject metadata(cx, GetObjectMetadata(obj));
     if (!cx->compartment()->wrap(cx, &metadata))
         return false;
     args.rval().setObjectOrNull(metadata);
@@ -7363,7 +7364,7 @@ DebuggerEnv_checkThis(JSContext *cx, const CallArgs &args, const char *fnname,
         return false;                                                         \
     Rooted<Env*> env(cx, static_cast<Env *>(envobj->getPrivate()));           \
     MOZ_ASSERT(env);                                                          \
-    MOZ_ASSERT(IsValidTerminatingScope(env));
+    MOZ_ASSERT(!IsSyntacticScope(env));
  
  #define THIS_DEBUGENV_OWNER(cx, argc, vp, fnname, args, envobj, env, dbg)    \
      THIS_DEBUGENV(cx, argc, vp, fnname, args, envobj, env);                  \

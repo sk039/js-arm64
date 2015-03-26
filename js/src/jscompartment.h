@@ -131,7 +131,7 @@ struct TypeInferenceSizes;
 
 namespace js {
 class DebugScopes;
-class LazyArrayBufferTable;
+class ObjectWeakMap;
 class WeakMapBase;
 }
 
@@ -149,6 +149,7 @@ struct JSCompartment
     bool                         isSelfHosting;
     bool                         marked;
     bool                         warnedAboutNoSuchMethod;
+    bool                         warnedAboutFlagsArgument;
 
     // A null add-on ID means that the compartment is not associated with an
     // add-on.
@@ -256,6 +257,7 @@ struct JSCompartment
                                 size_t *compartmentTables,
                                 size_t *innerViews,
                                 size_t *lazyArrayBuffers,
+                                size_t *objectMetadataTables,
                                 size_t *crossCompartmentWrappers,
                                 size_t *regexpCompartment,
                                 size_t *savedStacksSet);
@@ -288,11 +290,17 @@ struct JSCompartment
      */
     js::ReadBarrieredScriptSourceObject selfHostingScriptSource;
 
+    // Keep track of the metadata objects which can be associated with each
+    // JS object.
+    js::ObjectWeakMap *objectMetadataTable;
+
     // Map from array buffers to views sharing that storage.
     js::InnerViewTable innerViews;
 
-    // Map from typed objects to array buffers lazily created for them.
-    js::LazyArrayBufferTable *lazyArrayBuffers;
+    // Inline transparent typed objects do not initially have an array buffer,
+    // but can have that buffer created lazily if it is accessed later. This
+    // table manages references from such typed objects to their buffers.
+    js::ObjectWeakMap *lazyArrayBuffers;
 
     // All unboxed layouts in the compartment.
     mozilla::LinkedList<js::UnboxedLayout> unboxedLayouts;
@@ -391,16 +399,14 @@ struct JSCompartment
     void fixupInitialShapeTable();
     void fixupAfterMovingGC();
     void fixupGlobal();
-    void fixupBaseShapeTable();
 
     bool hasObjectMetadataCallback() const { return objectMetadataCallback; }
     void setObjectMetadataCallback(js::ObjectMetadataCallback callback);
     void forgetObjectMetadataCallback() {
         objectMetadataCallback = nullptr;
     }
-    bool callObjectMetadataCallback(JSContext *cx, JSObject **obj) const {
-        return objectMetadataCallback(cx, obj);
-    }
+    void setNewObjectMetadata(JSContext *cx, JSObject *obj);
+    void clearObjectMetadata();
     const void *addressOfMetadataCallback() const {
         return &objectMetadataCallback;
     }
@@ -547,6 +553,7 @@ struct JSCompartment
         DeprecatedLetBlock = 4,             // Added in JS 1.7
         DeprecatedLetExpression = 5,        // Added in JS 1.7
         DeprecatedNoSuchMethod = 6,         // JS 1.7+
+        DeprecatedFlagsArgument = 7,        // JS 1.3 or older
         DeprecatedLanguageExtensionCount
     };
 

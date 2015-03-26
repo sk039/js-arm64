@@ -424,7 +424,7 @@ IsSameHost(nsIURI* aUri1, nsIURI* aUri2)
   return host1.Equals(host2);
 }
 
-class nsPingListener MOZ_FINAL
+class nsPingListener final
   : public nsIStreamListener
   , public nsIInterfaceRequestor
   , public nsIChannelEventSink
@@ -859,6 +859,7 @@ nsDocShell::nsDocShell()
   , mAllowDNSPrefetch(true)
   , mAllowWindowControl(true)
   , mAllowContentRetargeting(true)
+  , mAllowContentRetargetingOnChildren(true)
   , mCreatingDocument(false)
   , mUseErrorPages(false)
   , mObserveErrorPages(true)
@@ -2587,7 +2588,22 @@ nsDocShell::GetAllowContentRetargeting(bool* aAllowContentRetargeting)
 NS_IMETHODIMP
 nsDocShell::SetAllowContentRetargeting(bool aAllowContentRetargeting)
 {
+  mAllowContentRetargetingOnChildren = aAllowContentRetargeting;
   mAllowContentRetargeting = aAllowContentRetargeting;
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsDocShell::GetAllowContentRetargetingOnChildren(bool* aAllowContentRetargetingOnChildren)
+{
+  *aAllowContentRetargetingOnChildren = mAllowContentRetargetingOnChildren;
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsDocShell::SetAllowContentRetargetingOnChildren(bool aAllowContentRetargetingOnChildren)
+{
+  mAllowContentRetargetingOnChildren = aAllowContentRetargetingOnChildren;
   return NS_OK;
 }
 
@@ -3223,14 +3239,14 @@ nsDocShell::RemoveWeakScrollObserver(nsIScrollObserver* aObserver)
 }
 
 void
-nsDocShell::NotifyAsyncPanZoomStarted(const mozilla::CSSIntPoint aScrollPos)
+nsDocShell::NotifyAsyncPanZoomStarted()
 {
   nsTObserverArray<nsWeakPtr>::ForwardIterator iter(mScrollObservers);
   while (iter.HasMore()) {
     nsWeakPtr ref = iter.GetNext();
     nsCOMPtr<nsIScrollObserver> obs = do_QueryReferent(ref);
     if (obs) {
-      obs->AsyncPanZoomStarted(aScrollPos);
+      obs->AsyncPanZoomStarted();
     } else {
       mScrollObservers.RemoveElement(ref);
     }
@@ -3241,20 +3257,20 @@ nsDocShell::NotifyAsyncPanZoomStarted(const mozilla::CSSIntPoint aScrollPos)
     nsCOMPtr<nsIDocShell> kid = do_QueryInterface(ChildAt(i));
     if (kid) {
       nsDocShell* docShell = static_cast<nsDocShell*>(kid.get());
-      docShell->NotifyAsyncPanZoomStarted(aScrollPos);
+      docShell->NotifyAsyncPanZoomStarted();
     }
   }
 }
 
 void
-nsDocShell::NotifyAsyncPanZoomStopped(const mozilla::CSSIntPoint aScrollPos)
+nsDocShell::NotifyAsyncPanZoomStopped()
 {
   nsTObserverArray<nsWeakPtr>::ForwardIterator iter(mScrollObservers);
   while (iter.HasMore()) {
     nsWeakPtr ref = iter.GetNext();
     nsCOMPtr<nsIScrollObserver> obs = do_QueryReferent(ref);
     if (obs) {
-      obs->AsyncPanZoomStopped(aScrollPos);
+      obs->AsyncPanZoomStopped();
     } else {
       mScrollObservers.RemoveElement(ref);
     }
@@ -3265,7 +3281,7 @@ nsDocShell::NotifyAsyncPanZoomStopped(const mozilla::CSSIntPoint aScrollPos)
     nsCOMPtr<nsIDocShell> kid = do_QueryInterface(ChildAt(i));
     if (kid) {
       nsDocShell* docShell = static_cast<nsDocShell*>(kid.get());
-      docShell->NotifyAsyncPanZoomStopped(aScrollPos);
+      docShell->NotifyAsyncPanZoomStopped();
     }
   }
 }
@@ -3461,7 +3477,7 @@ nsDocShell::SetDocLoaderParent(nsDocLoader* aParent)
     if (NS_SUCCEEDED(parentAsDocShell->GetAllowWindowControl(&value))) {
       SetAllowWindowControl(value);
     }
-    SetAllowContentRetargeting(parentAsDocShell->GetAllowContentRetargeting());
+    SetAllowContentRetargeting(parentAsDocShell->GetAllowContentRetargetingOnChildren());
     if (NS_SUCCEEDED(parentAsDocShell->GetIsActive(&value))) {
       SetIsActive(value);
     }
@@ -8737,6 +8753,7 @@ nsDocShell::RestoreFromHistory()
     childShell->GetAllowDNSPrefetch(&allowDNSPrefetch);
 
     bool allowContentRetargeting = childShell->GetAllowContentRetargeting();
+    bool allowContentRetargetingOnChildren = childShell->GetAllowContentRetargetingOnChildren();
 
     uint32_t defaultLoadFlags;
     childShell->GetDefaultLoadFlags(&defaultLoadFlags);
@@ -8755,6 +8772,7 @@ nsDocShell::RestoreFromHistory()
     childShell->SetAllowMedia(allowMedia);
     childShell->SetAllowDNSPrefetch(allowDNSPrefetch);
     childShell->SetAllowContentRetargeting(allowContentRetargeting);
+    childShell->SetAllowContentRetargetingOnChildren(allowContentRetargetingOnChildren);
     childShell->SetDefaultLoadFlags(defaultLoadFlags);
 
     rv = childShell->BeginRestore(nullptr, false);
@@ -9360,7 +9378,7 @@ namespace {
 #ifdef MOZ_PLACES
 // Callback used by CopyFavicon to inform the favicon service that one URI
 // (mNewURI) has the same favicon URI (OnComplete's aFaviconURI) as another.
-class nsCopyFaviconCallback MOZ_FINAL : public nsIFaviconDataCallback
+class nsCopyFaviconCallback final : public nsIFaviconDataCallback
 {
 public:
   NS_DECL_ISUPPORTS
@@ -9373,7 +9391,7 @@ public:
 
   NS_IMETHODIMP
   OnComplete(nsIURI* aFaviconURI, uint32_t aDataLen,
-             const uint8_t* aData, const nsACString& aMimeType) MOZ_OVERRIDE
+             const uint8_t* aData, const nsACString& aMimeType) override
   {
     // Continue only if there is an associated favicon.
     if (!aFaviconURI) {
@@ -9999,14 +10017,6 @@ nsDocShell::InternalLoad(nsIURI* aURI,
       GetCurScrollPos(ScrollOrientation_X, &cx);
       GetCurScrollPos(ScrollOrientation_Y, &cy);
 
-      // ScrollToAnchor doesn't necessarily cause us to scroll the window;
-      // the function decides whether a scroll is appropriate based on the
-      // arguments it receives.  But even if we don't end up scrolling,
-      // ScrollToAnchor performs other important tasks, such as informing
-      // the presShell that we have a new hash.  See bug 680257.
-      rv = ScrollToAnchor(curHash, newHash, aLoadType);
-      NS_ENSURE_SUCCESS(rv, rv);
-
       // Reset mLoadType to its original value once we exit this block,
       // because this short-circuited load might have started after a
       // normal, network load, and we don't want to clobber its load type.
@@ -10096,16 +10106,6 @@ nsDocShell::InternalLoad(nsIURI* aURI,
         }
       }
 
-      /* restore previous position of scroller(s), if we're moving
-       * back in history (bug 59774)
-       */
-      if (mOSHE && (aLoadType == LOAD_HISTORY ||
-                    aLoadType == LOAD_RELOAD_NORMAL)) {
-        nscoord bx, by;
-        mOSHE->GetScrollPosition(&bx, &by);
-        SetCurScrollPosEx(bx, by);
-      }
-
       /* Restore the original LSHE if we were loading something
        * while short-circuited load was initiated.
        */
@@ -10140,12 +10140,36 @@ nsDocShell::InternalLoad(nsIURI* aURI,
 
       SetDocCurrentStateObj(mOSHE);
 
+      // Inform the favicon service that the favicon for oldURI also
+      // applies to aURI.
+      CopyFavicon(currentURI, aURI, mInPrivateBrowsing);
+
+      nsRefPtr<nsGlobalWindow> win = mScriptGlobal ?
+        mScriptGlobal->GetCurrentInnerWindowInternal() : nullptr;
+
+      // ScrollToAnchor doesn't necessarily cause us to scroll the window;
+      // the function decides whether a scroll is appropriate based on the
+      // arguments it receives.  But even if we don't end up scrolling,
+      // ScrollToAnchor performs other important tasks, such as informing
+      // the presShell that we have a new hash.  See bug 680257.
+      rv = ScrollToAnchor(curHash, newHash, aLoadType);
+      NS_ENSURE_SUCCESS(rv, rv);
+
+      /* restore previous position of scroller(s), if we're moving
+       * back in history (bug 59774)
+       */
+      if (mOSHE && (aLoadType == LOAD_HISTORY ||
+                    aLoadType == LOAD_RELOAD_NORMAL)) {
+        nscoord bx, by;
+        mOSHE->GetScrollPosition(&bx, &by);
+        SetCurScrollPosEx(bx, by);
+      }
+
       // Dispatch the popstate and hashchange events, as appropriate.
       //
       // The event dispatch below can cause us to re-enter script and
       // destroy the docshell, nulling out mScriptGlobal. Hold a stack
       // reference to avoid null derefs. See bug 914521.
-      nsRefPtr<nsGlobalWindow> win = mScriptGlobal;
       if (win) {
         // Fire a hashchange event URIs differ, and only in their hashes.
         bool doHashchange = sameExceptHashes && !curHash.Equals(newHash);
@@ -10160,10 +10184,6 @@ nsDocShell::InternalLoad(nsIURI* aURI,
           win->DispatchAsyncHashchange(currentURI, aURI);
         }
       }
-
-      // Inform the favicon service that the favicon for oldURI also
-      // applies to aURI.
-      CopyFavicon(currentURI, aURI, mInPrivateBrowsing);
 
       return NS_OK;
     }
@@ -13930,6 +13950,11 @@ NS_IMETHODIMP
 nsDocShell::ShouldPrepareForIntercept(nsIURI* aURI, bool aIsNavigate, bool* aShouldIntercept)
 {
   *aShouldIntercept = false;
+  if (mSandboxFlags) {
+    // If we're sandboxed, don't intercept.
+    return NS_OK;
+  }
+
   nsCOMPtr<nsIServiceWorkerManager> swm = mozilla::services::GetServiceWorkerManager();
   if (!swm) {
     return NS_OK;
@@ -13969,7 +13994,8 @@ nsDocShell::ChannelIntercepted(nsIInterceptedChannel* aChannel)
     }
   }
 
-  return swm->DispatchFetchEvent(doc, aChannel);
+  bool isReload = mLoadType & LOAD_CMD_RELOAD;
+  return swm->DispatchFetchEvent(doc, aChannel, isReload);
 }
 
 NS_IMETHODIMP

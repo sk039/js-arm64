@@ -201,22 +201,6 @@ class GCMarker : public JSTracer
 
     bool drainMarkStack(SliceBudget &budget);
 
-    /*
-     * Gray marking must be done after all black marking is complete. However,
-     * we do not have write barriers on XPConnect roots. Therefore, XPConnect
-     * roots must be accumulated in the first slice of incremental GC. We
-     * accumulate these roots in the each compartment's gcGrayRoots vector and
-     * then mark them later, after black marking is complete for each
-     * compartment. This accumulation can fail, but in that case we switch to
-     * non-incremental GC.
-     */
-    bool hasBufferedGrayRoots() const;
-    void startBufferingGrayRoots();
-    void endBufferingGrayRoots();
-    void resetBufferedGrayRoots();
-
-    static void GrayCallback(JSTracer *trc, void **thing, JSGCTraceKind kind);
-
     void setGCMode(JSGCMode mode) { stack.setGCMode(mode); }
 
     size_t sizeOfExcludingThis(mozilla::MallocSizeOf mallocSizeOf) const;
@@ -341,26 +325,37 @@ class GCMarker : public JSTracer
     mozilla::DebugOnly<bool> strictCompartmentChecking;
 };
 
+// Append traced things to a buffer on the zone for use later in the GC.
+// See the comment in GCRuntime.h above grayBufferState for details.
+class BufferGrayRootsTracer : public JS::CallbackTracer
+{
+    // Set to false if we OOM while buffering gray roots.
+    bool bufferingGrayRootsFailed;
+
+    void appendGrayRoot(void *thing, JSGCTraceKind kind);
+
+  public:
+    explicit BufferGrayRootsTracer(JSRuntime *rt)
+      : JS::CallbackTracer(rt, grayTraceCallback), bufferingGrayRootsFailed(false)
+    {}
+
+    static void grayTraceCallback(JS::CallbackTracer *trc, void **thingp, JSGCTraceKind kind) {
+        static_cast<BufferGrayRootsTracer *>(trc)->appendGrayRoot(*thingp, kind);
+    }
+
+    bool failed() const { return bufferingGrayRootsFailed; }
+};
+
 void
 SetMarkStackLimit(JSRuntime *rt, size_t limit);
 
 // Return true if this trace is happening on behalf of gray buffering during
 // the marking phase of incremental GC.
 inline bool
-IsMarkingGray(JSTracer *trc)
+IsBufferingGrayRoots(JSTracer *trc)
 {
-    return trc->callback == js::GCMarker::GrayCallback;
-}
-
-// Return true if this trace is happening on behalf of the marking phase of GC.
-inline bool
-IsMarkingTracer(JSTracer *trc)
-{
-    // If we call this on the gray-buffering tracer, then we have encountered a
-    // marking path that will be wrong when tracing with a callback marker to
-    // enqueue for deferred gray marking.
-    MOZ_ASSERT(!IsMarkingGray(trc));
-    return trc->callback == nullptr;
+    return trc->isCallbackTracer() &&
+           trc->asCallbackTracer()->hasCallback(BufferGrayRootsTracer::grayTraceCallback);
 }
 
 } /* namespace js */

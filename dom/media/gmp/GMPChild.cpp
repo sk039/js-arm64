@@ -380,7 +380,7 @@ public:
   explicit MacOSXSandboxStarter(GMPChild* aGMPChild)
     : mGMPChild(aGMPChild)
   {}
-  virtual void Start(const char* aLibPath) MOZ_OVERRIDE {
+  virtual void Start(const char* aLibPath) override {
     mGMPChild->StartMacSandbox();
   }
 private:
@@ -629,6 +629,12 @@ GMPChild::RecvPGMPDecryptorConstructor(PGMPDecryptorChild* aActor)
 
   void* session = nullptr;
   GMPErr err = GetAPI(GMP_API_DECRYPTOR, host, &session);
+
+  if (err != GMPNoErr && !session) {
+    // XXX to remove in bug 1147692
+    err = GetAPI(GMP_API_DECRYPTOR_COMPAT, host, &session);
+  }
+
   if (err != GMPNoErr || !session) {
     return false;
   }

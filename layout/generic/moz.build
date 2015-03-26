@@ -89,7 +89,6 @@ EXPORTS += [
     'nsSubDocumentFrame.h',
     'nsTextRunTransformations.h',
     'ScrollbarActivity.h',
-    'Selection.h',
     'WritingModes.h',
 ]
 
@@ -165,7 +164,7 @@ SOURCES += [
     'nsPluginFrame.cpp',
 ]
 
-FAIL_ON_WARNINGS = not CONFIG['_MSC_VER']
+FAIL_ON_WARNINGS = True
 
 MSVC_ENABLE_PGO = True
 

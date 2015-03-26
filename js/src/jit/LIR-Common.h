@@ -374,46 +374,43 @@ class LSimdSwizzleF : public LSimdSwizzleBase
     {}
 };
 
-class LSimdGeneralSwizzleBase : public LInstructionHelper<1, 5, 1>
+class LSimdGeneralShuffleBase : public LVariadicInstruction<1, 1>
 {
   public:
-    LSimdGeneralSwizzleBase(const LAllocation &base, const LAllocation lanes[4],
-                            const LDefinition &temp)
-    {
-        setOperand(0, base);
-        for (size_t i = 0; i < 4; i++)
-            setOperand(1 + i, lanes[i]);
+    explicit LSimdGeneralShuffleBase(const LDefinition &temp) {
         setTemp(0, temp);
     }
-
-    const LAllocation *base() {
-        return getOperand(0);
+    const LAllocation *vector(unsigned i) {
+        MOZ_ASSERT(i < mir()->numVectors());
+        return getOperand(i);
     }
-    const LAllocation *lane(size_t i) {
-        return getOperand(1 + i);
+    const LAllocation *lane(unsigned i) {
+        MOZ_ASSERT(i < mir()->numLanes());
+        return getOperand(mir()->numVectors() + i);
     }
     const LDefinition *temp() {
         return getTemp(0);
     }
+    MSimdGeneralShuffle *mir() const {
+        return mir_->toSimdGeneralShuffle();
+    }
 };
 
-class LSimdGeneralSwizzleI : public LSimdGeneralSwizzleBase
+class LSimdGeneralShuffleI : public LSimdGeneralShuffleBase
 {
   public:
-    LIR_HEADER(SimdGeneralSwizzleI);
-    LSimdGeneralSwizzleI(const LAllocation &base, const LAllocation lanes[4],
-                         const LDefinition &temp)
-      : LSimdGeneralSwizzleBase(base, lanes, temp)
+    LIR_HEADER(SimdGeneralShuffleI);
+    explicit LSimdGeneralShuffleI(const LDefinition &temp)
+      : LSimdGeneralShuffleBase(temp)
     {}
 };
 
-class LSimdGeneralSwizzleF : public LSimdGeneralSwizzleBase
+class LSimdGeneralShuffleF : public LSimdGeneralShuffleBase
 {
   public:
-    LIR_HEADER(SimdGeneralSwizzleF);
-    LSimdGeneralSwizzleF(const LAllocation &base, const LAllocation lanes[4],
-                         const LDefinition &temp)
-      : LSimdGeneralSwizzleBase(base, lanes, temp)
+    LIR_HEADER(SimdGeneralShuffleF);
+    explicit LSimdGeneralShuffleF(const LDefinition &temp)
+      : LSimdGeneralShuffleBase(temp)
     {}
 };
 
@@ -800,13 +797,13 @@ class LControlInstructionHelper : public LInstructionHelper<0, Operands, Temps> 
     mozilla::Array<MBasicBlock *, Succs> successors_;
 
   public:
-    virtual size_t numSuccessors() const MOZ_FINAL MOZ_OVERRIDE { return Succs; }
+    virtual size_t numSuccessors() const final override { return Succs; }
 
-    virtual MBasicBlock *getSuccessor(size_t i) const MOZ_FINAL MOZ_OVERRIDE {
+    virtual MBasicBlock *getSuccessor(size_t i) const final override {
         return successors_[i];
     }
 
-    virtual void setSuccessor(size_t i, MBasicBlock *successor) MOZ_FINAL MOZ_OVERRIDE {
+    virtual void setSuccessor(size_t i, MBasicBlock *successor) final override {
         successors_[i] = successor;
     }
 };
@@ -1540,9 +1537,8 @@ class LJSCallInstructionHelper : public LCallInstructionHelper<Defs, Operands, T
 {
   public:
     uint32_t argslot() const {
-        static const uint32_t alignment = JitStackAlignment / sizeof(Value);
-        if (alignment > 1)
-            return AlignBytes(mir()->numStackArgs(), alignment);
+        if (JitStackValueAlignment > 1)
+            return AlignBytes(mir()->numStackArgs(), JitStackValueAlignment);
         return mir()->numStackArgs();
     }
     MCall *mir() const {
@@ -1687,6 +1683,12 @@ class LUnreachable : public LControlInstructionHelper<0, 0, 0>
 {
   public:
     LIR_HEADER(Unreachable)
+};
+
+class LEncodeSnapshot : public LInstructionHelper<0, 0, 0>
+{
+  public:
+    LIR_HEADER(EncodeSnapshot)
 };
 
 template <size_t defs, size_t ops>
@@ -5062,6 +5064,8 @@ class LAtomicTypedArrayElementBinop : public LInstructionHelper<1, 3, 2>
   public:
     LIR_HEADER(AtomicTypedArrayElementBinop)
 
+    static const int32_t valueOp = 2;
+
     LAtomicTypedArrayElementBinop(const LAllocation &elements, const LAllocation &index,
                                   const LAllocation &value, const LDefinition &temp1,
                                   const LDefinition &temp2)
@@ -5080,6 +5084,7 @@ class LAtomicTypedArrayElementBinop : public LInstructionHelper<1, 3, 2>
         return getOperand(1);
     }
     const LAllocation *value() {
+        MOZ_ASSERT(valueOp == 2);
         return getOperand(2);
     }
     const LDefinition *temp1() {
@@ -6494,6 +6499,9 @@ class LAsmJSAtomicBinopHeap : public LInstructionHelper<1, 2, 2>
 {
   public:
     LIR_HEADER(AsmJSAtomicBinopHeap);
+
+    static const int32_t valueOp = 1;
+
     LAsmJSAtomicBinopHeap(const LAllocation &ptr, const LAllocation &value,
                           const LDefinition &temp)
     {
@@ -6506,6 +6514,7 @@ class LAsmJSAtomicBinopHeap : public LInstructionHelper<1, 2, 2>
         return getOperand(0);
     }
     const LAllocation *value() {
+        MOZ_ASSERT(valueOp == 1);
         return getOperand(1);
     }
     const LDefinition *temp() {
@@ -6623,7 +6632,7 @@ class LAsmJSPassStackArg : public LInstructionHelper<0, 1, 0>
     }
 };
 
-class LAsmJSCall MOZ_FINAL : public LInstruction
+class LAsmJSCall final : public LInstruction
 {
     LAllocation *operands_;
     uint32_t numOperands_;

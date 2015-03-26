@@ -176,8 +176,10 @@ UnboxedLayout::makeConstructorCode(JSContext *cx, HandleObjectGroup group)
 
             Register payloadReg = masm.extractObject(valueOperand, scratch1);
 
-            if (!types->hasType(TypeSet::AnyObjectType()))
-                masm.guardObjectType(payloadReg, types, scratch2, &failureStoreObject);
+            if (!types->hasType(TypeSet::AnyObjectType())) {
+                Register scratch = (payloadReg == scratch1) ? scratch2 : scratch1;
+                masm.guardObjectType(payloadReg, types, scratch, &failureStoreObject);
+            }
 
             masm.storeUnboxedProperty(targetAddress, JSVAL_TYPE_OBJECT,
                                       TypedOrValueRegister(MIRType_Object,
@@ -207,7 +209,7 @@ UnboxedLayout::makeConstructorCode(JSContext *cx, HandleObjectGroup group)
     for (GeneralRegisterBackwardIterator iter(savedNonVolatileRegisters); iter.more(); ++iter)
         masm.Pop(*iter);
 
-    masm.ret();
+    masm.abiret();
 
     masm.bind(&failureStoreOther);
 
@@ -241,7 +243,7 @@ UnboxedLayout::makeConstructorCode(JSContext *cx, HandleObjectGroup group)
     masm.jump(&done);
 
     Linker linker(masm);
-    AutoFlushICache afc("RegExp");
+    AutoFlushICache afc("UnboxedObject");
     JitCode *code = linker.newCode<NoGC>(cx, OTHER_CODE);
     if (!code)
         return false;
@@ -458,8 +460,7 @@ UnboxedLayout::makeNativeGroup(JSContext *cx, ObjectGroup *group)
     }
 
     size_t nfixed = gc::GetGCKindSlots(layout.getAllocKind());
-    RootedShape shape(cx, EmptyShape::getInitialShape(cx, &PlainObject::class_, proto,
-                                                      nullptr, nfixed, 0));
+    RootedShape shape(cx, EmptyShape::getInitialShape(cx, &PlainObject::class_, proto, nfixed, 0));
     if (!shape)
         return false;
 
@@ -679,16 +680,16 @@ UnboxedPlainObject::obj_lookupProperty(JSContext *cx, HandleObject obj,
 }
 
 /* static */ bool
-UnboxedPlainObject::obj_defineProperty(JSContext *cx, HandleObject obj, HandleId id, HandleValue v,
-                                       GetterOp getter, SetterOp setter, unsigned attrs,
+UnboxedPlainObject::obj_defineProperty(JSContext *cx, HandleObject obj, HandleId id,
+                                       Handle<JSPropertyDescriptor> desc,
                                        ObjectOpResult &result)
 {
     const UnboxedLayout &layout = obj->as<UnboxedPlainObject>().layout();
 
     if (const UnboxedLayout::Property *property = layout.lookup(id)) {
-        if (!getter && !setter && attrs == JSPROP_ENUMERATE) {
+        if (!desc.getter() && !desc.setter() && desc.attributes() == JSPROP_ENUMERATE) {
             // This define is equivalent to setting an existing property.
-            if (obj->as<UnboxedPlainObject>().setValue(cx, *property, v))
+            if (obj->as<UnboxedPlainObject>().setValue(cx, *property, desc.value()))
                 return true;
         }
 
@@ -697,26 +698,19 @@ UnboxedPlainObject::obj_defineProperty(JSContext *cx, HandleObject obj, HandleId
         if (!convertToNative(cx, obj))
             return false;
 
-        return DefineProperty(cx, obj, id, v, getter, setter, attrs);
+        return DefineProperty(cx, obj, id, desc, result) &&
+               result.checkStrict(cx, obj, id);
     }
 
-    // Expandos are currently disabled. FIXME bug 1137180
-#if 0
     // Define the property on the expando object.
     Rooted<UnboxedExpandoObject *> expando(cx, ensureExpando(cx, obj.as<UnboxedPlainObject>()));
     if (!expando)
         return false;
 
     // Update property types on the unboxed object as well.
-    AddTypePropertyId(cx, obj, id, v);
+    AddTypePropertyId(cx, obj, id, desc.value());
 
-    return DefineProperty(cx, expando, id, v, getter, setter, attrs, result);
-#else
-    if (!convertToNative(cx, obj))
-        return false;
-
-    return DefineProperty(cx, obj, id, v, getter, setter, attrs, result);
-#endif
+    return DefineProperty(cx, expando, id, desc, result);
 }
 
 /* static */ bool
@@ -1125,7 +1119,6 @@ js::TryConvertToUnboxedLayout(ExclusiveContext *cx, Shape *templateShape,
     // Get an empty shape which we can use for the preliminary objects.
     Shape *newShape = EmptyShape::getInitialShape(cx, &UnboxedPlainObject::class_,
                                                   group->proto(),
-                                                  templateShape->getObjectMetadata(),
                                                   templateShape->getObjectFlags());
     if (!newShape) {
         cx->recoverFromOutOfMemory();

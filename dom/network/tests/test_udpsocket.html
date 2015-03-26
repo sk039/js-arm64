@@ -274,6 +274,7 @@ function testOpenFailed() {
 
   return socket.opened.then(function() {
     ok(false, 'should not resolve openedPromise while fail to bind socket');
+    socket.close();
   }).catch(function(reason) {
     is(reason.name, 'NetworkError', 'expected openedPromise to be rejected while fail to bind socket');
   });
@@ -291,7 +292,9 @@ function testSendBeforeOpen() {
     ok(true, 'expected send fail before openedPromise is resolved');
   }
 
-  return socket.opened;
+  return socket.opened.then(function() {
+    socket.close();
+  });
 }
 
 function testCloseBeforeOpened() {
@@ -312,13 +315,13 @@ function testCloseBeforeOpened() {
 function testOpenWithoutClose() {
   info('test for open without close');
 
-  let opened = [];
+  let closed = [];
   for (let i = 0; i < 50; i++) {
     let socket = new UDPSocket();
-    opened.push(socket.opened);
+    closed.push(socket.closed);
   }
 
-  return Promise.all(opened);
+  return Promise.all(closed);
 }
 
 function testBFCache() {
@@ -376,6 +379,10 @@ function runTest() {
   .then(testBFCache)
   .then(function() {
     info('test finished');
+    SimpleTest.finish();
+  })
+  .catch(function(err) {
+    ok(false, 'test failed due to: ' + err);
     SimpleTest.finish();
   });
 }
