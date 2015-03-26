@@ -46,6 +46,8 @@
 # define ONLY_X86_X64
 #elif defined(JS_CODEGEN_ARM)
 # define ONLY_X86_X64 = delete
+#elif defined(JS_CODEGEN_ARM64)
+# define ONLY_X86_X64 = delete
 #elif defined(JS_CODEGEN_MIPS)
 # define ONLY_X86_X64 = delete
 #elif defined(JS_CODEGEN_NONE)

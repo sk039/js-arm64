@@ -570,8 +570,66 @@ MacroAssemblerCompat::callWithABI(Address fun, MoveOp::Type result)
     callWithABIPost(stackAdjust, result);
 }
 
-void MacroAssemblerCompat::branchPtrInNurseryRange(Condition cond, Register ptr, Register temp,
-                                                   Label *label)
+void
+MacroAssembler::Push(Register reg)
+{
+    MacroAssemblerVIXL::Push(ARMRegister(reg, 64));
+    adjustFrame(sizeof(intptr_t));
+}
+
+void
+MacroAssembler::Push(const Imm32 imm)
+{
+    push(imm);
+    adjustFrame(sizeof(intptr_t));
+}
+
+void
+MacroAssembler::Push(const ImmWord imm)
+{
+    push(imm);
+    adjustFrame(sizeof(intptr_t));
+}
+
+void
+MacroAssembler::Push(const ImmPtr imm)
+{
+    push(imm);
+    adjustFrame(sizeof(intptr_t));
+}
+
+void
+MacroAssembler::Push(const ImmGCPtr ptr)
+{
+    push(ptr);
+    adjustFrame(sizeof(intptr_t));
+}
+
+void
+MacroAssembler::Push(FloatRegister f)
+{
+    push(f);
+    adjustFrame(sizeof(double));
+}
+
+void
+MacroAssembler::Pop(const Register reg)
+{
+    pop(reg);
+    adjustFrame(-1 * int64_t(sizeof(int64_t)));
+}
+
+void
+MacroAssembler::Pop(const ValueOperand &val)
+{
+    pop(val);
+    adjustFrame(-1 * int64_t(sizeof(int64_t)));
+}
+
+
+void
+MacroAssemblerCompat::branchPtrInNurseryRange(Condition cond, Register ptr, Register temp,
+                                              Label *label)
 {
     MOZ_ASSERT(cond == Assembler::Equal || cond == Assembler::NotEqual);
     MOZ_ASSERT(ptr != temp);
@@ -602,6 +660,48 @@ MacroAssemblerCompat::branchValueIsNurseryObject(Condition cond, ValueOperand va
               temp, ImmWord(nursery.nurserySize()), label);
 }
 
+void
+MacroAssemblerCompat::buildFakeExitFrame(Register scratch, uint32_t *offset)
+{
+    mozilla::DebugOnly<uint32_t> initialDepth = framePushed();
+    uint32_t descriptor = MakeFrameDescriptor(framePushed(), JitFrame_IonJS);
+
+    asMasm().Push(Imm32(descriptor)); // descriptor_
+
+    enterNoPool(3);
+    Label fakeCallsite;
+    Adr(ARMRegister(scratch, 64), &fakeCallsite);
+    asMasm().Push(scratch);
+    bind(&fakeCallsite);
+    uint32_t pseudoReturnOffset = currentOffset();
+    leaveNoPool();
+
+    MOZ_ASSERT(framePushed() == initialDepth + ExitFrameLayout::Size());
+
+    *offset = pseudoReturnOffset;
+}
+
+void
+MacroAssemblerCompat::callWithExitFrame(JitCode *target)
+{
+    uint32_t descriptor = MakeFrameDescriptor(framePushed(), JitFrame_IonJS);
+    asMasm().Push(Imm32(descriptor));
+    call(target);
+}
+
+void
+MacroAssemblerCompat::callAndPushReturnAddress(Label *label)
+{
+    // FIXME: Jandem said he would refactor the code to avoid making
+    // this instruction required, but probably forgot about it.
+    // Instead of implementing this function, we should make it unnecessary.
+    Label ret;
+    Adr(ScratchReg2_64, &ret);
+    asMasm().Push(ScratchReg2);
+    Bl(label);
+    bind(&ret);
+}
+
 // FIXME: Probably just call Brk() in the header.
 void
 MacroAssemblerCompat::breakpoint()
@@ -625,6 +725,17 @@ MacroAssembler::restoreFrameAlignmentForICArguments(MacroAssembler::AfterICSaveL
     // Exists for MIPS compatibility.
 }
 
+MacroAssembler &
+MacroAssemblerCompat::asMasm()
+{
+    return *static_cast<MacroAssembler *>(this);
+}
+
+const MacroAssembler &
+MacroAssemblerCompat::asMasm() const
+{
+    return *static_cast<const MacroAssembler *>(this);
+}
 
 } // namespace jit
 } // namespace js

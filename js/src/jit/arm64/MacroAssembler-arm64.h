@@ -62,6 +62,11 @@ struct ImmTag : public Imm32
 
 class MacroAssemblerCompat : public MacroAssemblerVIXL
 {
+  private:
+    // Perform a downcast. Should be removed by Bug 996602.
+    MacroAssembler &asMasm();
+    const MacroAssembler &asMasm() const;
+
   protected:
     bool enoughMemory_;
     uint32_t framePushed_;
@@ -127,44 +132,6 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
                     LSL,
                     unsigned(addr.scale)));
         LoadStoreMacro(rt, MemOperand(ScratchReg64, addr.offset), op);
-    }
-
-    void Push(Register reg) {
-        MacroAssemblerVIXL::Push(ARMRegister(reg, 64));
-        adjustFrame(sizeof(intptr_t));
-    }
-    void Push(const Imm32 imm) {
-        push(imm);
-        adjustFrame(sizeof(intptr_t));
-    }
-    void Push(const ImmWord imm) {
-        push(imm);
-        adjustFrame(sizeof(intptr_t));
-    }
-    void Push(const ImmPtr imm) {
-        push(imm);
-        adjustFrame(sizeof(intptr_t));
-    }
-    void Push(const ImmGCPtr ptr) {
-        push(ptr);
-        adjustFrame(sizeof(intptr_t));
-    }
-    void Push(FloatRegister f) {
-        push(f);
-        adjustFrame(sizeof(double));
-    }
-    void Push(const ValueOperand &val) {
-        MacroAssemblerVIXL::Push(ARMRegister(val.valueReg(), 64));
-        adjustFrame(sizeof(void *));
-    }
-
-    void Pop(const Register t) {
-        pop(t);
-        adjustFrame(-1 * int64_t(sizeof(int64_t)));
-    }
-    void Pop(const ValueOperand t) {
-        pop(t);
-        adjustFrame(-1 * int64_t(sizeof(int64_t)));
     }
 
     void push(FloatRegister f) {
@@ -756,6 +723,18 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
 
     // SIMD.
+    void loadInt32x1(const Address &addr, FloatRegister dest) { MOZ_CRASH("NYI"); }
+    void loadInt32x1(const BaseIndex &addr, FloatRegister dest) { MOZ_CRASH("NYI"); }
+    void loadInt32x2(const Address &addr, FloatRegister dest) { MOZ_CRASH("NYI"); }
+    void loadInt32x2(const BaseIndex &addr, FloatRegister dest) { MOZ_CRASH("NYI"); }
+    void loadInt32x3(const Address &src, FloatRegister dest) { MOZ_CRASH("NYI"); }
+    void loadInt32x3(const BaseIndex &src, FloatRegister dest) { MOZ_CRASH("NYI"); }
+    void storeInt32x1(FloatRegister src, const Address &dest) { MOZ_CRASH("NYI"); }
+    void storeInt32x1(FloatRegister src, const BaseIndex &dest) { MOZ_CRASH("NYI"); }
+    void storeInt32x2(FloatRegister src, const Address &dest) { MOZ_CRASH("NYI"); }
+    void storeInt32x2(FloatRegister src, const BaseIndex &dest) { MOZ_CRASH("NYI"); }
+    void storeInt32x3(FloatRegister src, const Address &dest) { MOZ_CRASH("NYI"); }
+    void storeInt32x3(FloatRegister src, const BaseIndex &dest) { MOZ_CRASH("NYI"); }
     void loadAlignedInt32x4(const Address &addr, FloatRegister dest) { MOZ_CRASH("NYI"); }
     void loadAlignedInt32x4(const BaseIndex &addr, FloatRegister dest) { MOZ_CRASH("NYI"); }
     void storeAlignedInt32x4(FloatRegister src, const Address &addr) { MOZ_CRASH("NYI"); }
@@ -765,6 +744,10 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     void storeUnalignedInt32x4(FloatRegister dest, const Address &addr) { MOZ_CRASH("NYI"); }
     void storeUnalignedInt32x4(FloatRegister dest, const BaseIndex &addr) { MOZ_CRASH("NYI"); }
 
+    void loadFloat32x3(const Address &src, FloatRegister dest) { MOZ_CRASH("NYI"); }
+    void loadFloat32x3(const BaseIndex &src, FloatRegister dest) { MOZ_CRASH("NYI"); }
+    void storeFloat32x3(FloatRegister src, const Address &dest) { MOZ_CRASH("NYI"); }
+    void storeFloat32x3(FloatRegister src, const BaseIndex &dest) { MOZ_CRASH("NYI"); }
     void loadAlignedFloat32x4(const Address &addr, FloatRegister dest) { MOZ_CRASH("NYI"); }
     void loadAlignedFloat32x4(const BaseIndex &addr, FloatRegister dest) { MOZ_CRASH("NYI"); }
     void storeAlignedFloat32x4(FloatRegister src, const Address &addr) { MOZ_CRASH("NYI"); }
@@ -954,6 +937,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     void storeDouble(FloatRegister src, const BaseIndex &dest) {
         doBaseIndex(ARMFPRegister(src, 64), dest, STR_d);
     }
+
     void storeFloat32(FloatRegister src, Address addr) {
         Str(ARMFPRegister(src, 32), MemOperand(ARMRegister(addr.base, 64), addr.offset));
     }
@@ -2131,35 +2115,13 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
 
     // Builds an exit frame on the stack, with a return address to an internal
     // non-function. Returns offset to be passed to markSafepointAt().
-    void buildFakeExitFrame(Register scratch, uint32_t *offset) {
-        mozilla::DebugOnly<uint32_t> initialDepth = framePushed();
-        uint32_t descriptor = MakeFrameDescriptor(framePushed(), JitFrame_IonJS);
-
-        Push(Imm32(descriptor)); // descriptor_
-
-        enterNoPool(3);
-        Label fakeCallsite;
-        Adr(ARMRegister(scratch, 64), &fakeCallsite);
-        Push(scratch);
-        bind(&fakeCallsite);
-        uint32_t pseudoReturnOffset = currentOffset();
-        leaveNoPool();
-
-        MOZ_ASSERT(framePushed() == initialDepth + ExitFrameLayout::Size());
-
-        *offset = pseudoReturnOffset;
-    }
+    void buildFakeExitFrame(Register scratch, uint32_t *offset);
 
     void callWithExitFrame(Label *target) {
         breakpoint();
     }
 
-    void callWithExitFrame(JitCode *target) {
-        uint32_t descriptor = MakeFrameDescriptor(framePushed(), JitFrame_IonJS);
-        Push(Imm32(descriptor)); // descriptor
-
-        call(target);
-    }
+    void callWithExitFrame(JitCode *target);
 
     void callJit(Register callee) {
         // AArch64 cannot read from the PC, so pushing must be handled callee-side.
@@ -2222,16 +2184,8 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         Blr(ARMRegister(reg, 64));
     }
 
-    void callAndPushReturnAddress(Label *label) {
-        // FIXME: Jandem said he would refactor the code to avoid making
-        // this instruction required, but probably forgot about it.
-        // Instead of implementing this function, we should make it unnecessary.
-        Label ret;
-        Adr(ScratchReg2_64, &ret);
-        Push(ScratchReg2);
-        Bl(label);
-        bind(&ret);
-    }
+    void callAndPushReturnAddress(Label *label);
+
     void profilerEnterFrame(Register framePtr, Register scratch) {
         AbsoluteAddress activation(GetJitContext()->runtime->addressOfProfilingActivation());
         loadPtr(activation, scratch);

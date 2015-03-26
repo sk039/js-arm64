@@ -445,7 +445,6 @@ hasMultiAlias()
 
 static const size_t AsmJSCheckedImmediateRange = 0;
 static const size_t AsmJSImmediateRange = 0;
-static const uint32_t JitStackAlignment = 16;
 
 } // namespace jit
 } // namespace js
