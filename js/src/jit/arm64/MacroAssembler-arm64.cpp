@@ -611,7 +611,7 @@ MacroAssemblerCompat::breakpoint()
     // FIXME: Remove this (mjrosenb)
     if (getenv("STOP_BREAK") && strtol(getenv("STOP_BREAK"), 0, 0) == code)
         MOZ_CRASH("You Rang?");
-    Brk(code++);
+    Brk((code++)&0xffff);
 }
 
 void
