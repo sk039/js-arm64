@@ -1009,16 +1009,37 @@ CodeGeneratorARM64::splitTagForTest(const ValueOperand &value)
     return InvalidReg;
 }
 
-void 
+void
 CodeGeneratorARM64::visitTestDAndBranch(LTestDAndBranch *test)
 {
-    MOZ_CRASH("CodeGeneratorARM64::visitTestDAndBranch");
+    const LAllocation *opd = test->input();
+    masm.Fcmp(ARMFPRegister(ToFloatRegister(opd), 64), 0.0);
+
+    MBasicBlock *ifTrue = test->ifTrue();
+    MBasicBlock *ifFalse = test->ifFalse();
+    // If the compare set the 0 bit, then the result is definately false.
+    jumpToBlock(ifFalse, Assembler::Zero);
+    // It is also false if one of the operands is NAN, which is shown as
+    // Overflow.
+    jumpToBlock(ifFalse, Assembler::Overflow);
+    jumpToBlock(ifTrue);
 }
 
-void 
+void
 CodeGeneratorARM64::visitTestFAndBranch(LTestFAndBranch *test)
 {
-    MOZ_CRASH("CodeGeneratorARM64::visitTestFAndBranch");
+    const LAllocation *opd = test->input();
+    masm.Fcmp(ARMFPRegister(ToFloatRegister(opd), 32), 0.0);
+
+    MBasicBlock *ifTrue = test->ifTrue();
+    MBasicBlock *ifFalse = test->ifFalse();
+    // If the compare set the 0 bit, then the result is definately false.
+    jumpToBlock(ifFalse, Assembler::Zero);
+    // It is also false if one of the operands is NAN, which is shown as
+    // Overflow.
+    jumpToBlock(ifFalse, Assembler::Overflow);
+    jumpToBlock(ifTrue);
+
 }
 
 void
