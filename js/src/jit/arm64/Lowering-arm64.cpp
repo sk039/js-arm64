@@ -271,8 +271,8 @@ LIRGeneratorARM64::visitPowHalf(MPowHalf *ins)
 {
     MDefinition *input = ins->input();
     MOZ_ASSERT(input->type() == MIRType_Double);
-    LPowHalfD *lir = new(alloc()) LPowHalfD(useRegisterAtStart(input));
-    defineReuseInput(lir, ins, 0);
+    LPowHalfD *lir = new(alloc()) LPowHalfD(useRegister(input));
+    define(lir, ins);
 }
 
 LTableSwitch *

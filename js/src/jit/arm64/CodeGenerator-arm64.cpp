@@ -621,10 +621,28 @@ CodeGeneratorARM64::visitUrshD(LUrshD *ins)
 
 }
 
-void 
+void
 CodeGeneratorARM64::visitPowHalfD(LPowHalfD *ins)
 {
-    MOZ_CRASH("CodeGeneratorARM64::visitPowHalfD");
+    ARMFPRegister input = ARMFPRegister(ToFloatRegister(ins->input()), 64);
+    ARMFPRegister output = ARMFPRegister(ToFloatRegister(ins->output()), 64);
+
+    Label done;
+
+    // Masm.pow(-Infinity, 0.5) == Infinity.
+    masm.Fmov(ScratchDoubleReg, NegativeInfinity<double>());
+    masm.Fcmp(input, ScratchDoubleReg);
+    masm.Fneg(output, ScratchDoubleReg);
+    masm.B(&done, Assembler::Equal);
+
+    // Math.pow(-0, 0.5) == 0 == Math.pow(0, 0.5).
+    // Adding 0 converts any -0 to 0.
+    masm.Fmov(ScratchDoubleReg, 0.0);
+    masm.Fadd(output, ScratchDoubleReg, input);
+    masm.Fsqrt(output, output);
+
+    masm.bind(&done);
+
 }
 
 MoveOperand
