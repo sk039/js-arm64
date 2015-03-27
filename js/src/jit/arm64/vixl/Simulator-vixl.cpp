@@ -2812,6 +2812,9 @@ typedef double (*Prototype_Double_Int)(int32_t arg0);
 typedef double (*Prototype_Double_DoubleInt)(double arg0, int32_t arg1);
 typedef double (*Prototype_Double_IntDouble)(int32_t arg0, double arg1);
 typedef double (*Prototype_Double_DoubleDouble)(double arg0, double arg1);
+typedef double (*Prototype_Double_DoubleDoubleDouble)(double arg0, double arg1, double arg2);
+typedef double (*Prototype_Double_DoubleDoubleDoubleDouble)(double arg0, double arg1,
+                                                            double arg2, double arg3);
 
 void
 Simulator::setGPR32Result(int32_t result)
@@ -2883,6 +2886,8 @@ Simulator::VisitCallRedirection(Instruction *instr)
     int64_t x7 = xreg(7);
     double d0 = dreg(0);
     double d1 = dreg(1);
+    double d2 = dreg(2);
+    double d3 = dreg(3);
     float s0 = sreg(0);
 
     // Dispatch the call and set the return value.
@@ -2934,15 +2939,15 @@ Simulator::VisitCallRedirection(Instruction *instr)
         break;
       }
 
-      // Cases with int32_t return type.
+      // Cases with GPR return type. This can be int32 or int64, but int64 is a safer assumption.
       case Args_Int_Double: {
-        int32_t ret = reinterpret_cast<Prototype_Int_Double>(nativeFn)(d0);
-        setGPR32Result(ret);
+        int64_t ret = reinterpret_cast<Prototype_Int_Double>(nativeFn)(d0);
+        setGPR64Result(ret);
         break;
       }
       case Args_Int_IntDouble: {
-        int32_t ret = reinterpret_cast<Prototype_Int_IntDouble>(nativeFn)(x0, d0);
-        setGPR32Result(ret);
+        int64_t ret = reinterpret_cast<Prototype_Int_IntDouble>(nativeFn)(x0, d0);
+        setGPR64Result(ret);
         break;
       }
 
@@ -2979,6 +2984,17 @@ Simulator::VisitCallRedirection(Instruction *instr)
         setFP64Result(ret);
         break;
       }
+      case Args_Double_DoubleDoubleDouble: {
+          double ret = reinterpret_cast<Prototype_Double_DoubleDoubleDouble>(nativeFn)(d0, d1, d2);
+          setFP64Result(ret);
+          break;
+      }
+      case Args_Double_DoubleDoubleDoubleDouble: {
+          double ret = reinterpret_cast<Prototype_Double_DoubleDoubleDoubleDouble>(nativeFn)(d0, d1, d2, d3);
+          setFP64Result(ret);
+          break;
+      }
+
       case Args_Double_IntDouble: {
         double ret = reinterpret_cast<Prototype_Double_IntDouble>(nativeFn)(x0, d0);
         setFP64Result(ret);

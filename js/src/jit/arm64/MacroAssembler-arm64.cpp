@@ -506,6 +506,8 @@ AssertValidABIFunctionType(uint32_t passedArgTypes)
       case Args_Double_Int:
       case Args_Double_DoubleInt:
       case Args_Double_DoubleDouble:
+      case Args_Double_DoubleDoubleDouble:
+      case Args_Double_DoubleDoubleDoubleDouble:
       case Args_Double_IntDouble:
       case Args_Int_IntDouble:
         break;
