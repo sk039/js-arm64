@@ -1241,13 +1241,21 @@ CodeGeneratorARM64::visitGuardShape(LGuardShape *guard)
     bailoutIf(Assembler::NotEqual, guard->snapshot());
 
 }
-#if 0
-void 
-CodeGeneratorARM64::visitGuardObjectType(LGuardObjectType *guard)
+void
+CodeGeneratorARM64::visitGuardObjectGroup(LGuardObjectGroup *guard)
 {
-    MOZ_CRASH("CodeGeneratorARM64::visitGuardObjectType");
+    Register obj = ToRegister(guard->input());
+    Register tmp = ToRegister(guard->tempInt());
+
+    masm.Ldr(ARMRegister(tmp, 64), MemOperand(ARMRegister(obj, 64), JSObject::offsetOfGroup()));
+    masm.cmpPtr(tmp, ImmGCPtr(guard->mir()->group()));
+
+    Assembler::Condition cond =
+        guard->mir()->bailOnEquality() ? Assembler::Equal : Assembler::NotEqual;
+    bailoutIf(cond, guard->snapshot());
 }
-#endif
+
+
 void 
 CodeGeneratorARM64::visitGuardClass(LGuardClass *guard)
 {
@@ -1457,6 +1465,12 @@ CodeGeneratorARM64::visitUDiv(LUDiv *ins)
     }
 
     masm.Udiv(output, lhs, rhs);
+    if (!ins->mir()->toDiv()->canTruncateRemainder()) {
+        Label bail;
+        masm.Msub(ScratchReg2_32, output, rhs, lhs);
+        masm.Cbnz(ScratchReg2_32, &bail);
+        bailoutFrom(&bail, ins->snapshot());
+    }
     if (!ins->mir()->isTruncated()) {
         masm.Cmp(output, Operand(0));
         bailoutIf(Assembler::LessThan, ins->snapshot());

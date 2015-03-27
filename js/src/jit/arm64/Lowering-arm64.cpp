@@ -303,16 +303,14 @@ LIRGeneratorARM64::visitGuardShape(MGuardShape *ins)
 void
 LIRGeneratorARM64::visitGuardObjectGroup(MGuardObjectGroup *ins)
 {
-    MOZ_CRASH("visitGuardObjectGroup");
-    #if 0
+
     MOZ_ASSERT(ins->obj()->type() == MIRType_Object);
 
     LDefinition tempObj = temp(LDefinition::OBJECT);
-    LGuardObjectType *guard = new(alloc()) LGuardObjectType(useRegister(ins->obj()), tempObj);
+    LGuardObjectGroup *guard = new(alloc()) LGuardObjectGroup(useRegister(ins->obj()), tempObj);
     assignSnapshot(guard, Bailout_ObjectIdentityOrTypeGuard);
     add(guard, ins);
     redefine(ins, ins->obj());
-    #endif
 }
 
 void
