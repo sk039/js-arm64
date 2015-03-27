@@ -1412,16 +1412,19 @@ JitCompartment::generateRegExpExecStub(JSContext *cx)
 
     // All done!
     masm.tagValue(JSVAL_TYPE_OBJECT, object, result);
-    masm.ret();
+    //masm.adr(xzr, 0x54320);
+    masm.popReturn();
 
     masm.bind(&notFound);
     masm.moveValue(NullValue(), result);
-    masm.ret();
+    //masm.adr(xzr, 0x54321);
+    masm.popReturn();
 
     // Use an undefined value to signal to the caller that the OOL stub needs to be called.
     masm.bind(&oolEntry);
     masm.moveValue(UndefinedValue(), result);
-    masm.ret();
+    //masm.adr(xzr, 0x54322);
+    masm.popReturn();
 
     Linker linker(masm);
     AutoFlushICache afc("RegExpExecStub");
