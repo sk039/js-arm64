@@ -74,13 +74,13 @@ Assembler::finish()
     armbuffer_.flushPool();
 
     // The extended jump table is part of the code buffer.
-    BufferOffset extendedJumpTable = emitExtendedJumpTable();
+    ExtendedJumpTable_ = emitExtendedJumpTable();
     AssemblerVIXL::FinalizeCode();
 
     // The jump relocation table starts with a fixed-width integer pointing
     // to the start of the extended jump table.
     if (tmpJumpRelocations_.length())
-        jumpRelocations_.writeFixedUint32_t(toFinalOffset(extendedJumpTable));
+        jumpRelocations_.writeFixedUint32_t(toFinalOffset(ExtendedJumpTable_));
 
     for (unsigned int i = 0; i < tmpJumpRelocations_.length(); i++) {
         JumpRelocation &reloc = tmpJumpRelocations_[i];
@@ -116,7 +116,7 @@ Assembler::emitExtendedJumpTable()
         //   [Patchable 8-byte constant high bits]
         DebugOnly<size_t> preOffset = size_t(armbuffer_.nextOffset().getOffset());
 
-        ldr(ip0_64, ptrdiff_t(2 * kInstructionSize));
+        ldr(ip0_64, ptrdiff_t(2));
         br(ip0_64);
 
         DebugOnly<size_t> prePointer = size_t(armbuffer_.nextOffset().getOffset());
@@ -153,11 +153,15 @@ Assembler::executableCopy(uint8_t *buffer)
 
         Instruction *target = (Instruction *)rp.target;
         Instruction *branch = (Instruction *)(buffer + toFinalOffset(rp.offset));
-        if(branch->BranchType() != UnknownBranchType) {
+        JumpTableEntry *extendedJumpTable =
+            reinterpret_cast<JumpTableEntry*>(buffer + toFinalOffset(ExtendedJumpTable_));
+        if (branch->BranchType() != UnknownBranchType) {
             if (branch->IsTargetReachable(target)) {
                 branch->SetImmPCOffsetTarget(target);
             } else {
-                MOZ_CRASH("Implement extended jump table patching");
+                JumpTableEntry *entry = &extendedJumpTable[i];
+                branch->SetImmPCOffsetTarget(entry->getLdr());
+                entry->data = target;
             }
         } else {
             // Currently a two-instruction call, it should be possible to optimize this

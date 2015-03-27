@@ -209,7 +209,7 @@ class Assembler : public AssemblerVIXL
 
     // Emit the jump table, returning the BufferOffset to the first entry in the table.
     BufferOffset emitExtendedJumpTable();
-
+    BufferOffset ExtendedJumpTable_;
     void executableCopy(uint8_t *buffer);
 
     BufferOffset immPool(ARMRegister dest, uint8_t *value, LoadLiteralOp op, ARMBuffer::PoolEntry *pe = nullptr);
@@ -406,9 +406,16 @@ class Assembler : public AssemblerVIXL
     }
 
   public:
-    // TODO: Informative comment goes here.
+    // A Jump table entry is 2 instructions, with 8 bytes of raw data
     static const size_t SizeOfJumpTableEntry = 16;
-
+    struct JumpTableEntry {
+        uint32_t ldr;
+        uint32_t br;
+        void *data;
+        Instruction *getLdr() {
+            return reinterpret_cast<Instruction*>(&ldr);
+        }
+    };
     // Offset of the patchable target for the given entry.
     static const size_t OffsetOfJumpTableEntryPointer = 8;
 
