@@ -460,7 +460,7 @@ Assembler::ToggleCall(CodeLocationLabel inst_, bool enabled)
         // ldr x17, [pc, offset]
         // blr x17
 
-        int32_t offset = (int)load->ImmLLiteral();
+        int32_t offset = (int)load->ImmPCRawOffset();
         MOZ_ASSERT(is_int19(offset));
         ldr(load, ScratchReg2_64, int32_t(offset));
         blr(call, ScratchReg2_64);
