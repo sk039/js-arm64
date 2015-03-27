@@ -382,10 +382,15 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         }
     }
     void moveValue(const Value &val, Register dest) {
-        movePtr(ImmWord(val.asRawBits()), dest);
+        if (val.isMarkable()) {
+            BufferOffset load = movePatchablePtr(ImmPtr((void*)val.asRawBits()), dest);
+            writeDataRelocation(val, load);
+        } else {
+            movePtr(ImmWord(val.asRawBits()), dest);
+        }
     }
     void moveValue(const Value &src, const ValueOperand &dest) {
-        movePtr(ImmWord(src.asRawBits()), dest.valueReg());
+        moveValue(src, dest.valueReg());
     }
     void moveValue(const ValueOperand &src, const ValueOperand &dest) {
         if (src.valueReg() != dest.valueReg())
