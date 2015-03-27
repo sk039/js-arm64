@@ -287,6 +287,10 @@ INSTRUCTION_FIELDS_LIST(DEFINE_SETTER)
                    (UnconditionalBranchToRegisterFixed | BLR);
     }
 
+    inline bool IsBR() const {
+        return Mask(UnconditionalBranchToRegisterMask) ==
+                   (UnconditionalBranchToRegisterFixed | BR);
+    }
     // Test branch helpers.
     inline bool IsTBZ() const {
         return Mask(TestBranchMask) == TBZ;
@@ -368,7 +372,7 @@ INSTRUCTION_FIELDS_LIST(DEFINE_SETTER)
 
     // Find the target of this instruction. 'this' may be a branch or a
     // PC-relative addressing instruction.
-    Instruction* ImmPCOffsetTarget();
+    Instruction* ImmPCOffsetTarget() const;
 
     // Patch a PC-relative offset to refer to 'target'. 'this' may be a branch or
     // a PC-relative addressing instruction.
