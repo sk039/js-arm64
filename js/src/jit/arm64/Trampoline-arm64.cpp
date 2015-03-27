@@ -375,7 +375,7 @@ JitRuntime::generateArgumentsRectifier(JSContext *cx, void **returnAddrOut)
     masm.Ldr(x3, MemOperand(x1, JSFunction::offsetOfNativeOrScript()));
     masm.loadBaselineOrIonRaw(r3, r3, nullptr);
     masm.call(r3);
-
+    uint32_t returnOffset = masm.currentOffset();
     // Clean up!
     // Get the size of the stack frame, and clean up the later fixed frame
     masm.Ldr(x4, MemOperand(masm.GetStackPointer(), 24, PostIndex));
@@ -385,7 +385,13 @@ JitRuntime::generateArgumentsRectifier(JSContext *cx, void **returnAddrOut)
     // Do that return thing
     masm.popReturn();
     Linker linker(masm);
-    return linker.newCode<NoGC>(cx, OTHER_CODE);
+    JitCode *code = linker.newCode<NoGC>(cx, OTHER_CODE);
+    if (returnAddrOut) {
+        CodeOffsetLabel returnLabel(returnOffset);
+        returnLabel.fixup(&masm);
+        *returnAddrOut = (void *) (code->raw() + returnLabel.offset());
+    }
+    return code;
 }
 static void
 PushBailoutFrame(MacroAssembler &masm, uint32_t frameClass, Register spArg)
