@@ -2579,7 +2579,10 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         store32(ScratchReg2, addr);
     }
     void inc64(AbsoluteAddress dest) {
-        MOZ_CRASH("inc64");
+        Mov(ScratchReg64, uint64_t(dest.addr));
+        ldr(ScratchReg2_64, MemOperand(ScratchReg64, 0));
+        add(ScratchReg2_64, ScratchReg2_64, Operand(1));
+        str(ScratchReg2_64, MemOperand(ScratchReg64, 0));
     }
 
     void BoundsCheck(Register ptrReg, Label *onFail, CPURegister zeroMe = noReg) {
