@@ -1078,12 +1078,12 @@ CodeGeneratorARM64::visitCompareB(LCompareB *lir)
 
     // Load boxed boolean in ScratchReg.
     if (rhs->isConstant())
-        masm.moveValue(*rhs->toConstant(), ScratchReg);
+        masm.moveValue(*rhs->toConstant(), ScratchReg2);
     else
-        masm.boxValue(JSVAL_TYPE_BOOLEAN, ToRegister(rhs), ScratchReg);
+        masm.boxValue(JSVAL_TYPE_BOOLEAN, ToRegister(rhs), ScratchReg2);
 
     // Perform the comparison.
-    masm.cmpPtr(lhs.valueReg(), ScratchReg);
+    masm.cmpPtr(lhs.valueReg(), ScratchReg2);
     masm.emitSet(JSOpToCondition(mir->compareType(), mir->jsop()), output);
 }
 
