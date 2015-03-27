@@ -267,9 +267,9 @@ class FloatRegisters
 
     static const uint32_t Total = 64;
     static const uint32_t TotalPhys = 32;
-    static const SetType AllMask = 0xFFFFFFFFFFFFFFFF;
-    static const SetType AllPhysMask = 0xFFFFFFFF;
-    static const SetType SpreadCoefficent = 0x100000001;
+    static const SetType AllMask = 0xFFFFFFFFFFFFFFFFULL;
+    static const SetType AllPhysMask = 0xFFFFFFFFULL;
+    static const SetType SpreadCoefficent = 0x100000001ULL;
     // FIXME: Validate
     static const uint32_t Allocatable = 62; // Without d31, the scratch register.
 
