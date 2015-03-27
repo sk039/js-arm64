@@ -572,7 +572,19 @@ CodeGeneratorARM64::visitShiftI(LShiftI *ins)
             masm.Asr(dest, lhs, rhs);
             break;
           case JSOP_URSH:
-            masm.Lsr(dest, lhs, rhs);
+            if (rhs == 0) {
+                //masm.Cmp(lhs, Operand(0));
+                //masm.Mov(dest, lhs);
+                //                masm.breakpoint();
+                if (ins->mir()->toUrsh()->fallible()) {
+                    masm.Ands(dest, lhs, Operand(0xffffffff));
+                    bailoutIf(Assembler::Signed, ins->snapshot());
+                } else {
+                    masm.Mov(dest, lhs);
+                }
+            } else {
+                masm.Lsr(dest, lhs, rhs);
+            }
             // TODO: bail if the result is negative
             break;
           default:
@@ -580,6 +592,7 @@ CodeGeneratorARM64::visitShiftI(LShiftI *ins)
         }
     } else {
         ARMRegister rhs = toWRegister(ins->rhs());
+        Label good;
         switch (ins->bitop()) {
           case JSOP_LSH:
             masm.Lsl(dest, lhs, rhs);
@@ -589,7 +602,12 @@ CodeGeneratorARM64::visitShiftI(LShiftI *ins)
             break;
           case JSOP_URSH:
             masm.Lsr(dest, lhs, rhs);
-            // TODO: bail if the result is negative.
+            if (ins->mir()->toUrsh()->fallible()) {
+                masm.Cmp(dest, Operand(0));
+                masm.Cbnz(rhs, &good);
+                bailoutIf(Assembler::LessThan, ins->snapshot());
+                masm.bind(&good);
+            }
             break;
           default:
             MOZ_CRASH("Unexpected shift opcode");
