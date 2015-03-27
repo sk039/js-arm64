@@ -2213,7 +2213,10 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     }
 
     void callWithExitFrame(Label *target) {
-        breakpoint();
+        uint32_t descriptor = MakeFrameDescriptor(framePushed(), JitFrame_IonJS);
+        Push(Imm32(descriptor)); // descriptor
+
+        call(target);
     }
 
     void callWithExitFrame(JitCode *target) {
