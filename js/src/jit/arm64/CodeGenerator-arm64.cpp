@@ -372,14 +372,22 @@ CodeGeneratorARM64::visitMulI(LMulI *ins)
         rhs_reg = ToRegister(rhs);
     }
 
+    Label *onZero = nullptr;
+    Label l;
+    if (mul->canBeNegativeZero()) {
+        onZero = &l;
+    }
     if (mul->canOverflow()) {
         // I should /really/ be able to just bail-out directly from the macro assembler.
         // this song-and-dance with condition codes seems unweildy in this case.
         Label onOver;
-        masm.mul32(ToRegister(lhs), rhs_reg, ToRegister(dest), &onOver, nullptr);
+        masm.mul32(ToRegister(lhs), rhs_reg, ToRegister(dest), &onOver, onZero);
         bailoutFrom(&onOver, ins->snapshot());
     } else {
-        masm.mul32(ToRegister(lhs), rhs_reg, ToRegister(dest), nullptr, nullptr);
+        masm.mul32(ToRegister(lhs), rhs_reg, ToRegister(dest), nullptr, onZero);
+    }
+    if (mul->canBeNegativeZero()) {
+        bailoutFrom(onZero, ins->snapshot());
     }
 }
 
