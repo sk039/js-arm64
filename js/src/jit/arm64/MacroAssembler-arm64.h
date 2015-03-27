@@ -1242,7 +1242,9 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         b(label, Assembler::InvertCmpCondition(cond));
     }
     void branch32(Condition cond, const Operand &lhs, Imm32 rhs, Label *label) {
-        MOZ_CRASH("branch32");
+        ARMRegister l = lhs.reg();
+        Cmp(l, Operand(rhs.value));
+        b(label, cond);
     }
     void branch32(Condition cond, Register lhs, Register rhs, Label *label) {
         cmp32(lhs, rhs);
@@ -1319,7 +1321,8 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         branchTest32(cond, ScratchReg2, imm, label);
     }
     void branchTest32(Condition cond, AbsoluteAddress &address, Imm32 imm, Label *label) {
-        MOZ_CRASH("branchTest32");
+        loadPtr(address, ScratchReg2);
+        branchTest32(cond, ScratchReg2, imm, label);
     }
     CodeOffsetJump jumpWithPatch(RepatchLabel *label, Condition cond = Always) {
         ARMBuffer::PoolEntry pe;
