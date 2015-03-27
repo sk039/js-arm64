@@ -837,10 +837,19 @@ CodeGeneratorARM64::visitRound(LRound *lir)
     bailoutFrom(&bail, lir->snapshot());
 }
 
-void 
+void
 CodeGeneratorARM64::visitRoundF(LRoundF *lir)
 {
-    MOZ_CRASH("CodeGeneratorARM64::visitRoundF");
+    FloatRegister input = ToFloatRegister(lir->input());
+    Register output = ToRegister(lir->output());
+    FloatRegister tmp = ToFloatRegister(lir->temp());
+    Label bail;
+    // Output is either correct, or clamped. All -0 cases have been translated
+    // to a clamped case.
+    // TODO: supposedly this is not the same as the round operation that we need?
+    masm.convertFloat32ToInt32(input, output, &bail, true);
+    bailoutFrom(&bail, lir->snapshot());
+
 }
 
 void
