@@ -571,7 +571,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         ARMFPRegister fsrc(src, 32);
         ARMRegister dest32(dest, 32);
         ARMRegister dest64(dest, 64);
-        Fcvtzs(dest32, fsrc); // Convert, rounding toward zero.
+        Fcvtzs(dest64, fsrc); // Convert, rounding toward zero.
         Scvtf(ScratchFloat32Reg_, dest32); // Convert back, using FPCR rounding mode.
         Fcmp(ScratchFloat32Reg_, fsrc);
         B(fail, Assembler::NotEqual);
