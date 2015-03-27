@@ -2039,14 +2039,14 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     void int32OrDouble(Register src, ARMFPRegister dest) {
         Label isInt32;
         Label join;
-        testInt32(Equal, src);
+        testInt32(Equal, ValueOperand(src));
         B(&isInt32, Equal);
         // is double, move teh bits as is
         Fmov(dest, ARMRegister(src, 64));
         B(&join);
         bind(&isInt32);
         // is int32, do a conversion while moving
-        Scvtf(dest, ARMRegister(src, 64));
+        Scvtf(dest, ARMRegister(src, 32));
         bind(&join);
     }
     void loadUnboxedValue(Address address, MIRType type, AnyRegister dest) {
