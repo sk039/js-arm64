@@ -574,10 +574,11 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         if (negativeZeroCheck) {
             Label nonzero;
             Cbnz(dest32, &nonzero);
-            Fmov(dest64, fsrc);
-            Cbnz(dest64, fail);
+            Fmov(dest32, fsrc);
+            Cbnz(dest32, fail);
             bind(&nonzero);
         }
+        And(dest64, dest64, Operand(0xffffffff));
     }
 
     void branchTruncateFloat32(FloatRegister src, Register dest, Label *fail) {
