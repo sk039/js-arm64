@@ -73,7 +73,7 @@ uint32_t
 FloatRegister::getRegisterDumpOffsetInBytes()
 {
     // Although registers are 128-bits wide, only the first 64 need saving per ABI.
-    return code() * sizeof(double);
+    return encoding() * sizeof(double);
 }
 
 } // namespace jit
