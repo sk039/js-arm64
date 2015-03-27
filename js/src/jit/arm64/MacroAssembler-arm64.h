@@ -610,6 +610,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         Fcvtms(o64, iDbl);
         Cmp(o64, Operand(o64, SXTW));
         B(NotEqual, bail);
+        Mov(o32, o32);
         B(&fin);
 
         bind(&handleZero);
@@ -635,6 +636,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         Fcvtms(o64, iFlt);
         Cmp(o64, Operand(o64, SXTW));
         B(NotEqual, bail);
+        Mov(o32, o32);
         B(&fin);
 
         bind(&handleZero);
