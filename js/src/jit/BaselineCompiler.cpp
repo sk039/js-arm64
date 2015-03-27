@@ -791,9 +791,13 @@ BaselineCompiler::emitDebugTrap()
     PCMappingEntry &entry = pcMappingEntries_.back();
     MOZ_ASSERT((&offset)->offset() == entry.nativeOffset);
 #endif
-
+#ifdef JS_CODEGEN_ARM64
+    uint32_t curOff = masm.nop().getOffset();
+#else
+    uint32_t curOff = masm.currentOffset();
+#endif
     // Add an IC entry for the return offset -> pc mapping.
-    return appendICEntry(ICEntry::Kind_DebugTrap, masm.currentOffset());
+    return appendICEntry(ICEntry::Kind_DebugTrap, curOff);
 }
 
 #ifdef JS_TRACE_LOGGING

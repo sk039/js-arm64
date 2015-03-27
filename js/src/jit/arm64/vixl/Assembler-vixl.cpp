@@ -1617,10 +1617,10 @@ AssemblerVIXL::msr(SystemRegister sysreg, const ARMRegister& rt)
     Emit(MSR | Rt(rt) | ImmSystemRegister(sysreg));
 }
 
-void
+BufferOffset
 AssemblerVIXL::hint(SystemHint code)
 {
-    Emit(HINT | ImmHint(code) | Rt(xzr));
+    return Emit(HINT | ImmHint(code) | Rt(xzr));
 }
 void
 AssemblerVIXL::hint(Instruction *at, SystemHint code)

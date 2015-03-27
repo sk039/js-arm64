@@ -1406,7 +1406,7 @@ class AssemblerVIXL : public AssemblerShared
     void msr(SystemRegister sysreg, const ARMRegister& rt);
 
     // System hint.
-    void hint(SystemHint code);
+    BufferOffset hint(SystemHint code);
     static void hint(Instruction *at, SystemHint code);
     // Clear exclusive monitor.
     void clrex(int imm4 = 0xf);
@@ -1422,8 +1422,8 @@ class AssemblerVIXL : public AssemblerShared
 
     // Alias for system instructions.
     // No-op.
-    void nop() {
-        hint(NOP);
+    BufferOffset nop() {
+        return hint(NOP);
     }
     static void nop(Instruction *at);
     // FP instructions.
