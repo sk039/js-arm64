@@ -155,25 +155,31 @@ CalcLSPairDataSize(LoadStorePairOp op)
 ptrdiff_t
 Instruction::ImmPCRawOffset() const
 {
+    const Instruction * base = this;
+    ptrdiff_t offset;
     if (IsPCRelAddressing()) {
         // ADR and ADRP.
-        MOZ_ASSERT(Mask(PCRelAddressingMask) == ADRP || Mask(PCRelAddressingMask) == ADR);
-        return ptrdiff_t(ImmPCRel());
+        offset = ImmPCRel();
+        if (Mask(PCRelAddressingMask) == ADRP) {
+            base = AlignDown(base, kPageSize);
+            offset *= kPageSize;
+        } else {
+            MOZ_ASSERT(Mask(PCRelAddressingMask) == ADR);
+        }
+    } else if (BranchType() == UnknownBranchType) {
+        // TODO: ensure that this is an LDR.
+        offset = ImmLLiteral();
+    }  else {
+        // Relative branch offsets are instruction-size-aligned.
+        offset = ImmBranch();
     }
-
-    // TODO: No ADR or ADRP support here. Do we even need any?
-    MOZ_ASSERT(!IsPCRelAddressing());
-
-    // All PC-relative branches.
-    MOZ_ASSERT(BranchType() != UnknownBranchType);
-    // Relative branch offsets are instruction-size-aligned.
-    return ptrdiff_t(ImmBranch());
+    return offset;
 }
 
 Instruction*
-Instruction::ImmPCOffsetTarget()
+Instruction::ImmPCOffsetTarget() const
 {
-    Instruction * base = this;
+    const Instruction * base = this;
     ptrdiff_t offset;
     if (IsPCRelAddressing()) {
         // ADR and ADRP.
@@ -190,7 +196,7 @@ Instruction::ImmPCOffsetTarget()
         // Relative branch offsets are instruction-size-aligned.
         offset = ImmBranch() << kInstructionSizeLog2;
     }
-    return base + offset;
+    return const_cast<Instruction*>(base) + offset;
 }
 
 inline int

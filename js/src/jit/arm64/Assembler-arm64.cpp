@@ -425,9 +425,21 @@ Assembler::ToggleToCmp(CodeLocationLabel inst_)
 void
 Assembler::ToggleCall(CodeLocationLabel inst_, bool enabled)
 {
-    Instruction *load = (Instruction *)inst_.raw();
-    Instruction *call = load + kInstructionSize;
-
+    Instruction *first = (Instruction*)inst_.raw();
+    Instruction *load;
+    Instruction *call;
+    if (first->InstructionBits() == 0x9100039f) {
+        load = (Instruction *)NextInstruction(first);
+        call = NextInstruction(load);
+        
+    } else {
+        load = first;
+        call = NextInstruction(first);
+    }
+    printf("Toggle Call, load: ");
+    printInstruction(load, 1);
+    printf("call: ");
+    printInstruction(call, 1);
     if (call->IsBLR() == enabled)
         return;
 
