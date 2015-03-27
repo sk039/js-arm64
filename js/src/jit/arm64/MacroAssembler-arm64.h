@@ -1855,46 +1855,74 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
 
     // ValueOperand-based tests.
     Condition testInt32(Condition cond, const ValueOperand &value) {
+        if (value.valueReg() == ScratchReg2) {
+            if (cond == Equal || cond == NotEqual) {
+                // In the event that the tag is not encodable in a single cmp / teq instruction,
+                // perform the xor that teq would use, this will leave the tag bits being
+                // zero, or non-zero, which can be tested with either and or shift.
+                unsigned int n, imm_r, imm_s;
+                uint64_t immediate = uint64_t(ImmTag(JSVAL_TAG_INT32).value) << JSVAL_TAG_SHIFT;
+                if (IsImmLogical(immediate, 64, &n, &imm_s, &imm_r)) {
+                    eor(ScratchReg64, ScratchReg2_64, Operand(immediate));
+                } else {
+                    Mov(ScratchReg64, immediate);
+                    eor(ScratchReg64, ScratchReg2_64, ScratchReg64);
+                }
+                tst(ScratchReg64, Operand(-1ll << JSVAL_TAG_SHIFT));
+                return cond;
+            }
+            MOZ_CRASH("NYI: non-equality comparisons");
+        }
         splitTag(value, ScratchReg2);
         return testInt32(cond, ScratchReg2);
     }
     Condition testBoolean(Condition cond, const ValueOperand &value) {
+        MOZ_ASSERT(value.valueReg() != ScratchReg2);
         splitTag(value, ScratchReg2);
         return testBoolean(cond, ScratchReg2);
     }
     Condition testDouble(Condition cond, const ValueOperand &value) {
+        MOZ_ASSERT(value.valueReg() != ScratchReg2);
         splitTag(value, ScratchReg2);
         return testDouble(cond, ScratchReg2);
     }
     Condition testNull(Condition cond, const ValueOperand &value) {
+        MOZ_ASSERT(value.valueReg() != ScratchReg2);
         splitTag(value, ScratchReg2);
         return testNull(cond, ScratchReg2);
     }
     Condition testUndefined(Condition cond, const ValueOperand &value) {
+        MOZ_ASSERT(value.valueReg() != ScratchReg2);
         splitTag(value, ScratchReg2);
         return testUndefined(cond, ScratchReg2);
     }
     Condition testString(Condition cond, const ValueOperand &value) {
+        MOZ_ASSERT(value.valueReg() != ScratchReg2);
         splitTag(value, ScratchReg2);
         return testString(cond, ScratchReg2);
     }
     Condition testSymbol(Condition cond, const ValueOperand &value) {
+        MOZ_ASSERT(value.valueReg() != ScratchReg2);
         splitTag(value, ScratchReg2);
         return testSymbol(cond, ScratchReg2);
     }
     Condition testObject(Condition cond, const ValueOperand &value) {
+        MOZ_ASSERT(value.valueReg() != ScratchReg2);
         splitTag(value, ScratchReg2);
         return testObject(cond, ScratchReg2);
     }
     Condition testNumber(Condition cond, const ValueOperand &value) {
+        MOZ_ASSERT(value.valueReg() != ScratchReg2);
         splitTag(value, ScratchReg2);
         return testNumber(cond, ScratchReg2);
     }
     Condition testPrimitive(Condition cond, const ValueOperand &value) {
+        MOZ_ASSERT(value.valueReg() != ScratchReg2);
         splitTag(value, ScratchReg2);
         return testPrimitive(cond, ScratchReg2);
     }
     Condition testMagic(Condition cond, const ValueOperand &src) {
+        MOZ_ASSERT(src.valueReg() != ScratchReg2);
         splitTag(src, ScratchReg2);
         return testMagic(cond, ScratchReg2);
     }
