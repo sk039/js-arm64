@@ -696,7 +696,7 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         Orn(ARMRegister(reg, 32), wzr, ARMRegister(reg, 32));
     }
     void neg32(Register reg) {
-        Neg(ARMRegister(reg, 32), Operand(ARMRegister(reg, 32)));
+        Negs(ARMRegister(reg, 32), Operand(ARMRegister(reg, 32)));
     }
 
     void loadPtr(AsmJSAbsoluteAddress address, Register dest) {
