@@ -324,7 +324,6 @@ class Assembler : public AssemblerVIXL
         return code->raw() + index;
     }
     void setPrinter(Sprinter *sp) {
-        MOZ_CRASH("setPrinter()");
     }
 
     static bool SupportsFloatingPoint() { return true; }
