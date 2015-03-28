@@ -16,7 +16,7 @@
 /// This class is the gnome implementation of nsIconChannel. It basically asks
 /// gtk/gnome for an icon, saves it as a tmp icon, and creates a new channel for
 /// that file to which all calls will be proxied.
-class nsIconChannel MOZ_FINAL : public nsIChannel
+class nsIconChannel final : public nsIChannel
 {
   public:
     NS_DECL_ISUPPORTS
@@ -37,8 +37,6 @@ class nsIconChannel MOZ_FINAL : public nsIChannel
     /// Will always be non-null after a successful Init.
     nsCOMPtr<nsIChannel> mRealChannel;
 
-    /// Called by Init if we need to use the gnomeui library.
-    nsresult InitWithGnome(nsIMozIconURI* aURI);
     nsresult InitWithGIO(nsIMozIconURI* aIconURI);
 };
 

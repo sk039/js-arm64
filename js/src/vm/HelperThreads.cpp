@@ -13,6 +13,7 @@
 #include "prmjtime.h"
 
 #include "frontend/BytecodeCompiler.h"
+#include "gc/GCInternals.h"
 #include "jit/IonBuilder.h"
 #include "vm/Debugger.h"
 #include "vm/TraceLogging.h"
@@ -739,6 +740,18 @@ GlobalHelperThreadState::canStartGCParallelTask()
     return !gcParallelWorklist().empty();
 }
 
+js::GCParallelTask::~GCParallelTask()
+{
+    // Only most-derived classes' destructors may do the join: base class
+    // destructors run after those for derived classes' members, so a join in a
+    // base class can't ensure that the task is done using the members. All we
+    // can do now is check that someone has previously stopped the task.
+#ifdef DEBUG
+    AutoLockHelperThreadState helperLock;
+    MOZ_ASSERT(state == NotStarted);
+#endif
+}
+
 bool
 js::GCParallelTask::startWithLockHeld()
 {
@@ -900,11 +913,15 @@ GlobalHelperThreadState::finishParseTask(JSContext *maybecx, JSRuntime *rt, void
     // Point the prototypes of any objects in the script's compartment to refer
     // to the corresponding prototype in the new compartment. This will briefly
     // create cross compartment pointers, which will be fixed by the
-    // MergeCompartments call below.
-    for (gc::ZoneCellIter iter(parseTask->cx->zone(), gc::FINALIZE_OBJECT_GROUP);
+    // MergeCompartments call below.  It's not safe for a GC to observe this
+    // state, so finish any ongoing GC first and assert that we can't trigger
+    // another one.
+    gc::AutoFinishGC finishGC(rt);
+    for (gc::ZoneCellIter iter(parseTask->cx->zone(), gc::AllocKind::OBJECT_GROUP);
          !iter.done();
          iter.next())
     {
+        JS::AutoAssertNoAlloc noAlloc(rt);
         ObjectGroup *group = iter.get<ObjectGroup>();
         TaggedProto proto(group->proto());
         if (!proto.isObject())

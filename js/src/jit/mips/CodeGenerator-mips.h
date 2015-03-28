@@ -290,6 +290,8 @@ class CodeGeneratorMIPS : public CodeGeneratorShared
     void visitSimdBinaryArithIx4(LSimdBinaryArithIx4 *lir) { MOZ_CRASH("NYI"); }
     void visitSimdBinaryArithFx4(LSimdBinaryArithFx4 *lir) { MOZ_CRASH("NYI"); }
     void visitSimdBinaryBitwiseX4(LSimdBinaryBitwiseX4 *lir) { MOZ_CRASH("NYI"); }
+    void visitSimdGeneralShuffleI(LSimdGeneralShuffleI *lir) { MOZ_CRASH("NYI"); }
+    void visitSimdGeneralShuffleF(LSimdGeneralShuffleF *lir) { MOZ_CRASH("NYI"); }
 };
 
 typedef CodeGeneratorMIPS CodeGeneratorSpecific;

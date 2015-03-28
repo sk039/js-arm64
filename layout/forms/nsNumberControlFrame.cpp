@@ -269,7 +269,7 @@ public:
       mTextField(aTextField)
   {}
 
-  NS_IMETHODIMP Run() MOZ_OVERRIDE
+  NS_IMETHODIMP Run() override
   {
     if (mNumber->AsElement()->State().HasState(NS_EVENT_STATE_FOCUS)) {
       HTMLInputElement::FromContent(mTextField)->Focus();
@@ -530,7 +530,7 @@ nsNumberControlFrame::GetNumberControlFrameForTextField(nsIFrame* aFrame)
   if (content->IsInNativeAnonymousSubtree() &&
       content->GetParent() && content->GetParent()->GetParent()) {
     nsIContent* grandparent = content->GetParent()->GetParent();
-    if (grandparent->IsHTML(nsGkAtoms::input) &&
+    if (grandparent->IsHTMLElement(nsGkAtoms::input) &&
         grandparent->AttrValueIs(kNameSpaceID_None, nsGkAtoms::type,
                                  nsGkAtoms::number, eCaseMatters)) {
       return do_QueryFrame(grandparent->GetPrimaryFrame());
@@ -552,7 +552,7 @@ nsNumberControlFrame::GetNumberControlFrameForSpinButton(nsIFrame* aFrame)
       content->GetParent() && content->GetParent()->GetParent() &&
       content->GetParent()->GetParent()->GetParent()) {
     nsIContent* greatgrandparent = content->GetParent()->GetParent()->GetParent();
-    if (greatgrandparent->IsHTML(nsGkAtoms::input) &&
+    if (greatgrandparent->IsHTMLElement(nsGkAtoms::input) &&
         greatgrandparent->AttrValueIs(kNameSpaceID_None, nsGkAtoms::type,
                                       nsGkAtoms::number, eCaseMatters)) {
       return do_QueryFrame(greatgrandparent->GetPrimaryFrame());
@@ -805,17 +805,17 @@ nsNumberControlFrame::GetPseudoElement(nsCSSPseudoElements::Type aType)
   }
 
   if (aType == nsCSSPseudoElements::ePseudo_mozNumberSpinBox) {
-    MOZ_ASSERT(mSpinBox);
+    // Might be null.
     return mSpinBox;
   }
 
   if (aType == nsCSSPseudoElements::ePseudo_mozNumberSpinUp) {
-    MOZ_ASSERT(mSpinUp);
+    // Might be null.
     return mSpinUp;
   }
 
   if (aType == nsCSSPseudoElements::ePseudo_mozNumberSpinDown) {
-    MOZ_ASSERT(mSpinDown);
+    // Might be null.
     return mSpinDown;
   }
 

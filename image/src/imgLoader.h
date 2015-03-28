@@ -211,7 +211,7 @@ enum class AcceptedMimeTypes : uint8_t {
   IMAGES_AND_DOCUMENTS,
 };
 
-class imgLoader MOZ_FINAL : public imgILoader,
+class imgLoader final : public imgILoader,
                             public nsIContentSniffer,
                             public imgICache,
                             public nsSupportsWeakReference,
@@ -443,7 +443,7 @@ public:
   explicit ProxyListener(nsIStreamListener *dest);
 
   /* additional members */
-  NS_DECL_ISUPPORTS
+  NS_DECL_THREADSAFE_ISUPPORTS
   NS_DECL_NSISTREAMLISTENER
   NS_DECL_NSITHREADRETARGETABLESTREAMLISTENER
   NS_DECL_NSIREQUESTOBSERVER
@@ -460,7 +460,7 @@ private:
  * nsIInterfaceRequestor and gives out itself for nsIProgressEventSink calls,
  * and forwards everything else to the channel's notification callbacks.
  */
-class nsProgressNotificationProxy MOZ_FINAL
+class nsProgressNotificationProxy final
   : public nsIProgressEventSink
   , public nsIChannelEventSink
   , public nsIInterfaceRequestor
@@ -497,7 +497,8 @@ class imgCacheValidator : public nsIStreamListener,
 {
 public:
   imgCacheValidator(nsProgressNotificationProxy* progress, imgLoader* loader,
-                    imgRequest *request, void *aContext, bool forcePrincipalCheckForCacheEntry);
+                    imgRequest* aRequest, nsISupports* aContext,
+                    bool forcePrincipalCheckForCacheEntry);
 
   void AddProxy(imgRequestProxy *aProxy);
 
@@ -523,9 +524,11 @@ private:
   nsRefPtr<imgRequest> mNewRequest;
   nsRefPtr<imgCacheEntry> mNewEntry;
 
-  void *mContext;
+  nsCOMPtr<nsISupports> mContext;
 
   imgLoader* mImgLoader;
+
+  bool mHadInsecureRedirect;
 };
 
 #endif  // imgLoader_h__

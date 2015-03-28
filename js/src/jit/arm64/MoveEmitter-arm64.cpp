@@ -166,12 +166,12 @@ MemOperand
 MoveEmitterARM64::cycleSlot()
 {
     // Using SP as stack pointer requires alignment preservation below.
-    MOZ_ASSERT(!masm.GetStackPointer().Is(sp));
+    MOZ_ASSERT(!masm.GetStackPointer64().Is(sp));
 
     // emit() already allocated a slot for resolving the cycle.
     MOZ_ASSERT(pushedAtCycle_ != -1);
 
-    return MemOperand(masm.GetStackPointer(), masm.framePushed() - pushedAtCycle_);
+    return MemOperand(masm.GetStackPointer64(), masm.framePushed() - pushedAtCycle_);
 }
 
 void

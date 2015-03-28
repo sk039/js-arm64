@@ -6,6 +6,8 @@
 
 #include "jit/JitFrames-inl.h"
 
+#include "mozilla/SizePrintfMacros.h"
+
 #include "jsfun.h"
 #include "jsobj.h"
 #include "jsscript.h"
@@ -454,7 +456,7 @@ HandleExceptionIon(JSContext *cx, const InlineFrameIterator &frame, ResumeFromEx
             continue;
 
         switch (tn->kind) {
-          case JSTRY_ITER: {
+          case JSTRY_FOR_IN: {
             MOZ_ASSERT(JSOp(*(script->main() + tn->start + tn->length)) == JSOP_ENDITER);
             MOZ_ASSERT(tn->stackDepth > 0);
 
@@ -463,6 +465,7 @@ HandleExceptionIon(JSContext *cx, const InlineFrameIterator &frame, ResumeFromEx
             break;
           }
 
+          case JSTRY_FOR_OF:
           case JSTRY_LOOP:
             break;
 
@@ -664,7 +667,7 @@ HandleExceptionBaseline(JSContext *cx, const JitFrameIterator &frame, ResumeFrom
             }
             break;
 
-          case JSTRY_ITER: {
+          case JSTRY_FOR_IN: {
             Value iterValue(* (Value *) rfe->stackPointer);
             RootedObject iterObject(cx, &iterValue.toObject());
             if (cx->isExceptionPending())
@@ -674,6 +677,7 @@ HandleExceptionBaseline(JSContext *cx, const JitFrameIterator &frame, ResumeFrom
             break;
           }
 
+          case JSTRY_FOR_OF:
           case JSTRY_LOOP:
             break;
 
@@ -986,20 +990,18 @@ ReadAllocation(const JitFrameIterator &frame, const LAllocation *a)
 #endif
 
 static void
-MarkThisAndArguments(JSTracer *trc, const JitFrameIterator &frame)
+MarkThisAndArguments(JSTracer *trc, JitFrameLayout *layout)
 {
     // Mark |this| and any extra actual arguments for an Ion frame. Marking of
     // formal arguments is taken care of by the frame's safepoint/snapshot,
-    // except when the script's lazy arguments object aliases those formals,
-    // in which case we mark them as well.
+    // except when the script might have lazy arguments, in which case we mark
+    // them as well.
 
-    JitFrameLayout *layout = frame.jsFrame();
-
-    size_t nargs = frame.numActualArgs();
+    size_t nargs = layout->numActualArgs();
     size_t nformals = 0;
     if (CalleeTokenIsFunction(layout->calleeToken())) {
         JSFunction *fun = CalleeTokenToFunction(layout->calleeToken());
-        nformals = fun->nonLazyScript()->argumentsAliasesFormals() ? 0 : fun->nargs();
+        nformals = fun->nonLazyScript()->argumentsHasVarBinding() ? 0 : fun->nargs();
     }
 
     Value *argv = layout->argv();
@@ -1010,6 +1012,13 @@ MarkThisAndArguments(JSTracer *trc, const JitFrameIterator &frame)
     // Trace actual arguments beyond the formals. Note + 1 for thisv.
     for (size_t i = nformals + 1; i < nargs + 1; i++)
         gc::MarkValueRoot(trc, &argv[i], "ion-argv");
+}
+
+static void
+MarkThisAndArguments(JSTracer *trc, const JitFrameIterator &frame)
+{
+    JitFrameLayout *layout = frame.jsFrame();
+    MarkThisAndArguments(trc, layout);
 }
 
 #ifdef JS_NUNBOX32
@@ -1308,9 +1317,16 @@ MarkJitExitFrame(JSTracer *trc, const JitFrameIterator &frame)
         return;
     }
 
-    if (frame.isExitFrameLayout<IonOOLPropertyOpExitFrameLayout>()) {
+    if (frame.isExitFrameLayout<IonOOLPropertyOpExitFrameLayout>() ||
+        frame.isExitFrameLayout<IonOOLSetterOpExitFrameLayout>())
+    {
+        // A SetterOp frame is a different size, but that's the only relevant
+        // difference between the two. The fields that need marking are all in
+        // the common base class.
         IonOOLPropertyOpExitFrameLayout *oolgetter =
-            frame.exitFrame()->as<IonOOLPropertyOpExitFrameLayout>();
+            frame.isExitFrameLayout<IonOOLPropertyOpExitFrameLayout>()
+            ? frame.exitFrame()->as<IonOOLPropertyOpExitFrameLayout>()
+            : frame.exitFrame()->as<IonOOLSetterOpExitFrameLayout>();
         gc::MarkJitCodeRoot(trc, oolgetter->stubCode(), "ion-ool-property-op-code");
         gc::MarkValueRoot(trc, oolgetter->vp(), "ion-ool-property-op-vp");
         gc::MarkIdRoot(trc, oolgetter->id(), "ion-ool-property-op-id");
@@ -1340,6 +1356,16 @@ MarkJitExitFrame(JSTracer *trc, const JitFrameIterator &frame)
         } else {
             gc::MarkValueRoot(trc, dom->vp(), "ion-dom-args");
         }
+        return;
+    }
+
+    if (frame.isExitFrameLayout<LazyLinkExitFrameLayout>()) {
+        LazyLinkExitFrameLayout *ll = frame.exitFrame()->as<LazyLinkExitFrameLayout>();
+        JitFrameLayout *layout = ll->jsFrame();
+
+        gc::MarkJitCodeRoot(trc, ll->stubCode(), "lazy-link-code");
+        layout->replaceCalleeToken(MarkCalleeToken(trc, layout->calleeToken()));
+        MarkThisAndArguments(trc, layout);
         return;
     }
 
@@ -2470,9 +2496,10 @@ InlineFrameIterator::computeScopeChain(Value scopeChainValue, MaybeReadFallback 
     if (isFunctionFrame())
         return callee(fallback)->environment();
 
-    // Ion does not handle scripts that are not compile-and-go.
+    // Ion does not handle non-function scripts that have anything other than
+    // the global on their scope chain.
     MOZ_ASSERT(!script()->isForEval());
-    MOZ_ASSERT(script()->compileAndGo());
+    MOZ_ASSERT(!script()->hasPollutedGlobalScope());
     return &script()->global();
 }
 
@@ -2576,7 +2603,7 @@ struct DumpOp {
     void operator()(const Value& v) {
         fprintf(stderr, "  actual (arg %d): ", i_);
 #ifdef DEBUG
-        js_DumpValue(v);
+        DumpValue(v);
 #else
         fprintf(stderr, "?\n");
 #endif
@@ -2593,7 +2620,7 @@ JitFrameIterator::dumpBaseline() const
     if (isFunctionFrame()) {
         fprintf(stderr, "  callee fun: ");
 #ifdef DEBUG
-        js_DumpObject(callee());
+        DumpObject(callee());
 #else
         fprintf(stderr, "?\n");
 #endif
@@ -2601,8 +2628,8 @@ JitFrameIterator::dumpBaseline() const
         fprintf(stderr, "  global frame, no callee\n");
     }
 
-    fprintf(stderr, "  file %s line %u\n",
-            script()->filename(), (unsigned) script()->lineno());
+    fprintf(stderr, "  file %s line %" PRIuSIZE "\n",
+            script()->filename(), script()->lineno());
 
     JSContext *cx = GetJSContextFromJitCode();
     RootedScript script(cx);
@@ -2620,7 +2647,7 @@ JitFrameIterator::dumpBaseline() const
         fprintf(stderr, "  slot %u: ", i);
 #ifdef DEBUG
         Value *v = frame->valueSlot(i);
-        js_DumpValue(*v);
+        DumpValue(*v);
 #else
         fprintf(stderr, "?\n");
 #endif
@@ -2642,7 +2669,7 @@ InlineFrameIterator::dump() const
         isFunction = true;
         fprintf(stderr, "  callee fun: ");
 #ifdef DEBUG
-        js_DumpObject(callee(fallback));
+        DumpObject(callee(fallback));
 #else
         fprintf(stderr, "?\n");
 #endif
@@ -2650,8 +2677,8 @@ InlineFrameIterator::dump() const
         fprintf(stderr, "  global frame, no callee\n");
     }
 
-    fprintf(stderr, "  file %s line %u\n",
-            script()->filename(), (unsigned) script()->lineno());
+    fprintf(stderr, "  file %s line %" PRIuSIZE "\n",
+            script()->filename(), script()->lineno());
 
     fprintf(stderr, "  script = %p, pc = %p\n", (void*) script(), pc());
     fprintf(stderr, "  current op: %s\n", js_CodeName[*pc()]);
@@ -2681,7 +2708,7 @@ InlineFrameIterator::dump() const
         } else
             fprintf(stderr, "  slot %u: ", i);
 #ifdef DEBUG
-        js_DumpValue(si.maybeRead(fallback));
+        DumpValue(si.maybeRead(fallback));
 #else
         fprintf(stderr, "?\n");
 #endif
@@ -2780,9 +2807,9 @@ JitFrameIterator::verifyReturnAddressUsingNativeToBytecodeMap()
 
     JitSpew(JitSpew_Profiling, "Found bytecode location of depth %d:", depth);
     for (size_t i = 0; i < location.length(); i++) {
-        JitSpew(JitSpew_Profiling, "   %s:%d - %d",
+        JitSpew(JitSpew_Profiling, "   %s:%" PRIuSIZE " - %" PRIuSIZE,
                 location[i].script->filename(), location[i].script->lineno(),
-                (int) (location[i].pc - location[i].script->code()));
+                size_t(location[i].pc - location[i].script->code()));
     }
 
     if (type_ == JitFrame_IonJS) {
@@ -2792,14 +2819,15 @@ JitFrameIterator::verifyReturnAddressUsingNativeToBytecodeMap()
             MOZ_ASSERT(idx < location.length());
             MOZ_ASSERT_IF(idx < location.length() - 1, inlineFrames.more());
 
-            JitSpew(JitSpew_Profiling, "Match %d: ION %s:%d(%d) vs N2B %s:%d(%d)",
+            JitSpew(JitSpew_Profiling,
+                    "Match %d: ION %s:%" PRIuSIZE "(%" PRIuSIZE ") vs N2B %s:%" PRIuSIZE "(%" PRIuSIZE ")",
                     (int)idx,
                     inlineFrames.script()->filename(),
                     inlineFrames.script()->lineno(),
-                    inlineFrames.pc() - inlineFrames.script()->code(),
+                    size_t(inlineFrames.pc() - inlineFrames.script()->code()),
                     location[idx].script->filename(),
                     location[idx].script->lineno(),
-                    location[idx].pc - location[idx].script->code());
+                    size_t(location[idx].pc - location[idx].script->code()));
 
             MOZ_ASSERT(inlineFrames.script() == location[idx].script);
 
@@ -2894,12 +2922,18 @@ JitProfilingFrameIterator::JitProfilingFrameIterator(void *exitFrame)
     ExitFrameLayout *frame = (ExitFrameLayout *) exitFrame;
     FrameType prevType = frame->prevType();
 
-    if (prevType == JitFrame_IonJS || prevType == JitFrame_BaselineJS ||
-        prevType == JitFrame_Unwound_IonJS)
-    {
+    if (prevType == JitFrame_IonJS || prevType == JitFrame_Unwound_IonJS) {
         returnAddressToFp_ = frame->returnAddress();
         fp_ = GetPreviousRawFrame<ExitFrameLayout, uint8_t *>(frame);
         type_ = JitFrame_IonJS;
+        return;
+    }
+
+    if (prevType == JitFrame_BaselineJS) {
+        returnAddressToFp_ = frame->returnAddress();
+        fp_ = GetPreviousRawFrame<ExitFrameLayout, uint8_t *>(frame);
+        type_ = JitFrame_BaselineJS;
+        fixBaselineDebugModeOSRReturnAddress();
         return;
     }
 
@@ -2956,7 +2990,16 @@ JitProfilingFrameIterator::tryInitWithTable(JitcodeGlobalTable *table, void *pc,
 
     JSScript *callee = frameScript();
 
-    MOZ_ASSERT(entry.isIon() || entry.isBaseline() || entry.isIonCache());
+    MOZ_ASSERT(entry.isIon() || entry.isBaseline() || entry.isIonCache() || entry.isDummy());
+
+    // Treat dummy lookups as an empty frame sequence.
+    if (entry.isDummy()) {
+        type_ = JitFrame_Entry;
+        fp_ = nullptr;
+        returnAddressToFp_ = nullptr;
+        return true;
+    }
+
     if (entry.isIon()) {
         // If looked-up callee doesn't match frame callee, don't accept lastProfilingCallSite
         if (entry.ionEntry().getScript(0) != callee)
@@ -2991,6 +3034,16 @@ JitProfilingFrameIterator::tryInitWithTable(JitcodeGlobalTable *table, void *pc,
     }
 
     return false;
+}
+
+void
+JitProfilingFrameIterator::fixBaselineDebugModeOSRReturnAddress()
+{
+    MOZ_ASSERT(type_ == JitFrame_BaselineJS);
+    BaselineFrame *bl = (BaselineFrame *)(fp_ - BaselineFrame::FramePointerOffset -
+                                          BaselineFrame::Size());
+    if (BaselineDebugModeOSRInfo *info = bl->getDebugModeOSRInfo())
+        returnAddressToFp_ = info->resumeAddr;
 }
 
 void
@@ -3039,6 +3092,7 @@ JitProfilingFrameIterator::operator++()
         returnAddressToFp_ = frame->returnAddress();
         fp_ = GetPreviousRawFrame<JitFrameLayout, uint8_t *>(frame);
         type_ = JitFrame_BaselineJS;
+        fixBaselineDebugModeOSRReturnAddress();
         return;
     }
 

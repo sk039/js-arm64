@@ -144,7 +144,7 @@ this.BrowserIDManager.prototype = {
     // re-entering of credentials by the user is necessary we don't take any
     // further action - an observer will fire when the user does that.
     if (Weave.Status.login == LOGIN_FAILED_LOGIN_REJECTED) {
-      return Promise.reject();
+      return Promise.reject(new Error("User needs to re-authenticate"));
     }
 
     // So - we've a previous auth problem and aren't currently attempting to
@@ -282,7 +282,7 @@ this.BrowserIDManager.prototype = {
       // The exception is when we've initialized with a user that needs to
       // reauth with the server - in that case we will also get here, but
       // should have the same identity.
-      // initializeWithCurrentIdentity will throw and log if these contraints
+      // initializeWithCurrentIdentity will throw and log if these constraints
       // aren't met, so just go ahead and do the init.
       this.initializeWithCurrentIdentity(true);
       break;

@@ -13,11 +13,9 @@
 #include "nsIObserver.h"
 #include "nsWeakReference.h"
 
-class nsICacheSession;
-
 //-----------------------------------------------------------------------------
 
-class nsFtpProtocolHandler MOZ_FINAL : public nsIProxiedProtocolHandler
+class nsFtpProtocolHandler final : public nsIProxiedProtocolHandler
                                      , public nsIObserver
                                      , public nsSupportsWeakReference
 {
@@ -67,7 +65,6 @@ private:
 
     nsTArray<timerStruct*> mRootConnectionList;
 
-    nsCOMPtr<nsICacheSession> mCacheSession;
     int32_t mIdleTimeout;
 
     // When "clear active logins" is performed, all idle connection are dropped

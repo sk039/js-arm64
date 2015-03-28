@@ -135,7 +135,7 @@ MacroAssembler::PopRegsInMaskIgnore(RegisterSet set, RegisterSet ignore, FloatRe
         if (!iter.more() || ignore.has(*iter)) {
             // There is no 'next' that can be loaded, and there is already one
             // element in the queue, just deal with that element.
-            Ldr(src0, MemOperand(GetStackPointer(), offset));
+            Ldr(src0, MemOperand(GetStackPointer64(), offset));
             continue;
         }
 
@@ -145,7 +145,7 @@ MacroAssembler::PopRegsInMaskIgnore(RegisterSet set, RegisterSet ignore, FloatRe
         ++iter;
 
         MOZ_ASSERT(!src0.Is(src1));
-        ldp(src0, src1, MemOperand(GetStackPointer(), offset));
+        ldp(src0, src1, MemOperand(GetStackPointer64(), offset));
     }
 
     FloatRegisterSet frs = set.fpus();
@@ -171,14 +171,14 @@ MacroAssembler::PopRegsInMaskIgnore(RegisterSet set, RegisterSet ignore, FloatRe
         if (!iter.more() || ignore.has(*iter)) {
             // There is no 'next' that can be loaded, and there is already one
             // element in the queue, just deal with that element.
-            Ldr(src0, MemOperand(GetStackPointer(), offset));
+            Ldr(src0, MemOperand(GetStackPointer64(), offset));
             continue;
         }
         // There is both more, and it isn't being ignored.
         src1 = ARMRegister(*iter, 64);
         ++iter;
         nextOffset += sizeof(double);
-        ldp(src0, src1, MemOperand(GetStackPointer(), offset));
+        ldp(src0, src1, MemOperand(GetStackPointer64(), offset));
     }
     freeStack(set.gprs().size() * sizeof(int*) + set.fpus().getPushSizeInBytes());
 }
@@ -252,11 +252,11 @@ MacroAssemblerCompat::handleFailureWithHandlerTail(void *handler)
 {
     // Reserve space for exception information.
     int64_t size = (sizeof(ResumeFromException) + 7) & ~7;
-    Sub(GetStackPointer(), GetStackPointer(), Operand(size));
-    if (!GetStackPointer().Is(sp))
-        Add(sp, GetStackPointer(), Operand(0));
+    Sub(GetStackPointer64(), GetStackPointer64(), Operand(size));
+    if (!GetStackPointer64().Is(sp))
+        Add(sp, GetStackPointer64(), Operand(0));
 
-    Add(x0, GetStackPointer(), Operand(0));
+    Add(x0, GetStackPointer64(), Operand(0));
 
     // Call the handler.
     setupUnalignedABICall(1, r1);
@@ -269,7 +269,7 @@ MacroAssemblerCompat::handleFailureWithHandlerTail(void *handler)
     Label return_;
     Label bailout;
 
-    MOZ_ASSERT(GetStackPointer().Is(x28)); // Lets the code below be a little cleaner.
+    MOZ_ASSERT(GetStackPointer64().Is(x28)); // Lets the code below be a little cleaner.
 
     loadPtr(Address(r28, offsetof(ResumeFromException, kind)), r0);
     branch32(Assembler::Equal, r0, Imm32(ResumeFromException::RESUME_ENTRY_FRAME), &entryFrame);
@@ -301,11 +301,11 @@ MacroAssemblerCompat::handleFailureWithHandlerTail(void *handler)
     // and the exception.
     bind(&finally);
     ARMRegister exception = x1;
-    Ldr(exception, MemOperand(GetStackPointer(), offsetof(ResumeFromException, exception)));
-    Ldr(x0, MemOperand(GetStackPointer(), offsetof(ResumeFromException, target)));
+    Ldr(exception, MemOperand(GetStackPointer64(), offsetof(ResumeFromException, exception)));
+    Ldr(x0, MemOperand(GetStackPointer64(), offsetof(ResumeFromException, target)));
     Ldr(ARMRegister(BaselineFrameReg, 64),
-        MemOperand(GetStackPointer(), offsetof(ResumeFromException, framePointer)));
-    Ldr(GetStackPointer(), MemOperand(GetStackPointer(), offsetof(ResumeFromException, stackPointer)));
+        MemOperand(GetStackPointer64(), offsetof(ResumeFromException, framePointer)));
+    Ldr(GetStackPointer64(), MemOperand(GetStackPointer64(), offsetof(ResumeFromException, stackPointer)));
     syncStackPtr();
     pushValue(BooleanValue(true));
     push(exception);
@@ -325,8 +325,8 @@ MacroAssemblerCompat::handleFailureWithHandlerTail(void *handler)
     // If we are bailing out to baseline to handle an exception,
     // jump to the bailout tail stub.
     bind(&bailout);
-    Ldr(x2, MemOperand(GetStackPointer(), offsetof(ResumeFromException, bailoutInfo)));
-    Ldr(x1, MemOperand(GetStackPointer(), offsetof(ResumeFromException, target)));
+    Ldr(x2, MemOperand(GetStackPointer64(), offsetof(ResumeFromException, bailoutInfo)));
+    Ldr(x1, MemOperand(GetStackPointer64(), offsetof(ResumeFromException, target)));
     Mov(x0, BAILOUT_RETURN_OK);
     Br(x1);
 }
@@ -358,20 +358,20 @@ MacroAssemblerCompat::setupUnalignedABICall(uint32_t args, Register scratch)
     push(lr);
 
     // TODO: Unhandled for sp -- needs slightly different logic.
-    MOZ_ASSERT(!GetStackPointer().Is(sp));
+    MOZ_ASSERT(!GetStackPointer64().Is(sp));
 
     // Remember the stack address on entry.
-    Add(scratch64, GetStackPointer(), Operand(0));
+    Add(scratch64, GetStackPointer64(), Operand(0));
 
     // Make alignment, including the effective push of the previous sp.
-    Sub(GetStackPointer(), GetStackPointer(), Operand(8));
-    And(GetStackPointer(), GetStackPointer(), Operand(alignment));
+    Sub(GetStackPointer64(), GetStackPointer64(), Operand(8));
+    And(GetStackPointer64(), GetStackPointer64(), Operand(alignment));
 
     // If the PseudoStackPointer is used, sp must be <= psp before a write is valid.
     syncStackPtr();
 
     // Store previous sp to the top of the stack, aligned.
-    Str(scratch64, MemOperand(GetStackPointer(), 0));
+    Str(scratch64, MemOperand(GetStackPointer64(), 0));
 }
 
 void
@@ -380,7 +380,7 @@ MacroAssemblerCompat::passABIArg(const MoveOperand &from, MoveOp::Type type)
     if (!enoughMemory_)
         return;
 
-    Register activeSP = Register::FromCode(GetStackPointer().code());
+    Register activeSP = Register::FromCode(GetStackPointer64().code());
     if (type == MoveOp::GENERAL) {
         Register dest;
         passedArgTypes_ = (passedArgTypes_ << ArgType_Shift) | ArgType_General;
@@ -463,15 +463,15 @@ void
 MacroAssemblerCompat::callWithABIPost(uint32_t stackAdjust, MoveOp::Type result)
 {
     // Call boundaries communicate stack via sp.
-    if (!GetStackPointer().Is(sp))
-        Add(GetStackPointer(), sp, Operand(0));
+    if (!GetStackPointer64().Is(sp))
+        Add(GetStackPointer64(), sp, Operand(0));
 
     inCall_ = false;
     freeStack(stackAdjust);
 
     // Restore the stack pointer from entry.
     if (dynamicAlignment_)
-        Ldr(GetStackPointer(), MemOperand(GetStackPointer(), 0));
+        Ldr(GetStackPointer64(), MemOperand(GetStackPointer64(), 0));
 
     // Restore LR.
     pop(lr);
@@ -573,8 +573,66 @@ MacroAssemblerCompat::callWithABI(Address fun, MoveOp::Type result)
     callWithABIPost(stackAdjust, result);
 }
 
-void MacroAssemblerCompat::branchPtrInNurseryRange(Condition cond, Register ptr, Register temp,
-                                                   Label *label)
+void
+MacroAssembler::Push(Register reg)
+{
+    MacroAssemblerVIXL::Push(ARMRegister(reg, 64));
+    adjustFrame(sizeof(intptr_t));
+}
+
+void
+MacroAssembler::Push(const Imm32 imm)
+{
+    push(imm);
+    adjustFrame(sizeof(intptr_t));
+}
+
+void
+MacroAssembler::Push(const ImmWord imm)
+{
+    push(imm);
+    adjustFrame(sizeof(intptr_t));
+}
+
+void
+MacroAssembler::Push(const ImmPtr imm)
+{
+    push(imm);
+    adjustFrame(sizeof(intptr_t));
+}
+
+void
+MacroAssembler::Push(const ImmGCPtr ptr)
+{
+    push(ptr);
+    adjustFrame(sizeof(intptr_t));
+}
+
+void
+MacroAssembler::Push(FloatRegister f)
+{
+    push(f);
+    adjustFrame(sizeof(double));
+}
+
+void
+MacroAssembler::Pop(const Register reg)
+{
+    pop(reg);
+    adjustFrame(-1 * int64_t(sizeof(int64_t)));
+}
+
+void
+MacroAssembler::Pop(const ValueOperand &val)
+{
+    pop(val);
+    adjustFrame(-1 * int64_t(sizeof(int64_t)));
+}
+
+
+void
+MacroAssemblerCompat::branchPtrInNurseryRange(Condition cond, Register ptr, Register temp,
+                                              Label *label)
 {
     MOZ_ASSERT(cond == Assembler::Equal || cond == Assembler::NotEqual);
     MOZ_ASSERT(ptr != temp);
@@ -605,6 +663,48 @@ MacroAssemblerCompat::branchValueIsNurseryObject(Condition cond, ValueOperand va
               temp, ImmWord(nursery.nurserySize()), label);
 }
 
+void
+MacroAssemblerCompat::buildFakeExitFrame(Register scratch, uint32_t *offset)
+{
+    mozilla::DebugOnly<uint32_t> initialDepth = framePushed();
+    uint32_t descriptor = MakeFrameDescriptor(framePushed(), JitFrame_IonJS);
+
+    asMasm().Push(Imm32(descriptor)); // descriptor_
+
+    enterNoPool(3);
+    Label fakeCallsite;
+    Adr(ARMRegister(scratch, 64), &fakeCallsite);
+    asMasm().Push(scratch);
+    bind(&fakeCallsite);
+    uint32_t pseudoReturnOffset = currentOffset();
+    leaveNoPool();
+
+    MOZ_ASSERT(framePushed() == initialDepth + ExitFrameLayout::Size());
+
+    *offset = pseudoReturnOffset;
+}
+
+void
+MacroAssemblerCompat::callWithExitFrame(JitCode *target)
+{
+    uint32_t descriptor = MakeFrameDescriptor(framePushed(), JitFrame_IonJS);
+    asMasm().Push(Imm32(descriptor));
+    call(target);
+}
+
+void
+MacroAssemblerCompat::callAndPushReturnAddress(Label *label)
+{
+    // FIXME: Jandem said he would refactor the code to avoid making
+    // this instruction required, but probably forgot about it.
+    // Instead of implementing this function, we should make it unnecessary.
+    Label ret;
+    Adr(ScratchReg2_64, &ret);
+    asMasm().Push(ScratchReg2);
+    Bl(label);
+    bind(&ret);
+}
+
 // FIXME: Probably just call Brk() in the header.
 void
 MacroAssemblerCompat::breakpoint()
@@ -628,6 +728,17 @@ MacroAssembler::restoreFrameAlignmentForICArguments(MacroAssembler::AfterICSaveL
     // Exists for MIPS compatibility.
 }
 
+MacroAssembler &
+MacroAssemblerCompat::asMasm()
+{
+    return *static_cast<MacroAssembler *>(this);
+}
+
+const MacroAssembler &
+MacroAssemblerCompat::asMasm() const
+{
+    return *static_cast<const MacroAssembler *>(this);
+}
 
 } // namespace jit
 } // namespace js

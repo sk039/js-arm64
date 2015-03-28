@@ -30,7 +30,7 @@ class Request;
 
 #define kFETCH_CLIENT_REFERRER_STR "about:client"
 
-class InternalRequest MOZ_FINAL
+class InternalRequest final
 {
   friend class Request;
 
@@ -208,10 +208,22 @@ public:
     return mCacheMode;
   }
 
+  void
+  SetCacheMode(RequestCache aCacheMode)
+  {
+    mCacheMode = aCacheMode;
+  }
+
   nsContentPolicyType
   ContentPolicyType() const
   {
     return mContentPolicyType;
+  }
+
+  void
+  SetContentPolicyType(nsContentPolicyType aContentPolicyType)
+  {
+    mContentPolicyType = aContentPolicyType;
   }
 
   bool

@@ -14,6 +14,7 @@
 #include "jsobj.h"
 #include "jswrapper.h"
 
+#include "js/GCAPI.h"
 #include "vm/GlobalObject.h"
 #include "vm/WeakMapObject.h"
 
@@ -24,6 +25,8 @@
 
 using namespace js;
 using namespace js::gc;
+
+using mozilla::UniquePtr;
 
 WeakMapBase::WeakMapBase(JSObject *memOf, JSCompartment *c)
   : memberOf(memOf),
@@ -43,7 +46,7 @@ void
 WeakMapBase::trace(JSTracer *tracer)
 {
     MOZ_ASSERT(isInList());
-    if (IS_GC_MARKING_TRACER(tracer)) {
+    if (tracer->isMarkingTracer()) {
         // We don't trace any of the WeakMap entries at this time, just record
         // record the fact that the WeakMap has been marked. Enties are marked
         // in the iterative marking phase by markAllIteratively(), which happens
@@ -132,8 +135,11 @@ WeakMapBase::traceAllMappings(WeakMapTracer *tracer)
 {
     JSRuntime *rt = tracer->runtime;
     for (CompartmentsIter c(rt, SkipAtoms); !c.done(); c.next()) {
-        for (WeakMapBase *m = c->gcWeakMapList; m; m = m->next)
+        for (WeakMapBase *m = c->gcWeakMapList; m; m = m->next) {
+            // The WeakMapTracer callback is not allowed to GC.
+            JS::AutoSuppressGCAnalysis nogc;
             m->traceMappings(tracer);
+        }
     }
 }
 
@@ -384,10 +390,11 @@ WeakMap_set_impl(JSContext *cx, CallArgs args)
     MOZ_ASSERT(IsWeakMap(args.thisv()));
 
     if (!args.get(0).isObject()) {
-        char *bytes = DecompileValueGenerator(cx, JSDVG_SEARCH_STACK, args.get(0), NullPtr());
+        UniquePtr<char[], JS::FreePolicy> bytes =
+            DecompileValueGenerator(cx, JSDVG_SEARCH_STACK, args.get(0), NullPtr());
         if (!bytes)
             return false;
-        JS_ReportErrorNumber(cx, GetErrorMessage, nullptr, JSMSG_NOT_NONNULL_OBJECT, bytes);
+        JS_ReportErrorNumber(cx, GetErrorMessage, nullptr, JSMSG_NOT_NONNULL_OBJECT, bytes.get());
         return false;
     }
 
@@ -568,10 +575,11 @@ WeakMap_construct(JSContext *cx, unsigned argc, Value *vp)
             // Steps 12k-l.
             if (isOriginalAdder) {
                 if (keyVal.isPrimitive()) {
-                    char *bytes = DecompileValueGenerator(cx, JSDVG_SEARCH_STACK, keyVal, NullPtr());
+                    UniquePtr<char[], JS::FreePolicy> bytes =
+                        DecompileValueGenerator(cx, JSDVG_SEARCH_STACK, keyVal, NullPtr());
                     if (!bytes)
                         return false;
-                    JS_ReportErrorNumber(cx, GetErrorMessage, nullptr, JSMSG_NOT_NONNULL_OBJECT, bytes);
+                    JS_ReportErrorNumber(cx, GetErrorMessage, nullptr, JSMSG_NOT_NONNULL_OBJECT, bytes.get());
                     return false;
                 }
 
@@ -665,3 +673,65 @@ js::InitBareWeakMapCtor(JSContext *cx, HandleObject obj)
     return InitWeakMapClass(cx, obj, false);
 }
 
+ObjectWeakMap::ObjectWeakMap(JSContext *cx)
+  : map(cx, nullptr)
+{
+    if (!map.init())
+        CrashAtUnhandlableOOM("ObjectWeakMap");
+}
+
+ObjectWeakMap::~ObjectWeakMap()
+{
+    WeakMapBase::removeWeakMapFromList(&map);
+}
+
+JSObject *
+ObjectWeakMap::lookup(const JSObject *obj)
+{
+    if (ObjectValueMap::Ptr p = map.lookup(const_cast<JSObject *>(obj)))
+        return &p->value().toObject();
+    return nullptr;
+}
+
+bool
+ObjectWeakMap::add(JSContext *cx, JSObject *obj, JSObject *target)
+{
+    MOZ_ASSERT(obj && target);
+
+    MOZ_ASSERT(!map.has(obj));
+    if (!map.put(obj, ObjectValue(*target))) {
+        ReportOutOfMemory(cx);
+        return false;
+    }
+
+    return true;
+}
+
+void
+ObjectWeakMap::clear()
+{
+    map.clear();
+}
+
+void
+ObjectWeakMap::trace(JSTracer *trc)
+{
+    map.trace(trc);
+}
+
+size_t
+ObjectWeakMap::sizeOfExcludingThis(mozilla::MallocSizeOf mallocSizeOf)
+{
+    return map.sizeOfExcludingThis(mallocSizeOf);
+}
+
+#ifdef JSGC_HASH_TABLE_CHECKS
+void
+ObjectWeakMap::checkAfterMovingGC()
+{
+    for (ObjectValueMap::Range r = map.all(); !r.empty(); r.popFront()) {
+        CheckGCThingAfterMovingGC(r.front().key().get());
+        CheckGCThingAfterMovingGC(&r.front().value().toObject());
+    }
+}
+#endif // JSGC_HASH_TABLE_CHECKS

@@ -31,7 +31,7 @@ enum MethodStatus
 enum AbortReason {
     AbortReason_Alloc,
     AbortReason_Inlining,
-    AbortReason_NewScriptProperties,
+    AbortReason_PreliminaryObjects,
     AbortReason_Disable,
     AbortReason_Error,
     AbortReason_NoAbort
@@ -189,6 +189,8 @@ NumLocalsAndArgs(JSScript *script)
         num += fun->nargs();
     return num;
 }
+
+bool OffThreadCompilationAvailable(JSContext *cx);
 
 void ForbidCompilation(JSContext *cx, JSScript *script);
 

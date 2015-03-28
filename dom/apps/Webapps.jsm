@@ -251,7 +251,8 @@ this.DOMApplicationRegistry = {
     this.loadAndUpdateApps();
 
     Langpacks.registerRegistryFunctions(this.broadcastMessage.bind(this),
-                                        this._appIdForManifestURL.bind(this));
+                                        this._appIdForManifestURL.bind(this),
+                                        this.getFullAppByManifestURL.bind(this));
   },
 
   // loads the current registry, that could be empty on first run.
@@ -393,8 +394,11 @@ this.DOMApplicationRegistry = {
 
   _saveWidgetsFullPath: function(aManifest, aDestApp) {
     if (aManifest.widgetPages) {
-      aDestApp.widgetPages = aManifest.widgetPages.map(aManifest.resolveURL,
-                                                       aManifest/* thisArg */);
+      let resolve = (aPage)=>{
+        let filepath = AppsUtils.getFilePath(aPage);
+        return Services.io.newURI(aManifest.resolveURL(filepath), null, null);
+      };
+      aDestApp.widgetPages = aManifest.widgetPages.map(resolve);
     } else {
       aDestApp.widgetPages = [];
     }
@@ -775,7 +779,7 @@ this.DOMApplicationRegistry = {
           }
         }
 
-#ifdef MOZ_WIDGET_GONK
+#ifdef MOZ_B2G
         yield this.installSystemApps();
 #endif
 
@@ -4667,6 +4671,31 @@ this.DOMApplicationRegistry = {
 
   getAppByManifestURL: function(aManifestURL) {
     return AppsUtils.getAppByManifestURL(this.webapps, aManifestURL);
+  },
+
+  // Returns a promise that resolves to the app object with the manifest.
+  getFullAppByManifestURL: function(aManifestURL, aEntryPoint, aLang) {
+    let app = this.getAppByManifestURL(aManifestURL);
+    if (!app) {
+      return Promise.reject("NoSuchApp");
+    }
+
+    return this.getManifestFor(aManifestURL).then((aManifest) => {
+      let manifest = aEntryPoint && aManifest.entry_points &&
+                     aManifest.entry_points[aEntryPoint]
+        ? aManifest.entry_points[aEntryPoint]
+        : aManifest;
+
+      // `version` doesn't change based on entry points, and we need it
+      // to check langpack versions.
+      if (manifest !== aManifest) {
+        manifest.version = aManifest.version;
+      }
+
+      app.manifest =
+        new ManifestHelper(manifest, app.origin, app.manifestURL, aLang);
+      return app;
+    });
   },
 
   _getAppWithManifest: Task.async(function*(aManifestURL) {

@@ -288,12 +288,19 @@ CodeGeneratorARM64::visitSqrtF(LSqrtF *ins)
     masm.Fsqrt(output, input);
 }
 
-template<typename T>
-ARMRegister toWRegister(const T *a) {
+// FIXME: Uh, is this a static function? It looks like it is...
+template <typename T>
+ARMRegister
+toWRegister(const T *a)
+{
     return ARMRegister(ToRegister(a), 32);
 }
-template<typename T>
-ARMRegister toXRegister(const T *a) {
+
+// FIXME: Uh, is this a static function? It looks like it is...
+template <typename T>
+ARMRegister
+toXRegister(const T *a)
+{
     return ARMRegister(ToRegister(a), 64);
 }
 
@@ -679,7 +686,7 @@ CodeGeneratorARM64::toMoveOperand(const LAllocation *a) const
     if (a->isFloatReg())
         return MoveOperand(ToFloatRegister(a));
     int32_t offset = ToStackOffset(a);
-    return MoveOperand(masm.GetStackPointer_(), offset);
+    return MoveOperand(masm.GetStackPointer(), offset);
 }
 
 class js::jit::OutOfLineTableSwitch : public OutOfLineCodeBase<CodeGeneratorARM64>
@@ -1480,7 +1487,7 @@ void
 CodeGeneratorARM64::visitAsmJSPassStackArg(LAsmJSPassStackArg *ins)
 {
     const MAsmJSPassStackArg *mir = ins->mir();
-    MemOperand dst(masm.GetStackPointer(), mir->spOffset());
+    MemOperand dst(masm.GetStackPointer64(), mir->spOffset());
     if (ins->arg()->isConstant()) {
         ARMRegister tmp = ScratchReg2_32;
         if (ToInt32(ins->arg()) == 0) {

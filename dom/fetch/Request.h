@@ -26,7 +26,7 @@ class InternalHeaders;
 class Promise;
 class RequestOrUSVString;
 
-class Request MOZ_FINAL : public nsISupports
+class Request final : public nsISupports
                         , public FetchBody<Request>
                         , public nsWrapperCache
 {
@@ -37,15 +37,15 @@ public:
   Request(nsIGlobalObject* aOwner, InternalRequest* aRequest);
 
   JSObject*
-  WrapObject(JSContext* aCx) MOZ_OVERRIDE
+  WrapObject(JSContext* aCx, JS::Handle<JSObject*> aGivenProto) override
   {
-    return RequestBinding::Wrap(aCx, this);
+    return RequestBinding::Wrap(aCx, this, aGivenProto);
   }
 
   void
-  GetUrl(DOMString& aUrl) const
+  GetUrl(nsAString& aUrl) const
   {
-    aUrl.AsAString() = NS_ConvertUTF8toUTF16(mRequest->mURL);
+    CopyUTF8toUTF16(mRequest->mURL, aUrl);
   }
 
   void

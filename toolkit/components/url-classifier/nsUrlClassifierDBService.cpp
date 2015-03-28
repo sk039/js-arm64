@@ -18,6 +18,7 @@
 #include "nsIProperties.h"
 #include "nsToolkitCompsCID.h"
 #include "nsIUrlClassifierUtils.h"
+#include "nsIXULRuntime.h"
 #include "nsUrlClassifierDBService.h"
 #include "nsUrlClassifierUtils.h"
 #include "nsUrlClassifierProxies.h"
@@ -740,7 +741,7 @@ nsUrlClassifierDBServiceWorker::OpenDb()
 // and handles any necessary partial hash expansions before calling
 // the client callback.
 
-class nsUrlClassifierLookupCallback MOZ_FINAL : public nsIUrlClassifierLookupCallback
+class nsUrlClassifierLookupCallback final : public nsIUrlClassifierLookupCallback
                                               , public nsIUrlClassifierHashCompleterCallback
 {
 public:
@@ -969,7 +970,7 @@ nsUrlClassifierLookupCallback::HandleResults()
 // Helper class for nsIURIClassifier implementation, translates table names
 // to nsIURIClassifier enums.
 
-class nsUrlClassifierClassifyCallback MOZ_FINAL : public nsIUrlClassifierCallback
+class nsUrlClassifierClassifyCallback final : public nsIUrlClassifierCallback
 {
 public:
   NS_DECL_THREADSAFE_ISUPPORTS
@@ -1101,6 +1102,14 @@ nsUrlClassifierDBService::Init()
     gUrlClassifierDbServiceLog = PR_NewLogModule("UrlClassifierDbService");
 #endif
   MOZ_ASSERT(NS_IsMainThread(), "Must initialize DB service on main thread");
+  nsCOMPtr<nsIXULRuntime> appInfo = do_GetService("@mozilla.org/xre/app-info;1");
+  if (appInfo) {
+    bool inSafeMode = false;
+    appInfo->GetInSafeMode(&inSafeMode);
+    if (inSafeMode) {
+      return NS_ERROR_NOT_AVAILABLE;
+    }
+  }
 
   // Retrieve all the preferences.
   mCheckMalware = Preferences::GetBool(CHECK_MALWARE_PREF,

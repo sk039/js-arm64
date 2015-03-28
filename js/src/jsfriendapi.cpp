@@ -24,6 +24,7 @@
 #include "js/Proxy.h"
 #include "proxy/DeadObjectProxy.h"
 #include "vm/ArgumentsObject.h"
+#include "vm/WeakMapObject.h"
 #include "vm/WrapperObject.h"
 
 #include "jsobjinlines.h"
@@ -127,8 +128,7 @@ JS_SplicePrototype(JSContext *cx, HandleObject obj, HandleObject proto)
 }
 
 JS_FRIEND_API(JSObject *)
-JS_NewObjectWithUniqueType(JSContext *cx, const JSClass *clasp, HandleObject proto,
-                           HandleObject parent)
+JS_NewObjectWithUniqueType(JSContext *cx, const JSClass *clasp, HandleObject proto)
 {
     /*
      * Create our object with a null proto and then splice in the correct proto
@@ -137,7 +137,7 @@ JS_NewObjectWithUniqueType(JSContext *cx, const JSClass *clasp, HandleObject pro
      * we're not going to be using that ObjectGroup anyway.
      */
     RootedObject obj(cx, NewObjectWithGivenProto(cx, (const js::Class *)clasp, NullPtr(),
-                                                 parent, SingletonObject));
+                                                 SingletonObject));
     if (!obj)
         return nullptr;
     if (!JS_SplicePrototype(cx, obj, proto))
@@ -321,10 +321,10 @@ js::IsCallObject(JSObject *obj)
     return obj->is<CallObject>();
 }
 
-JS_FRIEND_API(JSObject *)
-js::GetObjectParentMaybeScope(JSObject *obj)
+JS_FRIEND_API(bool)
+js::CanAccessObjectShape(JSObject *obj)
 {
-    return obj->enclosingScope();
+    return obj->maybeShape() != nullptr;
 }
 
 JS_FRIEND_API(JSObject *)
@@ -422,13 +422,11 @@ js::DefineFunctionWithReserved(JSContext *cx, JSObject *objArg, const char *name
 
 JS_FRIEND_API(JSFunction *)
 js::NewFunctionWithReserved(JSContext *cx, JSNative native, unsigned nargs, unsigned flags,
-                            JSObject *parentArg, const char *name)
+                            const char *name)
 {
-    RootedObject parent(cx, parentArg);
     MOZ_ASSERT(!cx->runtime()->isAtomsCompartment(cx->compartment()));
 
     CHECK_REQUEST(cx);
-    assertSameCompartment(cx, parent);
 
     RootedAtom atom(cx);
     if (name) {
@@ -437,25 +435,23 @@ js::NewFunctionWithReserved(JSContext *cx, JSNative native, unsigned nargs, unsi
             return nullptr;
     }
 
-    JSFunction::Flags funFlags = JSAPIToJSFunctionFlags(flags);
-    return NewFunction(cx, NullPtr(), native, nargs, funFlags, parent, atom,
-                       JSFunction::ExtendedFinalizeKind);
+    return (flags & JSFUN_CONSTRUCTOR) ?
+        NewNativeConstructor(cx, native, nargs, atom, JSFunction::ExtendedFinalizeKind) :
+        NewNativeFunction(cx, native, nargs, atom, JSFunction::ExtendedFinalizeKind);
 }
 
 JS_FRIEND_API(JSFunction *)
-js::NewFunctionByIdWithReserved(JSContext *cx, JSNative native, unsigned nargs, unsigned flags, JSObject *parentArg,
+js::NewFunctionByIdWithReserved(JSContext *cx, JSNative native, unsigned nargs, unsigned flags,
                                 jsid id)
 {
-    RootedObject parent(cx, parentArg);
     MOZ_ASSERT(JSID_IS_STRING(id));
     MOZ_ASSERT(!cx->runtime()->isAtomsCompartment(cx->compartment()));
     CHECK_REQUEST(cx);
-    assertSameCompartment(cx, parent);
 
     RootedAtom atom(cx, JSID_TO_ATOM(id));
-    JSFunction::Flags funFlags = JSAPIToJSFunctionFlags(flags);
-    return NewFunction(cx, NullPtr(), native, nargs, funFlags, parent, atom,
-                       JSFunction::ExtendedFinalizeKind);
+    return (flags & JSFUN_CONSTRUCTOR) ?
+        NewNativeConstructor(cx, native, nargs, atom, JSFunction::ExtendedFinalizeKind) :
+        NewNativeFunction(cx, native, nargs, atom, JSFunction::ExtendedFinalizeKind);
 }
 
 JS_FRIEND_API(const Value &)
@@ -471,6 +467,13 @@ js::SetFunctionNativeReserved(JSObject *fun, size_t which, const Value &val)
     MOZ_ASSERT(fun->as<JSFunction>().isNative());
     MOZ_ASSERT_IF(val.isObject(), val.toObject().compartment() == fun->compartment());
     fun->as<JSFunction>().setExtendedSlot(which, val);
+}
+
+JS_FRIEND_API(bool)
+js::FunctionHasNativeReserved(JSObject *fun)
+{
+    MOZ_ASSERT(fun->as<JSFunction>().isNative());
+    return fun->as<JSFunction>().isExtended();
 }
 
 JS_FRIEND_API(bool)
@@ -547,9 +550,9 @@ JS_GetCustomIteratorCount(JSContext *cx)
 }
 
 JS_FRIEND_API(unsigned)
-JS_PCToLineNumber(JSScript *script, jsbytecode *pc)
+JS_PCToLineNumber(JSScript *script, jsbytecode *pc, unsigned *columnp)
 {
-    return PCToLineNumber(script, pc);
+    return PCToLineNumber(script, pc, columnp);
 }
 
 JS_FRIEND_API(bool)
@@ -630,19 +633,19 @@ JS_CloneObject(JSContext *cx, HandleObject obj, HandleObject protoArg)
 
 #ifdef DEBUG
 JS_FRIEND_API(void)
-js_DumpString(JSString *str)
+js::DumpString(JSString *str)
 {
     str->dump();
 }
 
 JS_FRIEND_API(void)
-js_DumpAtom(JSAtom *atom)
+js::DumpAtom(JSAtom *atom)
 {
     atom->dump();
 }
 
 JS_FRIEND_API(void)
-js_DumpChars(const char16_t *s, size_t n)
+js::DumpChars(const char16_t *s, size_t n)
 {
     fprintf(stderr, "char16_t * (%p) = ", (void *) s);
     JSString::dumpChars(s, n);
@@ -650,7 +653,7 @@ js_DumpChars(const char16_t *s, size_t n)
 }
 
 JS_FRIEND_API(void)
-js_DumpObject(JSObject *obj)
+js::DumpObject(JSObject *obj)
 {
     if (!obj) {
         fprintf(stderr, "NULL\n");
@@ -876,13 +879,13 @@ JS::FormatStackDump(JSContext *cx, char *buf, bool showArgs, bool showLocals, bo
     return buf;
 }
 
-struct DumpHeapTracer : public JSTracer
+struct DumpHeapTracer : public JS::CallbackTracer
 {
     FILE   *output;
 
     DumpHeapTracer(FILE *fp, JSRuntime *rt, JSTraceCallback callback,
                    WeakMapTraceKind weakTraceKind)
-      : JSTracer(rt, callback, weakTraceKind), output(fp)
+      : JS::CallbackTracer(rt, callback, weakTraceKind), output(fp)
     {}
 };
 
@@ -937,7 +940,7 @@ DumpHeapVisitCell(JSRuntime *rt, void *data, void *thing,
 }
 
 static void
-DumpHeapVisitChild(JSTracer *trc, void **thingp, JSGCTraceKind kind)
+DumpHeapVisitChild(JS::CallbackTracer *trc, void **thingp, JSGCTraceKind kind)
 {
     if (gc::IsInsideNursery((js::gc::Cell *)*thingp))
         return;
@@ -949,7 +952,7 @@ DumpHeapVisitChild(JSTracer *trc, void **thingp, JSGCTraceKind kind)
 }
 
 static void
-DumpHeapVisitRoot(JSTracer *trc, void **thingp, JSGCTraceKind kind)
+DumpHeapVisitRoot(JS::CallbackTracer *trc, void **thingp, JSGCTraceKind kind)
 {
     if (gc::IsInsideNursery((js::gc::Cell *)*thingp))
         return;
@@ -1171,21 +1174,18 @@ js::SetObjectMetadataCallback(JSContext *cx, ObjectMetadataCallback callback)
     cx->compartment()->setObjectMetadataCallback(callback);
 }
 
-JS_FRIEND_API(bool)
-js::SetObjectMetadata(JSContext *cx, HandleObject obj, HandleObject metadata)
-{
-    return JSObject::setMetadata(cx, obj, metadata);
-}
-
 JS_FRIEND_API(JSObject *)
 js::GetObjectMetadata(JSObject *obj)
 {
-    return obj->getMetadata();
+    ObjectWeakMap *map = obj->compartment()->objectMetadataTable;
+    if (map)
+        return map->lookup(obj);
+    return nullptr;
 }
 
 JS_FRIEND_API(bool)
 js::DefineOwnProperty(JSContext *cx, JSObject *objArg, jsid idArg,
-                      JS::Handle<js::PropertyDescriptor> descriptor, bool *bp)
+                      JS::Handle<js::PropertyDescriptor> descriptor, ObjectOpResult &result)
 {
     RootedObject obj(cx, objArg);
     RootedId id(cx, idArg);
@@ -1197,7 +1197,7 @@ js::DefineOwnProperty(JSContext *cx, JSObject *objArg, jsid idArg,
     if (descriptor.hasSetterObject())
         assertSameCompartment(cx, descriptor.setterObject());
 
-    return StandardDefineProperty(cx, obj, id, descriptor, bp);
+    return StandardDefineProperty(cx, obj, id, descriptor, result);
 }
 
 JS_FRIEND_API(bool)

@@ -8,9 +8,7 @@
  */
 
 typedef object JSON;
-// FIXME(nsm): Bug 739173: FormData is not available in workers.
-// typedef (ArrayBuffer or ArrayBufferView or Blob or FormData or USVString or URLSearchParams) BodyInit;
-typedef (ArrayBuffer or ArrayBufferView or Blob or USVString or URLSearchParams) BodyInit;
+typedef (ArrayBuffer or ArrayBufferView or Blob or FormData or USVString or URLSearchParams) BodyInit;
 
 [NoInterfaceObject, Exposed=(Window,Worker)]
 interface Body {
@@ -29,7 +27,7 @@ interface Body {
 
 [NoInterfaceObject, Exposed=(Window,Worker)]
 interface GlobalFetch {
-  [Throws, Func="mozilla::dom::Headers::PrefEnabled"]
+  [Throws]
   Promise<Response> fetch(RequestInfo input, optional RequestInit init);
 };
 

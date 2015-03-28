@@ -85,7 +85,7 @@ EmitTailCallVM(JitCode *target, MacroAssembler &masm, uint32_t argSize)
     MOZ_ASSERT(R2 == ValueOperand(r0));
 
     // Compute frame size into w0. Used below in makeFrameDescriptor().
-    masm.Sub(x0, ARMRegister(BaselineFrameReg, 64), masm.GetStackPointer());
+    masm.Sub(x0, ARMRegister(BaselineFrameReg, 64), masm.GetStackPointer64());
     masm.Add(w0, w0, Operand(BaselineFrame::FramePointerOffset));
 
     // Store frame size without VMFunction arguments for GC marking.
@@ -113,7 +113,7 @@ EmitCreateStubFrameDescriptor(MacroAssembler &masm, Register reg)
     // Compute stub frame size. We have to add two pointers: the stub reg and previous
     // frame pointer pushed by EmitEnterStubFrame.
     masm.Add(reg64, ARMRegister(BaselineFrameReg, 64), Operand(sizeof(void *) * 2));
-    masm.Sub(reg64, reg64, masm.GetStackPointer());
+    masm.Sub(reg64, reg64, masm.GetStackPointer64());
 
     masm.makeFrameDescriptor(reg, JitFrame_BaselineStub);
 }
@@ -138,7 +138,7 @@ EmitEnterStubFrame(MacroAssembler &masm, Register scratch)
     // Compute frame size.
     masm.movePtr(BaselineFrameReg, scratch);
     masm.addPtr(Imm32(BaselineFrame::FramePointerOffset), scratch);
-    masm.Sub(ARMRegister(scratch, 64), ARMRegister(scratch, 64), masm.GetStackPointer());
+    masm.Sub(ARMRegister(scratch, 64), ARMRegister(scratch, 64), masm.GetStackPointer64());
 
     masm.store32(scratch, Address(BaselineFrameReg, BaselineFrame::reverseOffsetOfFrameSize()));
 
@@ -154,7 +154,7 @@ EmitEnterStubFrame(MacroAssembler &masm, Register scratch)
                                   ARMRegister(BaselineFrameReg, 64));
 
     // Update the frame register.
-    masm.Add(ARMRegister(BaselineFrameReg, 64), masm.GetStackPointer(), Operand(0));
+    masm.Add(ARMRegister(BaselineFrameReg, 64), masm.GetStackPointer64(), Operand(0));
 
     // Stack should remain 16-byte aligned.
     masm.checkStackAlignment();
@@ -170,9 +170,9 @@ EmitLeaveStubFrame(MacroAssembler &masm, bool calledIntoIon = false)
     if (calledIntoIon) {
         masm.pop(ScratchReg);
         masm.Lsr(ScratchReg64, ScratchReg64, FRAMESIZE_SHIFT);
-        masm.Add(masm.GetStackPointer(), masm.GetStackPointer(), ScratchReg64);
+        masm.Add(masm.GetStackPointer64(), masm.GetStackPointer64(), ScratchReg64);
     } else {
-        masm.Add(masm.GetStackPointer(), ARMRegister(BaselineFrameReg, 64), Operand(0));
+        masm.Add(masm.GetStackPointer64(), ARMRegister(BaselineFrameReg, 64), Operand(0));
     }
 
     // Pop values, discarding the frame descriptor.

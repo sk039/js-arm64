@@ -11,6 +11,7 @@
 #include "mozilla/dom/FetchEventBinding.h"
 #include "mozilla/dom/InstallEventBinding.h"
 #include "mozilla/dom/Promise.h"
+#include "mozilla/dom/Response.h"
 #include "nsProxyRelease.h"
 
 class nsIInterceptedChannel;
@@ -26,13 +27,13 @@ BEGIN_WORKERS_NAMESPACE
 class ServiceWorker;
 class ServiceWorkerClient;
 
-class FetchEvent MOZ_FINAL : public Event
+class FetchEvent final : public Event
 {
   nsMainThreadPtrHandle<nsIInterceptedChannel> mChannel;
   nsMainThreadPtrHandle<ServiceWorker> mServiceWorker;
   nsRefPtr<ServiceWorkerClient> mClient;
   nsRefPtr<Request> mRequest;
-  uint64_t mWindowId;
+  nsAutoPtr<ServiceWorkerClientInfo> mClientInfo;
   bool mIsReload;
   bool mWaitToRespond;
 protected:
@@ -44,14 +45,14 @@ public:
   NS_DECL_CYCLE_COLLECTION_CLASS_INHERITED(FetchEvent, Event)
   NS_FORWARD_TO_EVENT
 
-  virtual JSObject* WrapObjectInternal(JSContext* aCx) MOZ_OVERRIDE
+  virtual JSObject* WrapObjectInternal(JSContext* aCx, JS::Handle<JSObject*> aGivenProto) override
   {
-    return FetchEventBinding::Wrap(aCx, this);
+    return FetchEventBinding::Wrap(aCx, this, aGivenProto);
   }
 
   void PostInit(nsMainThreadPtrHandle<nsIInterceptedChannel>& aChannel,
                 nsMainThreadPtrHandle<ServiceWorker>& aServiceWorker,
-                uint64_t aWindowId);
+                nsAutoPtr<ServiceWorkerClientInfo>& aClientInfo);
 
   static already_AddRefed<FetchEvent>
   Constructor(const GlobalObject& aGlobal,
@@ -72,7 +73,7 @@ public:
   }
 
   already_AddRefed<ServiceWorkerClient>
-  Client();
+  GetClient();
 
   bool
   IsReload() const
@@ -82,6 +83,9 @@ public:
 
   void
   RespondWith(Promise& aPromise, ErrorResult& aRv);
+
+  void
+  RespondWith(Response& aResponse, ErrorResult& aRv);
 
   already_AddRefed<Promise>
   ForwardTo(const nsAString& aUrl);
@@ -103,9 +107,9 @@ public:
   NS_DECL_CYCLE_COLLECTION_CLASS_INHERITED(ExtendableEvent, Event)
   NS_FORWARD_TO_EVENT
 
-  virtual JSObject* WrapObjectInternal(JSContext* aCx) MOZ_OVERRIDE
+  virtual JSObject* WrapObjectInternal(JSContext* aCx, JS::Handle<JSObject*> aGivenProto) override
   {
-    return mozilla::dom::ExtendableEventBinding::Wrap(aCx, this);
+    return mozilla::dom::ExtendableEventBinding::Wrap(aCx, this, aGivenProto);
   }
 
   static already_AddRefed<ExtendableEvent>
@@ -140,13 +144,13 @@ public:
     return p.forget();
   }
 
-  virtual ExtendableEvent* AsExtendableEvent() MOZ_OVERRIDE
+  virtual ExtendableEvent* AsExtendableEvent() override
   {
     return this;
   }
 };
 
-class InstallEvent MOZ_FINAL : public ExtendableEvent
+class InstallEvent final : public ExtendableEvent
 {
   // FIXME(nsm): Bug 982787 will allow actually populating this.
   nsRefPtr<ServiceWorker> mActiveWorker;
@@ -161,9 +165,9 @@ public:
   NS_DECL_CYCLE_COLLECTION_CLASS_INHERITED(InstallEvent, ExtendableEvent)
   NS_FORWARD_TO_EVENT
 
-  virtual JSObject* WrapObjectInternal(JSContext* aCx) MOZ_OVERRIDE
+  virtual JSObject* WrapObjectInternal(JSContext* aCx, JS::Handle<JSObject*> aGivenProto) override
   {
-    return mozilla::dom::InstallEventBinding::Wrap(aCx, this);
+    return mozilla::dom::InstallEventBinding::Wrap(aCx, this, aGivenProto);
   }
 
   static already_AddRefed<InstallEvent>
@@ -208,7 +212,7 @@ public:
     return mActivateImmediately;
   }
 
-  InstallEvent* AsInstallEvent() MOZ_OVERRIDE
+  InstallEvent* AsInstallEvent() override
   {
     return this;
   }

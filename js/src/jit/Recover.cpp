@@ -1171,16 +1171,16 @@ RNewObject::RNewObject(CompactBufferReader &reader)
 bool
 RNewObject::recover(JSContext *cx, SnapshotIterator &iter) const
 {
-    RootedPlainObject templateObject(cx, &iter.read().toObject().as<PlainObject>());
+    RootedObject templateObject(cx, &iter.read().toObject());
     RootedValue result(cx);
     JSObject *resultObject = nullptr;
 
     // See CodeGenerator::visitNewObjectVMCall
     if (mode_ == MNewObject::ObjectLiteral) {
-        resultObject = NewInitObject(cx, templateObject);
+        resultObject = NewObjectOperationWithTemplate(cx, templateObject);
     } else {
         MOZ_ASSERT(mode_ == MNewObject::ObjectCreate);
-        resultObject = ObjectCreateWithTemplate(cx, templateObject);
+        resultObject = ObjectCreateWithTemplate(cx, templateObject.as<PlainObject>());
     }
 
     if (!resultObject)
@@ -1427,6 +1427,27 @@ RArrayState::recover(JSContext *cx, SnapshotIterator &iter) const
     }
 
     result.setObject(*object);
+    iter.storeInstructionResult(result);
+    return true;
+}
+
+bool
+MAssertRecoveredOnBailout::writeRecoverData(CompactBufferWriter &writer) const
+{
+    MOZ_ASSERT(canRecoverOnBailout());
+    MOZ_RELEASE_ASSERT(input()->isRecoveredOnBailout() == mustBeRecovered_,
+        "assertRecoveredOnBailout failed during compilation");
+    writer.writeUnsigned(uint32_t(RInstruction::Recover_AssertRecoveredOnBailout));
+    return true;
+}
+
+RAssertRecoveredOnBailout::RAssertRecoveredOnBailout(CompactBufferReader &reader)
+{ }
+
+bool RAssertRecoveredOnBailout::recover(JSContext *cx, SnapshotIterator &iter) const
+{
+    RootedValue result(cx);
+    result.setUndefined();
     iter.storeInstructionResult(result);
     return true;
 }

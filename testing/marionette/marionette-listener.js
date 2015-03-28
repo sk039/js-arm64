@@ -13,6 +13,7 @@ let loader = Cc["@mozilla.org/moz/jssubscript-loader;1"]
 
 loader.loadSubScript("chrome://marionette/content/marionette-simpletest.js");
 loader.loadSubScript("chrome://marionette/content/marionette-common.js");
+loader.loadSubScript("chrome://marionette/content/marionette-actions.js");
 Cu.import("chrome://marionette/content/marionette-elements.js");
 Cu.import("resource://gre/modules/FileUtils.jsm");
 Cu.import("resource://gre/modules/NetUtil.jsm");
@@ -40,8 +41,8 @@ let curFrame = content;
 let previousFrame = null;
 let elementManager = new ElementManager([]);
 let accessibility = new Accessibility();
+let actions = new ActionChain(utils, checkForInterrupted);
 let importedScripts = null;
-let inputSource = null;
 
 // The sandbox we execute test scripts in. Gets lazily created in
 // createExecuteContentSandbox().
@@ -63,19 +64,13 @@ let originalOnError;
 let checkTimer = Cc["@mozilla.org/timer;1"].createInstance(Ci.nsITimer);
 //timer for readystate
 let readyStateTimer = Cc["@mozilla.org/timer;1"].createInstance(Ci.nsITimer);
+// timer for navigation commands.
+let navTimer = Cc["@mozilla.org/timer;1"].createInstance(Ci.nsITimer);
+let onDOMContentLoaded;
 // Send move events about this often
 let EVENT_INTERVAL = 30; // milliseconds
-// For assigning unique ids to all touches
-let nextTouchId = 1000;
-//Keep track of active Touches
-let touchIds = {};
 // last touch for each fingerId
 let multiLast = {};
-let lastCoordinates = null;
-let isTap = false;
-let scrolling = false;
-// whether to send mouse event
-let mouseEventsOnly = false;
 
 Cu.import("resource://gre/modules/Log.jsm");
 let logger = Log.repository.getLogger("Marionette");
@@ -97,13 +92,14 @@ let modalHandler = function() {
  * If the actor returns an ID, we start the listeners. Otherwise, nothing happens.
  */
 function registerSelf() {
-  let msg = {value: winUtil.outerWindowID, href: content.location.href};
+  let msg = {value: winUtil.outerWindowID}
   // register will have the ID and a boolean describing if this is the main process or not
   let register = sendSyncMessage("Marionette:register", msg);
 
   if (register[0]) {
-    listenerId = register[0][0].id;
-    if (typeof listenerId != "undefined") {
+    let {id, remotenessChange} = register[0][0];
+    listenerId = id;
+    if (typeof id != "undefined") {
       // check if we're the main process
       if (register[0][1] == true) {
         addMessageListener("MarionetteMainListener:emitTouchEvent", emitTouchEventForIFrame);
@@ -111,13 +107,16 @@ function registerSelf() {
       importedScripts = FileUtils.getDir('TmpD', [], false);
       importedScripts.append('marionetteContentScripts');
       startListeners();
+      if (remotenessChange) {
+        sendAsyncMessage("Marionette:listenersAttached", {listenerId: id});
+      }
     }
   }
 }
 
 function emitTouchEventForIFrame(message) {
   message = message.json;
-  let identifier = nextTouchId;
+  let identifier = actions.nextTouchId;
 
   let domWindowUtils = curFrame.
     QueryInterface(Components.interfaces.nsIInterfaceRequestor).
@@ -170,6 +169,8 @@ function startListeners() {
   addMessageListenerId("Marionette:actionChain", actionChain);
   addMessageListenerId("Marionette:multiAction", multiAction);
   addMessageListenerId("Marionette:get", get);
+  addMessageListenerId("Marionette:pollForReadyState", pollForReadyState);
+  addMessageListenerId("Marionette:cancelRequest", cancelRequest);
   addMessageListenerId("Marionette:getCurrentUrl", getCurrentUrl);
   addMessageListenerId("Marionette:getTitle", getTitle);
   addMessageListenerId("Marionette:getPageSource", getPageSource);
@@ -236,7 +237,7 @@ function newSession(msg) {
     // events being the result of a physical mouse action.
     // This is especially important for the touch event shim,
     // in order to prevent creating touch event for these fake mouse events.
-    inputSource = Ci.nsIDOMMouseEvent.MOZ_SOURCE_TOUCH;
+    actions.inputSource = Ci.nsIDOMMouseEvent.MOZ_SOURCE_TOUCH;
   }
 }
 
@@ -273,6 +274,8 @@ function deleteSession(msg) {
   removeMessageListenerId("Marionette:actionChain", actionChain);
   removeMessageListenerId("Marionette:multiAction", multiAction);
   removeMessageListenerId("Marionette:get", get);
+  removeMessageListenerId("Marionette:pollForReadyState", pollForReadyState);
+  removeMessageListenerId("Marionette:cancelRequest", cancelRequest);
   removeMessageListenerId("Marionette:getTitle", getTitle);
   removeMessageListenerId("Marionette:getPageSource", getPageSource);
   removeMessageListenerId("Marionette:getCurrentUrl", getCurrentUrl);
@@ -315,7 +318,7 @@ function deleteSession(msg) {
   // reset frame to the top-most frame
   curFrame = content;
   curFrame.focus();
-  touchIds = {};
+  actions.touchIds = {};
 }
 
 /*
@@ -367,7 +370,7 @@ function sendError(message, status, trace, command_id) {
 function resetValues() {
   sandbox = null;
   curFrame = content;
-  mouseEventsOnly = false;
+  actions.mouseEventsOnly = false;
 }
 
 /**
@@ -391,6 +394,22 @@ function wasInterrupted() {
     }
   }
   return sendSyncMessage("MarionetteFrame:getInterruptedState", {})[0].value;
+}
+
+function checkForInterrupted() {
+    if (wasInterrupted()) {
+      if (previousFrame) {
+        //if previousFrame is set, then we're in a single process environment
+        cuFrame = actions.frame = previousFrame;
+        previousFrame = null;
+        sandbox = null;
+      }
+      else {
+        //else we're in OOP environment, so we'll switch to the original OOP frame
+        sendSyncMessage("Marionette:switchToModalOrigin");
+      }
+      sendSyncMessage("Marionette:switchedToFrame", { restorePrevious: true });
+    }
 }
 
 /*
@@ -720,7 +739,7 @@ function emitTouchEvent(type, touch) {
                    QueryInterface(Components.interfaces.nsIInterfaceRequestor).
                    getInterface(Components.interfaces.nsIWebNavigation).
                    QueryInterface(Components.interfaces.nsIDocShell);
-    if (docShell.asyncPanZoomEnabled && scrolling) {
+    if (docShell.asyncPanZoomEnabled && actions.scrolling) {
       // if we're in APZ and we're scrolling, we must use injectTouchEvent to dispatch our touchmove events
       let index = sendSyncMessage("MarionetteFrame:getCurrentFrameId");
       // only call emitTouchEventForIFrame if we're inside an iframe.
@@ -748,51 +767,6 @@ function emitTouchEvent(type, touch) {
 }
 
 /**
- * This function emit mouse event
- *   @param: doc is the current document
- *           type is the type of event to dispatch
- *           clickCount is the number of clicks, button notes the mouse button
- *           elClientX and elClientY are the coordinates of the mouse relative to the viewport
- *           modifiers is an object of modifier keys present
- */
-function emitMouseEvent(doc, type, elClientX, elClientY, button, clickCount, modifiers) {
-  if (!wasInterrupted()) {
-    let loggingInfo = "emitting Mouse event of type " + type +
-      " at coordinates (" + elClientX + ", " + elClientY +
-      ") relative to the viewport";
-    dumpLog(loggingInfo);
-    /*
-    Disabled per bug 888303
-    marionetteLogObj.log(loggingInfo, "TRACE");
-    sendSyncMessage("Marionette:shareData",
-                    {log: elementManager.wrapValue(marionetteLogObj.getLogs())});
-    marionetteLogObj.clearLogs();
-    */
-    let win = doc.defaultView;
-    let domUtils = win.QueryInterface(Components.interfaces.nsIInterfaceRequestor)
-                      .getInterface(Components.interfaces.nsIDOMWindowUtils);
-    let mods;
-    if (typeof modifiers != "undefined") {
-      mods = utils._parseModifiers(modifiers);
-    } else {
-      mods = 0;
-    }
-    domUtils.sendMouseEvent(type, elClientX, elClientY, button || 0, clickCount || 1,
-                            mods, false, 0, inputSource);
-  }
-}
-
-/**
- * Helper function that perform a mouse tap
- */
-function mousetap(doc, x, y, keyModifiers) {
-  emitMouseEvent(doc, 'mousemove', x, y, null, null, keyModifiers);
-  emitMouseEvent(doc, 'mousedown', x, y, null, null, keyModifiers);
-  emitMouseEvent(doc, 'mouseup', x, y, null, null, keyModifiers);
-}
-
-
-/**
  * This function generates a pair of coordinates relative to the viewport given a
  * target element and coordinates relative to that element's top-left corner.
  * @param 'x', and 'y' are the relative to the target.
@@ -811,6 +785,7 @@ function coordinates(target, x, y) {
   coords.y = box.top + y;
   return coords;
 }
+
 
 /**
  * This function returns true if the given coordinates are in the viewport.
@@ -863,113 +838,6 @@ function checkVisible(el, x, y) {
   return true;
 }
 
-//x and y are coordinates relative to the viewport
-function generateEvents(type, x, y, touchId, target, keyModifiers) {
-  lastCoordinates = [x, y];
-  let doc = curFrame.document;
-  switch (type) {
-    case 'tap':
-      if (mouseEventsOnly) {
-        mousetap(target.ownerDocument, x, y);
-      }
-      else {
-        let touchId = nextTouchId++;
-        let touch = createATouch(target, x, y, touchId);
-        emitTouchEvent('touchstart', touch);
-        emitTouchEvent('touchend', touch);
-        mousetap(target.ownerDocument, x, y);
-      }
-      lastCoordinates = null;
-      break;
-    case 'press':
-      isTap = true;
-      if (mouseEventsOnly) {
-        emitMouseEvent(doc, 'mousemove', x, y, null, null, keyModifiers);
-        emitMouseEvent(doc, 'mousedown', x, y, null, null, keyModifiers);
-      }
-      else {
-        let touchId = nextTouchId++;
-        let touch = createATouch(target, x, y, touchId);
-        emitTouchEvent('touchstart', touch);
-        touchIds[touchId] = touch;
-        return touchId;
-      }
-      break;
-    case 'release':
-      if (mouseEventsOnly) {
-        emitMouseEvent(doc, 'mouseup', lastCoordinates[0], lastCoordinates[1],
-                       null, null, keyModifiers);
-      }
-      else {
-        let touch = touchIds[touchId];
-        touch = createATouch(touch.target, lastCoordinates[0], lastCoordinates[1], touchId);
-        emitTouchEvent('touchend', touch);
-        if (isTap) {
-          mousetap(touch.target.ownerDocument, touch.clientX, touch.clientY, keyModifiers);
-        }
-        delete touchIds[touchId];
-      }
-      isTap = false;
-      lastCoordinates = null;
-      break;
-    case 'cancel':
-      isTap = false;
-      if (mouseEventsOnly) {
-        emitMouseEvent(doc, 'mouseup', lastCoordinates[0], lastCoordinates[1],
-                       null, null, keyModifiers);
-      }
-      else {
-        emitTouchEvent('touchcancel', touchIds[touchId]);
-        delete touchIds[touchId];
-      }
-      lastCoordinates = null;
-      break;
-    case 'move':
-      isTap = false;
-      if (mouseEventsOnly) {
-        emitMouseEvent(doc, 'mousemove', x, y, null, null, keyModifiers);
-      }
-      else {
-        touch = createATouch(touchIds[touchId].target, x, y, touchId);
-        touchIds[touchId] = touch;
-        emitTouchEvent('touchmove', touch);
-      }
-      break;
-    case 'contextmenu':
-      isTap = false;
-      let event = curFrame.document.createEvent('MouseEvents');
-      if (mouseEventsOnly) {
-        target = doc.elementFromPoint(lastCoordinates[0], lastCoordinates[1]);
-      }
-      else {
-        target = touchIds[touchId].target;
-      }
-      let [ clientX, clientY,
-            pageX, pageY,
-            screenX, screenY ] = getCoordinateInfo(target, x, y);
-      event.initMouseEvent('contextmenu', true, true,
-                           target.ownerDocument.defaultView, 1,
-                           screenX, screenY, clientX, clientY,
-                           false, false, false, false, 0, null);
-      target.dispatchEvent(event);
-      break;
-    default:
-      throw {message:"Unknown event type: " + type, code: 500, stack:null};
-  }
-  if (wasInterrupted()) {
-    if (previousFrame) {
-      //if previousFrame is set, then we're in a single process environment
-      curFrame = previousFrame;
-      previousFrame = null;
-      sandbox = null;
-    }
-    else {
-      //else we're in OOP environment, so we'll switch to the original OOP frame
-      sendSyncMessage("Marionette:switchToModalOrigin");
-    }
-    sendSyncMessage("Marionette:switchedToFrame", { restorePrevious: true });
-  }
-}
 
 /**
  * Function that perform a single tap
@@ -988,10 +856,16 @@ function singleTap(msg) {
     }
     checkActionableAccessibility(acc);
     if (!curFrame.document.createTouch) {
-      mouseEventsOnly = true;
+      actions.mouseEventsOnly = true;
     }
-    c = coordinates(el, msg.json.corx, msg.json.cory);
-    generateEvents('tap', c.x, c.y, null, el);
+    let c = coordinates(el, msg.json.corx, msg.json.cory);
+    if (!actions.mouseEventsOnly) {
+      let touchId = actions.nextTouchId++;
+      let touch = createATouch(el, c.x, c.y, touchId);
+      emitTouchEvent('touchstart', touch);
+      emitTouchEvent('touchend', touch);
+    }
+    actions.mouseTap(el.ownerDocument, c.x, c.y);
     sendOk(msg.json.command_id);
   }
   catch (e) {
@@ -1057,20 +931,6 @@ function checkActionableAccessibility(accesible) {
   accessibility.handleErrorMessage(message);
 }
 
-/**
- * Given an element and a pair of coordinates, returns an array of the form
- * [ clientX, clientY, pageX, pageY, screenX, screenY ]
- */
-function getCoordinateInfo(el, corx, cory) {
-  let win = el.ownerDocument.defaultView;
-  return [ corx, // clientX
-           cory, // clientY
-           corx + win.pageXOffset, // pageX
-           cory + win.pageYOffset, // pageY
-           corx + win.mozInnerScreenX, // screenX
-           cory + win.mozInnerScreenY // screenY
-         ];
-}
 
 /**
  * Function to create a touch based on the element
@@ -1080,119 +940,9 @@ function createATouch(el, corx, cory, touchId) {
   let doc = el.ownerDocument;
   let win = doc.defaultView;
   let [clientX, clientY, pageX, pageY, screenX, screenY] =
-    getCoordinateInfo(el, corx, cory);
+    actions.getCoordinateInfo(el, corx, cory);
   let atouch = doc.createTouch(win, el, touchId, pageX, pageY, screenX, screenY, clientX, clientY);
   return atouch;
-}
-
-/**
- * Function to emit touch events for each finger. e.g. finger=[['press', id], ['wait', 5], ['release']]
- * touchId represents the finger id, i keeps track of the current action of the chain
- * keyModifiers is an object keeping track keyDown/keyUp pairs through an action chain.
- */
-function actions(chain, touchId, command_id, i, keyModifiers) {
-  if (typeof i === "undefined") {
-    i = 0;
-  }
-  if (typeof keyModifiers === "undefined") {
-    keyModifiers = {
-      shiftKey: false,
-      ctrlKey: false,
-      altKey: false,
-      metaKey: false
-    };
-  }
-  if (i == chain.length) {
-    sendResponse({value: touchId}, command_id);
-    return;
-  }
-  let pack = chain[i];
-  let command = pack[0];
-  let el;
-  let c;
-  i++;
-  if (['press', 'wait', 'keyDown', 'keyUp'].indexOf(command) == -1) {
-    //if mouseEventsOnly, then touchIds isn't used
-    if (!(touchId in touchIds) && !mouseEventsOnly) {
-      sendError("Element has not been pressed", 500, null, command_id);
-      return;
-    }
-  }
-  switch(command) {
-    case 'keyDown':
-      utils.sendKeyDown(pack[1], keyModifiers, curFrame);
-      actions(chain, touchId, command_id, i, keyModifiers);
-      break;
-    case 'keyUp':
-      utils.sendKeyUp(pack[1], keyModifiers, curFrame);
-      actions(chain, touchId, command_id, i, keyModifiers);
-      break;
-    case 'press':
-      if (lastCoordinates) {
-        generateEvents('cancel', lastCoordinates[0], lastCoordinates[1],
-                       touchId, null, keyModifiers);
-        sendError("Invalid Command: press cannot follow an active touch event", 500, null, command_id);
-        return;
-      }
-      // look ahead to check if we're scrolling. Needed for APZ touch dispatching.
-      if ((i != chain.length) && (chain[i][0].indexOf('move') !== -1)) {
-        scrolling = true;
-      }
-      el = elementManager.getKnownElement(pack[1], curFrame);
-      c = coordinates(el, pack[2], pack[3]);
-      touchId = generateEvents('press', c.x, c.y, null, el, keyModifiers);
-      actions(chain, touchId, command_id, i, keyModifiers);
-      break;
-    case 'release':
-      generateEvents('release', lastCoordinates[0], lastCoordinates[1],
-                     touchId, null, keyModifiers);
-      actions(chain, null, command_id, i, keyModifiers);
-      scrolling =  false;
-      break;
-    case 'move':
-      el = elementManager.getKnownElement(pack[1], curFrame);
-      c = coordinates(el);
-      generateEvents('move', c.x, c.y, touchId, null, keyModifiers);
-      actions(chain, touchId, command_id, i, keyModifiers);
-      break;
-    case 'moveByOffset':
-      generateEvents('move', lastCoordinates[0] + pack[1], lastCoordinates[1] + pack[2],
-                     touchId, null, keyModifiers);
-      actions(chain, touchId, command_id, i, keyModifiers);
-      break;
-    case 'wait':
-      if (pack[1] != null ) {
-        let time = pack[1]*1000;
-        // standard waiting time to fire contextmenu
-        let standard = 750;
-        try {
-          standard = Services.prefs.getIntPref("ui.click_hold_context_menus.delay");
-        }
-        catch (e){}
-        if (time >= standard && isTap) {
-            chain.splice(i, 0, ['longPress'], ['wait', (time-standard)/1000]);
-            time = standard;
-        }
-        checkTimer.initWithCallback(function() {
-          actions(chain, touchId, command_id, i, keyModifiers);
-        }, time, Ci.nsITimer.TYPE_ONE_SHOT);
-      }
-      else {
-        actions(chain, touchId, command_id, i, keyModifiers);
-      }
-      break;
-    case 'cancel':
-      generateEvents('cancel', lastCoordinates[0], lastCoordinates[1],
-                     touchId, null, keyModifiers);
-      actions(chain, touchId, command_id, i, keyModifiers);
-      scrolling = false;
-      break;
-    case 'longPress':
-      generateEvents('contextmenu', lastCoordinates[0], lastCoordinates[1],
-                     touchId, null, keyModifiers);
-      actions(chain, touchId, command_id, i, keyModifiers);
-      break;
-  }
 }
 
 /**
@@ -1202,20 +952,21 @@ function actionChain(msg) {
   let command_id = msg.json.command_id;
   let args = msg.json.chain;
   let touchId = msg.json.nextId;
-  try {
-    let commandArray = elementManager.convertWrappedArguments(args, curFrame);
-    // loop the action array [ ['press', id], ['move', id], ['release', id] ]
-    if (touchId == null) {
-      touchId = nextTouchId++;
-    }
-    if (!curFrame.document.createTouch) {
-      mouseEventsOnly = true;
-    }
-    actions(commandArray, touchId, command_id);
-  }
-  catch (e) {
-    sendError(e.message, e.code, e.stack, msg.json.command_id);
-  }
+
+  let callbacks = {};
+  callbacks.onSuccess = (value) => {
+    sendResponse(value, command_id);
+  };
+  callbacks.onError = (message, code, trace) => {
+    sendError(message, code, trace, msg.json.command_id);
+  };
+
+  let touchProvider = {};
+  touchProvider.createATouch = createATouch;
+  touchProvider.emitTouchEvent = emitTouchEvent;
+
+  actions.dispatchActions(args, touchId, curFrame, elementManager, callbacks,
+                          touchProvider);
 }
 
 /**
@@ -1385,6 +1136,52 @@ function multiAction(msg) {
   }
 }
 
+/*
+ * This implements the latter part of a get request (for the case we need to resume one
+ * when a remoteness update happens in the middle of a navigate request). This is most of
+ * of the work of a navigate request, but doesn't assume DOMContentLoaded is yet to fire.
+ */
+function pollForReadyState(msg, start, callback) {
+  let {pageTimeout, url, command_id} = msg.json;
+  start = start ? start : new Date().getTime();
+
+  if (!callback) {
+    callback = () => {};
+  }
+
+  let end = null;
+  function checkLoad() {
+    navTimer.cancel();
+    end = new Date().getTime();
+    let aboutErrorRegex = /about:.+(error)\?/;
+    let elapse = end - start;
+    if (pageTimeout == null || elapse <= pageTimeout) {
+      if (curFrame.document.readyState == "complete") {
+        callback();
+        sendOk(command_id);
+      } else if (curFrame.document.readyState == "interactive" &&
+                 aboutErrorRegex.exec(curFrame.document.baseURI) &&
+                 !curFrame.document.baseURI.startsWith(url)) {
+        // We have reached an error url without requesting it.
+        callback();
+        sendError("Error loading page", 13, null, command_id);
+      } else if (curFrame.document.readyState == "interactive" &&
+                 curFrame.document.baseURI.startsWith("about:")) {
+        callback();
+        sendOk(command_id);
+      } else {
+        navTimer.initWithCallback(checkLoad, 100, Ci.nsITimer.TYPE_ONE_SHOT);
+      }
+    }
+    else {
+      callback();
+      sendError("Error loading page, timed out (checkLoad)", 21, null,
+                command_id);
+    }
+  }
+  checkLoad();
+}
+
 /**
  * Navigate to the given URL.  The operation will be performed on the
  * current browser context, and handles the case where we navigate
@@ -1392,67 +1189,56 @@ function multiAction(msg) {
  * (in chrome space).
  */
 function get(msg) {
-  let command_id = msg.json.command_id;
-
-  let checkTimer = Cc["@mozilla.org/timer;1"].createInstance(Ci.nsITimer);
   let start = new Date().getTime();
-  let end = null;
-  function checkLoad() {
-    checkTimer.cancel();
-    end = new Date().getTime();
-    let aboutErrorRegex = /about:.+(error)\?/;
-    let elapse = end - start;
-    if (msg.json.pageTimeout == null || elapse <= msg.json.pageTimeout) {
-      if (curFrame.document.readyState == "complete") {
-        removeEventListener("DOMContentLoaded", onDOMContentLoaded, false);
-        sendOk(command_id);
-      } else if (curFrame.document.readyState == "interactive" &&
-                 aboutErrorRegex.exec(curFrame.document.baseURI) &&
-                 !curFrame.document.baseURI.startsWith(msg.json.url)) {
-        // We have reached an error url without requesting it.
-        removeEventListener("DOMContentLoaded", onDOMContentLoaded, false);
-        sendError("Error loading page", 13, null, command_id);
-      } else if (curFrame.document.readyState == "interactive" &&
-                 curFrame.document.baseURI.startsWith("about:")) {
-        removeEventListener("DOMContentLoaded", onDOMContentLoaded, false);
-        sendOk(command_id);
-      } else {
-        checkTimer.initWithCallback(checkLoad, 100, Ci.nsITimer.TYPE_ONE_SHOT);
-      }
-    }
-    else {
-      removeEventListener("DOMContentLoaded", onDOMContentLoaded, false);
-      sendError("Error loading page, timed out (checkLoad)", 21, null,
-                command_id);
-    }
-  }
+
   // Prevent DOMContentLoaded events from frames from invoking this
   // code, unless the event is coming from the frame associated with
   // the current window (i.e. someone has used switch_to_frame).
-  let onDOMContentLoaded = function onDOMContentLoaded(event) {
+  onDOMContentLoaded = function onDOMContentLoaded(event) {
     if (!event.originalTarget.defaultView.frameElement ||
         event.originalTarget.defaultView.frameElement == curFrame.frameElement) {
-      checkLoad();
+      pollForReadyState(msg, start, () => {
+        removeEventListener("DOMContentLoaded", onDOMContentLoaded, false);
+        onDOMContentLoaded = null;
+      });
     }
   };
 
   function timerFunc() {
     removeEventListener("DOMContentLoaded", onDOMContentLoaded, false);
     sendError("Error loading page, timed out (onDOMContentLoaded)", 21,
-              null, command_id);
+              null, msg.json.command_id);
   }
   if (msg.json.pageTimeout != null) {
-    checkTimer.initWithCallback(timerFunc, msg.json.pageTimeout, Ci.nsITimer.TYPE_ONE_SHOT);
+    navTimer.initWithCallback(timerFunc, msg.json.pageTimeout, Ci.nsITimer.TYPE_ONE_SHOT);
   }
   addEventListener("DOMContentLoaded", onDOMContentLoaded, false);
   curFrame.location = msg.json.url;
+}
+
+ /**
+ * Cancel the polling and remove the event listener associated with a current
+ * navigation request in case we're interupted by an onbeforeunload handler
+ * and navigation doesn't complete.
+ */
+function cancelRequest() {
+  navTimer.cancel();
+  if (onDOMContentLoaded) {
+    removeEventListener("DOMContentLoaded", onDOMContentLoaded, false);
+  }
 }
 
 /**
  * Get URL of the top level browsing context.
  */
 function getCurrentUrl(msg) {
-  sendResponse({value: curFrame.location.href}, msg.json.command_id);
+  let url;
+  if (msg.json.isB2G) {
+    url = curFrame.location.href;
+  } else {
+    url = content.location.href;
+  }
+  sendResponse({value: url}, msg.json.command_id);
 }
 
 /**

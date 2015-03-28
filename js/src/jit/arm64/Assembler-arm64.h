@@ -182,6 +182,12 @@ static MOZ_CONSTEXPR_VAR Register CallTempNonArgRegs[] = { r8, r9, r10, r11, r12
 static const uint32_t NumCallTempNonArgRegs =
     mozilla::ArrayLength(CallTempNonArgRegs);
 
+static MOZ_CONSTEXPR_VAR uint32_t JitStackAlignment = 16;
+
+static MOZ_CONSTEXPR_VAR uint32_t JitStackValueAlignment = JitStackAlignment / sizeof(Value);
+static_assert(JitStackAlignment % sizeof(Value) == 0 && JitStackValueAlignment >= 1,
+  "Stack alignment should be a non-zero multiple of sizeof(Value)");
+
 // This boolean indicates whether we support SIMD instructions flavoured for
 // this architecture or not. Rather than a method in the LIRGenerator, it is
 // here such that it is accessible from the entire codebase. Once full support
@@ -261,7 +267,7 @@ class Assembler : public AssemblerVIXL
         return armbuffer_.nextOffset();
     }
 
-    bool addCodeLabel(CodeLabel label) {
+    void addCodeLabel(CodeLabel label) {
         propagateOOM(codeLabels_.append(label));
     }
     size_t numCodeLabels() const {
@@ -284,7 +290,7 @@ class Assembler : public AssemblerVIXL
     bool nextLink(BufferOffset cur, BufferOffset *next) {
         Instruction *link = getInstructionAt(cur);
         uint32_t nextLinkOffset = uint32_t(link->ImmPCRawOffset());
-        if (nextLinkOffset == LabelBase::INVALID_OFFSET)
+        if (nextLinkOffset == uint32_t(LabelBase::INVALID_OFFSET))
             return false;
         *next = BufferOffset(nextLinkOffset + cur.getOffset());
         return true;

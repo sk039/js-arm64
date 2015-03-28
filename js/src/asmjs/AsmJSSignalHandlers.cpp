@@ -1106,7 +1106,7 @@ HandleFault(int signum, siginfo_t *info, void *ctx)
 # if defined(JS_CODEGEN_X64)
     // These checks aren't necessary, but, since we can, check anyway to make
     // sure we aren't covering up a real bug.
-    uint8_t *faultingAddress = static_cast<uint8_t *>(info->si_addr);
+    uint8_t *faultingAddress = reinterpret_cast<uint8_t *>(info->si_addr);
     if (!module.maybeHeap() ||
         faultingAddress < module.maybeHeap() ||
         faultingAddress >= module.maybeHeap() + AsmJSMappedSize)
@@ -1168,7 +1168,7 @@ RedirectIonBackedgesToInterruptCheck(JSRuntime *rt)
     }
 }
 
-static void
+static bool
 RedirectJitCodeToInterruptCheck(JSRuntime *rt, CONTEXT *context)
 {
     RedirectIonBackedgesToInterruptCheck(rt);
@@ -1189,8 +1189,11 @@ RedirectJitCodeToInterruptCheck(JSRuntime *rt, CONTEXT *context)
         if (module.containsFunctionPC(pc)) {
             activation->setResumePC(pc);
             *ppc = module.interruptExit();
+            return true;
         }
     }
+
+    return false;
 }
 
 #if !defined(XP_WIN)
@@ -1328,8 +1331,8 @@ js::InterruptRunningJitCode(JSRuntime *rt)
         CONTEXT context;
         context.ContextFlags = CONTEXT_CONTROL;
         if (GetThreadContext(thread, &context)) {
-            RedirectJitCodeToInterruptCheck(rt, &context);
-            SetThreadContext(thread, &context);
+            if (RedirectJitCodeToInterruptCheck(rt, &context))
+                SetThreadContext(thread, &context);
         }
         ResumeThread(thread);
     }
@@ -1341,14 +1344,3 @@ js::InterruptRunningJitCode(JSRuntime *rt)
     pthread_kill(thread, sInterruptSignal);
 #endif
 }
-
-// This is not supported by clang-cl yet.
-#if defined(MOZ_ASAN) && defined(JS_STANDALONE) && !defined(_MSC_VER)
-// Usually, this definition is found in mozglue (see mozglue/build/AsanOptions.cpp).
-// However, when doing standalone JS builds, mozglue is not used and we must ensure
-// that we still allow custom SIGSEGV handlers for asm.js and ion to work correctly.
-extern "C" MOZ_ASAN_BLACKLIST
-const char* __asan_default_options() {
-    return "allow_user_segv_handler=1";
-}
-#endif

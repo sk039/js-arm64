@@ -61,9 +61,9 @@ ServiceWorkerRegistration::DisconnectFromOwner()
 }
 
 JSObject*
-ServiceWorkerRegistration::WrapObject(JSContext* aCx)
+ServiceWorkerRegistration::WrapObject(JSContext* aCx, JS::Handle<JSObject*> aGivenProto)
 {
-  return ServiceWorkerRegistrationBinding::Wrap(aCx, this);
+  return ServiceWorkerRegistrationBinding::Wrap(aCx, this, aGivenProto);
 }
 
 already_AddRefed<workers::ServiceWorker>
@@ -101,7 +101,7 @@ ServiceWorkerRegistration::GetActive()
 
 namespace {
 
-class UnregisterCallback MOZ_FINAL : public nsIServiceWorkerUnregisterCallback
+class UnregisterCallback final : public nsIServiceWorkerUnregisterCallback
 {
   nsRefPtr<Promise> mPromise;
 
@@ -115,7 +115,7 @@ public:
   }
 
   NS_IMETHODIMP
-  UnregisterSucceeded(bool aState) MOZ_OVERRIDE
+  UnregisterSucceeded(bool aState) override
   {
     AssertIsOnMainThread();
     mPromise->MaybeResolve(aState);
@@ -123,7 +123,7 @@ public:
   }
 
   NS_IMETHODIMP
-  UnregisterFailed() MOZ_OVERRIDE
+  UnregisterFailed() override
   {
     AssertIsOnMainThread();
 
@@ -262,28 +262,6 @@ ServiceWorkerRegistration::InvalidateWorkerReference(WhichServiceWorker aWhichOn
 
   if (aWhichOnes & WhichServiceWorker::ACTIVE_WORKER) {
     mActiveWorker = nullptr;
-  }
-}
-
-void
-ServiceWorkerRegistration::QueueStateChangeEvent(WhichServiceWorker aWhichOne,
-                                                 ServiceWorkerState aState) const
-{
-  nsRefPtr<ServiceWorker> worker;
-  if (aWhichOne == WhichServiceWorker::INSTALLING_WORKER) {
-    worker = mInstallingWorker;
-  } else if (aWhichOne == WhichServiceWorker::WAITING_WORKER) {
-    worker = mWaitingWorker;
-  } else if (aWhichOne == WhichServiceWorker::ACTIVE_WORKER) {
-    worker = mActiveWorker;
-  } else {
-    MOZ_CRASH("Invalid case");
-  }
-
-  if (worker) {
-    worker->SetState(aState);
-    nsCOMPtr<nsIRunnable> r = NS_NewRunnableMethod(worker, &ServiceWorker::DispatchStateChange);
-    NS_DispatchToMainThread(r);
   }
 }
 

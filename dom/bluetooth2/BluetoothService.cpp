@@ -139,7 +139,7 @@ BluetoothService::ToggleBtAck::Run()
   return NS_OK;
 }
 
-class BluetoothService::StartupTask MOZ_FINAL : public nsISettingsServiceCallback
+class BluetoothService::StartupTask final : public nsISettingsServiceCallback
 {
 public:
   NS_DECL_ISUPPORTS
@@ -322,6 +322,20 @@ BluetoothService::UnregisterAllSignalHandlers(BluetoothSignalObserver* aHandler)
   MOZ_ASSERT(aHandler);
 
   mBluetoothSignalObserverTable.Enumerate(RemoveAllSignalHandlers, aHandler);
+}
+
+void
+BluetoothService::DistributeSignal(const nsAString& aName, const nsAString& aPath)
+{
+  DistributeSignal(aName, aPath, BluetoothValue(true));
+}
+
+void
+BluetoothService::DistributeSignal(const nsAString& aName, const nsAString& aPath,
+                                   const BluetoothValue& aValue)
+{
+  BluetoothSignal signal(nsString(aName), nsString(aPath), aValue);
+  DistributeSignal(signal);
 }
 
 void
@@ -653,11 +667,10 @@ BluetoothService::FireAdapterStateChanged(bool aEnable)
 
   InfallibleTArray<BluetoothNamedValue> props;
   BT_APPEND_NAMED_VALUE(props, "State", aEnable);
-  BluetoothValue value(props);
 
-  BluetoothSignal signal(NS_LITERAL_STRING("PropertyChanged"),
-                         NS_LITERAL_STRING(KEY_ADAPTER), value);
-  DistributeSignal(signal);
+  DistributeSignal(NS_LITERAL_STRING("PropertyChanged"),
+                   NS_LITERAL_STRING(KEY_ADAPTER),
+                   BluetoothValue(props));
 }
 
 void

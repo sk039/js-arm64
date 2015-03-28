@@ -491,7 +491,7 @@ private:
 };
 
 // Used as the nsIEditorSpellCheck::InitSpellChecker callback.
-class InitEditorSpellCheckCallback MOZ_FINAL : public nsIEditorSpellCheckCallback
+class InitEditorSpellCheckCallback final : public nsIEditorSpellCheckCallback
 {
   ~InitEditorSpellCheckCallback() {}
 public:
@@ -500,7 +500,7 @@ public:
   explicit InitEditorSpellCheckCallback(mozInlineSpellChecker* aSpellChecker)
     : mSpellChecker(aSpellChecker) {}
 
-  NS_IMETHOD EditorSpellCheckDone() MOZ_OVERRIDE
+  NS_IMETHOD EditorSpellCheckDone() override
   {
     return mSpellChecker ? mSpellChecker->EditorSpellCheckInited() : NS_OK;
   }
@@ -1237,14 +1237,14 @@ mozInlineSpellChecker::ShouldSpellCheckNode(nsIEditor* aEditor,
   if (flags & nsIPlaintextEditor::eEditorMailMask) {
     nsIContent *parent = content->GetParent();
     while (parent) {
-      if (parent->IsHTML(nsGkAtoms::blockquote) &&
+      if (parent->IsHTMLElement(nsGkAtoms::blockquote) &&
           parent->AttrValueIs(kNameSpaceID_None,
                               nsGkAtoms::type,
                               nsGkAtoms::cite,
                               eIgnoreCase)) {
         return false;
       }
-      if (parent->IsHTML(nsGkAtoms::pre) &&
+      if (parent->IsHTMLElement(nsGkAtoms::pre) &&
           parent->AttrValueIs(kNameSpaceID_None,
                               nsGkAtoms::_class,
                               nsGkAtoms::mozsignature,
@@ -1278,7 +1278,7 @@ mozInlineSpellChecker::ShouldSpellCheckNode(nsIEditor* aEditor,
     // Get HTML element ancestor (might be aNode itself, although probably that
     // has to be a text node in real life here)
     nsIContent *parent = content;
-    while (!parent->IsHTML()) {
+    while (!parent->IsHTMLElement()) {
       parent = parent->GetParent();
       if (!parent) {
         return true;
@@ -1945,7 +1945,7 @@ nsresult mozInlineSpellChecker::KeyPress(nsIDOMEvent* aKeyEvent)
 }
 
 // Used as the nsIEditorSpellCheck::UpdateCurrentDictionary callback.
-class UpdateCurrentDictionaryCallback MOZ_FINAL : public nsIEditorSpellCheckCallback
+class UpdateCurrentDictionaryCallback final : public nsIEditorSpellCheckCallback
 {
 public:
   NS_DECL_ISUPPORTS
@@ -1954,7 +1954,7 @@ public:
                                            uint32_t aDisabledAsyncToken)
     : mSpellChecker(aSpellChecker), mDisabledAsyncToken(aDisabledAsyncToken) {}
 
-  NS_IMETHOD EditorSpellCheckDone() MOZ_OVERRIDE
+  NS_IMETHOD EditorSpellCheckDone() override
   {
     // Ignore this callback if SetEnableRealTimeSpell(false) was called after
     // the UpdateCurrentDictionary call that triggered it.

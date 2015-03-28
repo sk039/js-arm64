@@ -10,6 +10,8 @@
 #include "nsRect.h"
 #include "ImageTypes.h"
 #include "nsString.h"
+#include "nsTArray.h"
+#include "StreamBuffer.h" // for TrackID
 
 namespace mozilla {
 
@@ -18,13 +20,15 @@ struct TrackInfo {
             const nsAString& aKind,
             const nsAString& aLabel,
             const nsAString& aLanguage,
-            bool aEnabled)
+            bool aEnabled,
+            TrackID aOutputId = TRACK_INVALID)
   {
     mId = aId;
     mKind = aKind;
     mLabel = aLabel;
     mLanguage = aLanguage;
     mEnabled = aEnabled;
+    mOutputId = aOutputId;
   }
 
   nsString mId;
@@ -32,6 +36,7 @@ struct TrackInfo {
   nsString mLabel;
   nsString mLanguage;
   bool mEnabled;
+  TrackID mOutputId;
 };
 
 // Stores info relevant to presenting media frames.
@@ -42,12 +47,11 @@ private:
     mDisplay = nsIntSize(aWidth, aHeight);
     mStereoMode = StereoMode::MONO;
     mHasVideo = aHasVideo;
-    mIsHardwareAccelerated = false;
 
     // TODO: TrackInfo should be initialized by its specific codec decoder.
     // This following call should be removed once we have that implemented.
     mTrackInfo.Init(NS_LITERAL_STRING("2"), NS_LITERAL_STRING("main"),
-                    EmptyString(), EmptyString(), true);
+                    EmptyString(), EmptyString(), true, 2);
   }
 
 public:
@@ -72,8 +76,6 @@ public:
   bool mHasVideo;
 
   TrackInfo mTrackInfo;
-
-  bool mIsHardwareAccelerated;
 };
 
 class AudioInfo {
@@ -86,7 +88,7 @@ public:
     // TODO: TrackInfo should be initialized by its specific codec decoder.
     // This following call should be removed once we have that implemented.
     mTrackInfo.Init(NS_LITERAL_STRING("1"), NS_LITERAL_STRING("main"),
-    EmptyString(), EmptyString(), true);
+                    EmptyString(), EmptyString(), true, 1);
   }
 
   // Sample rate.
@@ -101,10 +103,22 @@ public:
   TrackInfo mTrackInfo;
 };
 
+class EncryptionInfo {
+public:
+  EncryptionInfo() : mIsEncrypted(false) {}
+
+  // Encryption type to be passed to JS. Usually `cenc'.
+  nsString mType;
+
+  // Encryption data.
+  nsTArray<uint8_t> mInitData;
+
+  // True if the stream has encryption metadata
+  bool mIsEncrypted;
+};
+
 class MediaInfo {
 public:
-  MediaInfo() : mIsEncrypted(false) {}
-
   bool HasVideo() const
   {
     return mVideo.mHasVideo;
@@ -115,16 +129,21 @@ public:
     return mAudio.mHasAudio;
   }
 
+  bool IsEncrypted() const
+  {
+    return mCrypto.mIsEncrypted;
+  }
+
   bool HasValidMedia() const
   {
     return HasVideo() || HasAudio();
   }
 
-  bool mIsEncrypted;
-
   // TODO: Store VideoInfo and AudioIndo in arrays to support multi-tracks.
   VideoInfo mVideo;
   AudioInfo mAudio;
+
+  EncryptionInfo mCrypto;
 };
 
 } // namespace mozilla

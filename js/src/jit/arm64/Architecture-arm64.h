@@ -15,9 +15,6 @@
 namespace js {
 namespace jit {
 
-// TODO: find out which header uint32_t is defined in.
-typedef unsigned int uint32_t;
-
 // In bytes: slots needed for potential memory->memory move spills.
 //   +8 for cycles
 //   +8 for gpr spills
@@ -437,11 +434,10 @@ struct FloatRegister
     static uint32_t LastBit(SetType x) {
         return 63 - mozilla::CountLeadingZeroes64(x); // TODO: 64?
     }
-
 };
 
-// Arm/D32 has double registers that cannot be treated as float32.
-// Luckily, our ARMv8 doesn't have the same malfunction.
+// ARM/D32 has double registers that cannot be treated as float32.
+// Luckily, ARMv8 doesn't have the same misfortune.
 inline bool
 hasUnaliasedDouble()
 {
@@ -455,13 +451,10 @@ hasMultiAlias()
 {
     return false;
 }
-// See the comments above AsmJSMappedSize in AsmJSValidate.h for more info.
-// TODO: Implement this for ARM64. Note that it requires Codegen to respect the
-// offset field of AsmJSHeapAccess.
 
 static const size_t AsmJSCheckedImmediateRange = 0;
 static const size_t AsmJSImmediateRange = 0;
-static const uint32_t JitStackAlignment = 16;
+
 } // namespace jit
 } // namespace js
 

@@ -271,6 +271,10 @@ class CodeGeneratorX86Shared : public CodeGeneratorShared
     void visitSimdShift(LSimdShift *lir);
     void visitSimdSelect(LSimdSelect *ins);
 
+    template <class T, class Reg> void visitSimdGeneralShuffle(LSimdGeneralShuffleBase *lir, Reg temp);
+    void visitSimdGeneralShuffleI(LSimdGeneralShuffleI *lir);
+    void visitSimdGeneralShuffleF(LSimdGeneralShuffleF *lir);
+
     // Out of line visitors.
     void visitOutOfLineBailout(OutOfLineBailout *ool);
     void visitOutOfLineUndoALUOperation(OutOfLineUndoALUOperation *ool);

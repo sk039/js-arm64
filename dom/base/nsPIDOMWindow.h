@@ -63,8 +63,8 @@ enum UIStateChangeType
 };
 
 #define NS_PIDOMWINDOW_IID \
-{ 0x19fb3019, 0x7b5d, 0x4235, \
-  { 0xa9, 0x59, 0xa2, 0x31, 0xa2, 0xe7, 0x94, 0x79 } }
+{ 0x4178bd68, 0xa3f7, 0x4ff7, \
+  { 0xa6, 0x27, 0x4a, 0x99, 0xa1, 0xe0, 0x42, 0x37 } }
 
 class nsPIDOMWindow : public nsIDOMWindowInternal
 {
@@ -96,6 +96,17 @@ public:
   }
 
   // Outer windows only.
+  void SetDesktopModeViewport(bool aDesktopModeViewport)
+  {
+    MOZ_ASSERT(IsOuterWindow());
+    mDesktopModeViewport = aDesktopModeViewport;
+  }
+  bool IsDesktopModeViewport() const
+  {
+    MOZ_ASSERT(IsOuterWindow());
+    return mDesktopModeViewport;
+  }
+
   virtual void SetIsBackground(bool aIsBackground)
   {
     MOZ_ASSERT(IsOuterWindow());
@@ -148,9 +159,6 @@ public:
 
     mMutationBits |= aType;
   }
-
-  virtual void MaybeUpdateTouchState() {}
-  virtual void UpdateTouchState() {}
 
   nsIDocument* GetExtantDoc() const
   {
@@ -429,59 +437,6 @@ public:
   }
   
   /**
-   * Call this to indicate that some node (this window, its document,
-   * or content in that document) has a touch event listener.
-   */
-  void SetHasTouchEventListeners()
-  {
-    mMayHaveTouchEventListener = true;
-    MaybeUpdateTouchState();
-  }
-
-  bool HasTouchEventListeners()
-  {
-    return mMayHaveTouchEventListener;
-  }
-
-  /**
-   * Call this to indicate that some node (this window, its document,
-   * or content in that document) has a scroll wheel event listener.
-   */
-  void SetHasScrollWheelEventListeners()
-  {
-    mMayHaveScrollWheelEventListener = true;
-  }
-
-  bool HasScrollWheelEventListeners()
-  {
-    return mMayHaveScrollWheelEventListener;
-  }
-
-  /**
-   * Returns whether or not any event listeners are present that APZ must be
-   * aware of.
-   */
-  bool HasApzAwareEventListeners()
-  {
-    return HasTouchEventListeners() || HasScrollWheelEventListeners();
-  }
-
-   /**
-   * Will be called when touch caret visibility has changed. mMayHaveTouchCaret
-   * is set if that some node (this window, its document, or content in that
-   * document) has a visible touch caret.
-   */
-  void SetMayHaveTouchCaret(bool aSetValue)
-  {
-    mMayHaveTouchCaret = aSetValue;
-  }
-
-  bool MayHaveTouchCaret()
-  {
-    return mMayHaveTouchCaret;
-  }
-
-  /**
    * Moves the top-level window into fullscreen mode if aIsFullScreen is true,
    * otherwise exits fullscreen. If aRequireTrust is true, this method only
    * changes window state in a context trusted for write.
@@ -751,17 +706,6 @@ public:
     return mMarkedCCGeneration;
   }
 
-  // Sets the condition that we send an NS_AFTER_REMOTE_PAINT message just before the next
-  // composite.  Used in non-e10s implementations.
-  void SetRequestNotifyAfterRemotePaint()
-  {
-    mSendAfterRemotePaint = true;
-  }
-
-  // Sends an NS_AFTER_REMOTE_PAINT message if requested by
-  // SetRequestNotifyAfterRemotePaint().
-  void SendAfterRemotePaintIfRequested();
-
 protected:
   // The nsPIDOMWindow constructor. The aOuterWindow argument should
   // be null if and only if the created window itself is an outer
@@ -812,9 +756,6 @@ protected:
   bool                   mIsHandlingResizeEvent;
   bool                   mIsInnerWindow;
   bool                   mMayHavePaintEventListener;
-  bool                   mMayHaveTouchEventListener;
-  bool                   mMayHaveTouchCaret;
-  bool                   mMayHaveScrollWheelEventListener;
   bool                   mMayHaveMouseEnterLeaveEventListener;
   bool                   mMayHavePointerEnterLeaveEventListener;
 
@@ -833,6 +774,9 @@ protected:
 
   bool                   mAudioMuted;
   float                  mAudioVolume;
+
+  // current desktop mode flag.
+  bool                   mDesktopModeViewport;
 
   // And these are the references between inner and outer windows.
   nsPIDOMWindow* MOZ_NON_OWNING_REF mInnerWindow;
@@ -854,10 +798,6 @@ protected:
   bool mHasNotifiedGlobalCreated;
 
   uint32_t mMarkedCCGeneration;
-
-  // If true, send an NS_AFTER_REMOTE_PAINT message before compositing in a
-  // non-e10s implementation.
-  bool mSendAfterRemotePaint;
 };
 
 

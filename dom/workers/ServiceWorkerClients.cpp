@@ -8,6 +8,7 @@
 #include "ServiceWorkerClient.h"
 #include "ServiceWorkerClients.h"
 #include "ServiceWorkerManager.h"
+#include "ServiceWorkerWindowClient.h"
 
 #include "WorkerPrivate.h"
 #include "WorkerRunnable.h"
@@ -33,16 +34,16 @@ ServiceWorkerClients::ServiceWorkerClients(ServiceWorkerGlobalScope* aWorkerScop
 }
 
 JSObject*
-ServiceWorkerClients::WrapObject(JSContext* aCx)
+ServiceWorkerClients::WrapObject(JSContext* aCx, JS::Handle<JSObject*> aGivenProto)
 {
-  return ClientsBinding::Wrap(aCx, this);
+  return ClientsBinding::Wrap(aCx, this, aGivenProto);
 }
 
 namespace {
 
 // Helper class used for passing the promise between threads while
 // keeping the worker alive.
-class PromiseHolder MOZ_FINAL : public WorkerFeature
+class PromiseHolder final : public WorkerFeature
 {
   friend class MatchAllRunnable;
 
@@ -119,20 +120,20 @@ private:
   bool mClean;
 };
 
-class ResolvePromiseWorkerRunnable MOZ_FINAL : public WorkerRunnable
+class ResolvePromiseWorkerRunnable final : public WorkerRunnable
 {
   nsRefPtr<PromiseHolder> mPromiseHolder;
-  nsAutoPtr<nsTArray<uint64_t>> mValue;
+  nsTArray<ServiceWorkerClientInfo> mValue;
 
 public:
   ResolvePromiseWorkerRunnable(WorkerPrivate* aWorkerPrivate,
                                PromiseHolder* aPromiseHolder,
-                               nsAutoPtr<nsTArray<uint64_t>>& aValue)
+                               nsTArray<ServiceWorkerClientInfo>& aValue)
     : WorkerRunnable(aWorkerPrivate, WorkerThreadModifyBusyCount),
-      mPromiseHolder(aPromiseHolder),
-      mValue(aValue)
+      mPromiseHolder(aPromiseHolder)
   {
     AssertIsOnMainThread();
+    mValue.SwapElements(aValue);
   }
 
   bool
@@ -145,10 +146,10 @@ public:
     MOZ_ASSERT(promise);
 
     nsTArray<nsRefPtr<ServiceWorkerClient>> ret;
-    for (size_t i = 0; i < mValue->Length(); i++) {
+    for (size_t i = 0; i < mValue.Length(); i++) {
       ret.AppendElement(nsRefPtr<ServiceWorkerClient>(
-            new ServiceWorkerClient(promise->GetParentObject(),
-                                    mValue->ElementAt(i))));
+            new ServiceWorkerWindowClient(promise->GetParentObject(),
+                                          mValue.ElementAt(i))));
     }
     promise->MaybeResolve(ret);
 
@@ -159,7 +160,7 @@ public:
   }
 };
 
-class ReleasePromiseRunnable MOZ_FINAL : public MainThreadWorkerControlRunnable
+class ReleasePromiseRunnable final : public MainThreadWorkerControlRunnable
 {
   nsRefPtr<PromiseHolder> mPromiseHolder;
 
@@ -187,7 +188,7 @@ private:
 
 };
 
-class MatchAllRunnable MOZ_FINAL : public nsRunnable
+class MatchAllRunnable final : public nsRunnable
 {
   WorkerPrivate* mWorkerPrivate;
   nsRefPtr<PromiseHolder> mPromiseHolder;
@@ -205,7 +206,7 @@ public:
   }
 
   NS_IMETHOD
-  Run() MOZ_OVERRIDE
+  Run() override
   {
     AssertIsOnMainThread();
 
@@ -216,7 +217,7 @@ public:
     }
 
     nsRefPtr<ServiceWorkerManager> swm = ServiceWorkerManager::GetInstance();
-    nsAutoPtr<nsTArray<uint64_t>> result(new nsTArray<uint64_t>());
+    nsTArray<ServiceWorkerClientInfo> result;
 
     swm->GetAllClients(mScope, result);
     nsRefPtr<ResolvePromiseWorkerRunnable> r =
@@ -280,5 +281,31 @@ ServiceWorkerClients::MatchAll(const ClientQueryOptions& aOptions,
     promise->MaybeReject(NS_ERROR_NOT_AVAILABLE);
   }
 
+  return promise.forget();
+}
+
+already_AddRefed<Promise>
+ServiceWorkerClients::OpenWindow(const nsAString& aUrl)
+{
+  ErrorResult result;
+  nsRefPtr<Promise> promise = Promise::Create(mWorkerScope, result);
+  if (NS_WARN_IF(result.Failed())) {
+    return nullptr;
+  }
+
+  promise->MaybeReject(NS_ERROR_NOT_AVAILABLE);
+  return promise.forget();
+}
+
+already_AddRefed<Promise>
+ServiceWorkerClients::Claim()
+{
+  ErrorResult result;
+  nsRefPtr<Promise> promise = Promise::Create(mWorkerScope, result);
+  if (NS_WARN_IF(result.Failed())) {
+    return nullptr;
+  }
+
+  promise->MaybeReject(NS_ERROR_NOT_AVAILABLE);
   return promise.forget();
 }

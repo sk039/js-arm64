@@ -13,6 +13,7 @@
 #include "nsJSUtils.h"
 #include "mozJSComponentLoader.h"
 #include "nsContentUtils.h"
+#include "nsCycleCollector.h"
 #include "jsfriendapi.h"
 #include "js/StructuredClone.h"
 #include "mozilla/Attributes.h"
@@ -25,6 +26,7 @@
 #include "mozilla/dom/DOMExceptionBinding.h"
 #include "mozilla/dom/BindingUtils.h"
 #include "mozilla/dom/StructuredCloneTags.h"
+#include "mozilla/dom/WindowBinding.h"
 #include "nsZipArchive.h"
 #include "nsIDOMFile.h"
 #include "nsIDOMFileList.h"
@@ -96,7 +98,7 @@ xpc::CheckAccessList(const char16_t *wideName, const char *const list[])
 /***************************************************************************/
 
 
-class nsXPCComponents_Interfaces MOZ_FINAL :
+class nsXPCComponents_Interfaces final :
             public nsIXPCComponents_Interfaces,
             public nsIXPCScriptable,
             public nsIClassInfo
@@ -339,7 +341,7 @@ nsXPCComponents_Interfaces::Resolve(nsIXPConnectWrappedNative *wrapper,
 /***************************************************************************/
 /***************************************************************************/
 
-class nsXPCComponents_InterfacesByID MOZ_FINAL :
+class nsXPCComponents_InterfacesByID final :
             public nsIXPCComponents_InterfacesByID,
             public nsIXPCScriptable,
             public nsIClassInfo
@@ -587,7 +589,7 @@ nsXPCComponents_InterfacesByID::Resolve(nsIXPConnectWrappedNative *wrapper,
 
 
 
-class nsXPCComponents_Classes MOZ_FINAL :
+class nsXPCComponents_Classes final :
   public nsIXPCComponents_Classes,
   public nsIXPCScriptable,
   public nsIClassInfo
@@ -813,7 +815,7 @@ nsXPCComponents_Classes::Resolve(nsIXPConnectWrappedNative *wrapper,
 /***************************************************************************/
 /***************************************************************************/
 
-class nsXPCComponents_ClassesByID MOZ_FINAL :
+class nsXPCComponents_ClassesByID final :
   public nsIXPCComponents_ClassesByID,
   public nsIXPCScriptable,
   public nsIClassInfo
@@ -1062,7 +1064,7 @@ nsXPCComponents_ClassesByID::Resolve(nsIXPConnectWrappedNative *wrapper,
 // Currently the possible results do not change at runtime, so they are only
 // cached once (unlike ContractIDs, CLSIDs, and IIDs)
 
-class nsXPCComponents_Results MOZ_FINAL :
+class nsXPCComponents_Results final :
   public nsIXPCComponents_Results,
   public nsIXPCScriptable,
   public nsIClassInfo
@@ -1264,7 +1266,7 @@ nsXPCComponents_Results::Resolve(nsIXPConnectWrappedNative *wrapper,
 /***************************************************************************/
 // JavaScript Constructor for nsIJSID objects (Components.ID)
 
-class nsXPCComponents_ID MOZ_FINAL :
+class nsXPCComponents_ID final :
   public nsIXPCComponents_ID,
   public nsIXPCScriptable,
   public nsIClassInfo
@@ -1481,7 +1483,7 @@ nsXPCComponents_ID::HasInstance(nsIXPConnectWrappedNative *wrapper,
 /***************************************************************************/
 // JavaScript Constructor for nsIXPCException objects (Components.Exception)
 
-class nsXPCComponents_Exception MOZ_FINAL :
+class nsXPCComponents_Exception final :
   public nsIXPCComponents_Exception,
   public nsIXPCScriptable,
   public nsIClassInfo
@@ -2127,7 +2129,7 @@ nsXPCConstructor::CallOrConstruct(nsIXPConnectWrappedNative *wrapper,JSContext *
 /*******************************************************/
 // JavaScript Constructor for nsIXPCConstructor objects (Components.Constructor)
 
-class nsXPCComponents_Constructor MOZ_FINAL :
+class nsXPCComponents_Constructor final :
   public nsIXPCComponents_Constructor,
   public nsIXPCScriptable,
   public nsIClassInfo
@@ -2442,7 +2444,7 @@ nsXPCComponents_Constructor::HasInstance(nsIXPConnectWrappedNative *wrapper,
     return NS_OK;
 }
 
-class nsXPCComponents_Utils MOZ_FINAL :
+class nsXPCComponents_Utils final :
             public nsIXPCComponents_Utils,
             public nsIXPCScriptable
 {
@@ -2719,6 +2721,13 @@ nsXPCComponents_Utils::ImportGlobalProperties(HandleValue aPropertyList,
 {
     RootedObject global(cx, CurrentGlobalOrNull(cx));
     MOZ_ASSERT(global);
+
+    // Don't allow doing this if the global is a Window
+    nsGlobalWindow* win;
+    if (NS_SUCCEEDED(UNWRAP_OBJECT(Window, global, win))) {
+        return NS_ERROR_NOT_AVAILABLE;
+    }
+
     GlobalProperties options;
     NS_ENSURE_TRUE(aPropertyList.isObject(), NS_ERROR_INVALID_ARG);
     RootedObject propertyList(cx, &aPropertyList.toObject());
@@ -2756,9 +2765,9 @@ nsXPCComponents_Utils::ForceGC()
 
 /* void forceCC (); */
 NS_IMETHODIMP
-nsXPCComponents_Utils::ForceCC()
+nsXPCComponents_Utils::ForceCC(nsICycleCollectorListener *listener)
 {
-    nsJSContext::CycleCollectNow();
+    nsJSContext::CycleCollectNow(listener);
     return NS_OK;
 }
 
@@ -2890,6 +2899,47 @@ nsXPCComponents_Utils::GetJSTestingFunctions(JSContext *cx,
     if (!obj)
         return NS_ERROR_XPC_JAVASCRIPT_ERROR;
     retval.setObject(*obj);
+    return NS_OK;
+}
+
+/* jsval callFunctionWithStack(in jsval function, in nsIStackFrame stack,
+                               in AString asyncCause); */
+NS_IMETHODIMP
+nsXPCComponents_Utils::CallFunctionWithAsyncStack(HandleValue function,
+                                                  nsIStackFrame *stack,
+                                                  const nsAString &asyncCause,
+                                                  JSContext *cx,
+                                                  MutableHandleValue retval)
+{
+    nsresult rv;
+
+    if (!stack || asyncCause.IsEmpty()) {
+        return NS_ERROR_INVALID_ARG;
+    }
+
+    JS::Rooted<JS::Value> asyncStack(cx);
+    rv = stack->GetNativeSavedFrame(&asyncStack);
+    if (NS_FAILED(rv))
+        return rv;
+    if (!asyncStack.isObject()) {
+        JS_ReportError(cx, "Must use a native JavaScript stack frame");
+        return NS_ERROR_INVALID_ARG;
+    }
+
+    JS::Rooted<JSObject*> asyncStackObj(cx, &asyncStack.toObject());
+    JS::Rooted<JSString*> asyncCauseString(cx, JS_NewUCStringCopyN(cx, asyncCause.BeginReading(),
+                                                                       asyncCause.Length()));
+    if (!asyncCauseString)
+        return NS_ERROR_OUT_OF_MEMORY;
+
+    JS::AutoSetAsyncStackForNewCalls sas(cx, asyncStackObj, asyncCauseString);
+
+    if (!JS_CallFunctionValue(cx, JS::NullPtr(), function,
+                              JS::HandleValueArray::empty(), retval))
+    {
+        return NS_ERROR_XPC_JAVASCRIPT_ERROR;
+    }
+
     return NS_OK;
 }
 

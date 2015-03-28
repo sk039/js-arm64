@@ -766,6 +766,23 @@ Convert(btrc_remote_features_t aIn, unsigned long& aOut)
 }
 #endif // ANDROID_VERSION >= 19
 
+inline nsresult
+Convert(int aIn, BluetoothGattStatus& aOut)
+{
+  /**
+   * Currently we only map bluedroid's GATT status into GATT_STATUS_SUCCESS and
+   * GATT_STATUS_ERROR. This function needs to be revised if we want to support
+   * specific error status.
+   */
+  if (!aIn) {
+    aOut = GATT_STATUS_SUCCESS;
+  } else {
+    aOut = GATT_STATUS_ERROR;
+  }
+
+  return NS_OK;
+}
+
 nsresult
 Convert(const uint8_t* aIn, BluetoothGattAdvData& aOut);
 
@@ -891,7 +908,7 @@ public:
   }
 
   NS_METHOD
-  Run() MOZ_OVERRIDE
+  Run() override
   {
     ((*mObj).*mMethod)();
     return NS_OK;
@@ -917,7 +934,7 @@ public:
   }
 
   NS_METHOD
-  Run() MOZ_OVERRIDE
+  Run() override
   {
     ((*mObj).*mMethod)(mArg1);
     return NS_OK;
@@ -950,7 +967,7 @@ public:
   }
 
   NS_METHOD
-  Run() MOZ_OVERRIDE
+  Run() override
   {
     ((*mObj).*mMethod)(mArg1, mArg2, mArg3);
     return NS_OK;
@@ -998,7 +1015,7 @@ public:
   }
 
   NS_METHOD
-  Run() MOZ_OVERRIDE
+  Run() override
   {
     MOZ_ASSERT(NS_IsMainThread());
 
@@ -1060,7 +1077,7 @@ public:
   }
 
   NS_METHOD
-  Run() MOZ_OVERRIDE
+  Run() override
   {
     MOZ_ASSERT(NS_IsMainThread());
 
@@ -1137,7 +1154,7 @@ public:
   }
 
   NS_METHOD
-  Run() MOZ_OVERRIDE
+  Run() override
   {
     MOZ_ASSERT(NS_IsMainThread());
 
@@ -1221,7 +1238,7 @@ public:
   }
 
   NS_METHOD
-  Run() MOZ_OVERRIDE
+  Run() override
   {
     MOZ_ASSERT(NS_IsMainThread());
 
@@ -1310,7 +1327,7 @@ public:
   }
 
   NS_METHOD
-  Run() MOZ_OVERRIDE
+  Run() override
   {
     MOZ_ASSERT(NS_IsMainThread());
 
@@ -1408,7 +1425,7 @@ public:
   }
 
   NS_METHOD
-  Run() MOZ_OVERRIDE
+  Run() override
   {
     MOZ_ASSERT(NS_IsMainThread());
 

@@ -683,7 +683,8 @@ class MochitestOptions(optparse.OptionParser):
             for f in ['/usr/bin/gst-launch-0.10', '/usr/bin/pactl']:
                 if not os.path.isfile(f):
                     self.error(
-                        'Missing binary %s required for --use-test-media-devices')
+                        'Missing binary %s required for '
+                        '--use-test-media-devices' % f)
 
         if options.nested_oop:
             if not options.e10s:
@@ -866,7 +867,7 @@ class B2GOptions(MochitestOptions):
         defaults["testPath"] = ""
         defaults["extensionsToExclude"] = ["specialpowers"]
         # See dependencies of bug 1038943.
-        defaults["defaultLeakThreshold"] = 5404
+        defaults["defaultLeakThreshold"] = 5536
         self.set_defaults(**defaults)
 
     def verifyRemoteOptions(self, options):

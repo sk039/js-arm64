@@ -403,6 +403,10 @@ class BaseMarionetteOptions(OptionParser):
                         action='store_true',
                         default=False,
                         help='Enable the jsdebugger for marionette javascript.')
+        self.add_option('--pydebugger',
+                        dest='pydebugger',
+                        help='Enable python post-mortem debugger when a test fails.'
+                             ' Pass in the debugger you want to use, eg pdb or ipdb.')
         self.add_option('--socket-timeout',
                         dest='socket_timeout',
                         action='store',
@@ -535,7 +539,7 @@ class BaseMarionetteTestRunner(object):
         self.result_callbacks = result_callbacks if result_callbacks is not None else []
         self._adb_host = adb_host
         self._adb_port = adb_port
-        self.prefs = prefs
+        self.prefs = prefs or {}
 
         def gather_debug(test, status):
             rv = {}
@@ -544,10 +548,10 @@ class BaseMarionetteTestRunner(object):
             # In the event we're gathering debug without starting a session, skip marionette commands
             if marionette.session is not None:
                 try:
-                    marionette.set_context(marionette.CONTEXT_CHROME)
-                    rv['screenshot'] = marionette.screenshot()
-                    marionette.set_context(marionette.CONTEXT_CONTENT)
-                    rv['source'] = marionette.page_source
+                    with marionette.using_context(marionette.CONTEXT_CHROME):
+                        rv['screenshot'] = marionette.screenshot()
+                    with marionette.using_context(marionette.CONTEXT_CONTENT):
+                        rv['source'] = marionette.page_source
                 except:
                     logger = get_default_logger()
                     logger.warning('Failed to gather test failure debug.', exc_info=True)
