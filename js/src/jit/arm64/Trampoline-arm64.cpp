@@ -327,7 +327,7 @@ JitRuntime::generateArgumentsRectifier(JSContext *cx, void **returnAddrOut)
     masm.Mov(x7, x6);
 
     // Calculate the position that our arguments are at before sp gets modified
-    masm.Add(x3, masm.GetStackPointer(), Operand(x8, LSL, 3));
+    masm.Add(x3, masm.GetStackPointer64(), Operand(x8, LSL, 3));
     masm.Add(x3, x3, Operand(sizeof(RectifierFrameLayout)));
 
     // pad to a multiple of 16 bytes
@@ -339,10 +339,6 @@ JitRuntime::generateArgumentsRectifier(JSContext *cx, void **returnAddrOut)
     masm.Sub(w2, w6, w8);
     // Put an undefined in a register so it can be pushed
     masm.moveValue(UndefinedValue(), r4);
-
-    // Calculate the position that our arguments are at before sp gets modified
-    masm.Add(x3, masm.GetStackPointer64(), Operand(x8, LSL, 3));
-    masm.Add(x3, x3, Operand(sizeof(RectifierFrameLayout)));
 
     // Push undefined N times
     {
