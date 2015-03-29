@@ -411,6 +411,10 @@ struct FloatRegister
         MOZ_ASSERT(aliasIdx == 0);
         *ret = *this;
     }
+    SetType alignedOrDominatedAliasedSet() const {
+        return Codes::SpreadCoefficent << code_;
+    }
+
     bool isSingle() const {
         return k_ == FloatRegisters::Single;
     }

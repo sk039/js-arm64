@@ -19,8 +19,8 @@ using namespace js::jit;
 
 // All registers to save and restore. This includes the stack pointer, since we
 // use the ability to reference register values on the stack by index.
-static const RegisterSet AllRegs =
-    RegisterSet(GeneralRegisterSet(Registers::AllMask & ~(1 << 31 | 1 << 30 | 1 << 29| 1 << 28)),
+static const LiveRegisterSet AllRegs =
+    LiveRegisterSet(GeneralRegisterSet(Registers::AllMask & ~(1 << 31 | 1 << 30 | 1 << 29| 1 << 28)),
                 FloatRegisterSet(FloatRegisters::AllMask));
 
 /* This method generates a trampoline on x64 for a c++ function with
@@ -520,7 +520,7 @@ JitRuntime::generateVMWrapper(JSContext *cx, const VMFunction &f)
 
     // Avoid conflicts with argument registers while discarding the result after
     // the function call.
-    GeneralRegisterSet regs = GeneralRegisterSet(Register::Codes::WrapperMask);
+    AllocatableGeneralRegisterSet regs(Register::Codes::WrapperMask);
 
     // Wrapper register set is a superset of the Volatile register set.
     JS_STATIC_ASSERT((Register::Codes::VolatileMask & ~Register::Codes::WrapperMask) == 0);
@@ -710,8 +710,9 @@ JitRuntime::generatePreBarrier(JSContext *cx, MIRType type)
 {
     MacroAssembler masm(cx);
 
-    RegisterSet regs = RegisterSet(GeneralRegisterSet(Registers::VolatileMask),
-                                   FloatRegisterSet(FloatRegisters::VolatileMask));
+    LiveRegisterSet regs =
+        LiveRegisterSet(GeneralRegisterSet(Registers::VolatileMask),
+                        FloatRegisterSet(FloatRegisters::VolatileMask));
 
     // Also preserve the return address.
     regs.add(lr);

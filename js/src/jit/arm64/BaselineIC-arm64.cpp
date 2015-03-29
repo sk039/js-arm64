@@ -84,9 +84,11 @@ ICBinaryArith_Int32::Compiler::generateStubCode(MacroAssembler &masm)
     Register Rscratch = R2_;
     ARMRegister Xscratch = ARMRegister(Rscratch, 64);
     ARMRegister Wscratch = ARMRegister(Rscratch, 32);
+#ifdef MERGE
     // DIV and MOD need an extra non-volatile ValueOperand to hold R0.
-    GeneralRegisterSet savedRegs = availableGeneralRegs(2);
-    savedRegs = GeneralRegisterSet::Intersect(GeneralRegisterSet::NonVolatile(), savedRegs);
+    AllocatableGeneralRegisterSet savedRegs(availableGeneralRegs(2));
+    savedRegs.set() = GeneralRegisterSet::Intersect(GeneralRegisterSet::NonVolatile(), savedRegs);
+#endif
     // get some more ARM-y names for the registers
     ARMRegister W0(R0_, 32);
     ARMRegister X0(R0_, 64);

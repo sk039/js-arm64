@@ -39,7 +39,7 @@ namespace jit {
 
 // TODO: What on earth is simdSet?
 void
-MacroAssembler::PushRegsInMask(RegisterSet set, FloatRegisterSet simdSet)
+MacroAssembler::PushRegsInMask(LiveRegisterSet set)
 {
     // TODO: Clean up this function using helpers. Should be easy.
     for (GeneralRegisterBackwardIterator iter(set.gprs()); iter.more(); ) {
@@ -107,7 +107,7 @@ MacroAssembler::PushRegsInMask(RegisterSet set, FloatRegisterSet simdSet)
 
 // TODO: What on earth is simdSet?
 void
-MacroAssembler::PopRegsInMaskIgnore(RegisterSet set, RegisterSet ignore, FloatRegisterSet simdSet)
+MacroAssembler::PopRegsInMaskIgnore(LiveRegisterSet set, LiveRegisterSet ignore)
 {
     // The offset that we'll be loading from
     uint32_t offset = 0;
