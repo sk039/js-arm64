@@ -419,7 +419,8 @@ PushBailoutFrame(MacroAssembler &masm, uint32_t frameClass, Register spArg)
     // Since our datastructures for stack inspection are compile-time fixed,
     // if there are only 16 double registers, then we need to reserve
     // space on the stack for the missing 16.
-    masm.Sub(masm.GetStackPointer(), masm.GetStackPointer(), Operand(FloatRegisters::TotalPhys * sizeof(double)));
+    masm.Sub(masm.GetStackPointer64(), masm.GetStackPointer64(),
+             Operand(FloatRegisters::TotalPhys * sizeof(double)));
     for (uint32_t i = 0; i < FloatRegisters::TotalPhys; i+=2)
         masm.Stp(ARMFPRegister::DRegFromCode(i),
                  ARMFPRegister::DRegFromCode(i+1),
