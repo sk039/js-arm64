@@ -1680,7 +1680,9 @@ MacroAssembler::generateBailoutTail(Register scratch, Register bailoutInfo)
 #if defined(JS_CODEGEN_X86) || defined(JS_CODEGEN_X64)
             push(BaselineTailCallReg);
 #endif
+#ifdef JS_ARM64_SIM
             simPopFrame();
+#endif
             jump(Address(BaselineStubReg, ICStub::offsetOfStubCode()));
         }
 
