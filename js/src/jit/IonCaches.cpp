@@ -2523,6 +2523,7 @@ GenerateCallSetter(JSContext *cx, IonScript *ion, MacroAssembler &masm,
         if (value.constant()) {
             masm.Push(value.value());
         } else {
+            masm.Push(value.reg());
             regSet.add(value.reg());
         }
 #ifdef MERGE
