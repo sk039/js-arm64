@@ -1291,12 +1291,12 @@ class MacroAssembler : public MacroAssemblerSpecific
         uint32_t off = offset;
         while (off) {
             uint32_t lowestBit = 1 << mozilla::CountTrailingZeroes32(off);
-            branchTestPtr(Assembler::Zero, GetStackPointer_(), Imm32(lowestBit), &bad);
+            branchTestPtr(Assembler::Zero, GetStackPointer(), Imm32(lowestBit), &bad);
             off ^= lowestBit;
         }
 
         // Check that all remaining bits are zero.
-        branchTestPtr(Assembler::Zero, GetStackPointer_(), Imm32((alignment - 1) ^ offset), &ok);
+        branchTestPtr(Assembler::Zero, GetStackPointer(), Imm32((alignment - 1) ^ offset), &ok);
 
         bind(&bad);
         breakpoint();

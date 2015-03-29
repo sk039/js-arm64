@@ -1055,8 +1055,8 @@ PrepareAndExecuteRegExp(JSContext *cx, MacroAssembler &masm, Register regexp, Re
         inputOutputDataStartOffset + offsetof(irregexp::InputOutputData, result));
 
 
-    Address pairCountAddress = RegExpPairCountAddress(masm.GetStackPointer_(), inputOutputDataStartOffset);
-    Address pairsPointerAddress(masm.GetStackPointer_(), matchPairsStartOffset + MatchPairs::offsetOfPairs());
+    Address pairCountAddress = RegExpPairCountAddress(masm.GetStackPointer(), inputOutputDataStartOffset);
+    Address pairsPointerAddress(masm.GetStackPointer(), matchPairsStartOffset + MatchPairs::offsetOfPairs());
 #ifdef MERGE
     Address pairCountAddress = RegExpPairCountAddress(inputOutputDataStartOffset);
     Address pairsPointerAddress(masm.GetStackPointer(), matchPairsStartOffset + MatchPairs::offsetOfPairs());
@@ -1370,8 +1370,8 @@ JitCompartment::generateRegExpExecStub(JSContext *cx)
 
     size_t pairsVectorStartOffset = RegExpPairsVectorStartOffset(inputOutputDataStartOffset);
 
-    Address pairsVectorAddress(masm.GetStackPointer_(), pairsVectorStartOffset);
-    Address pairCountAddress = RegExpPairCountAddress(masm.GetStackPointer_(), inputOutputDataStartOffset);
+    Address pairsVectorAddress(masm.GetStackPointer(), pairsVectorStartOffset);
+    Address pairCountAddress = RegExpPairCountAddress(masm.GetStackPointer(), inputOutputDataStartOffset);
 #ifdef MERGE
     Address pairsVectorAddress(masm.GetStackPointer(), pairsVectorStartOffset);
     Address pairCountAddress = RegExpPairCountAddress(inputOutputDataStartOffset);
@@ -2036,15 +2036,16 @@ CodeGenerator::visitOsrEntry(LOsrEntry *lir)
 
     // If profiling, save the current frame pointer to a per-thread global field.
     if (isProfilerInstrumentationEnabled())
-        masm.profilerEnterFrame(masm.GetStackPointer_(), temp);
+        masm.profilerEnterFrame(masm.GetStackPointer(), temp);
 
     // Allocate the full frame for this function
     // Note we have a new entry here. So we reset MacroAssembler::framePushed()
     // to 0, before reserving the stack.
     MOZ_ASSERT(masm.framePushed() == frameSize());
     masm.setFramePushed(0);
-
+#ifdef JS_ARM64_SIMULATOR
     masm.simPushFrame();
+#endif
     // Ensure that the Ion frames is properly aligned.
     masm.assertStackAlignment(JitStackAlignment, 0);
 
@@ -3168,7 +3169,7 @@ CodeGenerator::emitPushArguments(LApplyArgsGeneric *apply, Register extraStackSp
     // Reserve space for copying the arguments.
     NativeObject::elementsSizeMustNotOverflow();
     masm.lshiftPtr(Imm32(ValueShift), extraStackSpace);
-    masm.subPtr(extraStackSpace, masm.GetStackPointer_());
+    masm.subPtr(extraStackSpace, masm.GetStackPointer());
 
 #ifdef DEBUG
     // Put a magic value in the space reserved for padding. Note, this code
@@ -3179,7 +3180,7 @@ CodeGenerator::emitPushArguments(LApplyArgsGeneric *apply, Register extraStackSp
         Label noPaddingNeeded;
         // if the number of arguments is odd, then we do not need any padding.
         masm.branchTestPtr(Assembler::NonZero, argcreg, Imm32(1), &noPaddingNeeded);
-        BaseValueIndex dstPtr(masm.GetStackPointer_(), argcreg);
+        BaseValueIndex dstPtr(masm.GetStackPointer(), argcreg);
         masm.storeValue(MagicValue(JS_ARG_POISON), dstPtr);
         masm.bind(&noPaddingNeeded);
     }
@@ -3212,7 +3213,7 @@ CodeGenerator::emitPushArguments(LApplyArgsGeneric *apply, Register extraStackSp
 
     // srcPtr = (StackPointer + extraStackSpace) + argvSrcOffset
     // dstPtr = (StackPointer                  ) + argvDstOffset
-    masm.addPtr(masm.GetStackPointer_(), argvSrcBase);
+    masm.addPtr(masm.GetStackPointer(), argvSrcBase);
 
     // Copy arguments.
     {
@@ -3231,7 +3232,7 @@ CodeGenerator::emitPushArguments(LApplyArgsGeneric *apply, Register extraStackSp
         // Handle 32 bits architectures.
         if (sizeof(Value) == 2 * sizeof(void*)) {
             BaseValueIndex srcPtrLow(argvSrcBase, argvIndex, argvSrcOffset - 2 * sizeof(void *));
-            BaseValueIndex dstPtrLow(masm.GetStackPointer_(), argvIndex, argvDstOffset - 2 * sizeof(void *));
+            BaseValueIndex dstPtrLow(masm.GetStackPointer(), argvIndex, argvDstOffset - 2 * sizeof(void *));
             masm.loadPtr(srcPtrLow, copyreg);
             masm.storePtr(copyreg, dstPtrLow);
         }
@@ -6209,7 +6210,7 @@ JitRuntime::generateLazyLinkStub(JSContext *cx)
     // The caller did not push an exit frame on the stack, it pushed a
     // JitFrameLayout.  We modify the descriptor to be a valid exit frame and
     // restore it once the lazy link is complete.
-    Address descriptor(StackPointer, CommonFrameLayout::offsetOfDescriptor());
+    Address descriptor(masm.GetStackPointer(), CommonFrameLayout::offsetOfDescriptor());
     size_t convertToExitFrame = JitFrameLayout::Size() - ExitFrameLayout::Size();
     masm.addPtr(Imm32(convertToExitFrame << FRAMESIZE_SHIFT), descriptor);
 

@@ -1714,7 +1714,7 @@ MacroAssembler::generateBailoutTail(Register scratch, Register bailoutInfo)
             popValue(R0);
 
             // Discard exit frame.
-            addPtr(Imm32(ExitFrameLayout::SizeWithFooter()), GetStackPointer_());
+            addPtr(Imm32(ExitFrameLayout::SizeWithFooter()), GetStackPointer());
 
             jump(jitcodeReg);
         }
@@ -2495,15 +2495,15 @@ MacroAssembler::alignJitStackBasedOnNArgs(Register nargs)
 #endif
     assertStackAlignment(sizeof(Value), 0);
     branchTestPtr(Assembler::NonZero, nargs, Imm32(1), &odd);
-    branchTestPtr(Assembler::NonZero, GetStackPointer_(), Imm32(JitStackAlignment - 1), maybeAssert);
-    subPtr(Imm32(sizeof(Value)), GetStackPointer_());
+    branchTestPtr(Assembler::NonZero, GetStackPointer(), Imm32(JitStackAlignment - 1), maybeAssert);
+    subPtr(Imm32(sizeof(Value)), GetStackPointer());
 #ifdef DEBUG
     bind(&assert);
 #endif
     assertStackAlignment(JitStackAlignment, sizeof(Value));
     jump(&end);
     bind(&odd);
-    andPtr(Imm32(~(JitStackAlignment - 1)), GetStackPointer_());
+    andPtr(Imm32(~(JitStackAlignment - 1)), GetStackPointer());
     bind(&end);
 }
 
@@ -2531,12 +2531,12 @@ MacroAssembler::alignJitStackBasedOnNArgs(uint32_t nargs)
     assertStackAlignment(sizeof(Value), 0);
     if (nargs % 2 == 0) {
         Label end;
-        branchTestPtr(Assembler::NonZero, GetStackPointer_(), Imm32(JitStackAlignment - 1), &end);
-        subPtr(Imm32(sizeof(Value)), GetStackPointer_());
+        branchTestPtr(Assembler::NonZero, GetStackPointer(), Imm32(JitStackAlignment - 1), &end);
+        subPtr(Imm32(sizeof(Value)), GetStackPointer());
         bind(&end);
         assertStackAlignment(JitStackAlignment, sizeof(Value));
     } else {
-        andPtr(Imm32(~(JitStackAlignment - 1)), GetStackPointer_());
+        andPtr(Imm32(~(JitStackAlignment - 1)), GetStackPointer());
     }
 }
 
