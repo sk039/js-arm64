@@ -204,7 +204,10 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         MOZ_ASSERT(args % sizeof(intptr_t) == 0);
         adjustFrame(-args);
     }
-
+    void Pop(ARMRegister r) {
+        MacroAssemblerVIXL::Pop(r);
+        adjustFrame(- r.size() / 8);
+    }
     // FIXME: This is the same on every arch.
     // FIXME: If we can share framePushed_, we can share this.
     // FIXME: Or just make it at the highest level.
