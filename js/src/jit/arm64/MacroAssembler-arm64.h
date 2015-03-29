@@ -133,9 +133,31 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
                     unsigned(addr.scale)));
         LoadStoreMacro(rt, MemOperand(ScratchReg64, addr.offset), op);
     }
-
+    void Push(ARMRegister reg) {
+        push(reg);
+        adjustFrame(reg.size() / 8);
+    }
+    void Push(Register reg) {
+        MacroAssemblerVIXL::Push(ARMRegister(reg, 64));
+        adjustFrame(8);
+    }
+    void Push(Imm32 imm) {
+        push(imm);
+        adjustFrame(8);
+    }
+    void Push(FloatRegister f) {
+        push(ARMFPRegister(f, 64));
+        adjustFrame(8);
+    }
+    void Push(ImmPtr imm) {
+        push(imm);
+        adjustFrame(sizeof(void*));
+    }
     void push(FloatRegister f) {
         MacroAssemblerVIXL::Push(ARMFPRegister(f, 64));
+    }
+    void push(ARMFPRegister f) {
+        MacroAssemblerVIXL::Push(f);
     }
     void push(Imm32 imm) {
         if (imm.value == 0) {
