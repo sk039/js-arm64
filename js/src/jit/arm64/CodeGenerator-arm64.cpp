@@ -844,19 +844,27 @@ CodeGeneratorARM64::visitFloorF(LFloorF *lir)
     bailoutFrom(&bail, lir->snapshot());
 }
 
-void 
+void
 CodeGeneratorARM64::visitCeil(LCeil *lir)
 {
-    MOZ_CRASH("CodeGeneratorARM64::visitCeil");
+    FloatRegister input = ToFloatRegister(lir->input());
+    Register output = ToRegister(lir->output());
+    Label bail;
+    masm.ceil(input, output, &bail);
+    bailoutFrom(&bail, lir->snapshot());
 }
 
-void 
+void
 CodeGeneratorARM64::visitCeilF(LCeilF *lir)
 {
-    MOZ_CRASH("CodeGeneratorARM64::visitCeilF");
+    FloatRegister input = ToFloatRegister(lir->input());
+    Register output = ToRegister(lir->output());
+    Label bail;
+    masm.ceilf(input, output, &bail);
+    bailoutFrom(&bail, lir->snapshot());
 }
 
-void 
+void
 CodeGeneratorARM64::visitRound(LRound *lir)
 {
     FloatRegister input = ToFloatRegister(lir->input());
