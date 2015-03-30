@@ -1894,6 +1894,17 @@ AssemblerVIXL::fcvtms(const ARMRegister& rd, const ARMFPRegister& fn)
 {
     FPConvertToInt(rd, fn, FCVTMS);
 }
+void
+AssemblerVIXL::fcvtpu(const ARMRegister& rd, const ARMFPRegister& fn)
+{
+    FPConvertToInt(rd, fn, FCVTPU);
+}
+
+void
+AssemblerVIXL::fcvtps(const ARMRegister& rd, const ARMFPRegister& fn)
+{
+    FPConvertToInt(rd, fn, FCVTPS);
+}
 
 void
 AssemblerVIXL::fcvtnu(const ARMRegister& rd, const ARMFPRegister& fn)

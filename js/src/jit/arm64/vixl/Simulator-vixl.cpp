@@ -1747,6 +1747,32 @@ Simulator::VisitFPIntegerConvert(Instruction* instr)
       case FCVTMU_xd:
         set_xreg(dst, FPToUInt64(dreg(src), FPNegativeInfinity));
         break;
+
+      case FCVTPS_ws:
+        set_wreg(dst, FPToInt32(sreg(src), FPPositiveInfinity));
+        break;
+      case FCVTPS_xs:
+        set_xreg(dst, FPToInt64(sreg(src), FPPositiveInfinity));
+        break;
+      case FCVTPS_wd:
+        set_wreg(dst, FPToInt32(dreg(src), FPPositiveInfinity));
+        break;
+      case FCVTPS_xd:
+        set_xreg(dst, FPToInt64(dreg(src), FPPositiveInfinity));
+        break;
+      case FCVTPU_ws:
+        set_wreg(dst, FPToUInt32(sreg(src), FPPositiveInfinity));
+        break;
+      case FCVTPU_xs:
+        set_xreg(dst, FPToUInt64(sreg(src), FPPositiveInfinity));
+        break;
+      case FCVTPU_wd:
+        set_wreg(dst, FPToUInt32(dreg(src), FPPositiveInfinity));
+        break;
+      case FCVTPU_xd:
+        set_xreg(dst, FPToUInt64(dreg(src), FPPositiveInfinity));
+        break;
+
       case FCVTNS_ws: set_wreg(dst, FPToInt32(sreg(src), FPTieEven)); break;
       case FCVTNS_xs: set_xreg(dst, FPToInt64(sreg(src), FPTieEven)); break;
       case FCVTNS_wd: set_wreg(dst, FPToInt32(dreg(src), FPTieEven)); break;
@@ -2254,6 +2280,20 @@ Simulator::FPRoundInt(double value, FPRounding round_mode)
         // We always use floor(value).
         break;
       }
+      case FPPositiveInfinity: {
+          // We always use ceil(value).
+          // Take care of correctly handling the range ]-1.0, -0.0], which must
+          // yield -0.0.
+          if ((-1.0 < value) && (value < 0.0)) {
+              int_result = -0.0;
+
+              // If the error is non-zero, round up.
+          } else if (error > 0.0) {
+              int_result++;
+          }
+        break;
+      }
+
       default: VIXL_UNIMPLEMENTED();
     }
     return int_result;

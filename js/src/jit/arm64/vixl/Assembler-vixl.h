@@ -1534,6 +1534,12 @@ class AssemblerVIXL : public AssemblerShared
     // Convert FP to unsigned integer (round towards -infinity).
     void fcvtmu(const ARMRegister& rd, const ARMFPRegister& fn);
 
+    // Convert FP to signed integer (round towards infinity).
+    void fcvtps(const ARMRegister& rd, const ARMFPRegister& fn);
+
+    // Convert FP to unsigned integer (round towards infinity).
+    void fcvtpu(const ARMRegister& rd, const ARMFPRegister& fn);
+
     // Convert FP to signed integer (nearest with ties to even).
     void fcvtns(const ARMRegister& rd, const ARMFPRegister& fn);
 

@@ -479,6 +479,14 @@ class MacroAssemblerVIXL : public Assembler
         MOZ_ASSERT(!rd.IsZero());
         fcvtmu(rd, fn);
     }
+    void Fcvtps(const ARMRegister& rd, const ARMFPRegister& fn) {
+        MOZ_ASSERT(!rd.IsZero());
+        fcvtps(rd, fn);
+    }
+    void Fcvtpu(const ARMRegister& rd, const ARMFPRegister& fn) {
+        MOZ_ASSERT(!rd.IsZero());
+        fcvtpu(rd, fn);
+    }
     void Fcvtns(const ARMRegister& rd, const ARMFPRegister& fn) {
         MOZ_ASSERT(!rd.IsZero());
         fcvtns(rd, fn);
