@@ -2850,8 +2850,8 @@ typedef float (*Prototype_Float32_Float32)(float arg0);
 typedef double (*Prototype_Double_None)();
 typedef double (*Prototype_Double_Double)(double arg0);
 typedef double (*Prototype_Double_Int)(int32_t arg0);
-typedef double (*Prototype_Double_DoubleInt)(double arg0, int32_t arg1);
-typedef double (*Prototype_Double_IntDouble)(int32_t arg0, double arg1);
+typedef double (*Prototype_Double_DoubleInt)(double arg0, int64_t arg1);
+typedef double (*Prototype_Double_IntDouble)(int64_t arg0, double arg1);
 typedef double (*Prototype_Double_DoubleDouble)(double arg0, double arg1);
 typedef double (*Prototype_Double_DoubleDoubleDouble)(double arg0, double arg1, double arg2);
 typedef double (*Prototype_Double_DoubleDoubleDoubleDouble)(double arg0, double arg1,
