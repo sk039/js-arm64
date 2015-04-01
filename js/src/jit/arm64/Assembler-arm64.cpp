@@ -184,6 +184,7 @@ Assembler::immPool64(ARMRegister dest, uint64_t value, ARMBuffer::PoolEntry *pe)
 {
     return immPool(dest, (uint8_t*)&value, LDR_x_lit, pe);
 }
+
 BufferOffset
 Assembler::immPool64Branch(RepatchLabel *label, ARMBuffer::PoolEntry *pe, Condition c)
 {
@@ -243,7 +244,7 @@ Assembler::bind(Label *label, BufferOffset targetOffset)
         // Before overwriting the offset in this instruction, get the offset of
         // the next link in the implicit branch list.
         uint32_t nextLinkOffset = uint32_t(link->ImmPCRawOffset());
-        if (nextLinkOffset != LabelBase::INVALID_OFFSET)
+        if (nextLinkOffset != uint32_t(LabelBase::INVALID_OFFSET))
             nextLinkOffset += branchOffset;
         // Linking against the actual (Instruction *) would be invalid,
         // since that Instruction could be anywhere in memory.
@@ -428,18 +429,15 @@ Assembler::ToggleCall(CodeLocationLabel inst_, bool enabled)
     Instruction *first = (Instruction*)inst_.raw();
     Instruction *load;
     Instruction *call;
+
     if (first->InstructionBits() == 0x9100039f) {
         load = (Instruction *)NextInstruction(first);
         call = NextInstruction(load);
-        
     } else {
         load = first;
         call = NextInstruction(first);
     }
-    printf("Toggle Call, load: ");
-    printInstruction(load, 1);
-    printf("call: ");
-    printInstruction(call, 1);
+
     if (call->IsBLR() == enabled)
         return;
 
@@ -504,11 +502,11 @@ CodeFromJump(JitCode *code, uint8_t *jump)
     Instruction *branch = (Instruction *)jump;
     uint8_t *target;
     // If this is a toggled branch, and is currently off, then we have some 'splainin
-    if (branch->BranchType() == UnknownBranchType) {
+    if (branch->BranchType() == UnknownBranchType)
         target = (uint8_t *)branch->Literal64();
-    } else {
+    else
         target = (uint8_t *)branch->ImmPCOffsetTarget();
-    }
+
     // If the jump is within the code buffer, it uses the extended jump table.
     if (target >= code->raw() && target < code->raw() + code->instructionsSize()) {
         MOZ_ASSERT(target + Assembler::SizeOfJumpTableEntry <= code->raw() + code->instructionsSize());
@@ -567,6 +565,7 @@ Assembler::TraceDataRelocations(JSTracer *trc, JitCode *code, CompactBufferReade
 {
     ::TraceDataRelocations(trc, code->raw(), reader);
 }
+
 void
 Assembler::FixupNurseryObjects(JSContext *cx, JitCode *code, CompactBufferReader &reader,
                                const ObjectVector &nurseryObjects)
@@ -601,6 +600,7 @@ Assembler::FixupNurseryObjects(JSContext *cx, JitCode *code, CompactBufferReader
     if (hasNurseryPointers)
         cx->runtime()->gc.storeBuffer.putWholeCellFromMainThread(code);
 }
+
 int32_t
 Assembler::ExtractCodeLabelOffset(uint8_t *code)
 {
@@ -612,6 +612,7 @@ Assembler::PatchInstructionImmediate(uint8_t *code, PatchedImmPtr imm)
 {
     MOZ_CRASH("PatchInstructionImmediate()");
 }
+
 void
 Assembler::UpdateBoundsCheck(uint32_t heapSize, Instruction *inst)
 {
@@ -643,18 +644,8 @@ Assembler::retarget(Label *label, Label *target)
             // Then patch the head of label's use chain to the tail of target's
             // use chain, prepending the entire use chain of target.
             Instruction *branch = getInstructionAt(labelBranchOffset);
-            int32_t prev = target->use(label->offset());
+            target->use(label->offset());
             branch->SetImmPCOffsetTarget(branch - labelBranchOffset.getOffset());
-#if 0
-            branch.extractCond(&c);
-
-            if (branch.is<InstBImm>())
-                as_b(BOffImm(prev), c, labelBranchOffset);
-            else if (branch.is<InstBLImm>())
-                as_bl(BOffImm(prev), c, labelBranchOffset);
-            else
-                MOZ_CRASH("crazy fixup!");
-#endif
         } else {
             // The target is unbound and unused. We can just take the head of
             // the list hanging off of label, and dump that into target.
@@ -664,5 +655,6 @@ Assembler::retarget(Label *label, Label *target)
     }
     label->reset();
 }
+
 } // namespace jit
 } // namespace js

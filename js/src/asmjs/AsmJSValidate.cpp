@@ -7171,7 +7171,7 @@ CheckSwitchRange(FunctionCompiler& f, ParseNode* stmt, int32_t* low, int32_t* hi
 
     int64_t i64 = (int64_t(*high) - int64_t(*low)) + 1;
     if (i64 >  1 << 17) {
-        fprintf(stderr, "%d was out of range :-(\n", i64);
+        fprintf(stderr, "%ld was out of range :-(\n", i64);
         return f.fail(initialStmt, "all switch statements generate tables; this table would be too big");
     }
     *tableLength = int32_t(i64);

@@ -869,7 +869,7 @@ CodeGeneratorARM64::visitRound(LRound *lir)
 {
     FloatRegister input = ToFloatRegister(lir->input());
     Register output = ToRegister(lir->output());
-    FloatRegister tmp = ToFloatRegister(lir->temp());
+    // TODO: Don't need a temp register? We have one.
     Label bail;
     // Output is either correct, or clamped. All -0 cases have been translated
     // to a clamped case.
@@ -883,7 +883,7 @@ CodeGeneratorARM64::visitRoundF(LRoundF *lir)
 {
     FloatRegister input = ToFloatRegister(lir->input());
     Register output = ToRegister(lir->output());
-    FloatRegister tmp = ToFloatRegister(lir->temp());
+    // TODO: Don't need a temp register? We have one.
     Label bail;
     // Output is either correct, or clamped. All -0 cases have been translated
     // to a clamped case.
@@ -900,7 +900,6 @@ CodeGeneratorARM64::visitClzI(LClzI *lir)
     ARMRegister output = toWRegister(lir->output());
     masm.Clz(output, input);
 }
-
 
 void
 CodeGeneratorARM64::emitRoundDouble(FloatRegister src, Register dest, Label *fail)
@@ -1473,7 +1472,7 @@ CodeGeneratorARM64::visitAsmJSStoreHeap(LAsmJSStoreHeap *ins)
     if (mir->needsBoundsCheck()) {
         masm.BoundsCheck(ptrReg, &noStore);
     }
-    BufferOffset bo = masm.LoadStoreMacro(rt, MemOperand(ARMRegister(HeapReg, 64), ARMRegister(ptrReg, 64)), op);
+    masm.LoadStoreMacro(rt, MemOperand(ARMRegister(HeapReg, 64), ARMRegister(ptrReg, 64)), op);
     if (mir->needsBoundsCheck()) {
         masm.bind(&noStore);
     }
@@ -1498,11 +1497,10 @@ CodeGeneratorARM64::visitAsmJSPassStackArg(LAsmJSPassStackArg *ins)
     MemOperand dst(masm.GetStackPointer64(), mir->spOffset());
     if (ins->arg()->isConstant()) {
         ARMRegister tmp = ScratchReg2_32;
-        if (ToInt32(ins->arg()) == 0) {
+        if (ToInt32(ins->arg()) == 0)
             tmp = wzr;
-        } else {
+        else
             masm.Mov(tmp, Operand(ToInt32(ins->arg())));
-        }
         masm.Str(tmp, dst);
     } else {
         if (ins->arg()->isGeneralReg())

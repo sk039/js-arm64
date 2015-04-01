@@ -697,10 +697,11 @@ class Simulator : public DecoderVisitor
         address = AddressUntag(address);
         MOZ_ASSERT((sizeof(value) == 1) || (sizeof(value) == 2) ||
                    (sizeof(value) == 4) || (sizeof(value) == 8));
+        // FIXME: Marty's debugging code.
         if (getenv("USE_DEBUGGER")) {
             uint8_t *ptr = reinterpret_cast<uint8_t *>(&value);
             printf("Write: 0x");
-            for(int i = 1; i <= sizeof(T); i++)
+            for(size_t i = 1; i <= sizeof(T); i++)
                 printf("%02x", ptr[sizeof(T) - i]);
             printf(" -> %p\n", address);
             fflush(stdout);

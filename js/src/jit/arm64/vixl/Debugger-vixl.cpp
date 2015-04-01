@@ -917,6 +917,7 @@ DebuggerARM64::DoLog(Instruction* instr)
 
     set_pc(instr->InstructionAtOffset(kLogLength));
 }
+
 void
 DebuggerARM64::DoStackCheck(Instruction* instr)
 {
@@ -937,6 +938,8 @@ DebuggerARM64::DoStackCheck(Instruction* instr)
         return;
     }
     MOZ_ASSERT(stackCheckDepth[index] > 0);
+// FIXME: Marty's debugging code.
+#if 0
     char *curVal = stackCheck[index][stackCheckDepth[index]-1];
     printf("Stack Check Succeed[%d]: %p ?= %p + 0x%x\n", stackCheckDepth[index]-1, curVal, xreg(28), value);
     if (uintptr_t(curVal) != xreg(28) + value) {
@@ -944,10 +947,13 @@ DebuggerARM64::DoStackCheck(Instruction* instr)
         fflush(stdout);
         MOZ_CRASH(":-(");
     }
+#endif
 }
+
 void
 DebuggerARM64::DoStackCheckPushPop(Instruction* instr)
 {
+#if 0 // FIXME: Marty's debugging code.
     MOZ_ASSERT((instr->Mask(ExceptionMask) == HLT) &&
                (instr->ImmException() == kStackCheckPushPopOpcode));
 
@@ -978,6 +984,7 @@ DebuggerARM64::DoStackCheckPushPop(Instruction* instr)
         stackCheckDepth[index]++;
 
     }
+#endif
 }
 
 static bool

@@ -8,6 +8,7 @@
 #define jit_arm64_Lowering_arm64_h
 
 #include "jit/shared/Lowering-shared.h"
+#include "jit/shared/Lowering-shared-inl.h"
 
 namespace js {
 namespace jit {
@@ -37,8 +38,7 @@ class LIRGeneratorARM64 : public LIRGeneratorShared
 
     bool needTempForPostBarrier() { return true; }
 
-    // x64 has a scratch register, so no need for another temp for dispatch
-    // ICs.
+    // x64 has a scratch register, so no need for another temp for dispatch ICs.
     LDefinition tempForDispatchCache(MIRType outputType = MIRType_None) {
         return LDefinition::BogusTemp();
     }
