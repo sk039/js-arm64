@@ -296,6 +296,9 @@ Simulator::call(uint8_t* entry, int argument_count, ...)
         set_xreg(0, va_arg(parameters, int64_t));
         // uint8_t *GlobalData
         set_xreg(1, va_arg(parameters, int64_t));
+    } else if (argument_count == 1) { // irregexp
+        // InputOutputData &data
+        set_xreg(0, va_arg(parameters, int64_t));
     } else {
         MOZ_CRASH("Unknown number of arguments");
     }
