@@ -266,7 +266,7 @@ class FloatRegisters
     static const uint32_t TotalPhys = 32;
     static const SetType AllMask = 0xFFFFFFFFFFFFFFFFULL;
     static const SetType AllPhysMask = 0xFFFFFFFFULL;
-    static const SetType SpreadCoefficent = 0x100000001ULL;
+    static const SetType SpreadCoefficient = 0x100000001ULL;
     // FIXME: Validate
     static const uint32_t Allocatable = 62; // Without d31, the scratch register.
 
@@ -284,7 +284,7 @@ class FloatRegisters
                 (1 << FloatRegisters::d24) | (1 << FloatRegisters::d25) |
                 (1 << FloatRegisters::d26) | (1 << FloatRegisters::d27) |
                 (1 << FloatRegisters::d28) | (1 << FloatRegisters::d29) |
-                (1 << FloatRegisters::d30)) * SpreadCoefficent;
+                (1 << FloatRegisters::d30)) * SpreadCoefficient;
 
     // FIXME: Validate
     static const SetType VolatileMask = AllMask & ~NonVolatileMask;
@@ -295,7 +295,7 @@ class FloatRegisters
 
     // d31 is the ScratchFloatReg.
     // FIXME: Validate
-    static const SetType NonAllocatableMask = (SetType(1) << FloatRegisters::d31) * SpreadCoefficent;
+    static const SetType NonAllocatableMask = (SetType(1) << FloatRegisters::d31) * SpreadCoefficient;
 
     // Registers that can be allocated without being saved, generally.
     // FIXME: Validate
@@ -412,7 +412,7 @@ struct FloatRegister
         *ret = *this;
     }
     SetType alignedOrDominatedAliasedSet() const {
-        return Codes::SpreadCoefficent << code_;
+        return Codes::SpreadCoefficient << code_;
     }
 
     bool isSingle() const {

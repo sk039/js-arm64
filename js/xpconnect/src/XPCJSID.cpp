@@ -11,6 +11,7 @@
 #include "mozilla/Attributes.h"
 #include "mozilla/jsipc/CrossProcessObjectWrappers.h"
 #include "mozilla/StaticPtr.h"
+#include "nsIProgrammingLanguage.h"
 
 using namespace mozilla::dom;
 using namespace JS;
@@ -239,15 +240,11 @@ static void EnsureClassObjectsInitialized()
     }
 }
 
-NS_METHOD GetSharedScriptableHelperForJSIID(uint32_t language,
-                                            nsISupports** helper)
+NS_METHOD GetSharedScriptableHelperForJSIID(nsIXPCScriptable** helper)
 {
     EnsureClassObjectsInitialized();
-    if (language == nsIProgrammingLanguage::JAVASCRIPT) {
-        nsCOMPtr<nsIXPCScriptable> temp = gSharedScriptableHelperForJSIID.get();
-        temp.forget(helper);
-    } else
-        *helper = nullptr;
+    nsCOMPtr<nsIXPCScriptable> temp = gSharedScriptableHelperForJSIID.get();
+    temp.forget(helper);
     return NS_OK;
 }
 
@@ -602,7 +599,7 @@ nsJSCID::NewID(const char* str)
         if (NS_FAILED(registrar->ContractIDToCID(str, &cid)))
             return nullptr;
         bool success = idObj->mDetails->InitWithName(*cid, str);
-        nsMemory::Free(cid);
+        free(cid);
         if (!success)
             return nullptr;
     }

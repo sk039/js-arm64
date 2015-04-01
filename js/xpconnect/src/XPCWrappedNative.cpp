@@ -8,6 +8,7 @@
 
 #include "xpcprivate.h"
 #include "mozilla/jsipc/CrossProcessObjectWrappers.h"
+#include "nsIProgrammingLanguage.h"
 #include "nsWrapperCacheInlines.h"
 #include "XPCLog.h"
 #include "jsprf.h"
@@ -655,16 +656,12 @@ XPCWrappedNative::GatherProtoScriptableCreateInfo(nsIClassInfo* classInfo,
         return;
     }
 
-    nsCOMPtr<nsISupports> possibleHelper;
-    nsresult rv = classInfo->GetHelperForLanguage(nsIProgrammingLanguage::JAVASCRIPT,
-                                                  getter_AddRefs(possibleHelper));
-    if (NS_SUCCEEDED(rv) && possibleHelper) {
-        nsCOMPtr<nsIXPCScriptable> helper(do_QueryInterface(possibleHelper));
-        if (helper) {
-            uint32_t flags = helper->GetScriptableFlags();
-            sciProto.SetCallback(helper.forget());
-            sciProto.SetFlags(XPCNativeScriptableFlags(flags));
-        }
+    nsCOMPtr<nsIXPCScriptable> helper;
+    nsresult rv = classInfo->GetScriptableHelper(getter_AddRefs(helper));
+    if (NS_SUCCEEDED(rv) && helper) {
+        uint32_t flags = helper->GetScriptableFlags();
+        sciProto.SetCallback(helper.forget());
+        sciProto.SetFlags(XPCNativeScriptableFlags(flags));
     }
 }
 
@@ -1470,7 +1467,7 @@ CallMethodHelper::~CallMethodHelper()
                 }
 
                 // always free the array itself
-                nsMemory::Free(p);
+                free(p);
             } else {
                 // Clean up single parameters (if requested).
                 if (dp->DoesValNeedCleanup())
@@ -2037,7 +2034,7 @@ CallMethodHelper::CleanupParam(nsXPTCMiniVariant& param, nsXPTType& type)
             break;
         default:
             MOZ_ASSERT(!type.IsArithmetic(), "Cleanup requested on unexpected type.");
-            nsMemory::Free(param.val.p);
+            free(param.val.p);
             break;
     }
 }
@@ -2323,9 +2320,9 @@ static void DEBUG_CheckClassInfoClaims(XPCWrappedNative* wrapper)
                interfaceName);
 
         if (className)
-            nsMemory::Free(className);
+            free(className);
         if (contractID)
-            nsMemory::Free(contractID);
+            free(contractID);
     }
 }
 #endif

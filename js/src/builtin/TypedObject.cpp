@@ -488,7 +488,7 @@ CreatePrototypeObjectForComplexTypeInstance(JSContext* cx, HandleObject ctorProt
     if (!ctorPrototypePrototype)
         return nullptr;
 
-    return NewObjectWithProto<TypedProto>(cx, ctorPrototypePrototype, TenuredObject);
+    return NewObjectWithProto<TypedProto>(cx, ctorPrototypePrototype, SingletonObject);
 }
 
 const Class ArrayTypeDescr::class_ = {
@@ -1670,43 +1670,38 @@ OutlineTypedObject::obj_trace(JSTracer* trc, JSObject* object)
 }
 
 bool
-TypedObject::obj_lookupProperty(JSContext* cx, HandleObject obj, HandleId id,
-                                MutableHandleObject objp, MutableHandleShape propp)
+TypeDescr::hasProperty(const JSAtomState& names, jsid id)
 {
-    MOZ_ASSERT(obj->is<TypedObject>());
-
-    Rooted<TypeDescr*> descr(cx, &obj->as<TypedObject>().typeDescr());
-    switch (descr->kind()) {
+    switch (kind()) {
       case type::Scalar:
       case type::Reference:
       case type::Simd:
-        break;
+        return false;
 
       case type::Array:
       {
         uint32_t index;
-        if (IdIsIndex(id, &index))
-            return obj_lookupElement(cx, obj, index, objp, propp);
-
-        if (JSID_IS_ATOM(id, cx->names().length)) {
-            MarkNonNativePropertyFound<CanGC>(propp);
-            objp.set(obj);
-            return true;
-        }
-        break;
+        return IdIsIndex(id, &index) || JSID_IS_ATOM(id, names.length);
       }
 
       case type::Struct:
       {
-        StructTypeDescr& structDescr = descr->as<StructTypeDescr>();
         size_t index;
-        if (structDescr.fieldIndex(id, &index)) {
-            MarkNonNativePropertyFound<CanGC>(propp);
-            objp.set(obj);
-            return true;
-        }
-        break;
+        return as<StructTypeDescr>().fieldIndex(id, &index);
       }
+    }
+
+    MOZ_CRASH("Unexpected kind");
+}
+
+/* static */ bool
+TypedObject::obj_lookupProperty(JSContext* cx, HandleObject obj, HandleId id,
+                                MutableHandleObject objp, MutableHandleShape propp)
+{
+    if (obj->as<TypedObject>().typeDescr().hasProperty(cx->names(), id)) {
+        MarkNonNativePropertyFound<CanGC>(propp);
+        objp.set(obj);
+        return true;
     }
 
     RootedObject proto(cx, obj->getProto());
@@ -1717,16 +1712,6 @@ TypedObject::obj_lookupProperty(JSContext* cx, HandleObject obj, HandleId id,
     }
 
     return LookupProperty(cx, proto, id, objp, propp);
-}
-
-bool
-TypedObject::obj_lookupElement(JSContext* cx, HandleObject obj, uint32_t index,
-                               MutableHandleObject objp, MutableHandleShape propp)
-{
-    MOZ_ASSERT(obj->is<TypedObject>());
-    MarkNonNativePropertyFound<CanGC>(propp);
-    objp.set(obj);
-    return true;
 }
 
 static bool
@@ -2952,15 +2937,14 @@ MemoryTracingVisitor::visitReference(ReferenceTypeDescr& descr, uint8_t* mem)
     switch (descr.type()) {
       case ReferenceTypeDescr::TYPE_ANY:
       {
-        js::HeapValue* heapValue = reinterpret_cast<js::HeapValue*>(mem);
-        gc::MarkValue(trace_, heapValue, "reference-val");
+        HeapValue* heapValue = reinterpret_cast<js::HeapValue*>(mem);
+        TraceEdge(trace_, heapValue, "reference-val");
         return;
       }
 
       case ReferenceTypeDescr::TYPE_OBJECT:
       {
-        js::HeapPtrObject* objectPtr =
-            reinterpret_cast<js::HeapPtrObject*>(mem);
+        HeapPtrObject* objectPtr = reinterpret_cast<js::HeapPtrObject*>(mem);
         if (*objectPtr)
             gc::MarkObject(trace_, objectPtr, "reference-obj");
         return;
@@ -2968,8 +2952,7 @@ MemoryTracingVisitor::visitReference(ReferenceTypeDescr& descr, uint8_t* mem)
 
       case ReferenceTypeDescr::TYPE_STRING:
       {
-        js::HeapPtrString* stringPtr =
-            reinterpret_cast<js::HeapPtrString*>(mem);
+        HeapPtrString* stringPtr = reinterpret_cast<js::HeapPtrString*>(mem);
         if (*stringPtr)
             gc::MarkString(trace_, stringPtr, "reference-str");
         return;

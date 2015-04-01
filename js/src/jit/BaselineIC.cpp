@@ -336,7 +336,7 @@ ICStub::trace(JSTracer* trc)
         break;
       case ICStub::GetIntrinsic_Constant: {
         ICGetIntrinsic_Constant* constantStub = toGetIntrinsic_Constant();
-        gc::MarkValue(trc, &constantStub->value(), "baseline-getintrinsic-constant-value");
+        TraceEdge(trc, &constantStub->value(), "baseline-getintrinsic-constant-value");
         break;
       }
       case ICStub::GetProp_Primitive: {
@@ -3295,8 +3295,6 @@ EffectlesslyLookupProperty(JSContext* cx, HandleObject obj, HandlePropertyName n
         checkObj = GetDOMProxyProto(obj);
         if (!checkObj)
             return true;
-    } else if (!obj->isNative() && !obj->is<UnboxedPlainObject>()) {
-        return true;
     }
 
     if (LookupPropertyPure(cx, checkObj, NameToId(name), holder.address(), shape.address()))
@@ -3323,13 +3321,17 @@ CheckHasNoSuchProperty(JSContext* cx, HandleObject obj, HandlePropertyName name,
 
             if (curObj->as<NativeObject>().contains(cx, NameToId(name)))
                 return false;
+        } else if (curObj != obj) {
+            // Non-native objects are only handled as the original receiver.
+            return false;
+        } else if (curObj->is<UnboxedPlainObject>()) {
+            if (curObj->as<UnboxedPlainObject>().containsUnboxedOrExpandoProperty(cx, NameToId(name)))
+                return false;
+        } else if (curObj->is<TypedObject>()) {
+            if (curObj->as<TypedObject>().typeDescr().hasProperty(cx->names(), NameToId(name)))
+                return false;
         } else {
-            // Handle unboxed plain objects as the original receiver.
-            if (!curObj->is<UnboxedPlainObject>() || curObj != obj)
-                return false;
-
-            if (curObj->as<UnboxedPlainObject>().layout().lookup(name))
-                return false;
+            return false;
         }
 
         JSObject* proto = curObj->getTaggedProto().toObjectOrNull();
@@ -3351,7 +3353,7 @@ IsCacheableProtoChain(JSObject* obj, JSObject* holder, bool isDOMProxy=false)
     MOZ_ASSERT_IF(isDOMProxy, IsCacheableDOMProxy(obj));
 
     if (!isDOMProxy && !obj->isNative()) {
-        if (!obj->is<UnboxedPlainObject>() || obj == holder)
+        if (obj == holder || !obj->is<UnboxedPlainObject>() || !obj->is<TypedObject>())
             return false;
     }
 
@@ -6599,7 +6601,7 @@ TryAttachNativeGetPropStub(JSContext* cx, HandleScript script, jsbytecode* pc,
     }
 
     const Class* outerClass = nullptr;
-    if (!isDOMProxy && !obj->isNative() && !obj->is<UnboxedPlainObject>()) {
+    if (!isDOMProxy && !obj->isNative()) {
         outerClass = obj->getClass();
         DebugOnly<JSObject*> outer = obj.get();
         obj = GetInnerObject(obj);
@@ -7214,9 +7216,9 @@ ICGetPropNativeCompiler::getStub(ICStubSpace* space)
 }
 
 static void
-GuardNativeOrUnboxedReceiver(MacroAssembler& masm, ReceiverGuard::StackGuard guard,
-                             Register object, Register scratch,
-                             size_t receiverGuardOffset, Label* failure)
+GuardReceiverObject(MacroAssembler& masm, ReceiverGuard::StackGuard guard,
+                    Register object, Register scratch,
+                    size_t receiverGuardOffset, Label* failure)
 {
     Address groupAddress(BaselineStubReg, receiverGuardOffset + ReceiverGuard::offsetOfGroup());
     Address shapeAddress(BaselineStubReg, receiverGuardOffset + ReceiverGuard::offsetOfShape());
@@ -7271,8 +7273,8 @@ ICGetPropNativeCompiler::generateStubCode(MacroAssembler& masm)
     Register scratch = regs.takeAnyExcluding(BaselineTailCallReg);
 
     // Shape/group guard.
-    GuardNativeOrUnboxedReceiver(masm, ReceiverGuard::StackGuard(obj_), objReg, scratch,
-                                 ICGetPropNativeStub::offsetOfReceiverGuard(), &failure);
+    GuardReceiverObject(masm, ReceiverGuard::StackGuard(obj_), objReg, scratch,
+                        ICGetPropNativeStub::offsetOfReceiverGuard(), &failure);
 
     Register holderReg;
     if (obj_ == holder_) {
@@ -7419,8 +7421,8 @@ ICGetPropNativeDoesNotExistCompiler::generateStubCode(MacroAssembler& masm)
 
     // Unbox and guard against old shape/group.
     Register objReg = masm.extractObject(R0, ExtractTemp0);
-    GuardNativeOrUnboxedReceiver(masm, ReceiverGuard::StackGuard(obj_), objReg, scratch,
-                                 ICGetProp_NativeDoesNotExist::offsetOfGuard(), &failure);
+    GuardReceiverObject(masm, ReceiverGuard::StackGuard(obj_), objReg, scratch,
+                        ICGetProp_NativeDoesNotExist::offsetOfGuard(), &failure);
 
     Register protoReg = regs.takeAny();
     // Check the proto chain.
@@ -7458,8 +7460,8 @@ ICGetProp_CallScripted::Compiler::generateStubCode(MacroAssembler& masm)
 
     // Unbox and shape guard.
     Register objReg = masm.extractObject(R0, ExtractTemp0);
-    GuardNativeOrUnboxedReceiver(masm, ReceiverGuard::StackGuard(receiver_), objReg, scratch,
-                                 ICGetProp_CallScripted::offsetOfReceiverGuard(), &failure);
+    GuardReceiverObject(masm, ReceiverGuard::StackGuard(receiver_), objReg, scratch,
+                        ICGetProp_CallScripted::offsetOfReceiverGuard(), &failure);
 
     if (receiver_ != holder_) {
         Register holderReg = regs.takeAny();
@@ -7566,8 +7568,8 @@ ICGetProp_CallNative::Compiler::generateStubCode(MacroAssembler& masm)
     Register scratch = regs.takeAnyExcluding(BaselineTailCallReg);
 
     // Shape guard.
-    GuardNativeOrUnboxedReceiver(masm, ReceiverGuard::StackGuard(receiver_), objReg, scratch,
-                                 ICGetProp_CallNative::offsetOfReceiverGuard(), &failure);
+    GuardReceiverObject(masm, ReceiverGuard::StackGuard(receiver_), objReg, scratch,
+                        ICGetProp_CallNative::offsetOfReceiverGuard(), &failure);
 
     if (receiver_ != holder_ ) {
         Register holderReg = regs.takeAny();
@@ -8895,8 +8897,8 @@ ICSetProp_CallScripted::Compiler::generateStubCode(MacroAssembler& masm)
 
     // Unbox and shape guard.
     Register objReg = masm.extractObject(R0, ExtractTemp0);
-    GuardNativeOrUnboxedReceiver(masm, ReceiverGuard::StackGuard(obj_), objReg, scratch,
-                                 ICSetProp_CallScripted::offsetOfGuard(), &failureUnstow);
+    GuardReceiverObject(masm, ReceiverGuard::StackGuard(obj_), objReg, scratch,
+                        ICSetProp_CallScripted::offsetOfGuard(), &failureUnstow);
 
     Register holderReg = regs.takeAny();
     masm.loadPtr(Address(BaselineStubReg, ICSetProp_CallScripted::offsetOfHolder()), holderReg);
@@ -9014,8 +9016,8 @@ ICSetProp_CallNative::Compiler::generateStubCode(MacroAssembler& masm)
 
     // Unbox and shape guard.
     Register objReg = masm.extractObject(R0, ExtractTemp0);
-    GuardNativeOrUnboxedReceiver(masm, ReceiverGuard::StackGuard(obj_), objReg, scratch,
-                                 ICSetProp_CallNative::offsetOfGuard(), &failureUnstow);
+    GuardReceiverObject(masm, ReceiverGuard::StackGuard(obj_), objReg, scratch,
+                        ICSetProp_CallNative::offsetOfGuard(), &failureUnstow);
 
     Register holderReg = regs.takeAny();
     masm.loadPtr(Address(BaselineStubReg, ICSetProp_CallNative::offsetOfHolder()), holderReg);

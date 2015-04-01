@@ -26,6 +26,7 @@ class BailoutStack
     RegisterDump::GPRArray regs_;
     uintptr_t snapshotOffset_;
     uintptr_t padding_;
+
   public:
     MachineState machineState() {
         return MachineState::FromBailout(regs_, fpregs_);
@@ -61,12 +62,6 @@ BailoutFrameInfo::BailoutFrameInfo(const JitActivationIterator &activations,
     topFrameSize_ = framePointer_ - sp;
 
     JSScript *script = ScriptFromCalleeToken(((JitFrameLayout *) framePointer_)->calleeToken());
-    JitActivation *activation = activations.activation()->asJit();
-#if 0
-    if (activation->cx()->isForkJoinContext())
-        topIonScript_ = script->parallelIonScript();
-    else
-#endif
     topIonScript_ = script->ionScript();
 
     attachOnJitActivation(activations);
