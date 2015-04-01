@@ -272,7 +272,7 @@ class FloatRegisters
 
     // FIXME: Validate
     // d31 is the ScratchFloatReg.
-    static const uint32_t NonVolatileMask =
+    static const SetType NonVolatileMask =
         SetType((1 << FloatRegisters::d8) | (1 << FloatRegisters::d9) |
                 (1 << FloatRegisters::d10) | (1 << FloatRegisters::d11) |
                 (1 << FloatRegisters::d12) | (1 << FloatRegisters::d13) |
