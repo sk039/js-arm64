@@ -44,7 +44,6 @@ arm-*linux*-android*|*-linuxandroid*)
     ;;
 aarch64-linux*-android*)
     android_tool_prefix="aarch64-linux-android"
-    echo "FOUND AARCH54"
     ;;
 i?86-*android*)
     android_tool_prefix="i686-linux-android"
@@ -56,7 +55,7 @@ mipsel-*android*)
     android_tool_prefix="$target_os"
     ;;
 esac
-echo "android_tool_prefix=$android_tool_prefix"
+
 case "$target" in
 *-android*|*-linuxandroid*)
     if test -z "$android_ndk" ; then
