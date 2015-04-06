@@ -1332,8 +1332,10 @@ pref("network.http.spdy.default-concurrent", 100);
 
 // alt-svc allows separation of transport routing from
 // the origin host without using a proxy.
-pref("network.http.altsvc.enabled", true);
-pref("network.http.altsvc.oe", true);
+pref("network.http.atsvc.enabled", false);
+pref("network.http.atsvc.oe", false);
+pref("network.http.altsvc.enabled", false);
+pref("network.http.altsvc.oe", false);
 
 pref("network.http.diagnostics", false);
 
@@ -1681,6 +1683,14 @@ pref("network.auth.force-generic-ntlm", false);
 pref("network.automatic-ntlm-auth.allow-proxies", true);
 pref("network.automatic-ntlm-auth.allow-non-fqdn", false);
 pref("network.automatic-ntlm-auth.trusted-uris", "");
+
+// Sub-resources HTTP-authentication:
+//   0 - don't allow sub-resources to open HTTP authentication credentials
+//       dialogs
+//   1 - allow sub-resources to open HTTP authentication credentials dialogs,
+//       but don't allow it for cross-origin sub-resources
+//   2 - allow the cross-origin authentication as well.
+pref("network.auth.allow-subresource-auth", 1);
 
 pref("permissions.default.image",           1); // 1-Accept, 2-Deny, 3-dontAcceptForeign
 
@@ -4644,12 +4654,12 @@ pref("media.gmp.insecure.allow", false);
 #if defined(XP_MACOSX) || defined(XP_WIN)
 pref("gfx.vsync.hw-vsync.enabled", true);
 pref("gfx.vsync.compositor", true);
+pref("gfx.vsync.refreshdriver", true);
 #endif
 
-#if defined(XP_MACOSX)
-pref("gfx.vsync.refreshdriver", true);
-#else
-pref("gfx.vsync.refreshdriver", false);
+#if defined(XP_LINUX)
+pref("gfx.vsync.hw-vsync.enabled", true);
+pref("gfx.vsync.compositor", true);
 #endif
 
 // Secure Element API
