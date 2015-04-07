@@ -1103,6 +1103,9 @@ class AssemblerX86Shared : public AssemblerShared
           case Operand::MEM_ADDRESS32:
             masm.addl_im(imm.value, op.address());
             break;
+          case Operand::MEM_SCALE:
+            masm.addl_im(imm.value, op.disp(), op.base(), op.index(), op.scale());
+            break;
           default:
             MOZ_CRASH("unexpected operand kind");
         }
@@ -1117,6 +1120,9 @@ class AssemblerX86Shared : public AssemblerShared
             break;
           case Operand::MEM_REG_DISP:
             masm.subl_im(imm.value, op.disp(), op.base());
+            break;
+          case Operand::MEM_SCALE:
+            masm.subl_im(imm.value, op.disp(), op.base(), op.index(), op.scale());
             break;
           default:
             MOZ_CRASH("unexpected operand kind");
@@ -1199,6 +1205,9 @@ class AssemblerX86Shared : public AssemblerShared
           case Operand::MEM_REG_DISP:
             masm.orl_im(imm.value, op.disp(), op.base());
             break;
+          case Operand::MEM_SCALE:
+            masm.orl_im(imm.value, op.disp(), op.base(), op.index(), op.scale());
+            break;
           default:
             MOZ_CRASH("unexpected operand kind");
         }
@@ -1232,6 +1241,9 @@ class AssemblerX86Shared : public AssemblerShared
           case Operand::MEM_REG_DISP:
             masm.xorl_im(imm.value, op.disp(), op.base());
             break;
+          case Operand::MEM_SCALE:
+            masm.xorl_im(imm.value, op.disp(), op.base(), op.index(), op.scale());
+            break;
           default:
             MOZ_CRASH("unexpected operand kind");
         }
@@ -1264,6 +1276,9 @@ class AssemblerX86Shared : public AssemblerShared
             break;
           case Operand::MEM_REG_DISP:
             masm.andl_im(imm.value, op.disp(), op.base());
+            break;
+          case Operand::MEM_SCALE:
+            masm.andl_im(imm.value, op.disp(), op.base(), op.index(), op.scale());
             break;
           default:
             MOZ_CRASH("unexpected operand kind");
