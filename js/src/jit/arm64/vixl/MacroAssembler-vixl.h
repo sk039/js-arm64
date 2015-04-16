@@ -981,7 +981,7 @@ class MacroAssemblerVIXL : public Assembler
     const ARMRegister& GetStackPointer64() const {
         return sp_;
     }
-    const Register GetStackPointer() const {
+    const Register getStackPointer() const {
         int code = sp_.code();
         if (code == kSPRegInternalCode) {
             code = 31;

@@ -117,6 +117,14 @@ public:
 
 StaticRefPtr<MediaMemoryTracker> MediaMemoryTracker::sUniqueInstance;
 
+void
+MediaDecoder::InitStatics()
+{
+  AbstractThread::InitStatics();
+
+  MediaTaskQueue::InitStatics();
+}
+
 NS_IMPL_ISUPPORTS(MediaMemoryTracker, nsIMemoryReporter)
 
 NS_IMPL_ISUPPORTS(MediaDecoder, nsIObserver)
@@ -612,7 +620,6 @@ MediaDecoder::MediaDecoder() :
   MOZ_COUNT_CTOR(MediaDecoder);
   MOZ_ASSERT(NS_IsMainThread());
   MediaMemoryTracker::AddMediaDecoder(this);
-  AbstractThread::EnsureMainThreadSingleton();
 #ifdef PR_LOGGING
   if (!gMediaDecoderLog) {
     gMediaDecoderLog = PR_NewLogModule("MediaDecoder");
@@ -1216,9 +1223,10 @@ void MediaDecoder::UpdateReadyStateForData()
   mOwner->UpdateReadyStateForData(frameStatus);
 }
 
-void MediaDecoder::OnSeekResolvedInternal(bool aAtEnd, MediaDecoderEventVisibility aEventVisibility)
+void MediaDecoder::OnSeekResolved(SeekResolveValue aVal)
 {
   MOZ_ASSERT(NS_IsMainThread());
+  mSeekRequest.Complete();
 
   if (mShuttingDown)
     return;
@@ -1235,20 +1243,20 @@ void MediaDecoder::OnSeekResolvedInternal(bool aAtEnd, MediaDecoderEventVisibili
       seekWasAborted = true;
     } else {
       UnpinForSeek();
-      fireEnded = aAtEnd;
-      if (aAtEnd) {
+      fireEnded = aVal.mAtEnd;
+      if (aVal.mAtEnd) {
         ChangeState(PLAY_STATE_ENDED);
-      } else if (aEventVisibility != MediaDecoderEventVisibility::Suppressed) {
-        ChangeState(aAtEnd ? PLAY_STATE_ENDED : mNextState);
+      } else if (aVal.mEventVisibility != MediaDecoderEventVisibility::Suppressed) {
+        ChangeState(aVal.mAtEnd ? PLAY_STATE_ENDED : mNextState);
       }
     }
   }
 
-  PlaybackPositionChanged(aEventVisibility);
+  PlaybackPositionChanged(aVal.mEventVisibility);
 
   if (mOwner) {
     UpdateReadyStateForData();
-    if (!seekWasAborted && (aEventVisibility != MediaDecoderEventVisibility::Suppressed)) {
+    if (!seekWasAborted && (aVal.mEventVisibility != MediaDecoderEventVisibility::Suppressed)) {
       mOwner->SeekCompleted();
       if (fireEnded) {
         mOwner->PlaybackEnded();
@@ -1539,7 +1547,7 @@ void MediaDecoder::SetLoadInBackground(bool aLoadInBackground)
 
 void MediaDecoder::UpdatePlaybackOffset(int64_t aOffset)
 {
-  ReentrantMonitorAutoEnter mon(GetReentrantMonitor());
+  GetReentrantMonitor().AssertCurrentThreadIn();
   mPlaybackPosition = aOffset;
 }
 
@@ -1916,7 +1924,7 @@ MediaDecoder::ConstructMediaTracks()
 
   AudioTrackList* audioList = element->AudioTracks();
   if (audioList && mInfo->HasAudio()) {
-    TrackInfo info = mInfo->mAudio.mTrackInfo;
+    const TrackInfo& info = mInfo->mAudio;
     nsRefPtr<AudioTrack> track = MediaTrackList::CreateAudioTrack(
     info.mId, info.mKind, info.mLabel, info.mLanguage, info.mEnabled);
 
@@ -1925,7 +1933,7 @@ MediaDecoder::ConstructMediaTracks()
 
   VideoTrackList* videoList = element->VideoTracks();
   if (videoList && mInfo->HasVideo()) {
-    TrackInfo info = mInfo->mVideo.mTrackInfo;
+    const TrackInfo& info = mInfo->mVideo;
     nsRefPtr<VideoTrack> track = MediaTrackList::CreateVideoTrack(
     info.mId, info.mKind, info.mLabel, info.mLanguage);
 

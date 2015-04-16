@@ -2672,8 +2672,7 @@ nsFrame::GetDataForTableSelection(const nsFrameSelection* aFrameSelection,
   if (offset < 0) return NS_ERROR_FAILURE;
 
   // Everything is OK -- set the return values
-  *aParentContent = parentContent;
-  NS_ADDREF(*aParentContent);
+  parentContent.forget(aParentContent);
 
   *aContentOffset = offset;
 
@@ -3328,10 +3327,7 @@ NS_IMETHODIMP nsFrame::HandleRelease(nsPresContext* aPresContext,
       // If not, the user must have clicked in a part of the selection.
       // Place the caret before continuing!
 
-      bool mouseDown = frameselection->GetDragState();
-
-      if (!mouseDown && frameselection->HasDelayedCaretData() &&
-          frameselection->GetClickCountInDelayedCaretData() < 2) {
+      if (frameselection->MouseDownRecorded()) {
         nsPoint pt = nsLayoutUtils::GetEventCoordinatesRelativeTo(aEvent, this);
         offsets = GetContentOffsetsFromPoint(pt, SKIP_HIDDEN);
         handleTableSelection = false;
@@ -8855,22 +8851,6 @@ nsIFrame::GetPseudoElement(nsCSSPseudoElements::Type aType)
   }
   
   return nullptr;
-}
-
-nsIFrame::ContentOffsets::ContentOffsets()
-{
-}
-
-nsIFrame::ContentOffsets::ContentOffsets(const ContentOffsets& rhs)
-  : content(rhs.content),
-    offset(rhs.offset),
-    secondaryOffset(rhs.secondaryOffset),
-    associate(rhs.associate)
-{
-}
-
-nsIFrame::ContentOffsets::~ContentOffsets()
-{
 }
 
 nsIFrame::CaretPosition::CaretPosition()

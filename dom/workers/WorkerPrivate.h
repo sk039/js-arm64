@@ -311,7 +311,7 @@ public:
   }
 
   bool
-  Close(JSContext* aCx);
+  Close();
 
   bool
   ModifyBusyCount(JSContext* aCx, bool aIncrease);
@@ -581,12 +581,7 @@ public:
     return mLoadInfo.mChannel.forget();
   }
 
-  nsIDocument*
-  GetDocument() const
-  {
-    AssertIsOnMainThread();
-    return mLoadInfo.mWindow ? mLoadInfo.mWindow->GetExtantDoc() : nullptr;
-  }
+  nsIDocument* GetDocument() const;
 
   nsPIDOMWindow*
   GetWindow()
@@ -1216,6 +1211,9 @@ public:
   }
 
   void
+  ClearMainEventQueue(WorkerRanOrNot aRanOrNot);
+
+  void
   OnProcessNextEvent(uint32_t aRecursionDepth);
 
   void
@@ -1256,9 +1254,6 @@ private:
                 const nsAString& aScriptURL, bool aIsChromeWorker,
                 WorkerType aWorkerType, const nsACString& aSharedWorkerName,
                 WorkerLoadInfo& aLoadInfo);
-
-  void
-  ClearMainEventQueue(WorkerRanOrNot aRanOrNot);
 
   bool
   MayContinueRunning()

@@ -338,11 +338,10 @@ BaselineCompiler::emitPrologue()
     emitProfilerEnterFrame();
 
     masm.push(BaselineFrameReg);
-    masm.movePtr(BaselineStackReg, BaselineFrameReg);
+    masm.moveStackPtrTo(BaselineFrameReg);
 
     // TODO: subStackPtr()?
-    masm.subPtr(Imm32(BaselineFrame::Size()), BaselineStackReg);
-    masm.syncStackPtr();
+    masm.subFromStackPtr(Imm32(BaselineFrame::Size()));
 
     // Initialize BaselineFrame. For eval scripts, the scope chain
     // is passed in R1, so we have to be careful not to clobber
@@ -448,7 +447,7 @@ BaselineCompiler::emitEpilogue()
         return false;
 #endif
 
-    masm.movePtr(BaselineFrameReg, BaselineStackReg);
+    masm.moveToStackPtr(BaselineFrameReg);
     masm.pop(BaselineFrameReg);
 
     emitProfilerExitFrame();
@@ -522,7 +521,7 @@ BaselineCompiler::emitStackCheck(bool earlyCheck)
     uint32_t slotsSize = script->nslots() * sizeof(Value);
     uint32_t tolerance = earlyCheck ? slotsSize : 0;
 
-    masm.movePtr(BaselineStackReg, R1.scratchReg());
+    masm.moveStackPtrTo(R1.scratchReg());
 
     // If this is the early stack check, locals haven't been pushed yet.  Adjust the
     // stack pointer to account for the locals that would be pushed before performing
@@ -1720,7 +1719,7 @@ BaselineCompiler::emit_JSOP_CASE()
     masm.branch32(Assembler::Equal, payload, Imm32(0), &done);
     {
         // Pop the switch value if the case matches.
-        masm.addPtr(Imm32(sizeof(Value)), BaselineStackReg);
+        masm.addToStackPtr(Imm32(sizeof(Value)));
         masm.jump(labelOf(target));
     }
     masm.bind(&done);
@@ -3491,23 +3490,11 @@ BaselineCompiler::emit_JSOP_YIELD()
 
     MOZ_ASSERT(frame.stackDepth() >= 1);
 
-    if (frame.stackDepth() == 1) {
-        // If the expression stack is empty, we can inline the YIELD. For legacy
-        // generators we normally check if we're in the closing state and throw
-        // an exception, but we don't have to do anything here as the expression
-        // stack is never empty in finally blocks. In debug builds, we assert
-        // we're not in the closing state.
-#ifdef DEBUG
-        if (script->isLegacyGenerator()) {
-            Label ok;
-            masm.unboxInt32(Address(genObj, GeneratorObject::offsetOfYieldIndexSlot()),
-                            R0.scratchReg());
-            masm.branch32(Assembler::NotEqual, R0.scratchReg(),
-                          Imm32(GeneratorObject::YIELD_INDEX_CLOSING), &ok);
-            masm.assumeUnreachable("Inline yield with closing generator");
-            masm.bind(&ok);
-        }
-#endif
+    if (frame.stackDepth() == 1 && !script->isLegacyGenerator()) {
+        // If the expression stack is empty, we can inline the YIELD. Don't do
+        // this for legacy generators: we have to throw an exception if the
+        // generator is in the closing state, see GeneratorObject::suspend.
+
         masm.storeValue(Int32Value(GET_UINT24(pc)),
                         Address(genObj, GeneratorObject::offsetOfYieldIndexSlot()));
 
@@ -3636,7 +3623,7 @@ BaselineCompiler::emit_JSOP_RESUME()
     // Update BaselineFrame frameSize field and create the frame descriptor.
     masm.computeEffectiveAddress(Address(BaselineFrameReg, BaselineFrame::FramePointerOffset),
                                  scratch2);
-    masm.subPtr(BaselineStackReg, scratch2);
+    masm.subStackPtrFrom(scratch2);
     masm.store32(scratch2, Address(BaselineFrameReg, BaselineFrame::reverseOffsetOfFrameSize()));
     masm.makeFrameDescriptor(scratch2, JitFrame_BaselineJS);
 
@@ -3677,9 +3664,8 @@ BaselineCompiler::emit_JSOP_RESUME()
 
     // Construct BaselineFrame.
     masm.push(BaselineFrameReg);
-    masm.movePtr(BaselineStackReg, BaselineFrameReg);
-    masm.subPtr(Imm32(BaselineFrame::Size()), BaselineStackReg);
-    masm.syncStackPtr();
+    masm.moveStackPtrTo(BaselineFrameReg);
+    masm.subFromStackPtr(Imm32(BaselineFrame::Size()));
     masm.checkStackAlignment();
 
     // Store flags and scope chain.
@@ -3746,7 +3732,7 @@ BaselineCompiler::emit_JSOP_RESUME()
         masm.computeEffectiveAddress(Address(BaselineFrameReg, BaselineFrame::FramePointerOffset),
                                      scratch2);
         masm.movePtr(scratch2, scratch1);
-        masm.subPtr(BaselineStackReg, scratch2);
+        masm.subStackPtrFrom(scratch2);
         masm.store32(scratch2, Address(BaselineFrameReg, BaselineFrame::reverseOffsetOfFrameSize()));
         masm.loadBaselineFramePtr(BaselineFrameReg, scratch2);
 
@@ -3761,7 +3747,7 @@ BaselineCompiler::emit_JSOP_RESUME()
             return false;
 
         // Create the frame descriptor.
-        masm.subPtr(BaselineStackReg, scratch1);
+        masm.subStackPtrFrom(scratch1);
         masm.makeFrameDescriptor(scratch1, JitFrame_BaselineJS);
 
         // Push the frame descriptor and a dummy return address (it doesn't
@@ -3800,6 +3786,7 @@ BaselineCompiler::emit_JSOP_RESUME()
     // return value and we're done.
     masm.bind(&returnTarget);
     masm.computeEffectiveAddress(frame.addressOfStackValue(frame.peek(-1)), BaselineStackReg);
+    masm.syncStackPtr();
     frame.popn(2);
     frame.push(R0);
     return true;

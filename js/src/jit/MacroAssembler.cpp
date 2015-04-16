@@ -798,8 +798,16 @@ void
 MacroAssembler::loadUnboxedProperty(T address, JSValueType type, TypedOrValueRegister output)
 {
     switch (type) {
+      case JSVAL_TYPE_INT32: {
+          // Handle loading an int32 into a double reg.
+          if (output.type() == MIRType_Double) {
+              convertInt32ToDouble(address, output.typedReg().fpu());
+              break;
+          }
+          // Fallthrough.
+      }
+
       case JSVAL_TYPE_BOOLEAN:
-      case JSVAL_TYPE_INT32:
       case JSVAL_TYPE_STRING: {
         Register outReg;
         if (output.hasValue()) {
@@ -1556,12 +1564,7 @@ void
 MacroAssembler::linkExitFrame()
 {
     AbsoluteAddress jitTop(GetJitContext()->runtime->addressOfJitTop());
-#ifdef JS_CODEGEN_ARM64
-    MOZ_ASSERT(GetStackPointer64().Is(x28));
-    storePtr(r28, jitTop);
-#else
-    storePtr(StackPointer, jitTop);
-#endif
+    storeStackPtr(jitTop);
 }
 
 static void
@@ -1607,6 +1610,7 @@ MacroAssembler::generateBailoutTail(Register scratch, Register bailoutInfo)
         // Reset SP to the point where clobbering starts.
         loadPtr(Address(bailoutInfo, offsetof(BaselineBailoutInfo, incomingStack)),
                 BaselineStackReg);
+        syncStackPtr();
 
         Register copyCur = regs.takeAny();
         Register copyEnd = regs.takeAny();
@@ -1621,8 +1625,7 @@ MacroAssembler::generateBailoutTail(Register scratch, Register bailoutInfo)
             bind(&copyLoop);
             branchPtr(Assembler::BelowOrEqual, copyCur, copyEnd, &endOfCopy);
             subPtr(Imm32(4), copyCur);
-            subPtr(Imm32(4), BaselineStackReg);
-            syncStackPtr(); // TODO: Better to just disallow this behavior..
+            subFromStackPtr(Imm32(4));
             load32(Address(copyCur, 0), temp);
             store32(temp, Address(BaselineStackReg, 0));
             jump(&copyLoop);
@@ -1675,7 +1678,7 @@ MacroAssembler::generateBailoutTail(Register scratch, Register bailoutInfo)
             popValue(R0);
 
             // Discard exit frame.
-            addPtr(Imm32(ExitFrameLayout::SizeWithFooter()), GetStackPointer());
+            addToStackPtr(Imm32(ExitFrameLayout::SizeWithFooter()));
 
 #if defined(JS_CODEGEN_X86) || defined(JS_CODEGEN_X64)
             push(BaselineTailCallReg);
@@ -1716,7 +1719,7 @@ MacroAssembler::generateBailoutTail(Register scratch, Register bailoutInfo)
             popValue(R0);
 
             // Discard exit frame.
-            addPtr(Imm32(ExitFrameLayout::SizeWithFooter()), GetStackPointer());
+            addToStackPtr(Imm32(ExitFrameLayout::SizeWithFooter()));
 
             jump(jitcodeReg);
         }
@@ -2515,15 +2518,15 @@ MacroAssembler::alignJitStackBasedOnNArgs(Register nargs)
 #endif
     assertStackAlignment(sizeof(Value), 0);
     branchTestPtr(Assembler::NonZero, nargs, Imm32(1), &odd);
-    branchTestPtr(Assembler::NonZero, GetStackPointer(), Imm32(JitStackAlignment - 1), maybeAssert);
-    subPtr(Imm32(sizeof(Value)), GetStackPointer());
+    branchTestStackPtr(Assembler::NonZero, Imm32(JitStackAlignment - 1), maybeAssert);
+    subFromStackPtr(Imm32(sizeof(Value)));
 #ifdef DEBUG
     bind(&assert);
 #endif
     assertStackAlignment(JitStackAlignment, sizeof(Value));
     jump(&end);
     bind(&odd);
-    andPtr(Imm32(~(JitStackAlignment - 1)), GetStackPointer());
+    andToStackPtr(Imm32(~(JitStackAlignment - 1)));
     bind(&end);
 }
 
@@ -2551,12 +2554,12 @@ MacroAssembler::alignJitStackBasedOnNArgs(uint32_t nargs)
     assertStackAlignment(sizeof(Value), 0);
     if (nargs % 2 == 0) {
         Label end;
-        branchTestPtr(Assembler::NonZero, GetStackPointer(), Imm32(JitStackAlignment - 1), &end);
-        subPtr(Imm32(sizeof(Value)), GetStackPointer());
+        branchTestStackPtr(Assembler::NonZero, Imm32(JitStackAlignment - 1), &end);
+        subFromStackPtr(Imm32(sizeof(Value)));
         bind(&end);
         assertStackAlignment(JitStackAlignment, sizeof(Value));
     } else {
-        andPtr(Imm32(~(JitStackAlignment - 1)), GetStackPointer());
+        andToStackPtr(Imm32(~(JitStackAlignment - 1)));
     }
 }
 

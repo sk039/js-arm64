@@ -1270,6 +1270,10 @@ class Assembler : public AssemblerShared
     void setPrinter(Sprinter* sp) {
     }
 
+    static const Register getStackPointer() {
+        return StackPointer;
+    }
+
   private:
     bool isFinished;
   public:
@@ -1814,9 +1818,6 @@ class Assembler : public AssemblerShared
 
     bool bailed() {
         return m_buffer.bail();
-    }
-    Register GetStackPointer() const {
-        return sp;
     }
     void verifyHeapAccessDisassembly(uint32_t begin, uint32_t end,
                                      const Disassembler::HeapAccess& heapAccess)

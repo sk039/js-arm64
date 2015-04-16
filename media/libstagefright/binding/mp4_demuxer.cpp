@@ -141,10 +141,10 @@ MP4Demuxer::Init()
   UpdateCrypto(metaData.get());
 
   int64_t movieDuration;
-  if (!mVideoConfig.duration && !mAudioConfig.duration &&
+  if (!mVideoConfig.mDuration && !mAudioConfig.mDuration &&
       metaData->findInt64(kKeyMovieDuration, &movieDuration)) {
     // No duration were found in either tracks, use movie extend header box one.
-    mVideoConfig.duration = mAudioConfig.duration = movieDuration;
+    mVideoConfig.mDuration = mAudioConfig.mDuration = movieDuration;
   }
   mPrivate->mCanSeek = e->flags() & MediaExtractor::CAN_SEEK;
 
@@ -184,7 +184,7 @@ Microseconds
 MP4Demuxer::Duration()
 {
   mMonitor->AssertCurrentThreadOwns();
-  return std::max(mVideoConfig.duration, mAudioConfig.duration);
+  return std::max(mVideoConfig.mDuration, mAudioConfig.mDuration);
 }
 
 bool
@@ -212,39 +212,41 @@ MP4Demuxer::SeekVideo(Microseconds aTime)
   }
 }
 
-MP4Sample*
+already_AddRefed<mozilla::MediaRawData>
 MP4Demuxer::DemuxAudioSample()
 {
   mMonitor->AssertCurrentThreadOwns();
   if (!mPrivate->mAudioIterator) {
     return nullptr;
   }
-  nsAutoPtr<MP4Sample> sample(mPrivate->mAudioIterator->GetNext());
+  nsRefPtr<mozilla::MediaRawData> sample(mPrivate->mAudioIterator->GetNext());
   if (sample) {
-    if (sample->crypto.valid) {
-      sample->crypto.mode = mAudioConfig.crypto.mode;
-      sample->crypto.iv_size = mAudioConfig.crypto.iv_size;
-      sample->crypto.key.AppendElements(mAudioConfig.crypto.key);
+    if (sample->mCrypto.mValid) {
+      nsAutoPtr<MediaRawDataWriter> writer(sample->CreateWriter());
+      writer->mCrypto.mMode = mAudioConfig.mCrypto.mMode;
+      writer->mCrypto.mIVSize = mAudioConfig.mCrypto.mIVSize;
+      writer->mCrypto.mKeyId.AppendElements(mAudioConfig.mCrypto.mKeyId);
     }
   }
   return sample.forget();
 }
 
-MP4Sample*
+already_AddRefed<MediaRawData>
 MP4Demuxer::DemuxVideoSample()
 {
   mMonitor->AssertCurrentThreadOwns();
   if (!mPrivate->mVideoIterator) {
     return nullptr;
   }
-  nsAutoPtr<MP4Sample> sample(mPrivate->mVideoIterator->GetNext());
+  nsRefPtr<mozilla::MediaRawData> sample(mPrivate->mVideoIterator->GetNext());
   if (sample) {
-    sample->extra_data = mVideoConfig.extra_data;
-    if (sample->crypto.valid) {
-      sample->crypto.mode = mVideoConfig.crypto.mode;
-      sample->crypto.key.AppendElements(mVideoConfig.crypto.key);
+    sample->mExtraData = mVideoConfig.mExtraData;
+    if (sample->mCrypto.mValid) {
+      nsAutoPtr<MediaRawDataWriter> writer(sample->CreateWriter());
+      writer->mCrypto.mMode = mVideoConfig.mCrypto.mMode;
+      writer->mCrypto.mKeyId.AppendElements(mVideoConfig.mCrypto.mKeyId);
     }
-    if (sample->composition_timestamp >= mNextKeyframeTime) {
+    if (sample->mTime >= mNextKeyframeTime) {
       mNextKeyframeTime = mPrivate->mVideoIterator->GetNextKeyframeTime();
     }
   }

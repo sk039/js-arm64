@@ -495,6 +495,10 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
         load32(src, ScratchReg2);
         convertInt32ToDouble(ScratchReg2, dest);
     }
+    void convertInt32ToDouble(const BaseIndex &src, FloatRegister dest) {
+        load32(src, ScratchReg2);
+        convertInt32ToDouble(ScratchReg2, dest);
+    }
 
     void convertInt32ToFloat32(Register src, FloatRegister dest) {
         Scvtf(ARMFPRegister(dest, 32), ARMRegister(src, 32)); // Uses FPCR rounding mode.
@@ -902,6 +906,46 @@ class MacroAssemblerCompat : public MacroAssemblerVIXL
     void loadUnalignedFloat32x4(const BaseIndex &addr, FloatRegister dest) { MOZ_CRASH("NYI"); }
     void storeUnalignedFloat32x4(FloatRegister dest, const Address &addr) { MOZ_CRASH("NYI"); }
     void storeUnalignedFloat32x4(FloatRegister dest, const BaseIndex &addr) { MOZ_CRASH("NYI"); }
+
+    // StackPointer manipulation.
+    template <typename T>
+    void addToStackPtr(T t) { addPtr(t, getStackPointer()); }
+    template <typename T>
+    void addStackPtrTo(T t) { addPtr(getStackPointer(), t); }
+
+    template <typename T>
+    void subFromStackPtr(T t) { subPtr(t, getStackPointer()); syncStackPtr(); }
+    template <typename T>
+    void subStackPtrFrom(T t) { subPtr(getStackPointer(), t); }
+
+    template <typename T>
+    void andToStackPtr(T t) { andPtr(t, getStackPointer()); syncStackPtr(); }
+    template <typename T>
+    void andStackPtrTo(T t) { andPtr(getStackPointer(), t); }
+
+    template <typename T>
+    void moveToStackPtr(T t) { movePtr(t, getStackPointer()); syncStackPtr(); }
+    template <typename T>
+    void moveStackPtrTo(T t) { movePtr(getStackPointer(), t); }
+
+    template <typename T>
+    void loadStackPtr(T t) { loadPtr(t, getStackPointer()); syncStackPtr(); }
+    template <typename T>
+    void storeStackPtr(T t) { storePtr(getStackPointer(), t); }
+
+    // StackPointer testing functions.
+    template <typename T>
+    void branchTestStackPtr(Condition cond, T t, Label* label) {
+        branchTestPtr(cond, getStackPointer(), t, label);
+    }
+    template <typename T>
+    void branchStackPtr(Condition cond, T rhs, Label* label) {
+        branchPtr(cond, getStackPointer(), rhs, label);
+    }
+    template <typename T>
+    void branchStackPtrRhs(Condition cond, T lhs, Label* label) {
+        branchPtr(cond, lhs, getStackPointer(), label);
+    }
 
     void rshiftPtr(Imm32 imm, Register dest) {
         Lsr(ARMRegister(dest, 64), ARMRegister(dest, 64), imm.value);

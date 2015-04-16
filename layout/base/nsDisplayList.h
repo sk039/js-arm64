@@ -1962,6 +1962,8 @@ private:
 
 class nsDisplayImageContainer : public nsDisplayItem {
 public:
+  typedef mozilla::LayerIntPoint LayerIntPoint;
+  typedef mozilla::LayoutDeviceRect LayoutDeviceRect;
   typedef mozilla::layers::ImageContainer ImageContainer;
   typedef mozilla::layers::ImageLayer ImageLayer;
 
@@ -1971,7 +1973,8 @@ public:
 
   virtual already_AddRefed<ImageContainer> GetContainer(LayerManager* aManager,
                                                         nsDisplayListBuilder* aBuilder) = 0;
-  virtual void ConfigureLayer(ImageLayer* aLayer, const nsIntPoint& aOffset) = 0;
+  virtual void ConfigureLayer(ImageLayer* aLayer,
+                              const ContainerLayerParameters& aParameters) = 0;
 
   virtual bool SupportsOptimizingToImage() override { return true; }
 };
@@ -2319,7 +2322,8 @@ public:
   
   virtual already_AddRefed<ImageContainer> GetContainer(LayerManager* aManager,
                                                         nsDisplayListBuilder *aBuilder) override;
-  virtual void ConfigureLayer(ImageLayer* aLayer, const nsIntPoint& aOffset) override;
+  virtual void ConfigureLayer(ImageLayer* aLayer,
+                              const ContainerLayerParameters& aParameters) override;
 
   static nsRegion GetInsideClipRegion(nsDisplayItem* aItem, nsPresContext* aPresContext, uint8_t aClip,
                                       const nsRect& aRect, bool* aSnap);
@@ -2344,7 +2348,7 @@ protected:
   const nsStyleBackground* mBackgroundStyle;
   /* If this background can be a simple image layer, we store the format here. */
   nsRefPtr<ImageContainer> mImageContainer;
-  gfxRect mDestRect;
+  LayoutDeviceRect mDestRect;
   /* Bounds of this display item */
   nsRect mBounds;
   uint32_t mLayer;
@@ -3058,7 +3062,8 @@ public:
    */
   nsDisplayOwnLayer(nsDisplayListBuilder* aBuilder, nsIFrame* aFrame,
                     nsDisplayList* aList, uint32_t aFlags = 0,
-                    ViewID aScrollTarget = mozilla::layers::FrameMetrics::NULL_SCROLL_ID);
+                    ViewID aScrollTarget = mozilla::layers::FrameMetrics::NULL_SCROLL_ID,
+                    float aScrollbarThumbRatio = 0.0f);
 #ifdef NS_BUILD_REFCNT_LOGGING
   virtual ~nsDisplayOwnLayer();
 #endif
@@ -3085,6 +3090,7 @@ public:
 protected:
   uint32_t mFlags;
   ViewID mScrollTarget;
+  float mScrollbarThumbRatio;
 };
 
 /**

@@ -298,6 +298,9 @@ public:
     PLAY_STATE_SHUTDOWN
   };
 
+  // Must be called exactly once, on the main thread, during startup.
+  static void InitStatics();
+
   MediaDecoder();
 
   // Reset the decoder and notify the media element that
@@ -806,21 +809,7 @@ public:
   void PlaybackEnded();
 
   void OnSeekRejected() { mSeekRequest.Complete(); }
-  void OnSeekResolvedInternal(bool aAtEnd, MediaDecoderEventVisibility aEventVisibility);
-
-  void OnSeekResolved(SeekResolveValue aVal)
-  {
-    mSeekRequest.Complete();
-    OnSeekResolvedInternal(aVal.mAtEnd, aVal.mEventVisibility);
-  }
-
-#ifdef MOZ_AUDIO_OFFLOAD
-  // Temporary hack - see bug 1139206.
-  void SimulateSeekResolvedForAudioOffload(MediaDecoderEventVisibility aEventVisibility)
-  {
-    OnSeekResolvedInternal(false, aEventVisibility);
-  }
-#endif
+  void OnSeekResolved(SeekResolveValue aVal);
 
   // Seeking has started. Inform the element on the main
   // thread.

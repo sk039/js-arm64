@@ -89,12 +89,14 @@ class Registers {
         wzr = 31, xzr = 31, sp = 31, // Special: both stack pointer and a zero register.
         invalid_reg
     };
-    typedef RegisterID Code;
-    typedef RegisterID Encoding;
+    typedef uint8_t Code;
+    typedef uint32_t Encoding;
     typedef uint32_t SetType;
+
     union RegisterContent {
         uintptr_t r;
     };
+
     static uint32_t SetSize(SetType x) {
         static_assert(sizeof(SetType) == 4, "SetType must be 32 bits");
         return mozilla::CountPopulation32(x);

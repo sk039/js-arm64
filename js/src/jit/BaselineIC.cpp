@@ -1019,7 +1019,7 @@ ICWarmUpCounter_Fallback::Compiler::generateStubCode(MacroAssembler& masm)
     // Call DoWarmUpCounterFallback to compile/check-for Ion-compiled function
     {
         // Push IonOsrTempData pointer storage
-        masm.subPtr(Imm32(sizeof(void*)), BaselineStackReg);
+        masm.subFromStackPtr(Imm32(sizeof(void*)));
         masm.push(BaselineStackReg);
 
         // Push JitFrameLayout pointer.
@@ -1058,7 +1058,7 @@ ICWarmUpCounter_Fallback::Compiler::generateStubCode(MacroAssembler& masm)
     //      [...Baseline-Frame...]
 
     // Restore the stack pointer to point to the saved frame pointer.
-    masm.movePtr(BaselineFrameReg, BaselineStackReg);
+    masm.moveToStackPtr(BaselineFrameReg);
 
     // Discard saved frame pointer, so that the return address is on top of
     // the stack.
@@ -1081,7 +1081,7 @@ ICWarmUpCounter_Fallback::Compiler::generateStubCode(MacroAssembler& masm)
         // lastProfilingFrame to be null.
         masm.branchPtr(Assembler::Equal, scratchReg, ImmWord(0), &checkOk);
 
-        masm.branchPtr(Assembler::Equal, scratchReg, BaselineStackReg, &checkOk);
+        masm.branchStackPtr(Assembler::Equal, scratchReg, &checkOk);
         masm.assumeUnreachable("Baseline OSR lastProfilingFrame mismatch.");
         masm.bind(&checkOk);
     }
@@ -4483,12 +4483,12 @@ ICGetElemNativeCompiler::generateStubCode(MacroAssembler& masm)
         } else {
             masm.loadValue(valAddr, R0);
             if (popR1)
-                masm.addPtr(ImmWord(sizeof(size_t)), BaselineStackReg);
+                masm.addToStackPtr(ImmWord(sizeof(size_t)));
         }
 #else
         masm.loadValue(valAddr, R0);
         if (popR1)
-            masm.addPtr(ImmWord(sizeof(size_t)), BaselineStackReg);
+            masm.addToStackPtr(ImmWord(sizeof(size_t)));
 #endif
 
     } else {
@@ -4502,7 +4502,7 @@ ICGetElemNativeCompiler::generateStubCode(MacroAssembler& masm)
 
             // GetElem key (R1) is no longer needed.
             if (popR1)
-                masm.addPtr(ImmWord(sizeof(size_t)), BaselineStackReg);
+                masm.addToStackPtr(ImmWord(sizeof(size_t)));
 
             emitCallNative(masm, objReg);
 
@@ -4518,7 +4518,7 @@ ICGetElemNativeCompiler::generateStubCode(MacroAssembler& masm)
 
             // At this point, we are guaranteed to successfully complete.
             if (popR1)
-                masm.addPtr(Imm32(sizeof(size_t)), BaselineStackReg);
+                masm.addToStackPtr(Imm32(sizeof(size_t)));
 
             emitCallScripted(masm, objReg);
         }
@@ -5323,7 +5323,7 @@ ICSetElem_Fallback::Compiler::generateStubCode(MacroAssembler& masm)
 
     // Push index. On x86 and ARM two push instructions are emitted so use a
     // separate register to store the old stack pointer.
-    masm.movePtr(BaselineStackReg, R1.scratchReg());
+    masm.moveStackPtrTo(R1.scratchReg());
     masm.pushValue(Address(R1.scratchReg(), 2 * sizeof(Value)));
     masm.pushValue(R0); // Object.
 
@@ -7515,7 +7515,7 @@ ICGetPropNativeCompiler::generateStubCode(MacroAssembler& masm)
         masm.bind(&skipNoSuchMethod);
 
         // Pop pushed objReg.
-        masm.addPtr(Imm32(sizeof(void*)), BaselineStackReg);
+        masm.addToStackPtr(Imm32(sizeof(void*)));
         masm.bind(&afterNoSuchMethod);
     } else {
         masm.loadValue(result, R0);
@@ -9264,7 +9264,7 @@ ICSetProp_CallNative::Compiler::generateStubCode(MacroAssembler& masm)
 
     // To Push R1, read it off of the stowed values on stack.
     // Stack: [ ..., R0, R1, ..STUBFRAME-HEADER.. ]
-    masm.movePtr(BaselineStackReg, scratch);
+    masm.moveStackPtrTo(scratch);
     masm.pushValue(Address(scratch, STUB_FRAME_SIZE));
     masm.push(objReg);
     masm.push(callee);
@@ -9462,7 +9462,8 @@ GetTemplateObjectForNative(JSContext* cx, HandleScript script, jsbytecode* pc,
            ION_COMMONX4_SIMD_OP(ADD_INT32X4_SIMD_OP_NAME_)
            COMP_COMMONX4_TO_INT32X4_SIMD_OP(ADD_INT32X4_SIMD_OP_NAME_)
            COMP_COMMONX4_TO_INT32X4_SIMD_OP(ADD_FLOAT32X4_SIMD_OP_NAME_)
-           CONVERSION_INT32X4_SIMD_OP(ADD_INT32X4_SIMD_OP_NAME_))
+           CONVERSION_INT32X4_SIMD_OP(ADD_INT32X4_SIMD_OP_NAME_)
+           ION_ONLY_INT32X4_SIMD_OP(ADD_INT32X4_SIMD_OP_NAME_))
        {
             Rooted<SimdTypeDescr*> descr(cx, &cx->global()->int32x4TypeDescr().as<SimdTypeDescr>());
             res.set(cx->compartment()->jitCompartment()->getSimdTemplateObjectFor(cx, descr));
@@ -9960,7 +9961,7 @@ ICCallStubCompiler::pushCallArguments(MacroAssembler& masm, AllocatableGeneralRe
 
     // argPtr initially points to the last argument.
     Register argPtr = regs.takeAny();
-    masm.movePtr(BaselineStackReg, argPtr);
+    masm.moveStackPtrTo(argPtr);
 
     // Skip 4 pointers pushed on top of the arguments: the frame descriptor,
     // return address, old frame pointer and stub reg.
@@ -10038,6 +10039,11 @@ ICCallStubCompiler::pushSpreadCallArguments(MacroAssembler& masm,
     masm.pushValue(Address(BaselineFrameReg, STUB_FRAME_SIZE + 2 * sizeof(Value)));
 }
 
+// (see Bug 1149377 comment 31) MSVC 2013 PGO miss-compiles branchTestObjClass
+// calls from this function.
+#if defined(_MSC_VER) && _MSC_VER == 1800
+# pragma optimize("g", off)
+#endif
 Register
 ICCallStubCompiler::guardFunApply(MacroAssembler& masm, AllocatableGeneralRegisterSet regs,
                                   Register argcReg, bool checkNative, FunApplyThing applyThing,
@@ -10152,6 +10158,9 @@ ICCallStubCompiler::guardFunApply(MacroAssembler& masm, AllocatableGeneralRegist
     }
     return target;
 }
+#if defined(_MSC_VER) && _MSC_VER == 1800
+# pragma optimize("", on)
+#endif
 
 void
 ICCallStubCompiler::pushCallerArguments(MacroAssembler& masm, AllocatableGeneralRegisterSet regs)
@@ -10549,7 +10558,7 @@ ICCallScriptedCompiler::generateStubCode(MacroAssembler& masm)
         masm.loadPtr(descriptorAddr, BaselineFrameReg);
         masm.rshiftPtr(Imm32(FRAMESIZE_SHIFT), BaselineFrameReg);
         masm.addPtr(Imm32((3 - 2) * sizeof(size_t)), BaselineFrameReg);
-        masm.addPtr(BaselineStackReg, BaselineFrameReg);
+        masm.addStackPtrTo(BaselineFrameReg);
 
         // Load the number of arguments present before the stub frame.
         Register argcReg = JSReturnOperand.scratchReg();
@@ -10789,7 +10798,7 @@ ICCall_Native::Compiler::generateStubCode(MacroAssembler& masm)
 
     // Initialize vp.
     Register vpReg = regs.takeAny();
-    masm.movePtr(BaselineStackReg, vpReg);
+    masm.moveStackPtrTo(vpReg);
 
     // Construct a native exit frame.
     masm.push(argcReg);
@@ -10885,7 +10894,7 @@ ICCall_ClassHook::Compiler::generateStubCode(MacroAssembler& masm)
 
     // Initialize vp.
     Register vpReg = regs.takeAny();
-    masm.movePtr(BaselineStackReg, vpReg);
+    masm.moveStackPtrTo(vpReg);
 
     // Construct a native exit frame.
     masm.push(argcReg);
@@ -11289,7 +11298,7 @@ ICTableSwitch::Compiler::generateStubCode(MacroAssembler& masm)
     } else {
         // Pass pointer to double value.
         masm.pushValue(R0);
-        masm.movePtr(BaselineStackReg, R0.scratchReg());
+        masm.moveStackPtrTo(R0.scratchReg());
 
         masm.setupUnalignedABICall(1, scratch);
         masm.passABIArg(R0.scratchReg());

@@ -28,7 +28,7 @@ Registers::FromName(const char *name)
     if (strcmp(name, "x31") == 0) // Default name "sp"
         return sp;
 
-    for (size_t i = 0; i < Total; i++) {
+    for (uint32_t i = 0; i < Total; i++) {
         if (strcmp(GetName(i), name) == 0)
             return Code(i);
     }

@@ -541,11 +541,11 @@ TraceDataRelocations(JSTracer *trc, uint8_t *buffer, CompactBufferReader &reader
         MOZ_ASSERT(load->Mask(LoadLiteralMask) == LDR_x_lit);
 
         uint32_t pcOffset = load->ImmLLiteral();
-        uint8_t *literalAddr = ((uint8_t *)load) + (pcOffset << kLiteralEntrySizeLog2);
+        uint8_t *literalAddr = ((uint8_t*)load) + (pcOffset << kLiteralEntrySizeLog2);
 
         // All pointers on AArch64 will have the top bits cleared.
         // If those bits are not cleared, this must be a Value.
-        uintptr_t *word = reinterpret_cast<uintptr_t *>(literalAddr);
+        uintptr_t *word = reinterpret_cast<uintptr_t*>(literalAddr);
         if (*word >> JSVAL_TAG_SHIFT) {
             jsval_layout layout;
             layout.asBits = *word;
@@ -556,7 +556,8 @@ TraceDataRelocations(JSTracer *trc, uint8_t *buffer, CompactBufferReader &reader
         }
 
         // No barriers needed since the pointers are constants.
-        gc::MarkGCThingUnbarriered(trc, reinterpret_cast<void **>(literalAddr), "ion-masm-ptr");
+        gc::TraceManuallyBarrieredGenericPointerEdge(trc, reinterpret_cast<gc::Cell**>(literalAddr),
+                                                     "ion-masm-ptr");
     }
 }
 

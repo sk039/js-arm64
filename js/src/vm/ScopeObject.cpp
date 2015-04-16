@@ -1351,10 +1351,18 @@ class DebugScopeProxy : public BaseProxyHandler
                 else
                     frame.unaliasedLocal(local) = vp;
             } else {
-                if (action == GET)
+                if (action == GET) {
+                    // A ClonedBlockObject whose static block does not need
+                    // cloning is a "hollow" block object reflected for
+                    // missing block scopes. Their slot values are lost.
+                    if (!block->staticBlock().needsClone()) {
+                        *accessResult = ACCESS_LOST;
+                        return true;
+                    }
                     vp.set(block->var(i, DONT_CHECK_ALIASING));
-                else
+                } else {
                     block->setVar(i, vp, DONT_CHECK_ALIASING);
+                }
             }
 
             *accessResult = ACCESS_UNALIASED;
@@ -2482,6 +2490,7 @@ js::GetDebugScopeForFrame(JSContext* cx, AbstractFramePtr frame, jsbytecode* pc)
     assertSameCompartment(cx, frame);
     if (CanUseDebugScopeMaps(cx) && !DebugScopes::updateLiveScopes(cx))
         return nullptr;
+
     ScopeIter si(cx, frame, pc);
     return GetDebugScope(cx, si);
 }

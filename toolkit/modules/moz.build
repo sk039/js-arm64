@@ -22,7 +22,6 @@ EXTRA_JS_MODULES += [
     'debug.js',
     'DeferredTask.jsm',
     'Deprecated.jsm',
-    'Dict.jsm',
     'FileUtils.jsm',
     'Finder.jsm',
     'Geometry.jsm',
@@ -58,6 +57,7 @@ EXTRA_JS_MODULES += [
     'secondscreen/SimpleServiceDiscovery.jsm',
     'SelectContentHelper.jsm',
     'SelectParentHelper.jsm',
+    'Services.jsm',
     'sessionstore/FormData.jsm',
     'sessionstore/ScrollPosition.jsm',
     'sessionstore/XPathGenerator.jsm',
@@ -69,6 +69,7 @@ EXTRA_JS_MODULES += [
     'TelemetryTimestamps.jsm',
     'Timer.jsm',
     'Troubleshoot.jsm',
+    'UpdateChannel.jsm',
     'WebChannel.jsm',
     'WindowDraggingUtils.jsm',
     'ZipUtils.jsm',
@@ -76,9 +77,7 @@ EXTRA_JS_MODULES += [
 
 EXTRA_PP_JS_MODULES += [
     'AppConstants.jsm',
-    'Services.jsm',
-    'UpdateChannel.jsm',
-    'WindowsPrefSync.jsm',
+    'SessionRecorder.jsm',
 ]
 
 if 'Android' != CONFIG['OS_TARGET']:
