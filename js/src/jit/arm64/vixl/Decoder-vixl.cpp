@@ -37,7 +37,7 @@ namespace jit {
 
 // Top-level instruction decode function.
 void
-Decoder::Decode(Instruction *instr)
+Decoder::Decode(Instruction* instr)
 {
     if (instr->Bits(28, 27) == 0) {
         VisitUnallocated(instr);
@@ -717,7 +717,7 @@ Decoder::DecodeAdvSIMDDataProcessing(Instruction* instr)
 }
 
 #define DEFINE_VISITOR_CALLERS(A)                                              \
-    void Decoder::Visit##A(Instruction *instr) {                               \
+    void Decoder::Visit##A(Instruction* instr) {                               \
         MOZ_ASSERT(instr->Mask(A##FMask) == A##Fixed);                         \
         std::list<DecoderVisitor*>::iterator it;                               \
         for (it = visitors_.begin(); it != visitors_.end(); it++)              \

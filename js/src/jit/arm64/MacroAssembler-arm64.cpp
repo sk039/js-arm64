@@ -200,7 +200,7 @@ MacroAssemblerCompat::movePatchablePtr(ImmPtr ptr, Register dest)
 {
     const size_t numInst = 1; // Inserting one load instruction.
     const unsigned numPoolEntries = 2; // Every pool entry is 4 bytes.
-    uint8_t *literalAddr = (uint8_t *)(&ptr.value); // TODO: Should be const.
+    uint8_t* literalAddr = (uint8_t*)(&ptr.value); // TODO: Should be const.
 
     // Scratch space for generating the load instruction.
     //
@@ -213,12 +213,12 @@ MacroAssemblerCompat::movePatchablePtr(ImmPtr ptr, Register dest)
 
     // Emit the instruction mask in the scratch space.
     // The offset doesn't matter: it will be fixed up later.
-    AssemblerVIXL::ldr((Instruction *)&instructionScratch, ARMRegister(dest, 64), 0);
+    AssemblerVIXL::ldr((Instruction*)&instructionScratch, ARMRegister(dest, 64), 0);
 
     // Add the entry to the pool, fix up the LDR imm19 offset,
     // and add the completed instruction to the buffer.
     return armbuffer_.allocEntry(numInst, numPoolEntries,
-                                 (uint8_t *)&instructionScratch, literalAddr);
+                                 (uint8_t*)&instructionScratch, literalAddr);
 }
 
 BufferOffset
@@ -226,7 +226,7 @@ MacroAssemblerCompat::movePatchablePtr(ImmWord ptr, Register dest)
 {
     const size_t numInst = 1; // Inserting one load instruction.
     const unsigned numPoolEntries = 2; // Every pool entry is 4 bytes.
-    uint8_t *literalAddr = (uint8_t *)(&ptr.value); // TODO: Should be const.
+    uint8_t* literalAddr = (uint8_t*)(&ptr.value); // TODO: Should be const.
 
     // Scratch space for generating the load instruction.
     //
@@ -239,16 +239,16 @@ MacroAssemblerCompat::movePatchablePtr(ImmWord ptr, Register dest)
 
     // Emit the instruction mask in the scratch space.
     // The offset doesn't matter: it will be fixed up later.
-    AssemblerVIXL::ldr((Instruction *)&instructionScratch, ARMRegister(dest, 64), 0);
+    AssemblerVIXL::ldr((Instruction*)&instructionScratch, ARMRegister(dest, 64), 0);
 
     // Add the entry to the pool, fix up the LDR imm19 offset,
     // and add the completed instruction to the buffer.
     return armbuffer_.allocEntry(numInst, numPoolEntries,
-                                 (uint8_t *)&instructionScratch, literalAddr);
+                                 (uint8_t*)&instructionScratch, literalAddr);
 }
 
 void
-MacroAssemblerCompat::handleFailureWithHandlerTail(void *handler)
+MacroAssemblerCompat::handleFailureWithHandlerTail(void* handler)
 {
     // Reserve space for exception information.
     int64_t size = (sizeof(ResumeFromException) + 7) & ~7;
@@ -285,7 +285,7 @@ MacroAssemblerCompat::handleFailureWithHandlerTail(void *handler)
     bind(&entryFrame);
     moveValue(MagicValue(JS_ION_ERROR), JSReturnOperand);
     loadPtr(Address(r28, offsetof(ResumeFromException, stackPointer)), r28);
-    retn(Imm32(1 * sizeof(void *))); // Pop from stack and return.
+    retn(Imm32(1 * sizeof(void*))); // Pop from stack and return.
 
     // If we found a catch handler, this must be a baseline frame. Restore state
     // and jump to the catch block.
@@ -375,7 +375,7 @@ MacroAssemblerCompat::setupUnalignedABICall(uint32_t args, Register scratch)
 }
 
 void
-MacroAssemblerCompat::passABIArg(const MoveOperand &from, MoveOp::Type type)
+MacroAssemblerCompat::passABIArg(const MoveOperand& from, MoveOp::Type type)
 {
     if (!enoughMemory_)
         return;
@@ -441,7 +441,7 @@ MacroAssemblerCompat::passABIOutParam(Register reg)
 }
 
 void
-MacroAssemblerCompat::callWithABIPre(uint32_t *stackAdjust)
+MacroAssemblerCompat::callWithABIPre(uint32_t* stackAdjust)
 {
     *stackAdjust = stackForCall_;
     // ARM64 /really/ wants the stack to always be aligned.  Since we're already tracking it
@@ -518,7 +518,7 @@ AssertValidABIFunctionType(uint32_t passedArgTypes)
 #endif // DEBUG && JS_ARM64_SIMULATOR
 
 void
-MacroAssemblerCompat::callWithABI(void *fun, MoveOp::Type result)
+MacroAssemblerCompat::callWithABI(void* fun, MoveOp::Type result)
 {
 #ifdef JS_ARM64_SIMULATOR
     MOZ_ASSERT(passedIntArgs_ + passedFloatArgs_ <= 15);
@@ -623,7 +623,7 @@ MacroAssembler::Pop(const Register reg)
 }
 
 void
-MacroAssembler::Pop(const ValueOperand &val)
+MacroAssembler::Pop(const ValueOperand& val)
 {
     pop(val);
     adjustFrame(-1 * int64_t(sizeof(int64_t)));
@@ -632,14 +632,14 @@ MacroAssembler::Pop(const ValueOperand &val)
 
 void
 MacroAssemblerCompat::branchPtrInNurseryRange(Condition cond, Register ptr, Register temp,
-                                              Label *label)
+                                              Label* label)
 {
     MOZ_ASSERT(cond == Assembler::Equal || cond == Assembler::NotEqual);
     MOZ_ASSERT(ptr != temp);
     MOZ_ASSERT(ptr != ScratchReg && ptr != ScratchReg2); // Both may be used internally.
     MOZ_ASSERT(temp != ScratchReg && temp != ScratchReg2);
 
-    const Nursery &nursery = GetJitContext()->runtime->gcNursery();
+    const Nursery& nursery = GetJitContext()->runtime->gcNursery();
     movePtr(ImmWord(-ptrdiff_t(nursery.start())), temp);
     addPtr(ptr, temp);
     branchPtr(cond == Assembler::Equal ? Assembler::Below : Assembler::AboveOrEqual,
@@ -648,14 +648,14 @@ MacroAssemblerCompat::branchPtrInNurseryRange(Condition cond, Register ptr, Regi
 
 void
 MacroAssemblerCompat::branchValueIsNurseryObject(Condition cond, ValueOperand value, Register temp,
-                                                 Label *label)
+                                                 Label* label)
 {
     MOZ_ASSERT(cond == Assembler::Equal || cond == Assembler::NotEqual);
     MOZ_ASSERT(temp != ScratchReg && temp != ScratchReg2); // Both may be used internally.
 
     // 'Value' representing the start of the nursery tagged as a JSObject
-    const Nursery &nursery = GetJitContext()->runtime->gcNursery();
-    Value start = ObjectValue(*reinterpret_cast<JSObject *>(nursery.start()));
+    const Nursery& nursery = GetJitContext()->runtime->gcNursery();
+    Value start = ObjectValue(*reinterpret_cast<JSObject*>(nursery.start()));
 
     movePtr(ImmWord(-ptrdiff_t(start.asRawBits())), temp);
     addPtr(value.valueReg(), temp);
@@ -664,7 +664,7 @@ MacroAssemblerCompat::branchValueIsNurseryObject(Condition cond, ValueOperand va
 }
 
 void
-MacroAssemblerCompat::buildFakeExitFrame(Register scratch, uint32_t *offset)
+MacroAssemblerCompat::buildFakeExitFrame(Register scratch, uint32_t* offset)
 {
     mozilla::DebugOnly<uint32_t> initialDepth = framePushed();
     uint32_t descriptor = MakeFrameDescriptor(framePushed(), JitFrame_IonJS);
@@ -685,7 +685,7 @@ MacroAssemblerCompat::buildFakeExitFrame(Register scratch, uint32_t *offset)
 }
 
 void
-MacroAssemblerCompat::callWithExitFrame(JitCode *target)
+MacroAssemblerCompat::callWithExitFrame(JitCode* target)
 {
     uint32_t descriptor = MakeFrameDescriptor(framePushed(), JitFrame_IonJS);
     asMasm().Push(Imm32(descriptor));
@@ -693,7 +693,7 @@ MacroAssemblerCompat::callWithExitFrame(JitCode *target)
 }
 
 void
-MacroAssemblerCompat::callAndPushReturnAddress(Label *label)
+MacroAssemblerCompat::callAndPushReturnAddress(Label* label)
 {
     // FIXME: Jandem said he would refactor the code to avoid making
     // this instruction required, but probably forgot about it.
@@ -717,27 +717,27 @@ MacroAssemblerCompat::breakpoint()
 }
 
 void
-MacroAssembler::alignFrameForICArguments(MacroAssembler::AfterICSaveLive &aic)
+MacroAssembler::alignFrameForICArguments(MacroAssembler::AfterICSaveLive& aic)
 {
     // Exists for MIPS compatibility.
 }
 
 void
-MacroAssembler::restoreFrameAlignmentForICArguments(MacroAssembler::AfterICSaveLive &aic)
+MacroAssembler::restoreFrameAlignmentForICArguments(MacroAssembler::AfterICSaveLive& aic)
 {
     // Exists for MIPS compatibility.
 }
 
-MacroAssembler &
+MacroAssembler&
 MacroAssemblerCompat::asMasm()
 {
-    return *static_cast<MacroAssembler *>(this);
+    return *static_cast<MacroAssembler*>(this);
 }
 
-const MacroAssembler &
+const MacroAssembler&
 MacroAssemblerCompat::asMasm() const
 {
-    return *static_cast<const MacroAssembler *>(this);
+    return *static_cast<const MacroAssembler*>(this);
 }
 
 } // namespace jit

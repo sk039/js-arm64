@@ -108,7 +108,7 @@ class PrintDisassembler : public DisassemblerARM64
     virtual void ProcessOutput(Instruction* instr);
 
   private:
-    FILE *stream_;
+    FILE* stream_;
 };
 
 } // namespace jit

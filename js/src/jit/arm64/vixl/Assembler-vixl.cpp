@@ -403,7 +403,7 @@ AssemblerVIXL::FinalizeCode()
 
 // Assembly buffer.
 void
-AssemblerVIXL::InsertIndexIntoTag(uint8_t *load, uint32_t index)
+AssemblerVIXL::InsertIndexIntoTag(uint8_t* load, uint32_t index)
 {
     // Store the PoolEntry index into the instruction.
     // finishPool() will walk over all literal load instructions
@@ -412,17 +412,17 @@ AssemblerVIXL::InsertIndexIntoTag(uint8_t *load, uint32_t index)
 }
 
 bool
-AssemblerVIXL::PatchConstantPoolLoad(void *loadAddr, void *constPoolAddr)
+AssemblerVIXL::PatchConstantPoolLoad(void* loadAddr, void* constPoolAddr)
 {
-    Instruction *load = reinterpret_cast<Instruction*>(loadAddr);
+    Instruction* load = reinterpret_cast<Instruction*>(loadAddr);
 
     // The load currently contains the PoolEntry's index,
     // as written by InsertIndexIntoTag().
     uint32_t index = load->ImmLLiteral();
 
     // Each entry in the literal pool is uint32_t-sized.
-    uint32_t *constPool = reinterpret_cast<uint32_t*>(constPoolAddr);
-    Instruction *source = reinterpret_cast<Instruction *>(&constPool[index]);
+    uint32_t* constPool = reinterpret_cast<uint32_t*>(constPoolAddr);
+    Instruction* source = reinterpret_cast<Instruction*>(&constPool[index]);
 
     load->SetImmLLiteral(source);
     return false; // FIXME: Nothing actually uses the return value.
@@ -439,7 +439,7 @@ AssemblerVIXL::PatchConstantPoolLoad(void *loadAddr, void *constPoolAddr)
 // This matches the semantics of adrp, for example.
 template <int element_size>
 ptrdiff_t
-AssemblerVIXL::LinkAndGetOffsetTo(BufferOffset branch, Label *label)
+AssemblerVIXL::LinkAndGetOffsetTo(BufferOffset branch, Label* label)
 {
     if (armbuffer_.oom())
         return LabelBase::INVALID_OFFSET;
@@ -467,19 +467,19 @@ AssemblerVIXL::LinkAndGetOffsetTo(BufferOffset branch, Label *label)
 }
 
 ptrdiff_t
-AssemblerVIXL::LinkAndGetByteOffsetTo(BufferOffset branch, Label *label)
+AssemblerVIXL::LinkAndGetByteOffsetTo(BufferOffset branch, Label* label)
 {
     return LinkAndGetOffsetTo<1>(branch, label);
 }
 
 ptrdiff_t
-AssemblerVIXL::LinkAndGetInstructionOffsetTo(BufferOffset branch, Label *label)
+AssemblerVIXL::LinkAndGetInstructionOffsetTo(BufferOffset branch, Label* label)
 {
     return LinkAndGetOffsetTo<kInstructionSize>(branch, label);
 }
 
 ptrdiff_t
-AssemblerVIXL::LinkAndGetPageOffsetTo(BufferOffset branch, Label *label)
+AssemblerVIXL::LinkAndGetPageOffsetTo(BufferOffset branch, Label* label)
 {
     return LinkAndGetOffsetTo<kPageSize>(branch, label);
 }
@@ -509,7 +509,7 @@ AssemblerVIXL::blr(const ARMRegister& xn)
     Emit(BLR | Rn(xn));
 }
 void
-AssemblerVIXL::blr(Instruction *at, const ARMRegister& xn)
+AssemblerVIXL::blr(Instruction* at, const ARMRegister& xn)
 {
     MOZ_ASSERT(xn.Is64Bits());
     // No need for EmitBranch(): no immediate offset needs fixing.
@@ -531,7 +531,7 @@ AssemblerVIXL::b(int imm26)
 }
 
 void
-AssemblerVIXL::b(Instruction *at, int imm26)
+AssemblerVIXL::b(Instruction* at, int imm26)
 {
     return EmitBranch(at, B | ImmUncondBranch(imm26));
 }
@@ -543,7 +543,7 @@ AssemblerVIXL::b(int imm19, Condition cond)
 }
 
 void
-AssemblerVIXL::b(Instruction *at, int imm19, Condition cond)
+AssemblerVIXL::b(Instruction* at, int imm19, Condition cond)
 {
     EmitBranch(at, B_cond | ImmCondBranch(imm19) | cond);
 }
@@ -553,7 +553,7 @@ AssemblerVIXL::b(Label* label)
 {
     // Flush the instruction buffer before calculating relative offset.
     BufferOffset branch = b(0);
-    Instruction *ins = getInstructionAt(branch);
+    Instruction* ins = getInstructionAt(branch);
     MOZ_ASSERT(ins->IsUncondBranchImm());
 
     // Encode the relative offset.
@@ -566,7 +566,7 @@ AssemblerVIXL::b(Label* label, Condition cond)
 {
     // Flush the instruction buffer before calculating relative offset.
     BufferOffset branch = b(0, Always);
-    Instruction *ins = getInstructionAt(branch);
+    Instruction* ins = getInstructionAt(branch);
     MOZ_ASSERT(ins->IsCondBranchImm());
 
     // Encode the relative offset.
@@ -581,7 +581,7 @@ AssemblerVIXL::bl(int imm26)
 }
 
 void
-AssemblerVIXL::bl(Instruction *at, int imm26)
+AssemblerVIXL::bl(Instruction* at, int imm26)
 {
     EmitBranch(at, BL | ImmUncondBranch(imm26));
 }
@@ -591,7 +591,7 @@ AssemblerVIXL::bl(Label* label)
 {
     // Flush the instruction buffer before calculating relative offset.
     BufferOffset branch = b(0);
-    Instruction *ins = getInstructionAt(branch);
+    Instruction* ins = getInstructionAt(branch);
 
     // Encode the relative offset.
     bl(ins, LinkAndGetInstructionOffsetTo(branch, label));
@@ -604,7 +604,7 @@ AssemblerVIXL::cbz(const ARMRegister& rt, int imm19)
 }
 
 void
-AssemblerVIXL::cbz(Instruction *at, const ARMRegister& rt, int imm19)
+AssemblerVIXL::cbz(Instruction* at, const ARMRegister& rt, int imm19)
 {
     EmitBranch(at, SF(rt) | CBZ | ImmCmpBranch(imm19) | Rt(rt));
 }
@@ -614,7 +614,7 @@ AssemblerVIXL::cbz(const ARMRegister& rt, Label* label)
 {
     // Flush the instruction buffer before calculating relative offset.
     BufferOffset branch = b(0);
-    Instruction *ins = getInstructionAt(branch);
+    Instruction* ins = getInstructionAt(branch);
 
     // Encode the relative offset.
     cbz(ins, rt, LinkAndGetInstructionOffsetTo(branch, label));
@@ -627,7 +627,7 @@ AssemblerVIXL::cbnz(const ARMRegister& rt, int imm19)
 }
 
 void
-AssemblerVIXL::cbnz(Instruction *at, const ARMRegister& rt, int imm19)
+AssemblerVIXL::cbnz(Instruction* at, const ARMRegister& rt, int imm19)
 {
     EmitBranch(at, SF(rt) | CBNZ | ImmCmpBranch(imm19) | Rt(rt));
 }
@@ -637,7 +637,7 @@ AssemblerVIXL::cbnz(const ARMRegister& rt, Label* label)
 {
     // Flush the instruction buffer before calculating relative offset.
     BufferOffset branch = b(0);
-    Instruction *ins = getInstructionAt(branch);
+    Instruction* ins = getInstructionAt(branch);
 
     // Encode the relative offset.
     cbnz(ins, rt, LinkAndGetInstructionOffsetTo(branch, label));
@@ -651,7 +651,7 @@ AssemblerVIXL::tbz(const ARMRegister& rt, unsigned bit_pos, int imm14)
 }
 
 void
-AssemblerVIXL::tbz(Instruction *at, const ARMRegister& rt, unsigned bit_pos, int imm14)
+AssemblerVIXL::tbz(Instruction* at, const ARMRegister& rt, unsigned bit_pos, int imm14)
 {
     MOZ_ASSERT(rt.Is64Bits() || (rt.Is32Bits() && (bit_pos < kWRegSize)));
     EmitBranch(at, TBZ | ImmTestBranchBit(bit_pos) | ImmTestBranch(imm14) | Rt(rt));
@@ -662,7 +662,7 @@ AssemblerVIXL::tbz(const ARMRegister& rt, unsigned bit_pos, Label* label)
 {
     // Flush the instruction buffer before calculating relative offset.
     BufferOffset branch = b(0);
-    Instruction *ins = getInstructionAt(branch);
+    Instruction* ins = getInstructionAt(branch);
 
     // Encode the relative offset.
     tbz(ins, rt, bit_pos, LinkAndGetInstructionOffsetTo(branch, label));
@@ -676,7 +676,7 @@ AssemblerVIXL::tbnz(const ARMRegister& rt, unsigned bit_pos, int imm14)
 }
 
 void
-AssemblerVIXL::tbnz(Instruction *at, const ARMRegister& rt, unsigned bit_pos, int imm14)
+AssemblerVIXL::tbnz(Instruction* at, const ARMRegister& rt, unsigned bit_pos, int imm14)
 {
     MOZ_ASSERT(rt.Is64Bits() || (rt.Is32Bits() && (bit_pos < kWRegSize)));
     EmitBranch(at, TBNZ | ImmTestBranchBit(bit_pos) | ImmTestBranch(imm14) | Rt(rt));
@@ -687,7 +687,7 @@ AssemblerVIXL::tbnz(const ARMRegister& rt, unsigned bit_pos, Label* label)
 {
     // Flush the instruction buffer before calculating relative offset.
     BufferOffset branch = b(0);
-    Instruction *ins = getInstructionAt(branch);
+    Instruction* ins = getInstructionAt(branch);
 
     // Encode the relative offset.
     tbnz(ins, rt, bit_pos, LinkAndGetInstructionOffsetTo(branch, label));
@@ -701,7 +701,7 @@ AssemblerVIXL::adr(const ARMRegister& rd, int imm21)
 }
 
 void
-AssemblerVIXL::adr(Instruction *at, const ARMRegister& rd, int imm21)
+AssemblerVIXL::adr(Instruction* at, const ARMRegister& rd, int imm21)
 {
     MOZ_ASSERT(rd.Is64Bits());
     Emit(at, ADR | ImmPCRelAddress(imm21) | Rd(rd));
@@ -713,7 +713,7 @@ AssemblerVIXL::adr(const ARMRegister& rd, Label* label)
     // Flush the instruction buffer before calculating relative offset.
     // ADR is not a branch.
     BufferOffset offset = Emit(0);
-    Instruction *ins = getInstructionAt(offset);
+    Instruction* ins = getInstructionAt(offset);
 
     // Encode the relative offset.
     // TODO: This is probably incorrect -- ADR needs patching
@@ -981,7 +981,7 @@ AssemblerVIXL::csneg(const ARMRegister& rd, const ARMRegister& rn,
 }
 
 void
-AssemblerVIXL::cset(const ARMRegister &rd, Condition cond)
+AssemblerVIXL::cset(const ARMRegister& rd, Condition cond)
 {
     MOZ_ASSERT((cond != al) && (cond != nv));
     ARMRegister zr = AppropriateZeroRegFor(rd);
@@ -989,7 +989,7 @@ AssemblerVIXL::cset(const ARMRegister &rd, Condition cond)
 }
 
 void
-AssemblerVIXL::csetm(const ARMRegister &rd, Condition cond)
+AssemblerVIXL::csetm(const ARMRegister& rd, Condition cond)
 {
     MOZ_ASSERT((cond != al) && (cond != nv));
     ARMRegister zr = AppropriateZeroRegFor(rd);
@@ -997,21 +997,21 @@ AssemblerVIXL::csetm(const ARMRegister &rd, Condition cond)
 }
 
 void
-AssemblerVIXL::cinc(const ARMRegister &rd, const ARMRegister &rn, Condition cond)
+AssemblerVIXL::cinc(const ARMRegister& rd, const ARMRegister& rn, Condition cond)
 {
     MOZ_ASSERT((cond != al) && (cond != nv));
     csinc(rd, rn, rn, InvertCondition(cond));
 }
 
 void
-AssemblerVIXL::cinv(const ARMRegister &rd, const ARMRegister &rn, Condition cond)
+AssemblerVIXL::cinv(const ARMRegister& rd, const ARMRegister& rn, Condition cond)
 {
     MOZ_ASSERT((cond != al) && (cond != nv));
     csinv(rd, rn, rn, InvertCondition(cond));
 }
 
 void
-AssemblerVIXL::cneg(const ARMRegister &rd, const ARMRegister &rn, Condition cond)
+AssemblerVIXL::cneg(const ARMRegister& rd, const ARMRegister& rn, Condition cond)
 {
     MOZ_ASSERT((cond != al) && (cond != nv));
     csneg(rd, rn, rn, InvertCondition(cond));
@@ -1396,21 +1396,21 @@ AssemblerVIXL::ldursw(const ARMRegister& rt, const MemOperand& src, LoadStoreSca
 }
 
 void
-AssemblerVIXL::ldr(const CPURegister &rt, int imm19)
+AssemblerVIXL::ldr(const CPURegister& rt, int imm19)
 {
     LoadLiteralOp op = LoadLiteralOpFor(rt);
     Emit(op | ImmLLiteral(imm19) | Rt(rt));
 }
 
 void
-AssemblerVIXL::ldr(Instruction *at, const CPURegister &rt, int imm19)
+AssemblerVIXL::ldr(Instruction* at, const CPURegister& rt, int imm19)
 {
     LoadLiteralOp op = LoadLiteralOpFor(rt);
     Emit(at, op | ImmLLiteral(imm19) | Rt(rt));
 }
 
 void
-AssemblerVIXL::ldrsw(const ARMRegister &rt, int imm19)
+AssemblerVIXL::ldrsw(const ARMRegister& rt, int imm19)
 {
     Emit(LDRSW_x_lit | ImmLLiteral(imm19) | Rt(rt));
 }
@@ -1623,7 +1623,7 @@ AssemblerVIXL::hint(SystemHint code)
     return Emit(HINT | ImmHint(code) | Rt(xzr));
 }
 void
-AssemblerVIXL::hint(Instruction *at, SystemHint code)
+AssemblerVIXL::hint(Instruction* at, SystemHint code)
 {
     Emit(at, HINT | ImmHint(code) | Rt(xzr));
 }
@@ -2099,14 +2099,14 @@ AssemblerVIXL::svc(int code)
 }
 
 void
-AssemblerVIXL::svc(Instruction *at, int code)
+AssemblerVIXL::svc(Instruction* at, int code)
 {
     MOZ_ASSERT(is_uint16(code));
     Emit(at, SVC | ImmException(code));
 }
 
 void
-AssemblerVIXL::nop(Instruction *at)
+AssemblerVIXL::nop(Instruction* at)
 {
     hint(at, NOP);
 }
@@ -2379,7 +2379,7 @@ AssemblerVIXL::LoadLiteral(const CPURegister& rt, uint64_t imm, LoadLiteralOp op
 }
 
 void
-AssemblerVIXL::LoadPCLiteral(const CPURegister &rt, ptrdiff_t pcInsOffset, LoadLiteralOp op)
+AssemblerVIXL::LoadPCLiteral(const CPURegister& rt, ptrdiff_t pcInsOffset, LoadLiteralOp op)
 {
     MOZ_ASSERT(is_int19(pcInsOffset));
 
@@ -2713,7 +2713,7 @@ AssemblerVIXL::StorePairNonTemporalOpFor(const CPURegister& rt, const CPURegiste
 }
 
 LoadLiteralOp
-AssemblerVIXL::LoadLiteralOpFor(const CPURegister &rt)
+AssemblerVIXL::LoadLiteralOpFor(const CPURegister& rt)
 {
     if (rt.IsRegister())
         return rt.Is64Bits() ? LDR_x_lit : LDR_w_lit;
@@ -2774,10 +2774,10 @@ struct PoolHeader
 
     // FIXME: Remove?
     /*
-    static bool isTHIS(const Instruction &i) {
+    static bool isTHIS(const Instruction& i) {
         return (*i.raw() & 0xffff0000) == 0xffff0000;
     }
-    static const PoolHeader *asTHIS(const Instruction &i) {
+    static const PoolHeader* asTHIS(const Instruction& i) {
         if (!isTHIS(i))
             return nullptr;
         return static_cast<const PoolHeader*>(&i);
@@ -2787,12 +2787,12 @@ struct PoolHeader
 
 // FIXME: Share with Assembler-arm.cpp
 void
-AssemblerVIXL::WritePoolHeader(uint8_t *start, Pool *p, bool isNatural)
+AssemblerVIXL::WritePoolHeader(uint8_t* start, Pool* p, bool isNatural)
 {
     JS_STATIC_ASSERT(sizeof(PoolHeader) == 4);
 
     // Get the total size of the pool.
-    uint8_t *pool = start + sizeof(PoolHeader) + p->getPoolSize();
+    uint8_t* pool = start + sizeof(PoolHeader) + p->getPoolSize();
 
     uintptr_t size = pool - start;
     MOZ_ASSERT((size & 3) == 0);
@@ -2800,18 +2800,18 @@ AssemblerVIXL::WritePoolHeader(uint8_t *start, Pool *p, bool isNatural)
     MOZ_ASSERT(size < (1 << 15));
 
     PoolHeader header(size, isNatural);
-    *(PoolHeader *)start = header;
+    *(PoolHeader*)start = header;
 }
 
 // FIXME: Share with Assembler-arm.cpp
 void
-AssemblerVIXL::WritePoolFooter(uint8_t *start, Pool *p, bool isNatural)
+AssemblerVIXL::WritePoolFooter(uint8_t* start, Pool* p, bool isNatural)
 {
     return;
 }
 
 void
-AssemblerVIXL::WritePoolGuard(BufferOffset branch, Instruction *inst, BufferOffset dest)
+AssemblerVIXL::WritePoolGuard(BufferOffset branch, Instruction* inst, BufferOffset dest)
 {
     int byteOffset = dest.getOffset() - branch.getOffset();
     MOZ_ASSERT(byteOffset % kInstructionSize == 0);
@@ -2821,7 +2821,7 @@ AssemblerVIXL::WritePoolGuard(BufferOffset branch, Instruction *inst, BufferOffs
 }
 
 ptrdiff_t
-AssemblerVIXL::GetBranchOffset(const Instruction *ins)
+AssemblerVIXL::GetBranchOffset(const Instruction* ins)
 {
     MOZ_ASSERT_IF(!ins->IsBranchLinkImm(), ins->BranchType() != UnknownBranchType);
     // Convert from instruction offset to byte offset.
@@ -2829,7 +2829,7 @@ AssemblerVIXL::GetBranchOffset(const Instruction *ins)
 }
 
 void
-AssemblerVIXL::RetargetNearBranch(Instruction *i, int offset, Condition cond, bool final)
+AssemblerVIXL::RetargetNearBranch(Instruction* i, int offset, Condition cond, bool final)
 {
     if (i->IsCondBranchImm()) {
         MOZ_ASSERT(i->IsCondB());
@@ -2841,7 +2841,7 @@ AssemblerVIXL::RetargetNearBranch(Instruction *i, int offset, Condition cond, bo
 }
 
 void
-AssemblerVIXL::RetargetNearBranch(Instruction *i, int byteOffset, bool final)
+AssemblerVIXL::RetargetNearBranch(Instruction* i, int byteOffset, bool final)
 {
     // We expect the offset in instructions, the buffer gives it in bytes.
     JS_STATIC_ASSERT(kInstructionSize == 4);
@@ -2910,7 +2910,7 @@ AssemblerVIXL::RetargetNearBranch(Instruction *i, int byteOffset, bool final)
 }
 
 void
-AssemblerVIXL::RetargetFarBranch(Instruction *i, uint8_t **slot, uint8_t *dest, Condition cond)
+AssemblerVIXL::RetargetFarBranch(Instruction* i, uint8_t** slot, uint8_t* dest, Condition cond)
 {
     MOZ_CRASH("RetargetFarBranch()");
 }

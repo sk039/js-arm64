@@ -349,7 +349,7 @@ class MacroAssemblerVIXL : public Assembler
         MOZ_ASSERT(!rn.IsZero());
         bfxil(rd, rn, lsb, width);
     }
-    void Bind(Label *label) {
+    void Bind(Label* label) {
         bind(label);
     }
     void Bl(Label* label) {

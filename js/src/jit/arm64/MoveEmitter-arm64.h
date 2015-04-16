@@ -19,7 +19,7 @@ class CodeGenerator;
 class MoveEmitterARM64
 {
     bool inCycle_;
-    MacroAssemblerCompat &masm;
+    MacroAssemblerCompat& masm;
 
     // Original stack push value.
     uint32_t pushedAtStart_;
@@ -47,37 +47,37 @@ class MoveEmitterARM64
         return ScratchDoubleReg;
     }
     MemOperand cycleSlot();
-    MemOperand toMemOperand(const MoveOperand &operand) const {
+    MemOperand toMemOperand(const MoveOperand& operand) const {
         MOZ_ASSERT(operand.isMemory());
         ARMRegister base(operand.base(), 64);
         if (operand.base() == masm.getStackPointer())
             return MemOperand(base, operand.disp() + (masm.framePushed() -  pushedAtStart_));
         return MemOperand(base, operand.disp());
     }
-    ARMRegister toARMReg32(const MoveOperand &operand) const {
+    ARMRegister toARMReg32(const MoveOperand& operand) const {
         MOZ_ASSERT(operand.isGeneralReg());
         return ARMRegister(operand.reg(), 32);
     }
-    ARMRegister toARMReg64(const MoveOperand &operand) const {
+    ARMRegister toARMReg64(const MoveOperand& operand) const {
         MOZ_ASSERT(operand.isGeneralReg());
         return ARMRegister(operand.reg(), 64);
     }
-    ARMFPRegister toFPReg(const MoveOperand &operand, MoveOp::Type t) const {
+    ARMFPRegister toFPReg(const MoveOperand& operand, MoveOp::Type t) const {
         MOZ_ASSERT(operand.isFloatReg());
         return ARMFPRegister(operand.floatReg().encoding(), t == MoveOp::FLOAT32 ? 32 : 64);
     }
 
-    void emitFloat32Move(const MoveOperand &from, const MoveOperand &to);
-    void emitDoubleMove(const MoveOperand &from, const MoveOperand &to);
-    void emitInt32Move(const MoveOperand &from, const MoveOperand &to);
-    void emitGeneralMove(const MoveOperand &from, const MoveOperand &to);
+    void emitFloat32Move(const MoveOperand& from, const MoveOperand& to);
+    void emitDoubleMove(const MoveOperand& from, const MoveOperand& to);
+    void emitInt32Move(const MoveOperand& from, const MoveOperand& to);
+    void emitGeneralMove(const MoveOperand& from, const MoveOperand& to);
 
-    void emitMove(const MoveOp &move);
-    void breakCycle(const MoveOperand &from, const MoveOperand &to, MoveOp::Type type);
-    void completeCycle(const MoveOperand &from, const MoveOperand &to, MoveOp::Type type);
+    void emitMove(const MoveOp& move);
+    void breakCycle(const MoveOperand& from, const MoveOperand& to, MoveOp::Type type);
+    void completeCycle(const MoveOperand& from, const MoveOperand& to, MoveOp::Type type);
 
   public:
-    MoveEmitterARM64(MacroAssemblerCompat &masm)
+    MoveEmitterARM64(MacroAssemblerCompat& masm)
       : inCycle_(false),
         masm(masm),
         pushedAtCycle_(-1),
@@ -92,7 +92,7 @@ class MoveEmitterARM64
         assertDone();
     }
 
-    void emit(const MoveResolver &moves);
+    void emit(const MoveResolver& moves);
     void finish();
     void setScratchRegister(Register reg) {}
 };

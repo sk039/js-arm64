@@ -722,13 +722,13 @@ class AssemblerVIXL : public AssemblerShared
     void FinalizeCode();
 
     // Return the Instruction at a given byte offset.
-    Instruction *getInstructionAt(BufferOffset offset) {
+    Instruction* getInstructionAt(BufferOffset offset) {
         return armbuffer_.getInst(offset);
     }
 
     // Return the byte offset of a bound label.
     template <typename T>
-    inline T GetLabelByteOffset(const Label *label) {
+    inline T GetLabelByteOffset(const Label* label) {
         MOZ_ASSERT(label->bound());
         JS_STATIC_ASSERT(sizeof(T) >= sizeof(uint32_t));
         return reinterpret_cast<T>(label->offset());
@@ -830,11 +830,11 @@ class AssemblerVIXL : public AssemblerShared
     // Branch to register.
 
     void br(const ARMRegister& xn);
-    static void br(Instruction *at, const ARMRegister& xn);
+    static void br(Instruction* at, const ARMRegister& xn);
 
     // Branch with link to register.
     void blr(const ARMRegister& xn);
-    static void blr(Instruction *at, const ARMRegister& xn);
+    static void blr(Instruction* at, const ARMRegister& xn);
     // Branch to register with return hint.
     void ret(const ARMRegister& xn = lr_64);
 
@@ -846,46 +846,46 @@ class AssemblerVIXL : public AssemblerShared
 
     // Unconditional branch to PC offset.
     BufferOffset b(int imm26);
-    static void b(Instruction *at, int imm26);
+    static void b(Instruction* at, int imm26);
 
     // Conditional branch to PC offset.
     BufferOffset b(int imm19, Condition cond);
-    static void b(Instruction *at, int imm19, Condition cond);
+    static void b(Instruction* at, int imm19, Condition cond);
 
     // Branch with link to label.
     void bl(Label* label);
 
     // Branch with link to PC offset.
     void bl(int imm26);
-    static void bl(Instruction *at, int imm26);
+    static void bl(Instruction* at, int imm26);
 
     // Compare and branch to label if zero.
     void cbz(const ARMRegister& rt, Label* label);
 
     // Compare and branch to PC offset if zero.
     void cbz(const ARMRegister& rt, int imm19);
-    static void cbz(Instruction *at, const ARMRegister& rt, int imm19);
+    static void cbz(Instruction* at, const ARMRegister& rt, int imm19);
 
     // Compare and branch to label if not zero.
     void cbnz(const ARMRegister& rt, Label* label);
 
     // Compare and branch to PC offset if not zero.
     void cbnz(const ARMRegister& rt, int imm19);
-    static void cbnz(Instruction *at, const ARMRegister& rt, int imm19);
+    static void cbnz(Instruction* at, const ARMRegister& rt, int imm19);
 
     // Test bit and branch to label if zero.
     void tbz(const ARMRegister& rt, unsigned bit_pos, Label* label);
 
     // Test bit and branch to PC offset if zero.
     void tbz(const ARMRegister& rt, unsigned bit_pos, int imm14);
-    static void tbz(Instruction *at, const ARMRegister& rt, unsigned bit_pos, int imm14);
+    static void tbz(Instruction* at, const ARMRegister& rt, unsigned bit_pos, int imm14);
 
     // Test bit and branch to label if not zero.
     void tbnz(const ARMRegister& rt, unsigned bit_pos, Label* label);
 
     // Test bit and branch to PC offset if not zero.
     void tbnz(const ARMRegister& rt, unsigned bit_pos, int imm14);
-    static void tbnz(Instruction *at, const ARMRegister& rt, unsigned bit_pos, int imm14);
+    static void tbnz(Instruction* at, const ARMRegister& rt, unsigned bit_pos, int imm14);
 
     // Address calculation instructions.
     // Calculate a PC-relative address. Unlike for branches the offset in adr is
@@ -896,7 +896,7 @@ class AssemblerVIXL : public AssemblerShared
 
     // Calculate the address of a PC offset.
     void adr(const ARMRegister& rd, int imm21);
-    static void adr(Instruction *at, const ARMRegister &rd, int imm21);
+    static void adr(Instruction* at, const ARMRegister& rd, int imm21);
 
     // Calculate the page address of a label.
     void adrp(const ARMRegister& rd, Label* label);
@@ -1283,10 +1283,10 @@ class AssemblerVIXL : public AssemblerShared
 
     // Load integer or FP register from pc + imm19 << 2.
     void ldr(const CPURegister& rt, int imm19);
-    static void ldr(Instruction *at, const CPURegister& rt, int imm19);
+    static void ldr(Instruction* at, const CPURegister& rt, int imm19);
 
     // Load word with sign extension from pc + imm19 << 2.
-    void ldrsw(const ARMRegister &rt, int imm19);
+    void ldrsw(const ARMRegister& rt, int imm19);
 
     // Store exclusive byte.
     void stxrb(const ARMRegister& rs, const ARMRegister& rt, const MemOperand& dst);
@@ -1387,7 +1387,7 @@ class AssemblerVIXL : public AssemblerShared
 
     // System exception. Used for simulator directives.
     void svc(int code);
-    static void svc(Instruction *at, int code);
+    static void svc(Instruction* at, int code);
 
     // Halting debug-mode breakpoint.
     void hlt(int code);
@@ -1407,7 +1407,7 @@ class AssemblerVIXL : public AssemblerShared
 
     // System hint.
     BufferOffset hint(SystemHint code);
-    static void hint(Instruction *at, SystemHint code);
+    static void hint(Instruction* at, SystemHint code);
     // Clear exclusive monitor.
     void clrex(int imm4 = 0xf);
 
@@ -1425,7 +1425,7 @@ class AssemblerVIXL : public AssemblerShared
     BufferOffset nop() {
         return hint(NOP);
     }
-    static void nop(Instruction *at);
+    static void nop(Instruction* at);
     // FP instructions.
     // Move double precision immediate to FP register.
     void fmov(const ARMFPRegister& fd, double imm);
@@ -1962,13 +1962,13 @@ class AssemblerVIXL : public AssemblerShared
     // Link the current (not-yet-emitted) instruction to the specified label, then
     // return an offset to be encoded in the instruction. If the label is not yet
     // bound, an offset of LabelBase::INVALID_OFFSET is returned.
-    ptrdiff_t LinkAndGetByteOffsetTo(BufferOffset branch, Label *label);
-    ptrdiff_t LinkAndGetInstructionOffsetTo(BufferOffset branch, Label *label);
-    ptrdiff_t LinkAndGetPageOffsetTo(BufferOffset branch, Label *label);
+    ptrdiff_t LinkAndGetByteOffsetTo(BufferOffset branch, Label* label);
+    ptrdiff_t LinkAndGetInstructionOffsetTo(BufferOffset branch, Label* label);
+    ptrdiff_t LinkAndGetPageOffsetTo(BufferOffset branch, Label* label);
 
     // A common implementation for the LinkAndGet<Type>OffsetTo helpers.
     template <int element_size>
-    ptrdiff_t LinkAndGetOffsetTo(BufferOffset branch, Label *label);
+    ptrdiff_t LinkAndGetOffsetTo(BufferOffset branch, Label* label);
 
     // Emit the instruction, returning its offset.
     BufferOffset Emit(Instr instruction, bool isBranch = false) {
@@ -1992,12 +1992,12 @@ class AssemblerVIXL : public AssemblerShared
   // FIXME: This interface should not be public.
   public:
     // Emit the instruction at |at|.
-    static void Emit(Instruction *at, Instr instruction) {
+    static void Emit(Instruction* at, Instr instruction) {
         JS_STATIC_ASSERT(sizeof(instruction) == kInstructionSize);
         memcpy(at, &instruction, sizeof(instruction));
     }
 
-    static void EmitBranch(Instruction *at, Instr instruction) {
+    static void EmitBranch(Instruction* at, Instr instruction) {
         // FIXME: Anything special to do here? Probably not, since this is actually
         // just overwriting an instruction. Maybe rename from Emit() to Overwrite()?
         Emit(at, instruction);
@@ -2027,30 +2027,30 @@ class AssemblerVIXL : public AssemblerShared
 
   public:
     // Interface used by IonAssemblerBufferWithConstantPools.
-    static void InsertIndexIntoTag(uint8_t *load, uint32_t index);
-    static bool PatchConstantPoolLoad(void *loadAddr, void *constPoolAddr);
+    static void InsertIndexIntoTag(uint8_t* load, uint32_t index);
+    static bool PatchConstantPoolLoad(void* loadAddr, void* constPoolAddr);
     static uint32_t PlaceConstantPoolBarrier(int offset) {
         MOZ_CRASH("PlaceConstantPoolBarrier");
     }
-    static void WritePoolHeader(uint8_t *start, Pool *p, bool isNatural);
-    static void WritePoolFooter(uint8_t *start, Pool *p, bool isNatural);
-    static void WritePoolGuard(BufferOffset branch, Instruction *inst, BufferOffset dest);
+    static void WritePoolHeader(uint8_t* start, Pool* p, bool isNatural);
+    static void WritePoolFooter(uint8_t* start, Pool* p, bool isNatural);
+    static void WritePoolGuard(BufferOffset branch, Instruction* inst, BufferOffset dest);
 
     // Static interface used by IonAssemblerBufferWithConstantPools.
-    static ptrdiff_t GetBranchOffset(const Instruction *i);
-    static void RetargetNearBranch(Instruction *i, int offset, Condition cond, bool final = true);
-    static void RetargetNearBranch(Instruction *i, int offset, bool final = true);
-    static void RetargetFarBranch(Instruction *i, uint8_t **slot, uint8_t *dest, Condition cond);
+    static ptrdiff_t GetBranchOffset(const Instruction* i);
+    static void RetargetNearBranch(Instruction* i, int offset, Condition cond, bool final = true);
+    static void RetargetNearBranch(Instruction* i, int offset, bool final = true);
+    static void RetargetFarBranch(Instruction* i, uint8_t** slot, uint8_t* dest, Condition cond);
 
   protected:
     // Prevent generation of a literal pool for the next |maxInst| instructions.
     // Guarantees instruction linearity.
     class AutoBlockLiteralPool
     {
-        ARMBuffer *armbuffer_;
+        ARMBuffer* armbuffer_;
 
       public:
-        AutoBlockLiteralPool(AssemblerVIXL *assembler, size_t maxInst)
+        AutoBlockLiteralPool(AssemblerVIXL* assembler, size_t maxInst)
           : armbuffer_(&assembler->armbuffer_)
         {
             armbuffer_->enterNoPool(maxInst);

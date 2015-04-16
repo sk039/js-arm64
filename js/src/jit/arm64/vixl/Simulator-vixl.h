@@ -257,32 +257,32 @@ class Redirection;
 class Simulator : public DecoderVisitor
 {
     friend class AutoLockSimulatorCache;
-    Redirection *redirection_;
+    Redirection* redirection_;
 
   protected:
     // Synchronize access between main thread and compilation/PJS threads.
-    PRLock *lock_;
-    mozilla::DebugOnly<PRThread *> lockOwner_;
+    PRLock* lock_;
+    mozilla::DebugOnly<PRThread*> lockOwner_;
   public:
     explicit Simulator();
     explicit Simulator(Decoder* decoder, FILE* stream = stdout);
     ~Simulator();
-    static Simulator *Create();
-    static void Destroy(Simulator *);
+    static Simulator* Create();
+    static void Destroy(Simulator*);
     void ResetState();
 
     void init(Decoder* decoder, FILE* stream = stdout);
 
     // The currently executing Simulator instance.
     // Potentially there can be one for each native thread.
-    static Simulator *Current();
+    static Simulator* Current();
 #if 0
     static inline uintptr_t StackLimit() {
         return Simulator::Current()->stackLimit();
     }
     #endif
 
-    uintptr_t *addressOfStackLimit();
+    uintptr_t* addressOfStackLimit();
     // Run the simulator.
     virtual void Run();
     void RunFrom(Instruction* first);
@@ -290,7 +290,7 @@ class Simulator : public DecoderVisitor
     // Sets up the simulator state and grabs the result on return.
     int64_t call(uint8_t* entry, int argument_count, ...);
 
-    static void *RedirectNativeFunction(void *nativeFunction, ABIFunctionType type);
+    static void* RedirectNativeFunction(void* nativeFunction, ABIFunctionType type);
 
     // FIXME: All the simulators should share this logic.
     uintptr_t stackLimit() const {
@@ -336,7 +336,7 @@ class Simulator : public DecoderVisitor
             fflush(stdout);
             // FIXME: Marty, is this debug code?
             printf("Setting pc from signal handler: %p->%ld!\n", get_pc(), rpc);
-            JSRuntime::innermostAsmJSActivation()->setResumePC((void *)get_pc());
+            JSRuntime::innermostAsmJSActivation()->setResumePC((void*)get_pc());
             set_pc(reinterpret_cast<Instruction*>(rpc));
             // Just calling set_pc turns the pc_modified_ flag on, which means it doesn't
             // auto-step after executing the next instruction.  Force that to off so it
@@ -552,7 +552,7 @@ class Simulator : public DecoderVisitor
     void setGPR64Result(int64_t result);
     void setFP32Result(float result);
     void setFP64Result(double result);
-    void VisitCallRedirection(Instruction *instr);
+    void VisitCallRedirection(Instruction* instr);
 
     // Debug helpers
     void PrintSystemRegisters(bool print_all = false);
@@ -688,7 +688,7 @@ class Simulator : public DecoderVisitor
             printf("Read: %p\n", address);
             fflush(stdout);
         }
-        memcpy(&value, reinterpret_cast<const char *>(address), sizeof(value));
+        memcpy(&value, reinterpret_cast<const char*>(address), sizeof(value));
         return value;
     }
 
@@ -699,14 +699,14 @@ class Simulator : public DecoderVisitor
                    (sizeof(value) == 4) || (sizeof(value) == 8));
         // FIXME: Marty's debugging code.
         if (getenv("USE_DEBUGGER")) {
-            uint8_t *ptr = reinterpret_cast<uint8_t *>(&value);
+            uint8_t* ptr = reinterpret_cast<uint8_t*>(&value);
             printf("Write: 0x");
             for(size_t i = 1; i <= sizeof(T); i++)
                 printf("%02x", ptr[sizeof(T) - i]);
             printf(" -> %p\n", address);
             fflush(stdout);
         }
-        memcpy(reinterpret_cast<char *>(address), &value, sizeof(value));
+        memcpy(reinterpret_cast<char*>(address), &value, sizeof(value));
 
     }
 
@@ -877,12 +877,12 @@ class Simulator : public DecoderVisitor
 
     virtual void enable_debugger() { }
   public:
-    Redirection *redirection() const {
+    Redirection* redirection() const {
         MOZ_ASSERT(lockOwner_);
         return redirection_;
     }
 
-    void setRedirection(js::jit::Redirection *redirection) {
+    void setRedirection(js::jit::Redirection* redirection) {
         MOZ_ASSERT(lockOwner_);
         redirection_ = redirection;
     }
@@ -910,10 +910,10 @@ class SimulatorRuntime
         return true;
     }
     #if 0
-    Redirection *redirection() const {
+    Redirection* redirection() const {
         return redirection_;
     }
-    void setRedirection(js::jit::Redirection *redirection) {
+    void setRedirection(js::jit::Redirection* redirection) {
         redirection_ = redirection;
     }
 };
@@ -924,10 +924,10 @@ class SimulatorRuntime
 class AutoLockSimulatorRuntime
 {
   protected:
-    SimulatorRuntime *srt_;
+    SimulatorRuntime* srt_;
 
   public:
-    AutoLockSimulatorRuntime(SimulatorRuntime *srt)
+    AutoLockSimulatorRuntime(SimulatorRuntime* srt)
       : srt_(srt)
     {
         PR_Lock(srt_->lock_);
@@ -944,8 +944,8 @@ class AutoLockSimulatorRuntime
     }
 };
 
-SimulatorRuntime *CreateSimulatorRuntime();
-void DestroySimulatorRuntime(SimulatorRuntime *srt);
+SimulatorRuntime* CreateSimulatorRuntime();
+void DestroySimulatorRuntime(SimulatorRuntime* srt);
 #endif
 #define JS_CHECK_SIMULATOR_RECURSION_WITH_EXTRA(cx, extra, onerror)             \
     JS_BEGIN_MACRO                                                              \

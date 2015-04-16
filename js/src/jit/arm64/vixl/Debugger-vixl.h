@@ -128,7 +128,7 @@ class DebuggerARM64 : public Simulator
     DebuggerARM64(Decoder* decoder, FILE* stream = stdout);
     virtual void Run();
     void VisitException(Instruction* instr);
-    void VisitUnallocated(Instruction *instr);
+    void VisitUnallocated(Instruction* instr);
     inline int log_parameters() {
         // The simulator can control disassembly, so make sure that the Debugger's
         // log parameters agree with it.
@@ -190,10 +190,10 @@ class DebuggerARM64 : public Simulator
     void DoUnreachable(Instruction* instr);
     void DoTrace(Instruction* instr);
     void DoLog(Instruction* instr);
-    void DoStackCheck(Instruction *instr);
-    void DoStackCheckPushPop(Instruction *instr);
+    void DoStackCheck(Instruction* instr);
+    void DoStackCheckPushPop(Instruction* instr);
     static const int numStacks = 5;
-    char *stackCheck[numStacks][1024];
+    char* stackCheck[numStacks][1024];
     int stackCheckDepth[numStacks];
 
     int  log_parameters_;

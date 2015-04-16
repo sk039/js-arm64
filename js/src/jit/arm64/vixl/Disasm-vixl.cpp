@@ -66,10 +66,10 @@ DisassemblerARM64::VisitAddSubImmediate(Instruction* instr)
 {
     bool rd_is_zr = RdIsZROrSP(instr);
     bool stack_op = (rd_is_zr || RnIsZROrSP(instr)) && (instr->ImmAddSub() == 0) ? true : false;
-    const char *mnemonic = "";
-    const char *form = "'Rds, 'Rns, 'IAddSub";
-    const char *form_cmp = "'Rns, 'IAddSub";
-    const char *form_mov = "'Rds, 'Rns";
+    const char* mnemonic = "";
+    const char* form = "'Rds, 'Rns, 'IAddSub";
+    const char* form_cmp = "'Rns, 'IAddSub";
+    const char* form_mov = "'Rds, 'Rns";
 
     switch (instr->Mask(AddSubImmediateMask)) {
       case ADD_w_imm:
@@ -111,10 +111,10 @@ DisassemblerARM64::VisitAddSubShifted(Instruction* instr)
 {
     bool rd_is_zr = RdIsZROrSP(instr);
     bool rn_is_zr = RnIsZROrSP(instr);
-    const char *mnemonic = "";
-    const char *form = "'Rd, 'Rn, 'Rm'HDP";
-    const char *form_cmp = "'Rn, 'Rm'HDP";
-    const char *form_neg = "'Rd, 'Rm'HDP";
+    const char* mnemonic = "";
+    const char* form = "'Rd, 'Rn, 'Rm'HDP";
+    const char* form_cmp = "'Rn, 'Rm'HDP";
+    const char* form_neg = "'Rd, 'Rm'HDP";
 
     switch (instr->Mask(AddSubShiftedMask)) {
       case ADD_w_shift:
@@ -158,11 +158,11 @@ void
 DisassemblerARM64::VisitAddSubExtended(Instruction* instr)
 {
     bool rd_is_zr = RdIsZROrSP(instr);
-    const char *mnemonic = "";
+    const char* mnemonic = "";
     Extend mode = static_cast<Extend>(instr->ExtendMode());
-    const char *form = ((mode == UXTX) || (mode == SXTX)) ?
+    const char* form = ((mode == UXTX) || (mode == SXTX)) ?
                         "'Rds, 'Rns, 'Xm'Ext" : "'Rds, 'Rns, 'Wm'Ext";
-    const char *form_cmp = ((mode == UXTX) || (mode == SXTX)) ?
+    const char* form_cmp = ((mode == UXTX) || (mode == SXTX)) ?
                             "'Rns, 'Xm'Ext" : "'Rns, 'Wm'Ext";
 
     switch (instr->Mask(AddSubExtendedMask)) {
@@ -197,9 +197,9 @@ void
 DisassemblerARM64::VisitAddSubWithCarry(Instruction* instr)
 {
     bool rn_is_zr = RnIsZROrSP(instr);
-    const char *mnemonic = "";
-    const char *form = "'Rd, 'Rn, 'Rm";
-    const char *form_neg = "'Rd, 'Rm";
+    const char* mnemonic = "";
+    const char* form = "'Rd, 'Rn, 'Rm";
+    const char* form_neg = "'Rd, 'Rm";
 
     switch (instr->Mask(AddSubWithCarryMask)) {
       case ADC_w:
@@ -234,8 +234,8 @@ DisassemblerARM64::VisitLogicalImmediate(Instruction* instr)
 {
     bool rd_is_zr = RdIsZROrSP(instr);
     bool rn_is_zr = RnIsZROrSP(instr);
-    const char *mnemonic = "";
-    const char *form = "'Rds, 'Rn, 'ITri";
+    const char* mnemonic = "";
+    const char* form = "'Rds, 'Rn, 'ITri";
 
     if (instr->ImmLogical() == 0) {
         // The immediate encoded in the instruction is not in the expected format.
@@ -312,8 +312,8 @@ DisassemblerARM64::VisitLogicalShifted(Instruction* instr)
 {
     bool rd_is_zr = RdIsZROrSP(instr);
     bool rn_is_zr = RnIsZROrSP(instr);
-    const char *mnemonic = "";
-    const char *form = "'Rd, 'Rn, 'Rm'HLo";
+    const char* mnemonic = "";
+    const char* form = "'Rd, 'Rn, 'Rm'HLo";
 
     switch (instr->Mask(LogicalShiftedMask)) {
       case AND_w:
@@ -362,8 +362,8 @@ DisassemblerARM64::VisitLogicalShifted(Instruction* instr)
 void
 DisassemblerARM64::VisitConditionalCompareRegister(Instruction* instr)
 {
-    const char *mnemonic = "";
-    const char *form = "'Rn, 'Rm, 'INzcv, 'Cond";
+    const char* mnemonic = "";
+    const char* form = "'Rn, 'Rm, 'INzcv, 'Cond";
 
     switch (instr->Mask(ConditionalCompareRegisterMask)) {
       case CCMN_w:
@@ -378,8 +378,8 @@ DisassemblerARM64::VisitConditionalCompareRegister(Instruction* instr)
 void
 DisassemblerARM64::VisitConditionalCompareImmediate(Instruction* instr)
 {
-    const char *mnemonic = "";
-    const char *form = "'Rn, 'IP, 'INzcv, 'Cond";
+    const char* mnemonic = "";
+    const char* form = "'Rn, 'IP, 'INzcv, 'Cond";
 
     switch (instr->Mask(ConditionalCompareImmediateMask)) {
       case CCMN_w_imm:
@@ -396,10 +396,10 @@ DisassemblerARM64::VisitConditionalSelect(Instruction* instr)
 {
     bool rnm_is_zr = (RnIsZROrSP(instr) && RmIsZROrSP(instr));
     bool rn_is_rm = (instr->Rn() == instr->Rm());
-    const char *mnemonic = "";
-    const char *form = "'Rd, 'Rn, 'Rm, 'Cond";
-    const char *form_test = "'Rd, 'CInv";
-    const char *form_update = "'Rd, 'Rn, 'CInv";
+    const char* mnemonic = "";
+    const char* form = "'Rd, 'Rn, 'Rm, 'Cond";
+    const char* form_test = "'Rd, 'CInv";
+    const char* form_update = "'Rd, 'Rn, 'CInv";
 
     Condition cond = static_cast<Condition>(instr->Condition());
     bool invertible_cond = (cond != al) && (cond != nv);
@@ -451,13 +451,13 @@ DisassemblerARM64::VisitBitfield(Instruction* instr)
     unsigned s = instr->ImmS();
     unsigned r = instr->ImmR();
     unsigned rd_size_minus_1 = ((instr->SixtyFourBits() == 1) ? kXRegSize : kWRegSize) - 1;
-    const char *mnemonic = "";
-    const char *form = "";
-    const char *form_shift_right = "'Rd, 'Rn, 'IBr";
-    const char *form_extend = "'Rd, 'Wn";
-    const char *form_bfiz = "'Rd, 'Rn, 'IBZ-r, 'IBs+1";
-    const char *form_bfx = "'Rd, 'Rn, 'IBr, 'IBs-r+1";
-    const char *form_lsl = "'Rd, 'Rn, 'IBZ-r";
+    const char* mnemonic = "";
+    const char* form = "";
+    const char* form_shift_right = "'Rd, 'Rn, 'IBr";
+    const char* form_extend = "'Rd, 'Wn";
+    const char* form_bfiz = "'Rd, 'Rn, 'IBZ-r, 'IBs+1";
+    const char* form_bfx = "'Rd, 'Rn, 'IBr, 'IBs-r+1";
+    const char* form_lsl = "'Rd, 'Rn, 'IBZ-r";
 
     switch (instr->Mask(BitfieldMask)) {
       case SBFM_w:
@@ -526,8 +526,8 @@ DisassemblerARM64::VisitBitfield(Instruction* instr)
 void
 DisassemblerARM64::VisitExtract(Instruction* instr)
 {
-    const char *mnemonic = "";
-    const char *form = "'Rd, 'Rn, 'Rm, 'IExtract";
+    const char* mnemonic = "";
+    const char* form = "'Rd, 'Rn, 'Rm, 'IExtract";
 
     switch (instr->Mask(ExtractMask)) {
       case EXTR_w:
@@ -567,8 +567,8 @@ DisassemblerARM64::VisitConditionalBranch(Instruction* instr)
 void
 DisassemblerARM64::VisitUnconditionalBranchToRegister(Instruction* instr)
 {
-    const char *mnemonic = "unimplemented";
-    const char *form = "'Xn";
+    const char* mnemonic = "unimplemented";
+    const char* form = "'Xn";
 
     switch (instr->Mask(UnconditionalBranchToRegisterMask)) {
       case BR: mnemonic = "br"; break;
@@ -588,8 +588,8 @@ DisassemblerARM64::VisitUnconditionalBranchToRegister(Instruction* instr)
 void
 DisassemblerARM64::VisitUnconditionalBranch(Instruction* instr)
 {
-    const char *mnemonic = "";
-    const char *form = "'BImmUncn";
+    const char* mnemonic = "";
+    const char* form = "'BImmUncn";
 
     switch (instr->Mask(UnconditionalBranchMask)) {
       case B: mnemonic = "b"; break;
@@ -602,8 +602,8 @@ DisassemblerARM64::VisitUnconditionalBranch(Instruction* instr)
 void
 DisassemblerARM64::VisitDataProcessing1Source(Instruction* instr)
 {
-    const char *mnemonic = "";
-    const char *form = "'Rd, 'Rn";
+    const char* mnemonic = "";
+    const char* form = "'Rd, 'Rn";
 
     switch (instr->Mask(DataProcessing1SourceMask)) {
       #define FORMAT(A, B)  \
@@ -624,8 +624,8 @@ DisassemblerARM64::VisitDataProcessing1Source(Instruction* instr)
 void
 DisassemblerARM64::VisitDataProcessing2Source(Instruction* instr)
 {
-    const char *mnemonic = "unimplemented";
-    const char *form = "'Rd, 'Rn, 'Rm";
+    const char* mnemonic = "unimplemented";
+    const char* form = "'Rd, 'Rn, 'Rm";
 
     switch (instr->Mask(DataProcessing2SourceMask)) {
       #define FORMAT(A, B)  \
@@ -647,12 +647,12 @@ void
 DisassemblerARM64::VisitDataProcessing3Source(Instruction* instr)
 {
     bool ra_is_zr = RaIsZROrSP(instr);
-    const char *mnemonic = "";
-    const char *form = "'Xd, 'Wn, 'Wm, 'Xa";
-    const char *form_rrr = "'Rd, 'Rn, 'Rm";
-    const char *form_rrrr = "'Rd, 'Rn, 'Rm, 'Ra";
-    const char *form_xww = "'Xd, 'Wn, 'Wm";
-    const char *form_xxx = "'Xd, 'Xn, 'Xm";
+    const char* mnemonic = "";
+    const char* form = "'Xd, 'Wn, 'Wm, 'Xa";
+    const char* form_rrr = "'Rd, 'Rn, 'Rm";
+    const char* form_rrrr = "'Rd, 'Rn, 'Rm, 'Ra";
+    const char* form_xww = "'Xd, 'Wn, 'Wm";
+    const char* form_xxx = "'Xd, 'Xn, 'Xm";
 
     switch (instr->Mask(DataProcessing3SourceMask)) {
       case MADD_w:
@@ -725,8 +725,8 @@ DisassemblerARM64::VisitDataProcessing3Source(Instruction* instr)
 void
 DisassemblerARM64::VisitCompareBranch(Instruction* instr)
 {
-    const char *mnemonic = "";
-    const char *form = "'Rt, 'BImmCmpa";
+    const char* mnemonic = "";
+    const char* form = "'Rt, 'BImmCmpa";
 
     switch (instr->Mask(CompareBranchMask)) {
       case CBZ_w:
@@ -741,12 +741,12 @@ DisassemblerARM64::VisitCompareBranch(Instruction* instr)
 void
 DisassemblerARM64::VisitTestBranch(Instruction* instr)
 {
-    const char *mnemonic = "";
+    const char* mnemonic = "";
     // If the top bit of the immediate is clear, the tested register is
     // disassembled as Wt, otherwise Xt. As the top bit of the immediate is
     // encoded in bit 31 of the instruction, we can reuse the Rt form, which
     // uses bit 31 (normally "sf") to choose the register size.
-    const char *form = "'Rt, 'IS, 'BImmTest";
+    const char* form = "'Rt, 'IS, 'BImmTest";
 
     switch (instr->Mask(TestBranchMask)) {
       case TBZ: mnemonic = "tbz"; break;
@@ -759,8 +759,8 @@ DisassemblerARM64::VisitTestBranch(Instruction* instr)
 void
 DisassemblerARM64::VisitMoveWideImmediate(Instruction* instr)
 {
-    const char *mnemonic = "";
-    const char *form = "'Rd, 'IMoveImm";
+    const char* mnemonic = "";
+    const char* form = "'Rd, 'IMoveImm";
 
     // Print the shift separately for movk, to make it clear which half word will
     // be overwritten. Movn and movz print the computed immediate, which includes
@@ -799,8 +799,8 @@ DisassemblerARM64::VisitMoveWideImmediate(Instruction* instr)
 void
 DisassemblerARM64::VisitLoadStorePreIndex(Instruction* instr)
 {
-    const char *mnemonic = "unimplemented";
-    const char *form = "(LoadStorePreIndex)";
+    const char* mnemonic = "unimplemented";
+    const char* form = "(LoadStorePreIndex)";
 
     switch (instr->Mask(LoadStorePreIndexMask)) {
       #define LS_PREINDEX(A, B, C) \
@@ -814,8 +814,8 @@ DisassemblerARM64::VisitLoadStorePreIndex(Instruction* instr)
 void
 DisassemblerARM64::VisitLoadStorePostIndex(Instruction* instr)
 {
-    const char *mnemonic = "unimplemented";
-    const char *form = "(LoadStorePostIndex)";
+    const char* mnemonic = "unimplemented";
+    const char* form = "(LoadStorePostIndex)";
 
     switch (instr->Mask(LoadStorePostIndexMask)) {
       #define LS_POSTINDEX(A, B, C) \
@@ -829,8 +829,8 @@ DisassemblerARM64::VisitLoadStorePostIndex(Instruction* instr)
 void
 DisassemblerARM64::VisitLoadStoreUnsignedOffset(Instruction* instr)
 {
-    const char *mnemonic = "unimplemented";
-    const char *form = "(LoadStoreUnsignedOffset)";
+    const char* mnemonic = "unimplemented";
+    const char* form = "(LoadStoreUnsignedOffset)";
 
     switch (instr->Mask(LoadStoreUnsignedOffsetMask)) {
       #define LS_UNSIGNEDOFFSET(A, B, C) \
@@ -845,8 +845,8 @@ DisassemblerARM64::VisitLoadStoreUnsignedOffset(Instruction* instr)
 void
 DisassemblerARM64::VisitLoadStoreRegisterOffset(Instruction* instr)
 {
-    const char *mnemonic = "unimplemented";
-    const char *form = "(LoadStoreRegisterOffset)";
+    const char* mnemonic = "unimplemented";
+    const char* form = "(LoadStoreRegisterOffset)";
 
     switch (instr->Mask(LoadStoreRegisterOffsetMask)) {
       #define LS_REGISTEROFFSET(A, B, C) \
@@ -861,11 +861,11 @@ DisassemblerARM64::VisitLoadStoreRegisterOffset(Instruction* instr)
 void
 DisassemblerARM64::VisitLoadStoreUnscaledOffset(Instruction* instr)
 {
-    const char *mnemonic = "unimplemented";
-    const char *form = "'Wt, ['Xns'ILS]";
-    const char *form_x = "'Xt, ['Xns'ILS]";
-    const char *form_s = "'St, ['Xns'ILS]";
-    const char *form_d = "'Dt, ['Xns'ILS]";
+    const char* mnemonic = "unimplemented";
+    const char* form = "'Wt, ['Xns'ILS]";
+    const char* form_x = "'Xt, ['Xns'ILS]";
+    const char* form_s = "'St, ['Xns'ILS]";
+    const char* form_d = "'Dt, ['Xns'ILS]";
 
     switch (instr->Mask(LoadStoreUnscaledOffsetMask)) {
       case STURB_w:  mnemonic = "sturb"; break;
@@ -893,8 +893,8 @@ DisassemblerARM64::VisitLoadStoreUnscaledOffset(Instruction* instr)
 void
 DisassemblerARM64::VisitLoadLiteral(Instruction* instr)
 {
-    const char *mnemonic = "ldr";
-    const char *form = "(LoadLiteral)";
+    const char* mnemonic = "ldr";
+    const char* form = "(LoadLiteral)";
 
     switch (instr->Mask(LoadLiteralMask)) {
       case LDR_w_lit: form = "'Wt, 'ILLiteral 'LValue"; break;
@@ -920,8 +920,8 @@ DisassemblerARM64::VisitLoadLiteral(Instruction* instr)
 void
 DisassemblerARM64::VisitLoadStorePairPostIndex(Instruction* instr)
 {
-    const char *mnemonic = "unimplemented";
-    const char *form = "(LoadStorePairPostIndex)";
+    const char* mnemonic = "unimplemented";
+    const char* form = "(LoadStorePairPostIndex)";
 
     switch (instr->Mask(LoadStorePairPostIndexMask)) {
       #define LSP_POSTINDEX(A, B, C, D) \
@@ -935,8 +935,8 @@ DisassemblerARM64::VisitLoadStorePairPostIndex(Instruction* instr)
 void
 DisassemblerARM64::VisitLoadStorePairPreIndex(Instruction* instr)
 {
-    const char *mnemonic = "unimplemented";
-    const char *form = "(LoadStorePairPreIndex)";
+    const char* mnemonic = "unimplemented";
+    const char* form = "(LoadStorePairPreIndex)";
 
     switch (instr->Mask(LoadStorePairPreIndexMask)) {
       #define LSP_PREINDEX(A, B, C, D) \
@@ -950,8 +950,8 @@ DisassemblerARM64::VisitLoadStorePairPreIndex(Instruction* instr)
 void
 DisassemblerARM64::VisitLoadStorePairOffset(Instruction* instr)
 {
-    const char *mnemonic = "unimplemented";
-    const char *form = "(LoadStorePairOffset)";
+    const char* mnemonic = "unimplemented";
+    const char* form = "(LoadStorePairOffset)";
 
     switch (instr->Mask(LoadStorePairOffsetMask)) {
       #define LSP_OFFSET(A, B, C, D) \
@@ -965,8 +965,8 @@ DisassemblerARM64::VisitLoadStorePairOffset(Instruction* instr)
 void
 DisassemblerARM64::VisitLoadStorePairNonTemporal(Instruction* instr)
 {
-    const char *mnemonic = "unimplemented";
-    const char *form;
+    const char* mnemonic = "unimplemented";
+    const char* form;
 
     switch (instr->Mask(LoadStorePairNonTemporalMask)) {
       case STNP_w: mnemonic = "stnp"; form = "'Wt, 'Wt2, ['Xns'ILP4]"; break;
@@ -985,8 +985,8 @@ DisassemblerARM64::VisitLoadStorePairNonTemporal(Instruction* instr)
 void
 DisassemblerARM64::VisitLoadStoreExclusive(Instruction* instr)
 {
-    const char *mnemonic = "unimplemented";
-    const char *form;
+    const char* mnemonic = "unimplemented";
+    const char* form;
 
     switch (instr->Mask(LoadStoreExclusiveMask)) {
       case STXRB_w: mnemonic = "stxrb"; form = "'Ws, 'Wt, ['Xns]"; break;
@@ -1029,9 +1029,9 @@ DisassemblerARM64::VisitLoadStoreExclusive(Instruction* instr)
 void
 DisassemblerARM64::VisitFPCompare(Instruction* instr)
 {
-    const char *mnemonic = "unimplemented";
-    const char *form = "'Fn, 'Fm";
-    const char *form_zero = "'Fn, #0.0";
+    const char* mnemonic = "unimplemented";
+    const char* form = "'Fn, 'Fm";
+    const char* form_zero = "'Fn, #0.0";
 
     switch (instr->Mask(FPCompareMask)) {
       case FCMP_s_zero:
@@ -1046,8 +1046,8 @@ DisassemblerARM64::VisitFPCompare(Instruction* instr)
 void
 DisassemblerARM64::VisitFPConditionalCompare(Instruction* instr)
 {
-    const char *mnemonic = "unmplemented";
-    const char *form = "'Fn, 'Fm, 'INzcv, 'Cond";
+    const char* mnemonic = "unmplemented";
+    const char* form = "'Fn, 'Fm, 'INzcv, 'Cond";
 
     switch (instr->Mask(FPConditionalCompareMask)) {
       case FCCMP_s:
@@ -1062,8 +1062,8 @@ DisassemblerARM64::VisitFPConditionalCompare(Instruction* instr)
 void
 DisassemblerARM64::VisitFPConditionalSelect(Instruction* instr)
 {
-    const char *mnemonic = "";
-    const char *form = "'Fd, 'Fn, 'Fm, 'Cond";
+    const char* mnemonic = "";
+    const char* form = "'Fd, 'Fn, 'Fm, 'Cond";
 
     switch (instr->Mask(FPConditionalSelectMask)) {
       case FCSEL_s:
@@ -1076,8 +1076,8 @@ DisassemblerARM64::VisitFPConditionalSelect(Instruction* instr)
 void
 DisassemblerARM64::VisitFPDataProcessing1Source(Instruction* instr)
 {
-    const char *mnemonic = "unimplemented";
-    const char *form = "'Fd, 'Fn";
+    const char* mnemonic = "unimplemented";
+    const char* form = "'Fd, 'Fn";
 
     switch (instr->Mask(FPDataProcessing1SourceMask)) {
       #define FORMAT(A, B)  \
@@ -1105,8 +1105,8 @@ DisassemblerARM64::VisitFPDataProcessing1Source(Instruction* instr)
 void
 DisassemblerARM64::VisitFPDataProcessing2Source(Instruction* instr)
 {
-    const char *mnemonic = "";
-    const char *form = "'Fd, 'Fn, 'Fm";
+    const char* mnemonic = "";
+    const char* form = "'Fd, 'Fn, 'Fm";
 
     switch (instr->Mask(FPDataProcessing2SourceMask)) {
       #define FORMAT(A, B)  \
@@ -1130,8 +1130,8 @@ DisassemblerARM64::VisitFPDataProcessing2Source(Instruction* instr)
 void
 DisassemblerARM64::VisitFPDataProcessing3Source(Instruction* instr)
 {
-    const char *mnemonic = "";
-    const char *form = "'Fd, 'Fn, 'Fm, 'Fa";
+    const char* mnemonic = "";
+    const char* form = "'Fd, 'Fn, 'Fm, 'Fa";
 
     switch (instr->Mask(FPDataProcessing3SourceMask)) {
       #define FORMAT(A, B)  \
@@ -1150,8 +1150,8 @@ DisassemblerARM64::VisitFPDataProcessing3Source(Instruction* instr)
 void
 DisassemblerARM64::VisitFPImmediate(Instruction* instr)
 {
-    const char *mnemonic = "";
-    const char *form = "(FPImmediate)";
+    const char* mnemonic = "";
+    const char* form = "(FPImmediate)";
 
     switch (instr->Mask(FPImmediateMask)) {
       case FMOV_s_imm: mnemonic = "fmov"; form = "'Sd, 'IFPSingle"; break;
@@ -1164,10 +1164,10 @@ DisassemblerARM64::VisitFPImmediate(Instruction* instr)
 void
 DisassemblerARM64::VisitFPIntegerConvert(Instruction* instr)
 {
-    const char *mnemonic = "unimplemented";
-    const char *form = "(FPIntegerConvert)";
-    const char *form_rf = "'Rd, 'Fn";
-    const char *form_fr = "'Fd, 'Rn";
+    const char* mnemonic = "unimplemented";
+    const char* form = "(FPIntegerConvert)";
+    const char* form_rf = "'Rd, 'Fn";
+    const char* form_fr = "'Fd, 'Rn";
 
     switch (instr->Mask(FPIntegerConvertMask)) {
       case FMOV_ws:
@@ -1221,9 +1221,9 @@ DisassemblerARM64::VisitFPIntegerConvert(Instruction* instr)
 void
 DisassemblerARM64::VisitFPFixedPointConvert(Instruction* instr)
 {
-    const char *mnemonic = "";
-    const char *form = "'Rd, 'Fn, 'IFPFBits";
-    const char *form_fr = "'Fd, 'Rn, 'IFPFBits";
+    const char* mnemonic = "";
+    const char* form = "'Rd, 'Fn, 'IFPFBits";
+    const char* form_fr = "'Fd, 'Rn, 'IFPFBits";
 
     switch (instr->Mask(FPFixedPointConvertMask)) {
       case FCVTZS_ws_fixed:
@@ -1253,8 +1253,8 @@ DisassemblerARM64::VisitSystem(Instruction* instr)
     // Some system instructions hijack their Op and Cp fields to represent a
     // range of immediates instead of indicating a different instruction. This
     // makes the decoding tricky.
-    const char *mnemonic = "unimplemented";
-    const char *form = "(System)";
+    const char* mnemonic = "unimplemented";
+    const char* form = "(System)";
 
     if (instr->Mask(SystemExclusiveMonitorFMask) == SystemExclusiveMonitorFixed) {
         switch (instr->Mask(SystemExclusiveMonitorMask)) {
@@ -1319,8 +1319,8 @@ DisassemblerARM64::VisitSystem(Instruction* instr)
 void
 DisassemblerARM64::VisitException(Instruction* instr)
 {
-    const char *mnemonic = "unimplemented";
-    const char *form = "'IDebug";
+    const char* mnemonic = "unimplemented";
+    const char* form = "'IDebug";
 
     switch (instr->Mask(ExceptionMask)) {
       case HLT: mnemonic = "hlt"; break;
@@ -1681,7 +1681,7 @@ DisassemblerARM64::SubstitutePCRelAddressField(Instruction* instr, const char* f
     }
 
     char sign = (offset < 0) ? '-' : '+';
-    void * target = reinterpret_cast<void *>(base + offset);
+    void * target = reinterpret_cast<void*>(base + offset);
     AppendToOutput("#%c0x%" PRIx64 " (addr %p)", sign, std::abs(offset), target);
     return 13;
 }
@@ -1710,7 +1710,7 @@ DisassemblerARM64::SubstituteBranchTargetField(Instruction* instr, const char* f
         sign = '-';
     }
     JS_STATIC_ASSERT(sizeof(*instr) == 1);
-    void * address = reinterpret_cast<void *>(instr + offset);
+    void * address = reinterpret_cast<void*>(instr + offset);
     AppendToOutput("#%c0x%" PRIx64 " (addr %p)", sign, offset, address);
     return 8;
 }

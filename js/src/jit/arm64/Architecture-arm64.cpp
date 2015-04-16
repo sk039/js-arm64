@@ -14,7 +14,7 @@ namespace js {
 namespace jit {
 
 Registers::Code
-Registers::FromName(const char *name)
+Registers::FromName(const char* name)
 {
     // Check for some register aliases first.
     if (strcmp(name, "ip0") == 0)
@@ -37,7 +37,7 @@ Registers::FromName(const char *name)
 }
 
 FloatRegisters::Code
-FloatRegisters::FromName(const char *name)
+FloatRegisters::FromName(const char* name)
 {
     for (size_t i = 0; i < Total; i++) {
         if (strcmp(GetName(i), name) == 0)
@@ -48,7 +48,7 @@ FloatRegisters::FromName(const char *name)
 }
 
 FloatRegisterSet
-FloatRegister::ReduceSetForPush(const FloatRegisterSet &s)
+FloatRegister::ReduceSetForPush(const FloatRegisterSet& s)
 {
     LiveFloatRegisterSet ret;
     for (FloatRegisterIterator iter(s); iter.more(); ++iter) {
@@ -58,13 +58,13 @@ FloatRegister::ReduceSetForPush(const FloatRegisterSet &s)
 }
 
 uint32_t
-FloatRegister::GetSizeInBytes(const FloatRegisterSet &s)
+FloatRegister::GetSizeInBytes(const FloatRegisterSet& s)
 {
     return s.size() * sizeof(double);
 }
 
 uint32_t
-FloatRegister::GetPushSizeInBytes(const FloatRegisterSet &s)
+FloatRegister::GetPushSizeInBytes(const FloatRegisterSet& s)
 {
     return s.size() * sizeof(double);
 }

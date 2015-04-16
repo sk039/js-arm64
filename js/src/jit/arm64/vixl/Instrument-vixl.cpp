@@ -159,7 +159,7 @@ Instrument::~Instrument()
     // Free all the counter objects.
     std::list<Counter*>::iterator it;
     for (it = counters_.begin(); it != counters_.end(); it++)
-        delete *it;
+        delete* it;
 
     if (output_stream_ != stdout)
         fclose(output_stream_);

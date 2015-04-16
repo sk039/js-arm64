@@ -10,10 +10,10 @@ using namespace js;
 using namespace js::jit;
 
 void
-MoveEmitterARM64::emit(const MoveResolver &moves)
+MoveEmitterARM64::emit(const MoveResolver& moves)
 {
     if (moves.numCycles()) {
-        masm.reserveStack(sizeof(void *));
+        masm.reserveStack(sizeof(void*));
         pushedAtCycle_ = masm.framePushed();
     }
 
@@ -31,10 +31,10 @@ MoveEmitterARM64::finish()
 }
 
 void
-MoveEmitterARM64::emitMove(const MoveOp &move)
+MoveEmitterARM64::emitMove(const MoveOp& move)
 {
-    const MoveOperand &from = move.from();
-    const MoveOperand &to = move.to();
+    const MoveOperand& from = move.from();
+    const MoveOperand& to = move.to();
 
     if (move.isCycleEnd()) {
         MOZ_ASSERT(inCycle_);
@@ -69,7 +69,7 @@ MoveEmitterARM64::emitMove(const MoveOp &move)
 }
 
 void
-MoveEmitterARM64::emitFloat32Move(const MoveOperand &from, const MoveOperand &to)
+MoveEmitterARM64::emitFloat32Move(const MoveOperand& from, const MoveOperand& to)
 {
     if (from.isFloatReg()) {
         if (to.isFloatReg())
@@ -87,7 +87,7 @@ MoveEmitterARM64::emitFloat32Move(const MoveOperand &from, const MoveOperand &to
 }
 
 void
-MoveEmitterARM64::emitDoubleMove(const MoveOperand &from, const MoveOperand &to)
+MoveEmitterARM64::emitDoubleMove(const MoveOperand& from, const MoveOperand& to)
 {
     if (from.isFloatReg()) {
         if (to.isFloatReg())
@@ -105,7 +105,7 @@ MoveEmitterARM64::emitDoubleMove(const MoveOperand &from, const MoveOperand &to)
 }
 
 void
-MoveEmitterARM64::emitInt32Move(const MoveOperand &from, const MoveOperand &to)
+MoveEmitterARM64::emitInt32Move(const MoveOperand& from, const MoveOperand& to)
 {
     if (from.isGeneralReg()) {
         if (to.isGeneralReg())
@@ -123,7 +123,7 @@ MoveEmitterARM64::emitInt32Move(const MoveOperand &from, const MoveOperand &to)
 }
 
 void
-MoveEmitterARM64::emitGeneralMove(const MoveOperand &from, const MoveOperand &to)
+MoveEmitterARM64::emitGeneralMove(const MoveOperand& from, const MoveOperand& to)
 {
 
     if (from.isGeneralReg()) {
@@ -175,7 +175,7 @@ MoveEmitterARM64::cycleSlot()
 }
 
 void
-MoveEmitterARM64::breakCycle(const MoveOperand &from, const MoveOperand &to, MoveOp::Type type)
+MoveEmitterARM64::breakCycle(const MoveOperand& from, const MoveOperand& to, MoveOp::Type type)
 {
     // TODO: Uh, pretty sure cycle resolution should just use a temp register.
     // TODO: Stack seems pretty overkill.
@@ -226,7 +226,7 @@ MoveEmitterARM64::breakCycle(const MoveOperand &from, const MoveOperand &to, Mov
 }
 
 void
-MoveEmitterARM64::completeCycle(const MoveOperand &from, const MoveOperand &to, MoveOp::Type type)
+MoveEmitterARM64::completeCycle(const MoveOperand& from, const MoveOperand& to, MoveOp::Type type)
 {
     switch (type) {
       case MoveOp::FLOAT32:

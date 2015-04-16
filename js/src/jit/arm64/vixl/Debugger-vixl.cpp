@@ -739,7 +739,7 @@ DebuggerARM64::VisitException(Instruction* instr)
     }
 }
 void
-DebuggerARM64::VisitUnallocated(Instruction *instr)
+DebuggerARM64::VisitUnallocated(Instruction* instr)
 {
     set_debug_parameters(debug_parameters() | DBG_BREAK | DBG_ACTIVE);
     // Make the shell point to the brk instruction.
@@ -940,7 +940,7 @@ DebuggerARM64::DoStackCheck(Instruction* instr)
     MOZ_ASSERT(stackCheckDepth[index] > 0);
 // FIXME: Marty's debugging code.
 #if 0
-    char *curVal = stackCheck[index][stackCheckDepth[index]-1];
+    char* curVal = stackCheck[index][stackCheckDepth[index]-1];
     printf("Stack Check Succeed[%d]: %p ?= %p + 0x%x\n", stackCheckDepth[index]-1, curVal, xreg(28), value);
     if (uintptr_t(curVal) != xreg(28) + value) {
         printf("Stack Check Fail: [%d]%p != %p\n", stackCheckDepth[index]-1, curVal, xreg(28) + value);
@@ -973,13 +973,13 @@ DebuggerARM64::DoStackCheckPushPop(Instruction* instr)
         printf("stackCheckDepth <- %d\n", stackCheckDepth[index]);
     } else if (direction == 0) {
         if (stackCheckDepth[index] < 1024) {
-            printf("stackCheck: d <- %p\n", stackCheckDepth[index], (char *)(xreg(28) + value));
-            stackCheck[index][stackCheckDepth[index]] = (char *)(xreg(28) + value);
+            printf("stackCheck: d <- %p\n", stackCheckDepth[index], (char*)(xreg(28) + value));
+            stackCheck[index][stackCheckDepth[index]] = (char*)(xreg(28) + value);
         }
     } else {
         if (stackCheckDepth[index] < 1024) {
-            printf("stackCheck: d <- %p\n", stackCheckDepth[index], (char *)(xreg(28) + value));
-            stackCheck[index][stackCheckDepth[index]] = (char *)(xreg(28) + value);
+            printf("stackCheck: d <- %p\n", stackCheckDepth[index], (char*)(xreg(28) + value));
+            stackCheck[index][stackCheckDepth[index]] = (char*)(xreg(28) + value);
         }
         stackCheckDepth[index]++;
 
@@ -1427,7 +1427,7 @@ QuitCommand::Build(std::vector<Token*> args)
     return new QuitCommand();
 }
 bool
-QuitCommand::Run(DebuggerARM64 *debugger)
+QuitCommand::Run(DebuggerARM64* debugger)
 {
     exit(0);
 }
@@ -1543,7 +1543,7 @@ PrintCommand::Run(DebuggerARM64* debugger)
         else if (strcmp(identifier, "pc") == 0)
             printf("pc = %16p\n", reinterpret_cast<void*>(debugger->get_pc()));
         else
-            printf(" ** Unknown identifier to print: %s **\n", identifier);
+            printf(" ** Unknown identifier to print: %s**\n", identifier);
 
         return false;
     }
@@ -1552,7 +1552,7 @@ PrintCommand::Run(DebuggerARM64* debugger)
     MOZ_ASSERT(format_tok != NULL);
     if (format_tok->type_code() == 'i') {
         // TODO(all): Add support for instruction disassembly.
-        printf(" ** unsupported format: instructions **\n");
+        printf(" ** unsupported format: instructions**\n");
         return false;
     }
 

@@ -211,22 +211,22 @@ class Assembler : public AssemblerVIXL
     { }
 
     void finish();
-    void trace(JSTracer *trc);
+    void trace(JSTracer* trc);
 
     // Emit the jump table, returning the BufferOffset to the first entry in the table.
     BufferOffset emitExtendedJumpTable();
     BufferOffset ExtendedJumpTable_;
-    void executableCopy(uint8_t *buffer);
+    void executableCopy(uint8_t* buffer);
 
-    BufferOffset immPool(ARMRegister dest, uint8_t *value, LoadLiteralOp op, ARMBuffer::PoolEntry *pe = nullptr);
-    BufferOffset immPool64(ARMRegister dest, uint64_t value, ARMBuffer::PoolEntry *pe = nullptr);
-    BufferOffset immPool64Branch(RepatchLabel *label, ARMBuffer::PoolEntry *pe, Condition c);
-    BufferOffset fImmPool(ARMFPRegister dest, uint8_t *value, LoadLiteralOp op);
+    BufferOffset immPool(ARMRegister dest, uint8_t* value, LoadLiteralOp op, ARMBuffer::PoolEntry* pe = nullptr);
+    BufferOffset immPool64(ARMRegister dest, uint64_t value, ARMBuffer::PoolEntry* pe = nullptr);
+    BufferOffset immPool64Branch(RepatchLabel* label, ARMBuffer::PoolEntry* pe, Condition c);
+    BufferOffset fImmPool(ARMFPRegister dest, uint8_t* value, LoadLiteralOp op);
     BufferOffset fImmPool64(ARMFPRegister dest, double value);
     BufferOffset fImmPool32(ARMFPRegister dest, float value);
 
-    void bind(Label *label) { bind(label, nextOffset()); }
-    void bind(Label *label, BufferOffset boff);
+    void bind(Label* label) { bind(label, nextOffset()); }
+    void bind(Label* label, BufferOffset boff);
     void bind(RepatchLabel* label);
 
     bool oom() const {
@@ -234,15 +234,15 @@ class Assembler : public AssemblerVIXL
         return false;
     }
 
-    void copyJumpRelocationTable(uint8_t *dest) const {
+    void copyJumpRelocationTable(uint8_t* dest) const {
         if (jumpRelocations_.length())
             memcpy(dest, jumpRelocations_.buffer(), jumpRelocations_.length());
     }
-    void copyDataRelocationTable(uint8_t *dest) const {
+    void copyDataRelocationTable(uint8_t* dest) const {
         if (dataRelocations_.length())
             memcpy(dest, dataRelocations_.buffer(), dataRelocations_.length());
     }
-    void copyPreBarrierTable(uint8_t *dest) const {
+    void copyPreBarrierTable(uint8_t* dest) const {
         if (preBarriers_.length())
             memcpy(dest, preBarriers_.buffer(), preBarriers_.length());
     }
@@ -276,26 +276,26 @@ class Assembler : public AssemblerVIXL
     CodeLabel codeLabel(size_t i) {
         return codeLabels_[i];
     }
-    void processCodeLabels(uint8_t *rawCode) {
+    void processCodeLabels(uint8_t* rawCode) {
         for (size_t i = 0; i < codeLabels_.length(); i++) {
             CodeLabel label = codeLabels_[i];
             Bind(rawCode, label.dest(), rawCode + actualOffset(label.src()->offset()));
         }
     }
 
-    void Bind(uint8_t *rawCode, AbsoluteLabel *label, const void *address) {
+    void Bind(uint8_t* rawCode, AbsoluteLabel* label, const void* address) {
         uint32_t off = actualOffset(label->offset());
-        *reinterpret_cast<const void **>(rawCode + off) = address;
+        *reinterpret_cast<const void**>(rawCode + off) = address;
     }
-    bool nextLink(BufferOffset cur, BufferOffset *next) {
-        Instruction *link = getInstructionAt(cur);
+    bool nextLink(BufferOffset cur, BufferOffset* next) {
+        Instruction* link = getInstructionAt(cur);
         uint32_t nextLinkOffset = uint32_t(link->ImmPCRawOffset());
         if (nextLinkOffset == uint32_t(LabelBase::INVALID_OFFSET))
             return false;
         *next = BufferOffset(nextLinkOffset + cur.getOffset());
         return true;
     }
-    void retarget(Label *cur, Label *next);
+    void retarget(Label* cur, Label* next);
     // Move our entire pool into the instruction stream. This is to force an
     // opportunistic dump of the pool, preferrably when it is more convenient
     // to do a dump.
@@ -326,10 +326,10 @@ class Assembler : public AssemblerVIXL
     int labelOffsetToPatchOffset(int labelOff) {
         return actualOffset(labelOff);
     }
-    static uint8_t *PatchableJumpAddress(JitCode *code, uint32_t index) {
+    static uint8_t* PatchableJumpAddress(JitCode* code, uint32_t index) {
         return code->raw() + index;
     }
-    void setPrinter(Sprinter *sp) {
+    void setPrinter(Sprinter* sp) {
     }
 
     static bool SupportsFloatingPoint() { return true; }
@@ -357,7 +357,7 @@ class Assembler : public AssemblerVIXL
     }
 
     static void PatchWrite_NearCall(CodeLocationLabel start, CodeLocationLabel toCall) {
-        Instruction *dest = (Instruction*)start.raw();
+        Instruction* dest = (Instruction*)start.raw();
         //printf("patching %p with call to %p\n", start.raw(), toCall.raw());
         bl(dest, ((Instruction*)toCall.raw() - dest)>>2);
 
@@ -372,7 +372,7 @@ class Assembler : public AssemblerVIXL
 
     static void PatchWrite_Imm32(CodeLocationLabel label, Imm32 imm) {
         // Raw is going to be the return address.
-        uint32_t *raw = (uint32_t*)label.raw();
+        uint32_t* raw = (uint32_t*)label.raw();
         // Overwrite the 4 bytes before the return address, which will end up being
         // the call instruction.
         *(raw - 1) = imm.value;
@@ -380,14 +380,14 @@ class Assembler : public AssemblerVIXL
     static uint32_t AlignDoubleArg(uint32_t offset) {
         MOZ_CRASH("AlignDoubleArg()");
     }
-    static Instruction* NextInstruction(Instruction *instruction, uint32_t *count = nullptr) {
+    static Instruction* NextInstruction(Instruction* instruction, uint32_t* count = nullptr) {
         if (count != nullptr)
             *count += 4;
-        Instruction *cur = instruction;
-        Instruction *next = cur + 4;
+        Instruction* cur = instruction;
+        Instruction* next = cur + 4;
         // Artificial pool guards can only be B (rather than BR)
         if (next->IsUncondB()) {
-            uint32_t *snd = (uint32_t*)(instruction + 8);
+            uint32_t* snd = (uint32_t*)(instruction + 8);
             // test both the upper 16 bits, but also bit 15, which should be unset
             // for an artificial branch guard.
             if ((*snd & 0xffff8000) == 0xffff0000) {
@@ -400,18 +400,18 @@ class Assembler : public AssemblerVIXL
             // but they need to have bit 15 set.
             if ((next->InstructionBits() & 0xffff0000) == 0xffff0000) {
                 int poolSize = (next->InstructionBits() & 0x7fff);
-                Instruction *ret = (next + (poolSize << 2));
+                Instruction* ret = (next + (poolSize << 2));
                 return ret;
             }
         }
         return (instruction + 4);
 
     }
-    static uint8_t *NextInstruction(uint8_t *instruction, uint32_t *count = nullptr) {
+    static uint8_t* NextInstruction(uint8_t* instruction, uint32_t* count = nullptr) {
         return (uint8_t*)NextInstruction((Instruction*)instruction, count);
     }
-    static uintptr_t GetPointer(uint8_t *ptr) {
-        Instruction *i = reinterpret_cast<Instruction *>(ptr);
+    static uintptr_t GetPointer(uint8_t* ptr) {
+        Instruction* i = reinterpret_cast<Instruction*>(ptr);
         uint64_t ret = i->Literal64();
         return ret;
     }
@@ -421,14 +421,14 @@ class Assembler : public AssemblerVIXL
     static void ToggleToCmp(CodeLocationLabel inst_);
     static void ToggleCall(CodeLocationLabel inst_, bool enabled);
 
-    static void TraceJumpRelocations(JSTracer *trc, JitCode *code, CompactBufferReader &reader);
-    static void TraceDataRelocations(JSTracer *trc, JitCode *code, CompactBufferReader &reader);
+    static void TraceJumpRelocations(JSTracer* trc, JitCode* code, CompactBufferReader& reader);
+    static void TraceDataRelocations(JSTracer* trc, JitCode* code, CompactBufferReader& reader);
 
-    static int32_t ExtractCodeLabelOffset(uint8_t *code);
-    static void PatchInstructionImmediate(uint8_t *code, PatchedImmPtr imm);
+    static int32_t ExtractCodeLabelOffset(uint8_t* code);
+    static void PatchInstructionImmediate(uint8_t* code, PatchedImmPtr imm);
 
-    static void FixupNurseryObjects(JSContext *cx, JitCode *code, CompactBufferReader &reader,
-                                    const ObjectVector &nurseryObjects);
+    static void FixupNurseryObjects(JSContext* cx, JitCode* code, CompactBufferReader& reader,
+                                    const ObjectVector& nurseryObjects);
 
     // Convert a BufferOffset to a final byte offset from the start of the code buffer.
     size_t toFinalOffset(BufferOffset offset) {
@@ -441,8 +441,8 @@ class Assembler : public AssemblerVIXL
     struct JumpTableEntry {
         uint32_t ldr;
         uint32_t br;
-        void *data;
-        Instruction *getLdr() {
+        void* data;
+        Instruction* getLdr() {
             return reinterpret_cast<Instruction*>(&ldr);
         }
     };
@@ -475,10 +475,10 @@ class Assembler : public AssemblerVIXL
     struct RelativePatch
     {
         BufferOffset offset;
-        void *target;
+        void* target;
         Relocation::Kind kind;
 
-        RelativePatch(BufferOffset offset, void *target, Relocation::Kind kind)
+        RelativePatch(BufferOffset offset, void* target, Relocation::Kind kind)
           : offset(offset), target(target), kind(kind)
         { }
     };
@@ -495,8 +495,8 @@ class Assembler : public AssemblerVIXL
     CompactBufferWriter dataRelocations_;
     CompactBufferWriter preBarriers_;
   public:
-    static void UpdateBoundsCheck(uint32_t logHeapSize, Instruction *inst);
-    void writeCodePointer(AbsoluteLabel *absoluteLabel) {
+    static void UpdateBoundsCheck(uint32_t logHeapSize, Instruction* inst);
+    void writeCodePointer(AbsoluteLabel* absoluteLabel) {
         MOZ_ASSERT(!absoluteLabel->bound());
         uintptr_t x = LabelBase::INVALID_OFFSET;
         BufferOffset off = EmitData(&x, sizeof(uintptr_t));
@@ -506,11 +506,11 @@ class Assembler : public AssemblerVIXL
         // for the case statements of switch jump tables. Thus, for simplicity, we
         // simply treat the AbsoluteLabel as a label and bind it to the offset of
         // the jump table entry that needs to be patched.
-        LabelBase *label = absoluteLabel;
+        LabelBase* label = absoluteLabel;
         label->bind(off.getOffset());
     }
     void verifyHeapAccessDisassembly(uint32_t begin, uint32_t end,
-                                     const Disassembler::HeapAccess &heapAccess)
+                                     const Disassembler::HeapAccess& heapAccess)
     {
         // Implement this if we implement a disassembler.
     }
@@ -531,7 +531,7 @@ class ABIArgGenerator
     { }
 
     ABIArg next(MIRType argType);
-    ABIArg &current() { return current_; }
+    ABIArg& current() { return current_; }
     uint32_t stackBytesConsumedSoFar() const { return stackOffset_; }
 
   public:
@@ -550,10 +550,10 @@ class ABIArgGenerator
 };
 
 // FIXME: ugh. why is this not a static member of Assembler?
-void PatchJump(CodeLocationJump &jump_, CodeLocationLabel label);
+void PatchJump(CodeLocationJump& jump_, CodeLocationLabel label);
 
 static inline void
-PatchBackedge(CodeLocationJump &jump_, CodeLocationLabel label, JitRuntime::BackedgeTarget target)
+PatchBackedge(CodeLocationJump& jump_, CodeLocationLabel label, JitRuntime::BackedgeTarget target)
 {
     PatchJump(jump_, label);
 }
@@ -562,7 +562,7 @@ static const uint32_t NumIntArgRegs = 8;
 static const uint32_t NumFloatArgRegs = 8;
 
 static inline bool
-GetIntArgReg(uint32_t usedIntArgs, uint32_t usedFloatArgs, Register *out)
+GetIntArgReg(uint32_t usedIntArgs, uint32_t usedFloatArgs, Register* out)
 {
     if (usedIntArgs >= NumIntArgRegs)
         return false;
@@ -571,7 +571,7 @@ GetIntArgReg(uint32_t usedIntArgs, uint32_t usedFloatArgs, Register *out)
 }
 
 static inline bool
-GetFloatArgReg(uint32_t usedIntArgs, uint32_t usedFloatArgs, FloatRegister *out)
+GetFloatArgReg(uint32_t usedIntArgs, uint32_t usedFloatArgs, FloatRegister* out)
 {
     if (usedFloatArgs >= NumFloatArgRegs)
         return false;
@@ -585,7 +585,7 @@ GetFloatArgReg(uint32_t usedIntArgs, uint32_t usedFloatArgs, FloatRegister *out)
 // CallTempReg* don't overlap the argument registers, and only fail once those
 // run out too.
 static inline bool
-GetTempRegForIntArg(uint32_t usedIntArgs, uint32_t usedFloatArgs, Register *out)
+GetTempRegForIntArg(uint32_t usedIntArgs, uint32_t usedFloatArgs, Register* out)
 {
     if (GetIntArgReg(usedIntArgs, usedFloatArgs, out))
         return true;
@@ -603,10 +603,10 @@ GetTempRegForIntArg(uint32_t usedIntArgs, uint32_t usedFloatArgs, Register *out)
 // FIXME: Should be shared with ARM's Assembler.
 class AutoForbidPools
 {
-    Assembler *asm_;
+    Assembler* asm_;
 
   public:
-    AutoForbidPools(Assembler *asm_, size_t maxInst)
+    AutoForbidPools(Assembler* asm_, size_t maxInst)
       : asm_(asm_)
     {
         asm_->enterNoPool(maxInst);

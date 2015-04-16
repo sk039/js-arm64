@@ -82,7 +82,7 @@ CPU::GetCacheType()
 
 
 void
-CPU::EnsureIAndDCacheCoherency(void *address, size_t length)
+CPU::EnsureIAndDCacheCoherency(void* address, size_t length)
 {
 #ifdef JS_ARM64_SIMULATOR
     USEARG(address);

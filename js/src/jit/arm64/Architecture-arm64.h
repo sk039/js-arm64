@@ -108,20 +108,20 @@ class Registers {
         return 31 - mozilla::CountLeadingZeroes32(x);
     }
 
-    static const char *GetName(Code code) {
-        static const char *const Names[] =
+    static const char* GetName(Code code) {
+        static const char* const Names[] =
             { "x0",  "x1",  "x2",  "x3",  "x4",  "x5",  "x6",  "x7",  "x8",  "x9",
               "x10", "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x18", "x19",
               "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28", "x29",
               "lr", "sp", "invalid" };
         return Names[code];
     }
-    static const char *GetName(uint32_t i) {
+    static const char* GetName(uint32_t i) {
         MOZ_ASSERT(i < Total);
         return GetName(Code(i));
     }
 
-    static Code FromName(const char *name);
+    static Code FromName(const char* name);
 
     // If SP is used as the base register for a memory load or store, then the value
     // of the stack pointer prior to adding any offset must be quadword (16 byte) aligned,
@@ -246,8 +246,8 @@ class FloatRegisters
 
     typedef uint64_t SetType;
 
-    static const char *GetName(Code code) {
-        static const char *const Names[] =
+    static const char* GetName(Code code) {
+        static const char* const Names[] =
             { "d0",  "d1",  "d2",  "d3",  "d4",  "d5",  "d6",  "d7",  "d8",  "d9",
               "d10", "d11", "d12", "d13", "d14", "d15", "d16", "d17", "d18", "d19",
               "d20", "d21", "d22", "d23", "d24", "d25", "d26", "d27", "d28", "d29",
@@ -255,12 +255,12 @@ class FloatRegisters
         return Names[code];
     }
 
-    static const char *GetName(uint32_t i) {
+    static const char* GetName(uint32_t i) {
         MOZ_ASSERT(i < Total);
         return GetName(Code(i));
     }
 
-    static Code FromName(const char *name);
+    static Code FromName(const char* name);
 
     static const Code Invalid = invalid_fpreg;
 
@@ -366,7 +366,7 @@ struct FloatRegister
         return code_;
     }
 
-    const char *name() const {
+    const char* name() const {
         return FloatRegisters::GetName(code());
     }
     bool volatile_() const {
@@ -389,7 +389,7 @@ struct FloatRegister
             return FloatRegisters::Single;
         return FloatRegisters::Double;
     }
-    void aliased(uint32_t aliasIdx, FloatRegister *ret) {
+    void aliased(uint32_t aliasIdx, FloatRegister* ret) {
         if (aliasIdx == 0)
             *ret = *this;
         else
@@ -409,7 +409,7 @@ struct FloatRegister
     uint32_t numAlignedAliased() {
         return 1;
     }
-    void alignedAliased(uint32_t aliasIdx, FloatRegister *ret) {
+    void alignedAliased(uint32_t aliasIdx, FloatRegister* ret) {
         MOZ_ASSERT(aliasIdx == 0);
         *ret = *this;
     }
@@ -429,9 +429,9 @@ struct FloatRegister
     bool isFloat32x4() const {
         return false;
     }
-    static TypedRegisterSet<FloatRegister> ReduceSetForPush(const TypedRegisterSet<FloatRegister> &s);
-    static uint32_t GetSizeInBytes(const TypedRegisterSet<FloatRegister> &s);
-    static uint32_t GetPushSizeInBytes(const TypedRegisterSet<FloatRegister> &s);
+    static TypedRegisterSet<FloatRegister> ReduceSetForPush(const TypedRegisterSet<FloatRegister>& s);
+    static uint32_t GetSizeInBytes(const TypedRegisterSet<FloatRegister>& s);
+    static uint32_t GetPushSizeInBytes(const TypedRegisterSet<FloatRegister>& s);
     uint32_t getRegisterDumpOffsetInBytes();
 
     static uint32_t FirstBit(SetType x) {

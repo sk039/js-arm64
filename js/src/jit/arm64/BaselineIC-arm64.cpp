@@ -23,7 +23,7 @@ namespace jit {
 // ICCompare_Int32
 
 bool
-ICCompare_Int32::Compiler::generateStubCode(MacroAssembler &masm)
+ICCompare_Int32::Compiler::generateStubCode(MacroAssembler& masm)
 {
     // Guard that R0 is an integer and R1 is an integer.
     Label failure;
@@ -47,7 +47,7 @@ ICCompare_Int32::Compiler::generateStubCode(MacroAssembler &masm)
 }
 
 bool
-ICCompare_Double::Compiler::generateStubCode(MacroAssembler &masm)
+ICCompare_Double::Compiler::generateStubCode(MacroAssembler& masm)
 {
     Label failure, isNaN;
     masm.ensureDouble(R0, FloatReg0, &failure);
@@ -73,7 +73,7 @@ ICCompare_Double::Compiler::generateStubCode(MacroAssembler &masm)
 // ICBinaryArith_Int32
 
 bool
-ICBinaryArith_Int32::Compiler::generateStubCode(MacroAssembler &masm)
+ICBinaryArith_Int32::Compiler::generateStubCode(MacroAssembler& masm)
 {
     // Guard that R0 is an integer and R1 is an integer.
     Label failure;
@@ -237,7 +237,7 @@ ICBinaryArith_Int32::Compiler::generateStubCode(MacroAssembler &masm)
 }
 
 bool
-ICUnaryArith_Int32::Compiler::generateStubCode(MacroAssembler &masm)
+ICUnaryArith_Int32::Compiler::generateStubCode(MacroAssembler& masm)
 {
     Label failure;
     masm.branchTestInt32(Assembler::NotEqual, R0, &failure);

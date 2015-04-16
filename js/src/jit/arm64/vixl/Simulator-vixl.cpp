@@ -49,7 +49,7 @@ namespace jit {
 class AutoLockSimulatorCache
 {
   public:
-    explicit AutoLockSimulatorCache(Simulator *sim) : sim_(sim) {
+    explicit AutoLockSimulatorCache(Simulator* sim) : sim_(sim) {
         PR_Lock(sim_->lock_);
         MOZ_ASSERT(!sim_->lockOwner_);
 #ifdef DEBUG
@@ -66,7 +66,7 @@ class AutoLockSimulatorCache
     }
 
   private:
-    Simulator *const sim_;
+    Simulator* const sim_;
 };
 
 
@@ -150,14 +150,14 @@ Simulator::init(Decoder* decoder, FILE* stream)
     tos = AlignDown(tos, 16);
     set_sp(tos);
 
-    void *printDisasmMem = js_malloc(sizeof(PrintDisassembler));
+    void* printDisasmMem = js_malloc(sizeof(PrintDisassembler));
     if (!printDisasmMem) {
         MOZ_ReportAssertionFailure("[unhandlable oom] Simulator PrintDisassembler", __FILE__, __LINE__);
         MOZ_CRASH();
     }
     print_disasm_ = new(printDisasmMem) PrintDisassembler(stream);
 
-    void *instrumentMem = js_malloc(sizeof(Instrument));
+    void* instrumentMem = js_malloc(sizeof(Instrument));
     if (!instrumentMem) {
         MOZ_ReportAssertionFailure("[unhandlable oom] Simulator Instrumentation", __FILE__, __LINE__);
         MOZ_CRASH();
@@ -179,26 +179,26 @@ Simulator::init(Decoder* decoder, FILE* stream)
     redirection_ = nullptr;
 }
 
-Simulator *
+Simulator*
 Simulator::Current()
 {
     return TlsPerThreadData.get()->simulator();
 #if 0
-    PerThreadData *pt = TlsPerThreadData.get();
-    Simulator *sim = pt->simulator();
+    PerThreadData* pt = TlsPerThreadData.get();
+    Simulator* sim = pt->simulator();
     if (!sim) {
         // TODO: We should always use the simulator instead of the debugger.
         // TODO: Maybe have a more surfaceable toggle for the shell.
         if (getenv("USE_DEBUGGER") != nullptr) {
-            Decoder *decoder = js_new<Decoder>();
-            DebuggerARM64 *debugger = js_new<DebuggerARM64>(decoder, stdout);
+            Decoder* decoder = js_new<Decoder>();
+            DebuggerARM64* debugger = js_new<DebuggerARM64>(decoder, stdout);
             debugger->set_log_parameters(LOG_DISASM | LOG_REGS);
             pt->setSimulator(debugger);
             return debugger;
         }
 
         // FIXME: SimulatorRuntime separation seems wonky. Do we need a new one?
-        SimulatorRuntime *srt = CreateSimulatorRuntime();
+        SimulatorRuntime* srt = CreateSimulatorRuntime();
         if (!srt) {
             MOZ_ReportAssertionFailure("[unhandlable oom] SimulatorRuntime creation", __FILE__, __LINE__);
             MOZ_CRASH();
@@ -292,12 +292,12 @@ Simulator::call(uint8_t* entry, int argument_count, ...)
         // Address of EnterJitData::result.
         set_xreg(7, va_arg(parameters, int64_t));
     } else if (argument_count == 2) {
-        // EntryArg *args
+        // EntryArg* args
         set_xreg(0, va_arg(parameters, int64_t));
-        // uint8_t *GlobalData
+        // uint8_t* GlobalData
         set_xreg(1, va_arg(parameters, int64_t));
     } else if (argument_count == 1) { // irregexp
-        // InputOutputData &data
+        // InputOutputData& data
         set_xreg(0, va_arg(parameters, int64_t));
     } else {
         MOZ_CRASH("Unknown number of arguments");
@@ -310,7 +310,7 @@ Simulator::call(uint8_t* entry, int argument_count, ...)
 
     // Execute the simulation.
     DebugOnly<int64_t> entryStack = xreg(31, Reg31IsStackPointer);
-    RunFrom((Instruction *)entry);
+    RunFrom((Instruction*)entry);
     DebugOnly<int64_t> exitStack = xreg(31, Reg31IsStackPointer);
     MOZ_ASSERT(entryStack == exitStack);
 
@@ -330,7 +330,7 @@ class Redirection
 {
     friend class Simulator;
 
-    Redirection(void *nativeFunction, ABIFunctionType type, Simulator *sim)
+    Redirection(void* nativeFunction, ABIFunctionType type, Simulator* sim)
       : nativeFunction_(nativeFunction),
       type_(type),
       next_(nullptr)
@@ -339,23 +339,23 @@ class Redirection
         // TODO: Flush ICache?
         sim->setRedirection(this);
 
-        Instruction *instr = (Instruction *)(&svcInstruction_);
+        Instruction* instr = (Instruction*)(&svcInstruction_);
         AssemblerVIXL::svc(instr, kCallRtRedirected);
     }
 
   public:
-    void *addressOfSvcInstruction() { return &svcInstruction_; }
-    void *nativeFunction() const { return nativeFunction_; }
+    void* addressOfSvcInstruction() { return &svcInstruction_; }
+    void* nativeFunction() const { return nativeFunction_; }
     ABIFunctionType type() const { return type_; }
 
-    static Redirection *Get(void *nativeFunction, ABIFunctionType type) {
-        Simulator *sim = Simulator::Current();
+    static Redirection* Get(void* nativeFunction, ABIFunctionType type) {
+        Simulator* sim = Simulator::Current();
         AutoLockSimulatorCache alsr(sim);
 
         // TODO: Store srt_ in the simulator for this assertion.
         // MOZ_ASSERT_IF(pt->simulator(), pt->simulator()->srt_ == srt);
 
-        Redirection *current = sim->redirection();
+        Redirection* current = sim->redirection();
         for (; current != nullptr; current = current->next_) {
             if (current->nativeFunction_ == nativeFunction) {
                 MOZ_ASSERT(current->type() == type);
@@ -363,7 +363,7 @@ class Redirection
             }
         }
 
-        Redirection *redir = (Redirection *)js_malloc(sizeof(Redirection));
+        Redirection* redir = (Redirection*)js_malloc(sizeof(Redirection));
         if (!redir) {
             MOZ_ReportAssertionFailure("[unhandlable oom] Simulator redirection", __FILE__, __LINE__);
             MOZ_CRASH();
@@ -372,24 +372,24 @@ class Redirection
         return redir;
     }
 
-    static Redirection *FromSvcInstruction(Instruction *svcInstruction) {
-        uint8_t *addrOfSvc = reinterpret_cast<uint8_t*>(svcInstruction);
-        uint8_t *addrOfRedirection = addrOfSvc - offsetof(Redirection, svcInstruction_);
+    static Redirection* FromSvcInstruction(Instruction* svcInstruction) {
+        uint8_t* addrOfSvc = reinterpret_cast<uint8_t*>(svcInstruction);
+        uint8_t* addrOfRedirection = addrOfSvc - offsetof(Redirection, svcInstruction_);
         return reinterpret_cast<Redirection*>(addrOfRedirection);
     }
 
   private:
-    void *nativeFunction_;
+    void* nativeFunction_;
     uint32_t svcInstruction_;
     ABIFunctionType type_;
-    Redirection *next_;
+    Redirection* next_;
 };
 
 /* static */
-void *
-Simulator::RedirectNativeFunction(void *nativeFunction, ABIFunctionType type)
+void*
+Simulator::RedirectNativeFunction(void* nativeFunction, ABIFunctionType type)
 {
-    Redirection *redirection = Redirection::Get(nativeFunction, type);
+    Redirection* redirection = Redirection::Get(nativeFunction, type);
     return redirection->addressOfSvcInstruction();
 }
 
@@ -1202,7 +1202,7 @@ Simulator::VisitLoadStoreExclusive(Instruction* instr)
     bool is_load = instr->LdStXLoad();
     bool is_pair = instr->LdStXPair();
 
-    uint8_t * address = reg<uint8_t *>(rn, Reg31IsStackPointer);
+    uint8_t * address = reg<uint8_t*>(rn, Reg31IsStackPointer);
     size_t element_size = 1 << instr->LdStXSizeLog2();
     size_t access_size = is_pair ? element_size * 2 : element_size;
 
@@ -1337,7 +1337,7 @@ Simulator::VisitLoadLiteral(Instruction* instr)
     local_monitor_.MaybeClear();
 }
 
-uint8_t *
+uint8_t*
 Simulator::AddressModeHelper(unsigned addr_reg, int64_t offset, AddrMode addrmode)
 {
     uint64_t address = xreg(addr_reg, Reg31IsStackPointer);
@@ -2886,12 +2886,12 @@ Simulator::setFP64Result(double result)
 
 // Simulator support for callWithABI().
 void
-Simulator::VisitCallRedirection(Instruction *instr)
+Simulator::VisitCallRedirection(Instruction* instr)
 {
     MOZ_ASSERT(instr->Mask(ExceptionMask) == SVC);
     MOZ_ASSERT(instr->ImmException() == kCallRtRedirected);
 
-    Redirection *redir = Redirection::FromSvcInstruction(instr);
+    Redirection* redir = Redirection::FromSvcInstruction(instr);
     uintptr_t nativeFn = reinterpret_cast<uintptr_t>(redir->nativeFunction());
 
     // Stack must be aligned prior to the call.
@@ -3069,7 +3069,7 @@ Simulator::VisitCallRedirection(Instruction *instr)
 
     // Simulate a return.
     set_lr(savedLR);
-    set_pc((Instruction *)savedLR);
+    set_pc((Instruction*)savedLR);
     if (getenv("USE_DEBUGGER"))
         printf("SVCRET\n");
 }
@@ -3098,7 +3098,7 @@ Simulator::DoPrintf(Instruction* instr)
     // Allocate space for the format string. We take a copy, so we can modify it.
     // Leave enough space for one extra character per expected argument (plus the
     // '\0' termination).
-    const char * format_base = reg<const char *>(0);
+    const char * format_base = reg<const char*>(0);
     MOZ_ASSERT(format_base != nullptr);
     size_t length = strlen(format_base) + 1;
     char * const format = new char[length + arg_count];
@@ -3180,10 +3180,10 @@ Simulator::DoPrintf(Instruction* instr)
     delete[] format;
 }
 #if 0
-SimulatorRuntime *
+SimulatorRuntime*
 CreateSimulatorRuntime()
 {
-    SimulatorRuntime *srt = js_new<SimulatorRuntime>();
+    SimulatorRuntime* srt = js_new<SimulatorRuntime>();
     if (!srt)
         return nullptr;
 
@@ -3197,7 +3197,7 @@ CreateSimulatorRuntime()
 }
 
 void
-DestroySimulatorRuntime(SimulatorRuntime *srt)
+DestroySimulatorRuntime(SimulatorRuntime* srt)
 {
     js_delete(srt);
 }
@@ -3207,12 +3207,12 @@ DestroySimulatorRuntime(SimulatorRuntime *srt)
 
 // FIXME: All this stuff should probably be shared.
 
-js::jit::Simulator *
+js::jit::Simulator*
 js::PerThreadData::simulator() const
 {
     return runtime_->simulator();
 }
-js::jit::Simulator *
+js::jit::Simulator*
 JSRuntime::simulator() const
 {
     return simulator_;
@@ -3220,41 +3220,41 @@ JSRuntime::simulator() const
 
 #if 0
 void
-js::PerThreadData::setSimulator(js::jit::Simulator *sim)
+js::PerThreadData::setSimulator(js::jit::Simulator* sim)
 {
     simulator_ = sim;
     simulatorStackLimit_ = sim->stackLimit();
 }
 
-js::jit::SimulatorRuntime *
+js::jit::SimulatorRuntime*
 js::PerThreadData::simulatorRuntime() const
 {
     return runtime_->simulatorRuntime();
 }
 #endif
-uintptr_t *
+uintptr_t*
 JSRuntime::addressOfSimulatorStackLimit()
 {
     return simulator_->addressOfStackLimit();
 }
 #if 0
-js::jit::SimulatorRuntime *
+js::jit::SimulatorRuntime*
 JSRuntime::simulatorRuntime() const
 {
     return simulatorRuntime_;
 }
 
 void
-JSRuntime::setSimulatorRuntime(js::jit::SimulatorRuntime *srt)
+JSRuntime::setSimulatorRuntime(js::jit::SimulatorRuntime* srt)
 {
     MOZ_ASSERT(!simulatorRuntime_);
     simulatorRuntime_ = srt;
 }
 #endif
-js::jit::Simulator *
+js::jit::Simulator*
 js::jit::Simulator::Create()
 {
-    Decoder *decoder_ = js_new<Decoder>();
+    Decoder* decoder_ = js_new<Decoder>();
     if (!decoder_) {
         MOZ_ReportAssertionFailure("[unhandlable oom] Decoder", __FILE__, __LINE__);
         MOZ_CRASH();
@@ -3264,13 +3264,13 @@ js::jit::Simulator::Create()
     // FIXME: We should free it at some point.
     // FIXME: Note that it can't be stored in the SimulatorRuntime due to lifetime conflicts.
     if (getenv("USE_DEBUGGER") != nullptr) {
-        DebuggerARM64 *debugger = js_new<DebuggerARM64>(decoder_, stdout);
+        DebuggerARM64* debugger = js_new<DebuggerARM64>(decoder_, stdout);
         if (debugger) {
             debugger->set_log_parameters(LOG_DISASM | LOG_REGS | LOG_FP_REGS);
             return debugger;
         }
     }
-    Simulator *sim = js_new<Simulator>();
+    Simulator* sim = js_new<Simulator>();
     if (!sim) {
         MOZ_CRASH("NEED SIMULATOR");
         return nullptr;
@@ -3286,7 +3286,7 @@ js::jit::Simulator::Destroy(js::jit::Simulator * sim)
     js_delete(sim);
 }
 
-uintptr_t *
+uintptr_t*
 js::jit::Simulator::addressOfStackLimit()
 {
     return (uintptr_t*)&stack_limit_;

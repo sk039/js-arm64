@@ -83,7 +83,7 @@ Assembler::finish()
         jumpRelocations_.writeFixedUint32_t(toFinalOffset(ExtendedJumpTable_));
 
     for (unsigned int i = 0; i < tmpJumpRelocations_.length(); i++) {
-        JumpRelocation &reloc = tmpJumpRelocations_[i];
+        JumpRelocation& reloc = tmpJumpRelocations_[i];
 
         // Each entry in the relocations table is an (offset, extendedTableIndex) pair.
         jumpRelocations_.writeUnsigned(toFinalOffset(reloc.jump));
@@ -134,7 +134,7 @@ Assembler::emitExtendedJumpTable()
 }
 
 void
-Assembler::executableCopy(uint8_t *buffer)
+Assembler::executableCopy(uint8_t* buffer)
 {
     // Copy the code and all constant pools into the output buffer.
     armbuffer_.executableCopy(buffer);
@@ -142,7 +142,7 @@ Assembler::executableCopy(uint8_t *buffer)
     // Patch any relative jumps that target code outside the buffer.
     // The extended jump table may be used for distant jumps.
     for (size_t i = 0; i < pendingJumps_.length(); i++) {
-        RelativePatch &rp = pendingJumps_[i];
+        RelativePatch& rp = pendingJumps_[i];
 
         if (!rp.target) {
             // The patch target is nullptr for jumps that have been linked to
@@ -151,15 +151,15 @@ Assembler::executableCopy(uint8_t *buffer)
             continue;
         }
 
-        Instruction *target = (Instruction *)rp.target;
-        Instruction *branch = (Instruction *)(buffer + toFinalOffset(rp.offset));
-        JumpTableEntry *extendedJumpTable =
+        Instruction* target = (Instruction*)rp.target;
+        Instruction* branch = (Instruction*)(buffer + toFinalOffset(rp.offset));
+        JumpTableEntry* extendedJumpTable =
             reinterpret_cast<JumpTableEntry*>(buffer + toFinalOffset(ExtendedJumpTable_));
         if (branch->BranchType() != UnknownBranchType) {
             if (branch->IsTargetReachable(target)) {
                 branch->SetImmPCOffsetTarget(target);
             } else {
-                JumpTableEntry *entry = &extendedJumpTable[i];
+                JumpTableEntry* entry = &extendedJumpTable[i];
                 branch->SetImmPCOffsetTarget(entry->getLdr());
                 entry->data = target;
             }
@@ -171,7 +171,7 @@ Assembler::executableCopy(uint8_t *buffer)
 }
 
 BufferOffset
-Assembler::immPool(ARMRegister dest, uint8_t *value, LoadLiteralOp op, ARMBuffer::PoolEntry *pe)
+Assembler::immPool(ARMRegister dest, uint8_t* value, LoadLiteralOp op, ARMBuffer::PoolEntry* pe)
 {
     uint32_t inst = op | Rt(dest);
     const size_t numInst = 1;
@@ -180,13 +180,13 @@ Assembler::immPool(ARMRegister dest, uint8_t *value, LoadLiteralOp op, ARMBuffer
 }
 
 BufferOffset
-Assembler::immPool64(ARMRegister dest, uint64_t value, ARMBuffer::PoolEntry *pe)
+Assembler::immPool64(ARMRegister dest, uint64_t value, ARMBuffer::PoolEntry* pe)
 {
     return immPool(dest, (uint8_t*)&value, LDR_x_lit, pe);
 }
 
 BufferOffset
-Assembler::immPool64Branch(RepatchLabel *label, ARMBuffer::PoolEntry *pe, Condition c)
+Assembler::immPool64Branch(RepatchLabel* label, ARMBuffer::PoolEntry* pe, Condition c)
 {
     #if 0
     uint64_t absoff = 0xdeadbeefbad0b004;
@@ -206,7 +206,7 @@ Assembler::immPool64Branch(RepatchLabel *label, ARMBuffer::PoolEntry *pe, Condit
 }
 
 BufferOffset
-Assembler::fImmPool(ARMFPRegister dest, uint8_t *value, LoadLiteralOp op)
+Assembler::fImmPool(ARMFPRegister dest, uint8_t* value, LoadLiteralOp op)
 {
     uint32_t inst = op | Rt(dest);
     const size_t numInst = 1;
@@ -226,7 +226,7 @@ Assembler::fImmPool32(ARMFPRegister dest, float value)
 }
 
 void
-Assembler::bind(Label *label, BufferOffset targetOffset)
+Assembler::bind(Label* label, BufferOffset targetOffset)
 {
     // Nothing has seen the label yet: just mark the location.
     if (!label->used()) {
@@ -239,20 +239,20 @@ Assembler::bind(Label *label, BufferOffset targetOffset)
     uint32_t branchOffset = label->offset();
 
     while ((int32_t)branchOffset != LabelBase::INVALID_OFFSET) {
-        Instruction *link = getInstructionAt(BufferOffset(branchOffset));
+        Instruction* link = getInstructionAt(BufferOffset(branchOffset));
 
         // Before overwriting the offset in this instruction, get the offset of
         // the next link in the implicit branch list.
         uint32_t nextLinkOffset = uint32_t(link->ImmPCRawOffset());
         if (nextLinkOffset != uint32_t(LabelBase::INVALID_OFFSET))
             nextLinkOffset += branchOffset;
-        // Linking against the actual (Instruction *) would be invalid,
+        // Linking against the actual (Instruction*) would be invalid,
         // since that Instruction could be anywhere in memory.
         // Instead, just link against the correct relative offset, assuming
         // no constant pools, which will be taken into consideration
         // during finalization.
         ptrdiff_t relativeByteOffset = targetOffset.getOffset() - branchOffset;
-        Instruction *target = (Instruction *)(((uint8_t *)link) + relativeByteOffset);
+        Instruction* target = (Instruction*)(((uint8_t*)link) + relativeByteOffset);
 
         // Write a new relative offset into the instruction.
         link->SetImmPCOffsetTarget(target);
@@ -264,7 +264,7 @@ Assembler::bind(Label *label, BufferOffset targetOffset)
 }
 
 void
-Assembler::bind(RepatchLabel *label)
+Assembler::bind(RepatchLabel* label)
 {
     // Nothing has seen the label yet: just mark the location.
     if (!label->used()) {
@@ -272,20 +272,20 @@ Assembler::bind(RepatchLabel *label)
         return;
     }
     int branchOffset = label->offset();
-    Instruction *inst = getInstructionAt(BufferOffset(branchOffset));
+    Instruction* inst = getInstructionAt(BufferOffset(branchOffset));
     inst->SetImmPCOffsetTarget(inst + nextOffset().getOffset() - branchOffset);
 }
 
 // FIXME: Share with ARM?
 void
-Assembler::trace(JSTracer *trc)
+Assembler::trace(JSTracer* trc)
 {
     for (size_t i = 0; i < pendingJumps_.length(); i++) {
-        RelativePatch &rp = pendingJumps_[i];
+        RelativePatch& rp = pendingJumps_[i];
         if (rp.kind == Relocation::JITCODE) {
-            JitCode *code = JitCode::FromExecutable((uint8_t *)rp.target);
+            JitCode* code = JitCode::FromExecutable((uint8_t*)rp.target);
             TraceManuallyBarrieredEdge(trc, &code, "masmrel32");
-            MOZ_ASSERT(code == JitCode::FromExecutable((uint8_t *)rp.target));
+            MOZ_ASSERT(code == JitCode::FromExecutable((uint8_t*)rp.target));
         }
     }
 
@@ -334,15 +334,15 @@ Assembler::addPatchableJump(BufferOffset src, Relocation::Kind reloc)
 
 // FIXME: Shouldn't this be a static method of Assembler?
 void
-PatchJump(CodeLocationJump &jump_, CodeLocationLabel label) {
+PatchJump(CodeLocationJump& jump_, CodeLocationLabel label) {
     // We need to determine if this jump can fit into the standard 24+2 bit
     // address or if we need a larger branch (or just need to use our pool
     // entry).
-    Instruction *jump = (Instruction*)jump_.raw();
+    Instruction* jump = (Instruction*)jump_.raw();
     //printInstruction(jump-12,3);
     //printf("*");
     //printInstruction(jump,3);
-    uint8_t **pe = reinterpret_cast<uint8_t**>(jump->LiteralAddress());
+    uint8_t** pe = reinterpret_cast<uint8_t**>(jump->LiteralAddress());
     //printf("patching %p with %p->[%p]\n", jump, label.raw(), pe);
     *pe = label.raw();
     jump += 4;
@@ -363,7 +363,7 @@ PatchJump(CodeLocationJump &jump_, CodeLocationLabel label) {
     } else {
         // This instruction started off as a branch, but now needs to be demoted
         // to an ldr.
-        uint8_t **slot = reinterpret_cast<uint8_t**>(jump_.jumpTableEntry());
+        uint8_t** slot = reinterpret_cast<uint8_t**>(jump_.jumpTableEntry());
         Assembler::RetargetFarBranch(jump, slot, label.raw(), c);
     }
 #endif
@@ -374,7 +374,7 @@ void
 Assembler::PatchDataWithValueCheck(CodeLocationLabel label, PatchedImmPtr newValue,
                                    PatchedImmPtr expected)
 {
-    Instruction *i = (Instruction *)label.raw();
+    Instruction* i = (Instruction*)label.raw();
     void** pValue = reinterpret_cast<void**>(i->LiteralAddress());
     MOZ_ASSERT(*pValue == expected.value);
     *pValue = newValue.value;
@@ -389,7 +389,7 @@ Assembler::PatchDataWithValueCheck(CodeLocationLabel label, ImmPtr newValue, Imm
 void
 Assembler::ToggleToJmp(CodeLocationLabel inst_)
 {
-    Instruction *i = (Instruction *)inst_.raw();
+    Instruction* i = (Instruction*)inst_.raw();
     MOZ_ASSERT(i->IsAddSubImmediate());
 
     // Refer to instruction layout in ToggleToCmp().
@@ -402,7 +402,7 @@ Assembler::ToggleToJmp(CodeLocationLabel inst_)
 void
 Assembler::ToggleToCmp(CodeLocationLabel inst_)
 {
-    Instruction *i = (Instruction *)inst_.raw();
+    Instruction* i = (Instruction*)inst_.raw();
     MOZ_ASSERT(i->IsCondB());
 
     int imm19 = i->ImmCondBranch();
@@ -426,12 +426,12 @@ Assembler::ToggleToCmp(CodeLocationLabel inst_)
 void
 Assembler::ToggleCall(CodeLocationLabel inst_, bool enabled)
 {
-    Instruction *first = (Instruction*)inst_.raw();
-    Instruction *load;
-    Instruction *call;
+    Instruction* first = (Instruction*)inst_.raw();
+    Instruction* load;
+    Instruction* call;
 
     if (first->InstructionBits() == 0x9100039f) {
-        load = (Instruction *)NextInstruction(first);
+        load = (Instruction*)NextInstruction(first);
         call = NextInstruction(load);
     } else {
         load = first;
@@ -473,7 +473,7 @@ class RelocationIterator
     uint32_t extOffset_;
 
   public:
-    explicit RelocationIterator(CompactBufferReader &reader)
+    explicit RelocationIterator(CompactBufferReader& reader)
       : reader_(reader)
     {
         // The first uint32_t stores the extended table offset.
@@ -496,22 +496,22 @@ class RelocationIterator
     }
 };
 
-static JitCode *
-CodeFromJump(JitCode *code, uint8_t *jump)
+static JitCode*
+CodeFromJump(JitCode* code, uint8_t* jump)
 {
-    Instruction *branch = (Instruction *)jump;
-    uint8_t *target;
+    Instruction* branch = (Instruction*)jump;
+    uint8_t* target;
     // If this is a toggled branch, and is currently off, then we have some 'splainin
     if (branch->BranchType() == UnknownBranchType)
-        target = (uint8_t *)branch->Literal64();
+        target = (uint8_t*)branch->Literal64();
     else
-        target = (uint8_t *)branch->ImmPCOffsetTarget();
+        target = (uint8_t*)branch->ImmPCOffsetTarget();
 
     // If the jump is within the code buffer, it uses the extended jump table.
     if (target >= code->raw() && target < code->raw() + code->instructionsSize()) {
         MOZ_ASSERT(target + Assembler::SizeOfJumpTableEntry <= code->raw() + code->instructionsSize());
 
-        uint8_t **patchablePtr = (uint8_t **)(target + Assembler::OffsetOfJumpTableEntryPointer);
+        uint8_t** patchablePtr = (uint8_t**)(target + Assembler::OffsetOfJumpTableEntryPointer);
         target = *patchablePtr;
     }
 
@@ -519,33 +519,33 @@ CodeFromJump(JitCode *code, uint8_t *jump)
 }
 
 void
-Assembler::TraceJumpRelocations(JSTracer *trc, JitCode *code, CompactBufferReader &reader)
+Assembler::TraceJumpRelocations(JSTracer* trc, JitCode* code, CompactBufferReader& reader)
 {
     RelocationIterator iter(reader);
     while (iter.read()) {
-        JitCode *child = CodeFromJump(code, code->raw() + iter.offset());
+        JitCode* child = CodeFromJump(code, code->raw() + iter.offset());
         TraceManuallyBarrieredEdge(trc, &child, "rel32");
         MOZ_ASSERT(child == CodeFromJump(code, code->raw() + iter.offset()));
     }
 }
 
 static void
-TraceDataRelocations(JSTracer *trc, uint8_t *buffer, CompactBufferReader &reader)
+TraceDataRelocations(JSTracer* trc, uint8_t* buffer, CompactBufferReader& reader)
 {
     while (reader.more()) {
         size_t offset = reader.readUnsigned();
-        Instruction *load = (Instruction *)&buffer[offset];
+        Instruction* load = (Instruction*)&buffer[offset];
 
         // The only valid traceable operation is a 64-bit load to an ARMRegister.
         // Refer to movePatchablePtr() for generation.
         MOZ_ASSERT(load->Mask(LoadLiteralMask) == LDR_x_lit);
 
         uint32_t pcOffset = load->ImmLLiteral();
-        uint8_t *literalAddr = ((uint8_t*)load) + (pcOffset << kLiteralEntrySizeLog2);
+        uint8_t* literalAddr = ((uint8_t*)load) + (pcOffset << kLiteralEntrySizeLog2);
 
         // All pointers on AArch64 will have the top bits cleared.
         // If those bits are not cleared, this must be a Value.
-        uintptr_t *word = reinterpret_cast<uintptr_t*>(literalAddr);
+        uintptr_t* word = reinterpret_cast<uintptr_t*>(literalAddr);
         if (*word >> JSVAL_TAG_SHIFT) {
             jsval_layout layout;
             layout.asBits = *word;
@@ -562,31 +562,31 @@ TraceDataRelocations(JSTracer *trc, uint8_t *buffer, CompactBufferReader &reader
 }
 
 void
-Assembler::TraceDataRelocations(JSTracer *trc, JitCode *code, CompactBufferReader &reader)
+Assembler::TraceDataRelocations(JSTracer* trc, JitCode* code, CompactBufferReader& reader)
 {
     ::TraceDataRelocations(trc, code->raw(), reader);
 }
 
 void
-Assembler::FixupNurseryObjects(JSContext *cx, JitCode *code, CompactBufferReader &reader,
-                               const ObjectVector &nurseryObjects)
+Assembler::FixupNurseryObjects(JSContext* cx, JitCode* code, CompactBufferReader& reader,
+                               const ObjectVector& nurseryObjects)
 {
 
     MOZ_ASSERT(!nurseryObjects.empty());
 
-    uint8_t *buffer = code->raw();
+    uint8_t* buffer = code->raw();
     bool hasNurseryPointers = false;
 
     while (reader.more()) {
         size_t offset = reader.readUnsigned();
-        Instruction *ins = (Instruction*)(buffer + offset);
-        uintptr_t *word_ptr = reinterpret_cast<uintptr_t*>(ins->LiteralAddress());
+        Instruction* ins = (Instruction*)(buffer + offset);
+        uintptr_t* word_ptr = reinterpret_cast<uintptr_t*>(ins->LiteralAddress());
         if (*word_ptr >> JSVAL_TAG_SHIFT)
             continue;
         if (!(*word_ptr & 0x1))
             continue;
         uint32_t index = *word_ptr >> 1;
-        JSObject *obj = nurseryObjects[index];
+        JSObject* obj = nurseryObjects[index];
         *word_ptr = uintptr_t(obj);
 
                 // Either all objects are still in the nursery, or all objects are
@@ -603,19 +603,19 @@ Assembler::FixupNurseryObjects(JSContext *cx, JitCode *code, CompactBufferReader
 }
 
 int32_t
-Assembler::ExtractCodeLabelOffset(uint8_t *code)
+Assembler::ExtractCodeLabelOffset(uint8_t* code)
 {
-    return *(int32_t *)code;
+    return *(int32_t*)code;
 }
 
 void
-Assembler::PatchInstructionImmediate(uint8_t *code, PatchedImmPtr imm)
+Assembler::PatchInstructionImmediate(uint8_t* code, PatchedImmPtr imm)
 {
     MOZ_CRASH("PatchInstructionImmediate()");
 }
 
 void
-Assembler::UpdateBoundsCheck(uint32_t heapSize, Instruction *inst)
+Assembler::UpdateBoundsCheck(uint32_t heapSize, Instruction* inst)
 {
     int32_t mask = ~(heapSize - 1);
     unsigned n, imm_s, imm_r;
@@ -627,7 +627,7 @@ Assembler::UpdateBoundsCheck(uint32_t heapSize, Instruction *inst)
 }
 
 void
-Assembler::retarget(Label *label, Label *target)
+Assembler::retarget(Label* label, Label* target)
 {
     if (label->used()) {
         if (target->bound()) {
@@ -644,7 +644,7 @@ Assembler::retarget(Label *label, Label *target)
 
             // Then patch the head of label's use chain to the tail of target's
             // use chain, prepending the entire use chain of target.
-            Instruction *branch = getInstructionAt(labelBranchOffset);
+            Instruction* branch = getInstructionAt(labelBranchOffset);
             target->use(label->offset());
             branch->SetImmPCOffsetTarget(branch - labelBranchOffset.getOffset());
         } else {

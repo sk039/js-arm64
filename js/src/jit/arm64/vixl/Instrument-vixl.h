@@ -99,7 +99,7 @@ class Instrument : public DecoderVisitor
 
     std::list<Counter*> counters_;
 
-    FILE *output_stream_;
+    FILE* output_stream_;
     uint64_t sample_period_;
 };
 

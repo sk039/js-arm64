@@ -118,7 +118,7 @@ class Decoder : public DecoderVisitor
 
     // Top-level instruction decoder function. Decodes an instruction and calls
     // the visitor functions registered with the Decoder class.
-    void Decode(Instruction *instr);
+    void Decode(Instruction* instr);
 
     // Register a new visitor class with the decoder.
     // Decode() will call the corresponding visitor method from all registered

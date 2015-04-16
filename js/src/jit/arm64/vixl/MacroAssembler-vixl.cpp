@@ -579,7 +579,7 @@ MacroAssemblerVIXL::Negs(const ARMRegister& rd, const Operand& operand)
 }
 
 bool
-MacroAssemblerVIXL::TryOneInstrMoveImmediate(const ARMRegister &dst, int64_t imm)
+MacroAssemblerVIXL::TryOneInstrMoveImmediate(const ARMRegister& dst, int64_t imm)
 {
     unsigned n, imm_s, imm_r;
     int reg_size = dst.size();
@@ -615,7 +615,7 @@ MacroAssemblerVIXL::TryOneInstrMoveImmediate(const ARMRegister &dst, int64_t imm
 }
 
 Operand
-MacroAssemblerVIXL::MoveImmediateForShiftedOp(const ARMRegister &dst, int64_t imm)
+MacroAssemblerVIXL::MoveImmediateForShiftedOp(const ARMRegister& dst, int64_t imm)
 {
     int reg_size = dst.size();
 
