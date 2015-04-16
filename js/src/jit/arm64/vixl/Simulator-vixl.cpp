@@ -36,7 +36,7 @@
 
 #include "jit/arm64/vixl/Assembler-vixl.h"
 #include "jit/arm64/vixl/Debugger-vixl.h"
-#include "jit/arm64/vixl/VIXL-Platform-vixl.h"
+#include "jit/arm64/vixl/Platform-vixl.h"
 
 #include "vm/Runtime.h"
 

@@ -53,7 +53,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "jit/arm64/vixl/VIXL-Platform-vixl.h"
+#include "jit/arm64/vixl/Platform-vixl.h"
 
 #include "js/Utility.h"
 

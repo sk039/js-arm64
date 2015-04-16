@@ -35,7 +35,7 @@
 #include "js-config.h"
 
 #include "jit/arm64/vixl/Instructions-vixl.h"
-#include "jit/arm64/vixl/VIXL-Globals-vixl.h"
+#include "jit/arm64/vixl/Globals-vixl.h"
 
 #include <list>
 

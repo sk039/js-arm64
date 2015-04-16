@@ -31,7 +31,7 @@
 
 #include "jsutil.h"
 
-#include "jit/arm64/vixl/VIXL-Utils-vixl.h"
+#include "jit/arm64/vixl/Utils-vixl.h"
 
 namespace js {
 namespace jit {

@@ -33,7 +33,7 @@
 #include "jit/arm64/Assembler-arm64.h"
 
 #include "jit/arm64/vixl/Debugger-vixl.h"
-#include "jit/arm64/vixl/VIXL-Globals-vixl.h"
+#include "jit/arm64/vixl/Globals-vixl.h"
 
 #define LS_MACRO_LIST(V)                                           \
     V(Ldrb, ARMRegister&, rt, LDRB_w)                              \

@@ -34,8 +34,8 @@
 
 #include "jit/arm64/vixl/Constants-vixl.h"
 #include "jit/arm64/vixl/Simulator-vixl.h"
-#include "jit/arm64/vixl/VIXL-Globals-vixl.h"
-#include "jit/arm64/vixl/VIXL-Utils-vixl.h"
+#include "jit/arm64/vixl/Globals-vixl.h"
+#include "jit/arm64/vixl/Utils-vixl.h"
 
 #ifdef JS_ARM64_SIMULATOR
 

@@ -32,8 +32,8 @@
 
 #include "jit/arm64/vixl/Constants-vixl.h"
 #include "jit/arm64/vixl/Decoder-vixl.h"
-#include "jit/arm64/vixl/VIXL-Globals-vixl.h"
-#include "jit/arm64/vixl/VIXL-Utils-vixl.h"
+#include "jit/arm64/vixl/Globals-vixl.h"
+#include "jit/arm64/vixl/Utils-vixl.h"
 
 namespace js {
 namespace jit {

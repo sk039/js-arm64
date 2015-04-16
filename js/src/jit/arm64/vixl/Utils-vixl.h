@@ -32,7 +32,7 @@
 
 #include "mozilla/FloatingPoint.h"
 
-#include "jit/arm64/vixl/VIXL-Globals-vixl.h"
+#include "jit/arm64/vixl/Globals-vixl.h"
 
 namespace js {
 namespace jit {

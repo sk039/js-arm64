@@ -31,8 +31,8 @@
 #define VIXL_A64_ASSEMBLER_A64_H_
 
 #include "jit/arm64/vixl/Instructions-vixl.h"
-#include "jit/arm64/vixl/VIXL-Globals-vixl.h"
-#include "jit/arm64/vixl/VIXL-Utils-vixl.h"
+#include "jit/arm64/vixl/Globals-vixl.h"
+#include "jit/arm64/vixl/Utils-vixl.h"
 
 #include "jit/JitSpewer.h"
 
