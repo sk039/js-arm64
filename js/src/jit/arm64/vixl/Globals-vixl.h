@@ -43,7 +43,6 @@
 #include <stdint.h>
 #include <inttypes.h>
 
-#include <assert.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdint.h>
@@ -68,7 +67,7 @@ const int MBytes = 1024 * KBytes;
   #define VIXL_UNREACHABLE() printf("UNREACHABLE\t"); VIXL_ABORT()
 #else
   #define VIXL_ASSERT(condition) ((void) 0)
-  #define VIXL_CHECK(condition) assert(condition)
+  #define VIXL_CHECK(condition) ((void) 0)
   #define VIXL_UNIMPLEMENTED() ((void) 0)
   #define VIXL_UNREACHABLE() ((void) 0)
 #endif
