@@ -243,8 +243,8 @@ class SimExclusiveGlobalMonitor
 
     template <typename T>
     bool IsExclusive(T address, size_t size) {
-        USEARG(address);
-        USEARG(size);
+        USE(address);
+        USE(size);
 
         bool pass = (seed_ % kPassProbability) != 0;
         // Advance seed_ using a simple linear congruential generator.

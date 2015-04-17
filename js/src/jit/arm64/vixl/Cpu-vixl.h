@@ -1,6 +1,3 @@
-// -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
-// vim: set ts=8 sts=4 et sw=4 tw=99:
-//
 // Copyright 2013, ARM Limited
 // All rights reserved.
 //
@@ -30,58 +27,57 @@
 #ifndef VIXL_CPU_A64_H
 #define VIXL_CPU_A64_H
 
-#include "jit/arm64/vixl/Instructions-vixl.h"
 #include "jit/arm64/vixl/Globals-vixl.h"
+#include "jit/arm64/vixl/Instructions-vixl.h"
 
 namespace vixl {
 
-class CPU
-{
-  public:
-    // Initialise CPU support.
-    static void SetUp();
+class CPU {
+ public:
+  // Initialise CPU support.
+  static void SetUp();
 
-    // Ensures the data at a given address and with a given size is the same for
-    // the I and D caches. I and D caches are not automatically coherent on ARM
-    // so this operation is required before any dynamically generated code can
-    // safely run.
-    static void EnsureIAndDCacheCoherency(void* address, size_t length);
+  // Ensures the data at a given address and with a given size is the same for
+  // the I and D caches. I and D caches are not automatically coherent on ARM
+  // so this operation is required before any dynamically generated code can
+  // safely run.
+  static void EnsureIAndDCacheCoherency(void *address, size_t length);
 
-    // Handle tagged pointers.
-    template <typename T>
-    static T SetPointerTag(T pointer, uint64_t tag) {
-        MOZ_ASSERT(is_uintn(kAddressTagWidth, tag));
+  // Handle tagged pointers.
+  template <typename T>
+  static T SetPointerTag(T pointer, uint64_t tag) {
+    VIXL_ASSERT(is_uintn(kAddressTagWidth, tag));
 
-        // Use C-style casts to get static_cast behaviour for integral types (T),
-        // and reinterpret_cast behaviour for other types.
+    // Use C-style casts to get static_cast behaviour for integral types (T),
+    // and reinterpret_cast behaviour for other types.
 
-        uint64_t raw = (uint64_t)pointer;
-        JS_STATIC_ASSERT(sizeof(pointer) == sizeof(raw));
+    uint64_t raw = (uint64_t)pointer;
+    VIXL_STATIC_ASSERT(sizeof(pointer) == sizeof(raw));
 
-        raw = (raw & ~kAddressTagMask) | (tag << kAddressTagOffset);
-        return (T)raw;
-    }
+    raw = (raw & ~kAddressTagMask) | (tag << kAddressTagOffset);
+    return (T)raw;
+  }
 
-    template <typename T>
-    static uint64_t GetPointerTag(T pointer) {
-        // Use C-style casts to get static_cast behaviour for integral types (T),
-        // and reinterpret_cast behaviour for other types.
+  template <typename T>
+  static uint64_t GetPointerTag(T pointer) {
+    // Use C-style casts to get static_cast behaviour for integral types (T),
+    // and reinterpret_cast behaviour for other types.
 
-        uint64_t raw = (uint64_t)pointer;
-        JS_STATIC_ASSERT(sizeof(pointer) == sizeof(raw));
+    uint64_t raw = (uint64_t)pointer;
+    VIXL_STATIC_ASSERT(sizeof(pointer) == sizeof(raw));
 
-        return (raw & kAddressTagMask) >> kAddressTagOffset;
-    }
+    return (raw & kAddressTagMask) >> kAddressTagOffset;
+  }
 
-  private:
-    // Return the content of the cache type register.
-    static uint32_t GetCacheType();
+ private:
+  // Return the content of the cache type register.
+  static uint32_t GetCacheType();
 
-    // I and D cache line size in bytes.
-    static unsigned icache_line_size_;
-    static unsigned dcache_line_size_;
+  // I and D cache line size in bytes.
+  static unsigned icache_line_size_;
+  static unsigned dcache_line_size_;
 };
 
-} // namespace vixl
+}  // namespace vixl
 
-#endif // VIXL_CPU_A64_H
+#endif  // VIXL_CPU_A64_H

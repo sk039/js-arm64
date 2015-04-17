@@ -1,6 +1,3 @@
-// -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
-// vim: set ts=8 sts=4 et sw=4 tw=99:
-//
 // Copyright 2013, ARM Limited
 // All rights reserved.
 //
@@ -43,19 +40,20 @@
 #define __STDC_FORMAT_MACROS
 #endif
 
-#include "mozilla/Assertions.h"
-
-// TODO: Don't use these headers.
-#include <inttypes.h>
-#include <stdarg.h>
-#include <stddef.h>
 #include <stdint.h>
+#include <inttypes.h>
+
+#include <assert.h>
+#include <stdarg.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <stdlib.h>
+#include <stddef.h>
 
 #include "jit/arm64/vixl/Platform-vixl.h"
-
 #include "js/Utility.h"
+#include "mozilla/Assertions.h"
+
 
 typedef uint8_t byte;
 
@@ -63,13 +61,28 @@ const int KBytes = 1024;
 const int MBytes = 1024 * KBytes;
 
 #define VIXL_ABORT() printf("in %s, line %i", __FILE__, __LINE__); abort()
+#ifdef VIXL_DEBUG
+  #define VIXL_ASSERT(condition) MOZ_ASSERT(condition)
+  #define VIXL_CHECK(condition) VIXL_ASSERT(condition)
+  #define VIXL_UNIMPLEMENTED() printf("UNIMPLEMENTED\t"); VIXL_ABORT()
+  #define VIXL_UNREACHABLE() printf("UNREACHABLE\t"); VIXL_ABORT()
+#else
+  #define VIXL_ASSERT(condition) ((void) 0)
+  #define VIXL_CHECK(condition) assert(condition)
+  #define VIXL_UNIMPLEMENTED() ((void) 0)
+  #define VIXL_UNREACHABLE() ((void) 0)
+#endif
+// This is not as powerful as template based assertions, but it is simple.
+// It assumes that the descriptions are unique. If this starts being a problem,
+// we can switch to a different implemention.
+#define VIXL_CONCAT(a, b) a##b
+#define VIXL_STATIC_ASSERT_LINE(line, condition) \
+  typedef char VIXL_CONCAT(STATIC_ASSERT_LINE_, line)[(condition) ? 1 : -1] \
+  __attribute__((unused))
+#define VIXL_STATIC_ASSERT(condition) VIXL_STATIC_ASSERT_LINE(__LINE__, condition) //NOLINT
 
-#define VIXL_UNIMPLEMENTED() MOZ_CRASH("VIXL Unimplemented")
-#define VIXL_UNREACHABLE() MOZ_CRASH("VIXL Unreachable")
+template <typename T> inline void USE(T) {}
+
 #define VIXL_ALIGNMENT_EXCEPTION() printf("ALIGNMENT EXCEPTION\t"); VIXL_ABORT()
-
-// Unfortunately, assembler/wtf/Platform.h defines USE() as a
-// WTF feature-detection macro already. Renaming to USEARG().
-template <typename T> inline void USEARG(T) {}
 
 #endif  // VIXL_GLOBALS_H

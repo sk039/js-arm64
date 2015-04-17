@@ -1825,7 +1825,7 @@ AssemblerVIXL::fcmp(const ARMFPRegister& fn, const ARMFPRegister& fm)
 void
 AssemblerVIXL::fcmp(const ARMFPRegister& fn, double value)
 {
-    USEARG(value);
+    USE(value);
     // Although the fcmp instruction can strictly only take an immediate value of
     // +0.0, we don't need to check for -0.0 because the sign of 0.0 doesn't
     // affect the result of the comparison.
@@ -2656,7 +2656,7 @@ LoadStorePairOp
 AssemblerVIXL::LoadPairOpFor(const CPURegister& rt, const CPURegister& rt2)
 {
     MOZ_ASSERT(AreSameSizeAndType(rt, rt2));
-    USEARG(rt2);
+    USE(rt2);
     if (rt.IsRegister())
         return rt.Is64Bits() ? LDP_x : LDP_w;
 
@@ -2679,7 +2679,7 @@ LoadStorePairOp
 AssemblerVIXL::StorePairOpFor(const CPURegister& rt, const CPURegister& rt2)
 {
     MOZ_ASSERT(AreSameSizeAndType(rt, rt2));
-    USEARG(rt2);
+    USE(rt2);
     if (rt.IsRegister())
         return rt.Is64Bits() ? STP_x : STP_w;
 
@@ -2691,7 +2691,7 @@ LoadStorePairNonTemporalOp
 AssemblerVIXL::LoadPairNonTemporalOpFor(const CPURegister& rt, const CPURegister& rt2)
 {
     MOZ_ASSERT(AreSameSizeAndType(rt, rt2));
-    USEARG(rt2);
+    USE(rt2);
     if (rt.IsRegister())
         return rt.Is64Bits() ? LDNP_x : LDNP_w;
 
@@ -2703,7 +2703,7 @@ LoadStorePairNonTemporalOp
 AssemblerVIXL::StorePairNonTemporalOpFor(const CPURegister& rt, const CPURegister& rt2)
 {
     MOZ_ASSERT(AreSameSizeAndType(rt, rt2));
-    USEARG(rt2);
+    USE(rt2);
     if (rt.IsRegister())
         return rt.Is64Bits() ? STNP_x : STNP_w;
 

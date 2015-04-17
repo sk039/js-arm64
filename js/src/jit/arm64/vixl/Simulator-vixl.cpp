@@ -2014,7 +2014,7 @@ FPRound(int64_t sign, int64_t exponent, uint64_t mantissa, FPRounding round_mode
 
     // Only the FPTieEven rounding mode is implemented.
     MOZ_ASSERT(round_mode == FPTieEven);
-    USEARG(round_mode);
+    USE(round_mode);
 
     // Rounding can promote subnormals to normals, and normals to infinities. For
     // example, a double with exponent 127 (FLT_MAX_EXP) would appear to be
@@ -2345,7 +2345,7 @@ Simulator::FPToFloat(double value, FPRounding round_mode)
 {
     // Only the FPTieEven rounding mode is implemented.
     MOZ_ASSERT(round_mode == FPTieEven);
-    USEARG(round_mode);
+    USE(round_mode);
 
     switch (std::fpclassify(value)) {
       case FP_NAN: {

@@ -1608,7 +1608,7 @@ int
 DisassemblerARM64::SubstituteLiteralField(Instruction* instr, const char* format)
 {
     MOZ_ASSERT(strncmp(format, "LValue", 6) == 0);
-    USEARG(format);
+    USE(format);
 
     switch (instr->Mask(LoadLiteralMask)) {
       case LDR_w_lit:
@@ -1719,7 +1719,7 @@ DisassemblerARM64::SubstituteExtendField(Instruction* instr, const char* format)
 {
     MOZ_ASSERT(strncmp(format, "Ext", 3) == 0);
     MOZ_ASSERT(instr->ExtendMode() <= 7);
-    USEARG(format);
+    USE(format);
 
     const char* extend_mode[] = { "uxtb", "uxth", "uxtw", "uxtx",
                                   "sxtb", "sxth", "sxtw", "sxtx" };
@@ -1746,7 +1746,7 @@ DisassemblerARM64::SubstituteLSRegOffsetField(Instruction* instr, const char* fo
     MOZ_ASSERT(strncmp(format, "Offsetreg", 9) == 0);
     const char* extend_mode[] = { "undefined", "undefined", "uxtw", "lsl",
                                   "undefined", "undefined", "sxtw", "sxtx" };
-    USEARG(format);
+    USE(format);
 
     unsigned shift = instr->ImmShiftLS();
     Extend ext = static_cast<Extend>(instr->ExtendMode());
@@ -1771,7 +1771,7 @@ int
 DisassemblerARM64::SubstitutePrefetchField(Instruction* instr, const char* format)
 {
     MOZ_ASSERT(format[0] == 'P');
-    USEARG(format);
+    USE(format);
 
     int prefetch_mode = instr->PrefetchMode();
 
@@ -1787,7 +1787,7 @@ int
 DisassemblerARM64::SubstituteBarrierField(Instruction* instr, const char* format)
 {
     MOZ_ASSERT(format[0] == 'M');
-    USEARG(format);
+    USE(format);
 
     static const char* options[4][4] = {
         { "sy (0b0000)", "oshld", "oshst", "osh" },

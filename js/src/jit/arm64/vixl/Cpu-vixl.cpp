@@ -84,8 +84,8 @@ void
 CPU::EnsureIAndDCacheCoherency(void* address, size_t length)
 {
 #ifdef JS_ARM64_SIMULATOR
-    USEARG(address);
-    USEARG(length);
+    USE(address);
+    USE(length);
 #else
     if (length == 0)
         return;

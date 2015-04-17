@@ -1119,7 +1119,7 @@ class InstructionAccurateScope {
     explicit InstructionAccurateScope(MacroAssemblerVIXL* masm, int count = 0)
       : masm_(masm)
     {
-        USEARG(count);
+        USE(count);
         //masm_->BlockLiteralPool();
     }
 #endif

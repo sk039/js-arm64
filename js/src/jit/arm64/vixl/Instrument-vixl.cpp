@@ -260,7 +260,7 @@ Instrument::Disable()
 void
 Instrument::VisitPCRelAddressing(Instruction* instr)
 {
-    USEARG(instr);
+    USE(instr);
     Update();
     static Counter* counter = GetCounter("PC Addressing");
     counter->Increment();
@@ -269,7 +269,7 @@ Instrument::VisitPCRelAddressing(Instruction* instr)
 void
 Instrument::VisitAddSubImmediate(Instruction* instr)
 {
-    USEARG(instr);
+    USE(instr);
     Update();
     static Counter* counter = GetCounter("Add/Sub DP");
     counter->Increment();
@@ -278,7 +278,7 @@ Instrument::VisitAddSubImmediate(Instruction* instr)
 void
 Instrument::VisitLogicalImmediate(Instruction* instr)
 {
-    USEARG(instr);
+    USE(instr);
     Update();
     static Counter* counter = GetCounter("Logical DP");
     counter->Increment();
@@ -301,7 +301,7 @@ Instrument::VisitMoveWideImmediate(Instruction* instr)
 void
 Instrument::VisitBitfield(Instruction* instr)
 {
-    USEARG(instr);
+    USE(instr);
     Update();
     static Counter* counter = GetCounter("Other Int DP");
     counter->Increment();
@@ -310,7 +310,7 @@ Instrument::VisitBitfield(Instruction* instr)
 void
 Instrument::VisitExtract(Instruction* instr)
 {
-    USEARG(instr);
+    USE(instr);
     Update();
     static Counter* counter = GetCounter("Other Int DP");
     counter->Increment();
@@ -319,7 +319,7 @@ Instrument::VisitExtract(Instruction* instr)
 void
 Instrument::VisitUnconditionalBranch(Instruction* instr)
 {
-    USEARG(instr);
+    USE(instr);
     Update();
     static Counter* counter = GetCounter("Unconditional Branch");
     counter->Increment();
@@ -328,7 +328,7 @@ Instrument::VisitUnconditionalBranch(Instruction* instr)
 void
 Instrument::VisitUnconditionalBranchToRegister(Instruction* instr)
 {
-    USEARG(instr);
+    USE(instr);
     Update();
     static Counter* counter = GetCounter("Unconditional Branch");
     counter->Increment();
@@ -337,7 +337,7 @@ Instrument::VisitUnconditionalBranchToRegister(Instruction* instr)
 void
 Instrument::VisitCompareBranch(Instruction* instr)
 {
-    USEARG(instr);
+    USE(instr);
     Update();
     static Counter* counter = GetCounter("Compare and Branch");
     counter->Increment();
@@ -346,7 +346,7 @@ Instrument::VisitCompareBranch(Instruction* instr)
 void
 Instrument::VisitTestBranch(Instruction* instr)
 {
-    USEARG(instr);
+    USE(instr);
     Update();
     static Counter* counter = GetCounter("Test and Branch");
     counter->Increment();
@@ -355,7 +355,7 @@ Instrument::VisitTestBranch(Instruction* instr)
 void
 Instrument::VisitConditionalBranch(Instruction* instr)
 {
-    USEARG(instr);
+    USE(instr);
     Update();
     static Counter* counter = GetCounter("Conditional Branch");
     counter->Increment();
@@ -364,7 +364,7 @@ Instrument::VisitConditionalBranch(Instruction* instr)
 void
 Instrument::VisitSystem(Instruction* instr)
 {
-    USEARG(instr);
+    USE(instr);
     Update();
     static Counter* counter = GetCounter("Other");
     counter->Increment();
@@ -373,7 +373,7 @@ Instrument::VisitSystem(Instruction* instr)
 void
 Instrument::VisitException(Instruction* instr)
 {
-    USEARG(instr);
+    USE(instr);
     Update();
     static Counter* counter = GetCounter("Other");
     counter->Increment();
@@ -422,7 +422,7 @@ Instrument::VisitLoadStorePairNonTemporal(Instruction* instr)
 void
 Instrument::VisitLoadStoreExclusive(Instruction* instr)
 {
-    USEARG(instr);
+    USE(instr);
     Update();
     static Counter* counter = GetCounter("Other");
     counter->Increment();
@@ -431,7 +431,7 @@ Instrument::VisitLoadStoreExclusive(Instruction* instr)
 void
 Instrument::VisitLoadLiteral(Instruction* instr)
 {
-    USEARG(instr);
+    USE(instr);
     Update();
     static Counter* counter = GetCounter("Load Literal");
     counter->Increment();
@@ -476,7 +476,7 @@ Instrument::VisitLoadStoreUnscaledOffset(Instruction* instr)
 void
 Instrument::VisitLoadStorePostIndex(Instruction* instr)
 {
-    USEARG(instr);
+    USE(instr);
     Update();
     InstrumentLoadStore(instr);
 }
@@ -505,7 +505,7 @@ Instrument::VisitLoadStoreUnsignedOffset(Instruction* instr)
 void
 Instrument::VisitLogicalShifted(Instruction* instr)
 {
-    USEARG(instr);
+    USE(instr);
     Update();
     static Counter* counter = GetCounter("Logical DP");
     counter->Increment();
@@ -514,7 +514,7 @@ Instrument::VisitLogicalShifted(Instruction* instr)
 void
 Instrument::VisitAddSubShifted(Instruction* instr)
 {
-    USEARG(instr);
+    USE(instr);
     Update();
     static Counter* counter = GetCounter("Add/Sub DP");
     counter->Increment();
@@ -523,7 +523,7 @@ Instrument::VisitAddSubShifted(Instruction* instr)
 void
 Instrument::VisitAddSubExtended(Instruction* instr)
 {
-    USEARG(instr);
+    USE(instr);
     Update();
     static Counter* counter = GetCounter("Add/Sub DP");
     counter->Increment();
@@ -532,7 +532,7 @@ Instrument::VisitAddSubExtended(Instruction* instr)
 void
 Instrument::VisitAddSubWithCarry(Instruction* instr)
 {
-    USEARG(instr);
+    USE(instr);
     Update();
     static Counter* counter = GetCounter("Add/Sub DP");
     counter->Increment();
@@ -541,7 +541,7 @@ Instrument::VisitAddSubWithCarry(Instruction* instr)
 void
 Instrument::VisitConditionalCompareRegister(Instruction* instr)
 {
-    USEARG(instr);
+    USE(instr);
     Update();
     static Counter* counter = GetCounter("Conditional Compare");
     counter->Increment();
@@ -550,7 +550,7 @@ Instrument::VisitConditionalCompareRegister(Instruction* instr)
 void
 Instrument::VisitConditionalCompareImmediate(Instruction* instr)
 {
-    USEARG(instr);
+    USE(instr);
     Update();
     static Counter* counter = GetCounter("Conditional Compare");
     counter->Increment();
@@ -559,7 +559,7 @@ Instrument::VisitConditionalCompareImmediate(Instruction* instr)
 void
 Instrument::VisitConditionalSelect(Instruction* instr)
 {
-    USEARG(instr);
+    USE(instr);
     Update();
     static Counter* counter = GetCounter("Conditional Select");
     counter->Increment();
@@ -568,7 +568,7 @@ Instrument::VisitConditionalSelect(Instruction* instr)
 void
 Instrument::VisitDataProcessing1Source(Instruction* instr)
 {
-    USEARG(instr);
+    USE(instr);
     Update();
     static Counter* counter = GetCounter("Other Int DP");
     counter->Increment();
@@ -577,7 +577,7 @@ Instrument::VisitDataProcessing1Source(Instruction* instr)
 void
 Instrument::VisitDataProcessing2Source(Instruction* instr)
 {
-    USEARG(instr);
+    USE(instr);
     Update();
     static Counter* counter = GetCounter("Other Int DP");
     counter->Increment();
@@ -586,7 +586,7 @@ Instrument::VisitDataProcessing2Source(Instruction* instr)
 void
 Instrument::VisitDataProcessing3Source(Instruction* instr)
 {
-    USEARG(instr);
+    USE(instr);
     Update();
     static Counter* counter = GetCounter("Other Int DP");
     counter->Increment();
@@ -595,7 +595,7 @@ Instrument::VisitDataProcessing3Source(Instruction* instr)
 void
 Instrument::VisitFPCompare(Instruction* instr)
 {
-    USEARG(instr);
+    USE(instr);
     Update();
     static Counter* counter = GetCounter("FP DP");
     counter->Increment();
@@ -604,7 +604,7 @@ Instrument::VisitFPCompare(Instruction* instr)
 void
 Instrument::VisitFPConditionalCompare(Instruction* instr)
 {
-    USEARG(instr);
+    USE(instr);
     Update();
     static Counter* counter = GetCounter("Conditional Compare");
     counter->Increment();
@@ -613,7 +613,7 @@ Instrument::VisitFPConditionalCompare(Instruction* instr)
 void
 Instrument::VisitFPConditionalSelect(Instruction* instr)
 {
-    USEARG(instr);
+    USE(instr);
     Update();
     static Counter* counter = GetCounter("Conditional Select");
     counter->Increment();
@@ -622,7 +622,7 @@ Instrument::VisitFPConditionalSelect(Instruction* instr)
 void
 Instrument::VisitFPImmediate(Instruction* instr)
 {
-    USEARG(instr);
+    USE(instr);
     Update();
     static Counter* counter = GetCounter("FP DP");
     counter->Increment();
@@ -631,7 +631,7 @@ Instrument::VisitFPImmediate(Instruction* instr)
 void
 Instrument::VisitFPDataProcessing1Source(Instruction* instr)
 {
-    USEARG(instr);
+    USE(instr);
     Update();
     static Counter* counter = GetCounter("FP DP");
     counter->Increment();
@@ -640,7 +640,7 @@ Instrument::VisitFPDataProcessing1Source(Instruction* instr)
 void
 Instrument::VisitFPDataProcessing2Source(Instruction* instr)
 {
-    USEARG(instr);
+    USE(instr);
     Update();
     static Counter* counter = GetCounter("FP DP");
     counter->Increment();
@@ -649,7 +649,7 @@ Instrument::VisitFPDataProcessing2Source(Instruction* instr)
 void
 Instrument::VisitFPDataProcessing3Source(Instruction* instr)
 {
-    USEARG(instr);
+    USE(instr);
     Update();
     static Counter* counter = GetCounter("FP DP");
     counter->Increment();
@@ -658,7 +658,7 @@ Instrument::VisitFPDataProcessing3Source(Instruction* instr)
 void
 Instrument::VisitFPIntegerConvert(Instruction* instr)
 {
-    USEARG(instr);
+    USE(instr);
     Update();
     static Counter* counter = GetCounter("FP DP");
     counter->Increment();
@@ -667,7 +667,7 @@ Instrument::VisitFPIntegerConvert(Instruction* instr)
 void
 Instrument::VisitFPFixedPointConvert(Instruction* instr)
 {
-    USEARG(instr);
+    USE(instr);
     Update();
     static Counter* counter = GetCounter("FP DP");
     counter->Increment();
@@ -676,7 +676,7 @@ Instrument::VisitFPFixedPointConvert(Instruction* instr)
 void
 Instrument::VisitUnallocated(Instruction* instr)
 {
-    USEARG(instr);
+    USE(instr);
     Update();
     static Counter* counter = GetCounter("Other");
     counter->Increment();
@@ -685,7 +685,7 @@ Instrument::VisitUnallocated(Instruction* instr)
 void
 Instrument::VisitUnimplemented(Instruction* instr)
 {
-    USEARG(instr);
+    USE(instr);
     Update();
     static Counter* counter = GetCounter("Other");
     counter->Increment();
