@@ -86,7 +86,7 @@ class Registers {
         w28 = 28, x28 = 28,
         w29 = 29, x29 = 29, fp = 29,
         w30 = 30, x30 = 30, lr = 30,
-        wzr = 31, xzr = 31, sp = 31, // Special: both stack pointer and a zero register.
+        w31 = 31, x31 = 31, wzr = 31, xzr = 31, sp = 31, // Special: both stack pointer and a zero register.
         invalid_reg
     };
     typedef uint8_t Code;

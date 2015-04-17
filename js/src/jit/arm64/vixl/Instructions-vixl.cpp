@@ -31,8 +31,7 @@
 
 #include "jit/arm64/vixl/Assembler-vixl.h"
 
-namespace js {
-namespace jit {
+namespace vixl {
 
 static uint64_t
 RotateRight(uint64_t value, unsigned int rotate, unsigned int width)
@@ -301,5 +300,4 @@ Instruction::SetImmLLiteral(Instruction* source)
     SetInstructionBits(Mask(~mask) | imm);
 }
 
-}  // namespace jit
-}  // namespace js
+}  // namespace vixl

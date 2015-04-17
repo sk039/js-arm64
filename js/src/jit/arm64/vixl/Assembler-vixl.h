@@ -39,8 +39,12 @@
 #include "jit/shared/Assembler-shared.h"
 #include "jit/shared/IonAssemblerBufferWithConstantPools.h"
 
-namespace js {
-namespace jit {
+namespace vixl {
+
+using js::jit::BufferOffset;
+using js::jit::Label;
+using js::jit::Address;
+using js::jit::BaseIndex;
 
 // Exciting buffer logic, before it gets replaced with the new hotness.
 class AssemblerVIXL;
@@ -211,7 +215,7 @@ class ARMRegister : public CPURegister
       : CPURegister(code, size, kARMRegister)
     { }
 
-    MOZ_CONSTEXPR ARMRegister(Register r, unsigned size)
+    MOZ_CONSTEXPR ARMRegister(js::jit::Register r, unsigned size)
       : CPURegister(r.code(), size, kARMRegister)
     { }
 
@@ -242,10 +246,10 @@ class ARMFPRegister : public CPURegister
     {
       MOZ_ASSERT(IsValidFPRegister());
     }
-    MOZ_CONSTEXPR inline ARMFPRegister(FloatRegister r, unsigned size)
+    MOZ_CONSTEXPR inline ARMFPRegister(js::jit::FloatRegister r, unsigned size)
         : CPURegister(r.code_, size, kARMFPRegister)
     { }
-    MOZ_CONSTEXPR inline ARMFPRegister(FloatRegister r)
+    MOZ_CONSTEXPR inline ARMFPRegister(js::jit::FloatRegister r)
         : CPURegister(r.code_, r.size() * 8, kARMFPRegister)
     { }
     MOZ_CONSTEXPR inline ARMFPRegister(unsigned code, unsigned size)
@@ -277,25 +281,25 @@ const ARMFPRegister NoFPReg;
 const CPURegister NoCPUReg;
 
 #define DEFINE_REGISTERS(N)  \
-const ARMRegister w##N(N, kWRegSize);  \
-const ARMRegister x##N(N, kXRegSize);
+constexpr ARMRegister w##N(N, kWRegSize);  \
+constexpr ARMRegister x##N(N, kXRegSize);
 REGISTER_CODE_LIST(DEFINE_REGISTERS)
 #undef DEFINE_REGISTERS
-const ARMRegister wsp(kSPRegInternalCode, kWRegSize);
-const ARMRegister sp(kSPRegInternalCode, kXRegSize);
+constexpr ARMRegister wsp(kSPRegInternalCode, kWRegSize);
+constexpr ARMRegister sp(kSPRegInternalCode, kXRegSize);
 
 #define DEFINE_FPREGISTERS(N)  \
-const ARMFPRegister s##N(N, kSRegSize);  \
-const ARMFPRegister d##N(N, kDRegSize);
+constexpr ARMFPRegister s##N(N, kSRegSize);  \
+constexpr ARMFPRegister d##N(N, kDRegSize);
 REGISTER_CODE_LIST(DEFINE_FPREGISTERS)
 #undef DEFINE_FPREGISTERS
 
 // ARMRegisters aliases.
-const ARMRegister ip0_64 = x16;
-const ARMRegister ip1_64 = x17;
-const ARMRegister lr_64 = x30;
-const ARMRegister xzr = x31;
-const ARMRegister wzr = w31;
+constexpr ARMRegister ip0 = x16;
+constexpr ARMRegister ip1 = x17;
+constexpr ARMRegister lr = x30;
+constexpr ARMRegister xzr = x31;
+constexpr ARMRegister wzr = w31;
 
 // AreAliased returns true if any of the named registers overlap. Arguments
 // set to NoReg are ignored. The system stack pointer may be specified.
@@ -579,7 +583,7 @@ class MemOperand
     explicit MemOperand(ptrdiff_t PCoffset);
 
     // Adapter constructors using C++11 delegating.
-    explicit MemOperand(Address addr)
+    explicit MemOperand(js::jit::Address addr)
       : MemOperand(ARMRegister(addr.base, 64), (ptrdiff_t)addr.offset)
     { }
 
@@ -677,7 +681,7 @@ enum LoadStoreScalingOption {
 };
 
 // Assembler.
-class AssemblerVIXL : public AssemblerShared
+class AssemblerVIXL : public js::jit::AssemblerShared
 {
   public:
     AssemblerVIXL()
@@ -734,9 +738,8 @@ class AssemblerVIXL : public AssemblerShared
         return reinterpret_cast<T>(label->offset());
     }
 
-    typedef js::jit::Condition Condition;
-#define COPYENUM(v) static const Condition v = js::jit::v
-#define COPYENUM_(v) static const Condition v = js::jit::v##_
+#define COPYENUM(v) static const Condition v = vixl::v
+#define COPYENUM_(v) static const Condition v = vixl::v##_
     COPYENUM(Equal);
     COPYENUM(Zero);
     COPYENUM(NotEqual);
@@ -836,7 +839,7 @@ class AssemblerVIXL : public AssemblerShared
     void blr(const ARMRegister& xn);
     static void blr(Instruction* at, const ARMRegister& xn);
     // Branch to register with return hint.
-    void ret(const ARMRegister& xn = lr_64);
+    void ret(const ARMRegister& xn = lr);
 
     // Unconditional branch to label.
     BufferOffset b(Label* label);
@@ -2032,8 +2035,8 @@ class AssemblerVIXL : public AssemblerShared
     static uint32_t PlaceConstantPoolBarrier(int offset) {
         MOZ_CRASH("PlaceConstantPoolBarrier");
     }
-    static void WritePoolHeader(uint8_t* start, Pool* p, bool isNatural);
-    static void WritePoolFooter(uint8_t* start, Pool* p, bool isNatural);
+    static void WritePoolHeader(uint8_t* start, js::jit::Pool* p, bool isNatural);
+    static void WritePoolFooter(uint8_t* start, js::jit::Pool* p, bool isNatural);
     static void WritePoolGuard(BufferOffset branch, Instruction* inst, BufferOffset dest);
 
     // Static interface used by IonAssemblerBufferWithConstantPools.
@@ -2064,13 +2067,13 @@ class AssemblerVIXL : public AssemblerShared
     // The buffer into which code and relocation info are generated.
     ARMBuffer armbuffer_;
 
-    CompactBufferWriter jumpRelocations_;
-    CompactBufferWriter dataRelocations_;
-    CompactBufferWriter relocations_;
-    CompactBufferWriter preBarriers_;
+    js::jit::CompactBufferWriter jumpRelocations_;
+    js::jit::CompactBufferWriter dataRelocations_;
+    js::jit::CompactBufferWriter relocations_;
+    js::jit::CompactBufferWriter preBarriers_;
 
     // Literal pools.
-    mozilla::Array<Pool, 4> pools_;
+    mozilla::Array<js::jit::Pool, 4> pools_;
 
     PositionIndependentCodeOption pic_;
 
@@ -2083,7 +2086,6 @@ class AssemblerVIXL : public AssemblerShared
 #endif
 };
 
-} // namespace jit
-} // namespace js
+} // namespace vixl
 
 #endif  // VIXL_A64_ASSEMBLER_A64_H_

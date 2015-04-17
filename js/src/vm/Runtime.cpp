@@ -330,7 +330,7 @@ JSRuntime::init(uint32_t maxbytes, uint32_t maxNurseryBytes)
 
 
 #if defined(JS_ARM_SIMULATOR) || defined(JS_ARM64_SIMULATOR) || defined(JS_MIPS_SIMULATOR)
-    simulator_ = js::jit::Simulator::Create();
+    simulator_ = js::jit::SimulatorType::Create();
     if (!simulator_)
         return false;
 #endif
@@ -451,7 +451,7 @@ JSRuntime::~JSRuntime()
     gc.nursery.disable();
 
 #if defined(JS_ARM_SIMULATOR) || defined(JS_ARM64_SIMULATOR) || defined(JS_MIPS_SIMULATOR)
-    js::jit::Simulator::Destroy(simulator_);
+    js::jit::SimulatorType::Destroy(simulator_);
 #endif
 
     DebugOnly<size_t> oldCount = liveRuntimesCount--;

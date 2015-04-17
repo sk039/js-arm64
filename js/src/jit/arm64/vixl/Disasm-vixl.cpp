@@ -32,8 +32,7 @@
 // TODO: Remove use of stdlib.
 #include <cstdlib>
 
-namespace js {
-namespace jit {
+namespace vixl {
 
 DisassemblerARM64::DisassemblerARM64() {
     buffer_size_ = 256;
@@ -1828,5 +1827,4 @@ PrintDisassembler::ProcessOutput(Instruction* instr)
             GetOutput());
 }
 
-}  // namespace jit
-}  // namespace js
+}  // namespace vixl

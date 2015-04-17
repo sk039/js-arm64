@@ -36,12 +36,10 @@
 
 #include "js-config.h"
 
-namespace js {
-namespace jit {
+namespace vixl {
 
 inline void HostBreakpoint(int64_t code = 0) { raise(SIGINT); }
 
-} // namespace jit
-} // namespace js
+} // namespace vixl
 
 #endif // VIXL_PLATFORM_H

@@ -33,8 +33,7 @@
 
 #include "jit/arm64/vixl/Utils-vixl.h"
 
-namespace js {
-namespace jit {
+namespace vixl {
 
 // Initialise to smallest possible cache size.
 unsigned CPU::dcache_line_size_ = 1;
@@ -169,5 +168,4 @@ CPU::EnsureIAndDCacheCoherency(void* address, size_t length)
 #endif // JS_ARM64_SIMULATOR
 }
 
-} // namespace jit
-} // namespace js
+} // namespace vixl

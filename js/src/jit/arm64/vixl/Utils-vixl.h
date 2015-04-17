@@ -34,8 +34,7 @@
 
 #include "jit/arm64/vixl/Globals-vixl.h"
 
-namespace js {
-namespace jit {
+namespace vixl {
 
 // Macros for compile-time format checking.
 #if defined(__GNUC__)
@@ -197,7 +196,6 @@ T AlignDown(T pointer, size_t alignment) {
     return (T)(pointer_raw - align_step);
 }
 
-} // namespace jit
-} // namespace js
+} // namespace vixl
 
 #endif  // VIXL_UTILS_H

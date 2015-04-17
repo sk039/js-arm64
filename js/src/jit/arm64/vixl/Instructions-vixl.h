@@ -34,8 +34,7 @@
 #include "jit/arm64/vixl/Globals-vixl.h"
 #include "jit/arm64/vixl/Utils-vixl.h"
 
-namespace js {
-namespace jit {
+namespace vixl {
 
 // ISA constants. --------------------------------------------------------------
 
@@ -427,7 +426,6 @@ INSTRUCTION_FIELDS_LIST(DEFINE_SETTER)
     void SetBranchImmTarget(Instruction* target);
 };
 
-} // namespace jit
-} // namespace js
+} // namespace vixl
 
 #endif  // VIXL_A64_INSTRUCTIONS_A64_H_

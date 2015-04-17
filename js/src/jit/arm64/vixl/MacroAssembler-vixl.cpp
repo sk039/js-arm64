@@ -31,8 +31,7 @@
 
 #include <ctype.h>
 
-namespace js {
-namespace jit {
+namespace vixl {
 
 void
 MacroAssemblerVIXL::B(Label* label, BranchType type, ARMRegister reg, int bit)
@@ -920,7 +919,7 @@ void
 MacroAssemblerVIXL::PushPseudoStackPointerHelper()
 {
     // FIXME: This is gross. The helper register should be required in the call.
-    ARMRegister scratch(ip1, 64);
+    ARMRegister scratch = vixl::ip1;
 
     add(scratch, GetStackPointer64(), Operand(0));
     str(scratch, MemOperand(GetStackPointer64(), -8, PreIndex));
@@ -1453,7 +1452,7 @@ MacroAssemblerVIXL::StackCheck(int index, int value)
 
     Label start;
     bind(&start);
-    AutoForbidPools afp(this, 3);
+    js::jit::AutoForbidPools afp(this, 3);
     // Refer to instructions-a64.h for a description of the marker and its
     // arguments.
     hlt(kStackCheckOpcode);
@@ -1479,7 +1478,7 @@ MacroAssemblerVIXL::StackCheckPushPop(int index, int value, int direction)
 
     // Refer to instructions-a64.h for a description of the marker and its
     // arguments.
-    AutoForbidPools afp(this, 4);
+    js::jit::AutoForbidPools afp(this, 4);
     hlt(kStackCheckPushPopOpcode);
 
     //MOZ_ASSERT(SizeOfCodeGeneratedSince(&start) == kTraceParamsOffset);
@@ -1648,5 +1647,4 @@ UseScratchRegisterScope::ExcludeByRegList(CPURegList* available, RegList exclude
     available->set_list(available->list() & ~exclude);
 }
 
-}  // namespace jit
-}  // namespace js
+} // namespace vixl

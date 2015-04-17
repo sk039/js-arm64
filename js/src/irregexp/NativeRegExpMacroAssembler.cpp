@@ -121,7 +121,7 @@ NativeRegExpMacroAssembler::GenerateCode(JSContext* cx, bool match_only)
 #ifdef JS_CODEGEN_ARM64
     // ARM64 communicates stack address via sp, but uses a pseudo-sp for addressing.
     MOZ_ASSERT(RegExpStackPointer == PseudoStackPointer);
-    masm.Add(PseudoStackPointer64, sp, Operand(0));
+    masm.Add(PseudoStackPointer64, vixl::sp, Operand(0));
 #endif
 
     // Push non-volatile registers which might be modified by jitcode.

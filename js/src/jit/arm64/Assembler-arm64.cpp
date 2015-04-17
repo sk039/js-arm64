@@ -116,8 +116,8 @@ Assembler::emitExtendedJumpTable()
         //   [Patchable 8-byte constant high bits]
         DebugOnly<size_t> preOffset = size_t(armbuffer_.nextOffset().getOffset());
 
-        ldr(ip0_64, ptrdiff_t(2));
-        br(ip0_64);
+        ldr(vixl::ip0, ptrdiff_t(2));
+        br(vixl::ip0);
 
         DebugOnly<size_t> prePointer = size_t(armbuffer_.nextOffset().getOffset());
         MOZ_ASSERT(prePointer - preOffset == OffsetOfJumpTableEntryPointer);
@@ -155,7 +155,7 @@ Assembler::executableCopy(uint8_t* buffer)
         Instruction* branch = (Instruction*)(buffer + toFinalOffset(rp.offset));
         JumpTableEntry* extendedJumpTable =
             reinterpret_cast<JumpTableEntry*>(buffer + toFinalOffset(ExtendedJumpTable_));
-        if (branch->BranchType() != UnknownBranchType) {
+        if (branch->BranchType() != vixl::UnknownBranchType) {
             if (branch->IsTargetReachable(target)) {
                 branch->SetImmPCOffsetTarget(target);
             } else {
@@ -171,7 +171,7 @@ Assembler::executableCopy(uint8_t* buffer)
 }
 
 BufferOffset
-Assembler::immPool(ARMRegister dest, uint8_t* value, LoadLiteralOp op, ARMBuffer::PoolEntry* pe)
+Assembler::immPool(ARMRegister dest, uint8_t* value, vixl::LoadLiteralOp op, ARMBuffer::PoolEntry* pe)
 {
     uint32_t inst = op | Rt(dest);
     const size_t numInst = 1;
@@ -182,7 +182,7 @@ Assembler::immPool(ARMRegister dest, uint8_t* value, LoadLiteralOp op, ARMBuffer
 BufferOffset
 Assembler::immPool64(ARMRegister dest, uint64_t value, ARMBuffer::PoolEntry* pe)
 {
-    return immPool(dest, (uint8_t*)&value, LDR_x_lit, pe);
+    return immPool(dest, (uint8_t*)&value, vixl::LDR_x_lit, pe);
 }
 
 BufferOffset
@@ -191,7 +191,7 @@ Assembler::immPool64Branch(RepatchLabel* label, ARMBuffer::PoolEntry* pe, Condit
     #if 0
     uint64_t absoff = 0xdeadbeefbad0b004;
     
-    BufferOffset ret = immPool(ScratchReg2_64, (uint8_t*)&absoff, LDR_x_lit, pe);
+    BufferOffset ret = immPool(ScratchReg2_64, (uint8_t*)&absoff, vixl::LDR_x_lit, pe);
     Instruction instptr = getInstructionAt(ret);
     uint32_t offset = LabelBase::INVALID_OFFSET;
     if (label->bound()) {
@@ -206,7 +206,7 @@ Assembler::immPool64Branch(RepatchLabel* label, ARMBuffer::PoolEntry* pe, Condit
 }
 
 BufferOffset
-Assembler::fImmPool(ARMFPRegister dest, uint8_t* value, LoadLiteralOp op)
+Assembler::fImmPool(ARMFPRegister dest, uint8_t* value, vixl::LoadLiteralOp op)
 {
     uint32_t inst = op | Rt(dest);
     const size_t numInst = 1;
@@ -217,12 +217,12 @@ Assembler::fImmPool(ARMFPRegister dest, uint8_t* value, LoadLiteralOp op)
 BufferOffset
 Assembler::fImmPool64(ARMFPRegister dest, double value)
 {
-    return fImmPool(dest, (uint8_t*)&value, LDR_d_lit);
+    return fImmPool(dest, (uint8_t*)&value, vixl::LDR_d_lit);
 }
 BufferOffset
 Assembler::fImmPool32(ARMFPRegister dest, float value)
 {
-    return fImmPool(dest, (uint8_t*)&value, LDR_s_lit);
+    return fImmPool(dest, (uint8_t*)&value, vixl::LDR_s_lit);
 }
 
 void
@@ -349,7 +349,7 @@ PatchJump(CodeLocationJump& jump_, CodeLocationLabel label) {
     if (jump->IsCondBranchImm()) {
         jump += 4;
     }
-    AssemblerVIXL::br(jump, ScratchReg2_64);
+    vixl::AssemblerVIXL::br(jump, ScratchReg2_64);
     // jumpWithPatch() returns the offset of the jump and never a pool or nop.
 #if 0
     Assembler::Condition c;
@@ -394,7 +394,7 @@ Assembler::ToggleToJmp(CodeLocationLabel inst_)
 
     // Refer to instruction layout in ToggleToCmp().
     int imm19 = (int)i->Bits(23, 5);
-    MOZ_ASSERT(is_int19(imm19));
+    MOZ_ASSERT(vixl::is_int19(imm19));
 
     b(i, imm19, Always);
 }
@@ -408,7 +408,7 @@ Assembler::ToggleToCmp(CodeLocationLabel inst_)
     int imm19 = i->ImmCondBranch();
     // bit 23 is reserved, and the simulator throws an assertion when this happens
     // It'll be messy to decode, but we can steal bit 30 or bit 31.
-    MOZ_ASSERT(is_int18(imm19));
+    MOZ_ASSERT(vixl::is_int18(imm19));
 
     // 31 - 64-bit if set, 32-bit if unset. (OK!)
     // 30 - sub if set, add if unset. (OK!)
@@ -419,8 +419,8 @@ Assembler::ToggleToCmp(CodeLocationLabel inst_)
     // 0:4 - Destination Register. Must be xzr.
 
     // From the above, there is a safe 19-bit contiguous region from 5:23.
-    Emit(i, ThirtyTwoBits | AddSubImmediateFixed | SUB | Flags(SetFlags) |
-            Rd(xzr) | (imm19 << Rn_offset));
+    Emit(i, vixl::ThirtyTwoBits | vixl::AddSubImmediateFixed | vixl::SUB | Flags(vixl::SetFlags) |
+            Rd(vixl::xzr) | (imm19 << vixl::Rn_offset));
 }
 
 void
@@ -459,7 +459,7 @@ Assembler::ToggleCall(CodeLocationLabel inst_, bool enabled)
         // blr x17
 
         int32_t offset = (int)load->ImmPCRawOffset();
-        MOZ_ASSERT(is_int19(offset));
+        MOZ_ASSERT(vixl::is_int19(offset));
         ldr(load, ScratchReg2_64, int32_t(offset));
         blr(call, ScratchReg2_64);
     }
@@ -502,7 +502,7 @@ CodeFromJump(JitCode* code, uint8_t* jump)
     Instruction* branch = (Instruction*)jump;
     uint8_t* target;
     // If this is a toggled branch, and is currently off, then we have some 'splainin
-    if (branch->BranchType() == UnknownBranchType)
+    if (branch->BranchType() == vixl::UnknownBranchType)
         target = (uint8_t*)branch->Literal64();
     else
         target = (uint8_t*)branch->ImmPCOffsetTarget();
@@ -538,10 +538,10 @@ TraceDataRelocations(JSTracer* trc, uint8_t* buffer, CompactBufferReader& reader
 
         // The only valid traceable operation is a 64-bit load to an ARMRegister.
         // Refer to movePatchablePtr() for generation.
-        MOZ_ASSERT(load->Mask(LoadLiteralMask) == LDR_x_lit);
+        MOZ_ASSERT(load->Mask(vixl::LoadLiteralMask) == vixl::LDR_x_lit);
 
         uint32_t pcOffset = load->ImmLLiteral();
-        uint8_t* literalAddr = ((uint8_t*)load) + (pcOffset << kLiteralEntrySizeLog2);
+        uint8_t* literalAddr = ((uint8_t*)load) + (pcOffset << vixl::kLiteralEntrySizeLog2);
 
         // All pointers on AArch64 will have the top bits cleared.
         // If those bits are not cleared, this must be a Value.

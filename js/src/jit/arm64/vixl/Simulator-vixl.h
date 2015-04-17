@@ -46,8 +46,12 @@
 #ifdef JS_CODEGEN_ARM64
 #ifdef JS_ARM64_SIMULATOR
 
-namespace js {
-namespace jit {
+namespace vixl {
+
+// FIXME: These should be removed.
+using js::jit::ABIFunctionType;
+using js::SystemAllocPolicy;
+using mozilla::Vector;
 
 enum ReverseByteMode {
     Reverse16 = 0,
@@ -301,12 +305,12 @@ class Simulator : public DecoderVisitor
 
     bool overRecursed(uintptr_t newsp = 0) const {
         if (newsp == 0)
-            newsp = xreg(Registers::sp, Reg31IsStackPointer);
+            newsp = xreg(31, Reg31IsStackPointer);
         return newsp <= stackLimit();
     }
 
     bool overRecursedWithExtra(uint32_t extra) const {
-        uintptr_t newsp = xreg(Registers::sp, Reg31IsStackPointer) - extra;
+        uintptr_t newsp = xreg(31, Reg31IsStackPointer) - extra;
         return newsp <= stackLimit();
     }
 
@@ -882,7 +886,7 @@ class Simulator : public DecoderVisitor
         return redirection_;
     }
 
-    void setRedirection(js::jit::Redirection* redirection) {
+    void setRedirection(Redirection* redirection) {
         MOZ_ASSERT(lockOwner_);
         redirection_ = redirection;
     }
@@ -956,8 +960,7 @@ void DestroySimulatorRuntime(SimulatorRuntime* srt);
     JS_END_MACRO
 
 
-}  // namespace jit
-}  // namespace js
+}  // namespace vixl
 
 #endif // JS_ARM64_SIMULATOR
 #endif // JS_CODEGEN_ARM64

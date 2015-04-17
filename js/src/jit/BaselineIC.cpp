@@ -12329,8 +12329,8 @@ ICCall_Native::ICCall_Native(JitCode* stubCode, ICStub* firstMonitorStub,
     // The simulator requires VM calls to be redirected to a special swi
     // instruction to handle them. To make this work, we store the redirected
     // pointer in the stub.
-    native_ = Simulator::RedirectNativeFunction(JS_FUNC_TO_DATA_PTR(void*, callee->native()),
-                                                Args_General3);
+    native_ = SimulatorType::RedirectNativeFunction(JS_FUNC_TO_DATA_PTR(void*, callee->native()),
+                                                    Args_General3);
 #endif
 }
 
@@ -12354,7 +12354,7 @@ ICCall_ClassHook::ICCall_ClassHook(JitCode* stubCode, ICStub* firstMonitorStub,
     // The simulator requires VM calls to be redirected to a special swi
     // instruction to handle them. To make this work, we store the redirected
     // pointer in the stub.
-    native_ = Simulator::RedirectNativeFunction(native_, Args_General3);
+    native_ = SimulatorType::RedirectNativeFunction(native_, Args_General3);
 #endif
 }
 

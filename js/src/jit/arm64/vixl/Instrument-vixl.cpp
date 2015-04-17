@@ -29,8 +29,7 @@
 
 #include "jit/arm64/vixl/Instrument-vixl.h"
 
-namespace js {
-namespace jit {
+namespace vixl {
 
 Counter::Counter(const char* name, CounterType type)
   : count_(0), enabled_(false), type_(type)
@@ -692,5 +691,4 @@ Instrument::VisitUnimplemented(Instruction* instr)
     counter->Increment();
 }
 
-} // namespace jit
-} // namespace js
+} // namespace vixl

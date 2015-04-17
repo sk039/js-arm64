@@ -33,8 +33,7 @@
 
 #include <cmath>
 
-namespace js {
-namespace jit {
+namespace vixl {
 
 // CPURegList utilities.
 CPURegister
@@ -115,7 +114,7 @@ CPURegList::GetCallerSaved(unsigned size)
 {
     // ARMRegisters x0-x18 and lr (x30) are caller-saved.
     CPURegList list = CPURegList(CPURegister::kARMRegister, size, 0, 18);
-    list.Combine(lr_64);
+    list.Combine(vixl::lr);
     return list;
 }
 
@@ -2976,5 +2975,4 @@ AreSameSizeAndType(const CPURegister& reg1, const CPURegister& reg2,
     return match;
 }
 
-} // namespace jit
-} // namespace js
+} // namespace vixl

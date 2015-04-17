@@ -39,8 +39,7 @@
 
 #ifdef JS_ARM64_SIMULATOR
 
-namespace js {
-namespace jit {
+namespace vixl {
 
 // Debug instructions.
 //
@@ -208,8 +207,7 @@ class DebuggerARM64 : public Simulator
     static const int kMaxDebugShellLine = 256;
 };
 
-} // namespace jit
-} // namespace js
+} // namespace vixl
 
 #endif // JS_ARM64_SIMULATOR
 #endif // VIXL_A64_DEBUGGER_A64_H_

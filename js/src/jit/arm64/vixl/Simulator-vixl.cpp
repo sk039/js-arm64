@@ -42,8 +42,8 @@
 
 using mozilla::DebugOnly;
 
-namespace js {
-namespace jit {
+namespace vixl {
+
 // Protects the icache() and redirection() properties of the
 // Simulator.
 class AutoLockSimulatorCache
@@ -182,7 +182,7 @@ Simulator::init(Decoder* decoder, FILE* stream)
 Simulator*
 Simulator::Current()
 {
-    return TlsPerThreadData.get()->simulator();
+    return js::TlsPerThreadData.get()->simulator();
 #if 0
     PerThreadData* pt = TlsPerThreadData.get();
     Simulator* sim = pt->simulator();
@@ -2937,109 +2937,109 @@ Simulator::VisitCallRedirection(Instruction* instr)
     // Dispatch the call and set the return value.
     switch (redir->type()) {
       // Cases with int64_t return type.
-      case Args_General0: {
+      case js::jit::Args_General0: {
         int64_t ret = reinterpret_cast<Prototype_General0>(nativeFn)();
         setGPR64Result(ret);
         break;
       }
-      case Args_General1: {
+      case js::jit::Args_General1: {
         int64_t ret = reinterpret_cast<Prototype_General1>(nativeFn)(x0);
         setGPR64Result(ret);
         break;
       }
-      case Args_General2: {
+      case js::jit::Args_General2: {
         int64_t ret = reinterpret_cast<Prototype_General2>(nativeFn)(x0, x1);
         setGPR64Result(ret);
         break;
       }
-      case Args_General3: {
+      case js::jit::Args_General3: {
         int64_t ret = reinterpret_cast<Prototype_General3>(nativeFn)(x0, x1, x2);
         setGPR64Result(ret);
         break;
       }
-      case Args_General4: {
+      case js::jit::Args_General4: {
         int64_t ret = reinterpret_cast<Prototype_General4>(nativeFn)(x0, x1, x2, x3);
         setGPR64Result(ret);
         break;
       }
-      case Args_General5: {
+      case js::jit::Args_General5: {
         int64_t ret = reinterpret_cast<Prototype_General5>(nativeFn)(x0, x1, x2, x3, x4);
         setGPR64Result(ret);
         break;
       }
-      case Args_General6: {
+      case js::jit::Args_General6: {
         int64_t ret = reinterpret_cast<Prototype_General6>(nativeFn)(x0, x1, x2, x3, x4, x5);
         setGPR64Result(ret);
         break;
       }
-      case Args_General7: {
+      case js::jit::Args_General7: {
         int64_t ret = reinterpret_cast<Prototype_General7>(nativeFn)(x0, x1, x2, x3, x4, x5, x6);
         setGPR64Result(ret);
         break;
       }
-      case Args_General8: {
+      case js::jit::Args_General8: {
         int64_t ret = reinterpret_cast<Prototype_General8>(nativeFn)(x0, x1, x2, x3, x4, x5, x6, x7);
         setGPR64Result(ret);
         break;
       }
 
       // Cases with GPR return type. This can be int32 or int64, but int64 is a safer assumption.
-      case Args_Int_Double: {
+      case js::jit::Args_Int_Double: {
         int64_t ret = reinterpret_cast<Prototype_Int_Double>(nativeFn)(d0);
         setGPR64Result(ret);
         break;
       }
-      case Args_Int_IntDouble: {
+      case js::jit::Args_Int_IntDouble: {
         int64_t ret = reinterpret_cast<Prototype_Int_IntDouble>(nativeFn)(x0, d0);
         setGPR64Result(ret);
         break;
       }
 
       // Cases with float return type.
-      case Args_Float32_Float32: {
+      case js::jit::Args_Float32_Float32: {
         float ret = reinterpret_cast<Prototype_Float32_Float32>(nativeFn)(s0);
         setFP32Result(ret);
         break;
       }
 
       // Cases with double return type.
-      case Args_Double_None: {
+      case js::jit::Args_Double_None: {
         double ret = reinterpret_cast<Prototype_Double_None>(nativeFn)();
         setFP64Result(ret);
         break;
       }
-      case Args_Double_Double: {
+      case js::jit::Args_Double_Double: {
         double ret = reinterpret_cast<Prototype_Double_Double>(nativeFn)(d0);
         setFP64Result(ret);
         break;
       }
-      case Args_Double_Int: {
+      case js::jit::Args_Double_Int: {
         double ret = reinterpret_cast<Prototype_Double_Int>(nativeFn)(x0);
         setFP64Result(ret);
         break;
       }
-      case Args_Double_DoubleInt: {
+      case js::jit::Args_Double_DoubleInt: {
         double ret = reinterpret_cast<Prototype_Double_DoubleInt>(nativeFn)(d0, x0);
         setFP64Result(ret);
         break;
       }
-      case Args_Double_DoubleDouble: {
+      case js::jit::Args_Double_DoubleDouble: {
         double ret = reinterpret_cast<Prototype_Double_DoubleDouble>(nativeFn)(d0, d1);
         setFP64Result(ret);
         break;
       }
-      case Args_Double_DoubleDoubleDouble: {
+      case js::jit::Args_Double_DoubleDoubleDouble: {
           double ret = reinterpret_cast<Prototype_Double_DoubleDoubleDouble>(nativeFn)(d0, d1, d2);
           setFP64Result(ret);
           break;
       }
-      case Args_Double_DoubleDoubleDoubleDouble: {
+      case js::jit::Args_Double_DoubleDoubleDoubleDouble: {
           double ret = reinterpret_cast<Prototype_Double_DoubleDoubleDoubleDouble>(nativeFn)(d0, d1, d2, d3);
           setFP64Result(ret);
           break;
       }
 
-      case Args_Double_IntDouble: {
+      case js::jit::Args_Double_IntDouble: {
         double ret = reinterpret_cast<Prototype_Double_IntDouble>(nativeFn)(x0, d0);
         setFP64Result(ret);
         break;
@@ -3202,17 +3202,17 @@ DestroySimulatorRuntime(SimulatorRuntime* srt)
     js_delete(srt);
 }
 #endif
-} // namespace jit
-} // namespace js
+
+} // namespace vixl
 
 // FIXME: All this stuff should probably be shared.
 
-js::jit::Simulator*
+vixl::Simulator*
 js::PerThreadData::simulator() const
 {
     return runtime_->simulator();
 }
-js::jit::Simulator*
+vixl::Simulator*
 JSRuntime::simulator() const
 {
     return simulator_;
@@ -3220,7 +3220,7 @@ JSRuntime::simulator() const
 
 #if 0
 void
-js::PerThreadData::setSimulator(js::jit::Simulator* sim)
+js::PerThreadData::setSimulator(vixl::Simulator* sim)
 {
     simulator_ = sim;
     simulatorStackLimit_ = sim->stackLimit();
@@ -3251,10 +3251,10 @@ JSRuntime::setSimulatorRuntime(js::jit::SimulatorRuntime* srt)
     simulatorRuntime_ = srt;
 }
 #endif
-js::jit::Simulator*
-js::jit::Simulator::Create()
+vixl::Simulator*
+vixl::Simulator::Create()
 {
-    Decoder* decoder_ = js_new<Decoder>();
+    Decoder* decoder_ = js_new<vixl::Decoder>();
     if (!decoder_) {
         MOZ_ReportAssertionFailure("[unhandlable oom] Decoder", __FILE__, __LINE__);
         MOZ_CRASH();
@@ -3264,7 +3264,7 @@ js::jit::Simulator::Create()
     // FIXME: We should free it at some point.
     // FIXME: Note that it can't be stored in the SimulatorRuntime due to lifetime conflicts.
     if (getenv("USE_DEBUGGER") != nullptr) {
-        DebuggerARM64* debugger = js_new<DebuggerARM64>(decoder_, stdout);
+        DebuggerARM64* debugger = js_new<vixl::DebuggerARM64>(decoder_, stdout);
         if (debugger) {
             debugger->set_log_parameters(LOG_DISASM | LOG_REGS | LOG_FP_REGS);
             return debugger;
@@ -3281,13 +3281,13 @@ js::jit::Simulator::Create()
 }
 
 void
-js::jit::Simulator::Destroy(js::jit::Simulator * sim)
+vixl::Simulator::Destroy(vixl::Simulator* sim)
 {
     js_delete(sim);
 }
 
 uintptr_t*
-js::jit::Simulator::addressOfStackLimit()
+vixl::Simulator::addressOfStackLimit()
 {
     return (uintptr_t*)&stack_limit_;
 }

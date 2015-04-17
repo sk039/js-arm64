@@ -64,6 +64,18 @@ extern mozilla::ThreadLocal<PerThreadData*> TlsPerThreadData;
 
 struct DtoaState;
 
+#ifdef JS_ARM64_SIMULATOR
+namespace vixl {
+class Simulator;
+} // namespace vixl
+#elif defined(JS_ARM_SIMULATOR) || defined(JS_MIPS_SIMULATOR)
+namespace js {
+namespace jit {
+class Simulator;
+} // namespace jit
+} // namespace js
+#endif
+
 namespace js {
 
 extern MOZ_COLD void
@@ -85,9 +97,14 @@ namespace jit {
 class JitRuntime;
 class JitActivation;
 struct PcScriptCache;
-class Simulator;
 struct AutoFlushICache;
 class CompileRuntime;
+
+#ifdef JS_ARM64_SIMULATOR
+typedef vixl::Simulator SimulatorType;
+#elif defined(JS_ARM_SIMULATOR) || defined(JS_MIPS_SIMULATOR)
+typedef js::jit::Simulator SimulatorType;
+#endif
 }
 
 /*
@@ -504,7 +521,7 @@ class PerThreadData : public PerThreadDataFriendFields
     js::jit::AutoFlushICache* autoFlushICache_;
 
 #if defined(JS_ARM_SIMULATOR) || defined(JS_ARM64_SIMULATOR) || defined(JS_MIPS_SIMULATOR)
-    js::jit::Simulator *simulator_;
+    js::jit::SimulatorType* simulator_;
     uintptr_t simulatorStackLimit_;
 #endif
   public:
@@ -583,7 +600,7 @@ class PerThreadData : public PerThreadDataFriendFields
     void setAutoFlushICache(js::jit::AutoFlushICache* afc);
 
 #if defined(JS_ARM_SIMULATOR) || defined(JS_ARM64_SIMULATOR) || defined(JS_MIPS_SIMULATOR)
-    js::jit::Simulator *simulator() const;
+    js::jit::SimulatorType* simulator() const;
 #endif
 };
 
@@ -1037,7 +1054,7 @@ struct JSRuntime : public JS::shadow::Runtime,
     }
 
 #if defined(JS_ARM_SIMULATOR) || defined(JS_ARM64_SIMULATOR) || defined(JS_MIPS_SIMULATOR)
-    js::jit::Simulator *simulator_;
+    js::jit::SimulatorType* simulator_;
 #endif
 
   public:
@@ -1046,7 +1063,7 @@ struct JSRuntime : public JS::shadow::Runtime,
     }
 
 #if defined(JS_ARM_SIMULATOR) || defined(JS_ARM64_SIMULATOR) || defined(JS_MIPS_SIMULATOR)
-    js::jit::Simulator *simulator() const;
+    js::jit::SimulatorType* simulator() const;
     uintptr_t *addressOfSimulatorStackLimit();
 #endif
 

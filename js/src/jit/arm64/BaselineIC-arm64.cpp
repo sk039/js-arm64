@@ -140,7 +140,7 @@ ICBinaryArith_Int32::Compiler::generateStubCode(MacroAssembler& masm)
         // if x == 0, then ignore any comparison, and force
         // it to fail, if x < 0 (the only other case)
         // then do the comparison, and fail if y == 0
-        masm.Ccmp(W0, Operand(0), ZFlag, Assembler::NotEqual);
+        masm.Ccmp(W0, Operand(0), vixl::ZFlag, Assembler::NotEqual);
         masm.B(&failure, Assembler::Equal);
         masm.bind(&no_fail);
         masm.Sdiv(Wscratch, W0, W1);
@@ -156,7 +156,7 @@ ICBinaryArith_Int32::Compiler::generateStubCode(MacroAssembler& masm)
             masm.Subs(WTemp, W0, WTemp);
 
             // If X % Y == 0 and X < 0, the result is -0.
-            masm.Ccmp(W0, Operand(0), NoFlag, Assembler::Equal);
+            masm.Ccmp(W0, Operand(0), vixl::NoFlag, Assembler::Equal);
             masm.branch(Assembler::LessThan, &revertRegister);
             masm.monoTagMove(X0, XTemp);
         }
@@ -168,7 +168,7 @@ ICBinaryArith_Int32::Compiler::generateStubCode(MacroAssembler& masm)
         masm.Orr(X0, X0, Operand(X1));
         break;
       case JSOP_BITXOR:
-        masm.Eor(X0, X0, Operand(W1, UXTW));
+        masm.Eor(X0, X0, Operand(W1, vixl::UXTW));
         break;
       case JSOP_BITAND:
         masm.And(X0, X0, Operand(X1));

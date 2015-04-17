@@ -20,10 +20,10 @@ MacroAssembler::PushRegsInMask(LiveRegisterSet set)
 {
     // TODO: Clean up this function using helpers. Should be easy.
     for (GeneralRegisterBackwardIterator iter(set.gprs()); iter.more(); ) {
-        CPURegister src0 = NoCPUReg;
-        CPURegister src1 = NoCPUReg;
-        CPURegister src2 = NoCPUReg;
-        CPURegister src3 = NoCPUReg;
+        CPURegister src0 = vixl::NoCPUReg;
+        CPURegister src1 = vixl::NoCPUReg;
+        CPURegister src2 = vixl::NoCPUReg;
+        CPURegister src3 = vixl::NoCPUReg;
 
         src0 = ARMRegister(*iter, 64);
         adjustFrame(8);
@@ -51,10 +51,10 @@ MacroAssembler::PushRegsInMask(LiveRegisterSet set)
     }
     FloatRegisterSet fset = set.fpus().reduceSetForPush();
     for (FloatRegisterBackwardIterator iter(fset); iter.more(); ) {
-        CPURegister src0 = NoCPUReg;
-        CPURegister src1 = NoCPUReg;
-        CPURegister src2 = NoCPUReg;
-        CPURegister src3 = NoCPUReg;
+        CPURegister src0 = vixl::NoCPUReg;
+        CPURegister src1 = vixl::NoCPUReg;
+        CPURegister src2 = vixl::NoCPUReg;
+        CPURegister src3 = vixl::NoCPUReg;
 
         src0 = ARMFPRegister(*iter);
         ++iter;
@@ -92,8 +92,8 @@ MacroAssembler::PopRegsInMaskIgnore(LiveRegisterSet set, LiveRegisterSet ignore)
     uint32_t nextOffset = 0;
     FloatRegisterSet fset = set.fpus().reduceSetForPush();
     for (FloatRegisterIterator iter(fset); iter.more(); offset = nextOffset) {
-        CPURegister src0 = NoCPUReg;
-        CPURegister src1 = NoCPUReg;
+        CPURegister src0 = vixl::NoCPUReg;
+        CPURegister src1 = vixl::NoCPUReg;
 
         while (iter.more() && ignore.has(*iter)) {
             ++iter;
@@ -130,8 +130,8 @@ MacroAssembler::PopRegsInMaskIgnore(LiveRegisterSet set, LiveRegisterSet ignore)
     nextOffset = set.fpus().getPushSizeInBytes();
 
     for (GeneralRegisterIterator iter(set.gprs()); iter.more(); offset = nextOffset) {
-        CPURegister src0 = NoCPUReg;
-        CPURegister src1 = NoCPUReg;
+        CPURegister src0 = vixl::NoCPUReg;
+        CPURegister src1 = vixl::NoCPUReg;
         while (iter.more() && ignore.has(*iter)) {
             ++iter;
             offset += sizeof(double);
@@ -295,9 +295,9 @@ MacroAssemblerCompat::handleFailureWithHandlerTail(void* handler)
     loadValue(Address(BaselineFrameReg, BaselineFrame::reverseOffsetOfReturnValue()),
               JSReturnOperand);
     movePtr(BaselineFrameReg, r28);
-    MacroAssemblerVIXL::Pop(ARMRegister(BaselineFrameReg, 64), lr_64);
+    MacroAssemblerVIXL::Pop(ARMRegister(BaselineFrameReg, 64), vixl::lr);
     syncStackPtr();
-    MacroAssemblerVIXL::Ret(lr_64);
+    MacroAssemblerVIXL::Ret(vixl::lr);
 
     // If we are bailing out to baseline to handle an exception,
     // jump to the bailout tail stub.
@@ -510,7 +510,7 @@ MacroAssemblerCompat::callWithABI(void* fun, MoveOp::Type result)
     AssertValidABIFunctionType(passedArgTypes_);
 # endif
     ABIFunctionType type = ABIFunctionType(passedArgTypes_);
-    fun = Simulator::RedirectNativeFunction(fun, type);
+    fun = vixl::Simulator::RedirectNativeFunction(fun, type);
 #endif // JS_ARM64_SIMULATOR
 
     uint32_t stackAdjust;

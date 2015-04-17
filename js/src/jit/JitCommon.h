@@ -17,7 +17,7 @@
 # include "jit/mips/Simulator-mips.h"
 #endif
 
-#if defined(JS_ARM_SIMULATOR) || defined(JS_ARM64_SIMULATOR) || defined(JS_MIPS_SIMULATOR)
+#if defined(JS_ARM_SIMULATOR) || defined(JS_MIPS_SIMULATOR)
 // Call into cross-jitted code by following the ABI of the simulated architecture.
 #define CALL_GENERATED_CODE(entry, p0, p1, p2, p3, p4, p5, p6, p7)     \
     (js::jit::Simulator::Current()->call(                              \
@@ -29,6 +29,20 @@
 
 #define CALL_GENERATED_2(entry, p0, p1)                                 \
     (js::jit::Simulator::Current()->call(                               \
+        JS_FUNC_TO_DATA_PTR(uint8_t*, entry), 2, p0, p1) & 0xffffffff)
+
+#elif defined(JS_ARM64_SIMULATOR)
+
+#define CALL_GENERATED_CODE(entry, p0, p1, p2, p3, p4, p5, p6, p7)     \
+    (vixl::Simulator::Current()->call(                              \
+        JS_FUNC_TO_DATA_PTR(uint8_t*, entry), 8, p0, p1, p2, p3, p4, p5, p6, p7) & 0xffffffff)
+
+#define CALL_GENERATED_1(entry, p0)                     \
+    (vixl::Simulator::Current()->call(               \
+        JS_FUNC_TO_DATA_PTR(uint8_t*, entry), 1, p0) & 0xffffffff)
+
+#define CALL_GENERATED_2(entry, p0, p1)                                 \
+    (vixl::Simulator::Current()->call(                               \
         JS_FUNC_TO_DATA_PTR(uint8_t*, entry), 2, p0, p1) & 0xffffffff)
 
 #else

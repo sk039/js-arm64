@@ -35,8 +35,7 @@
 #include "jit/arm64/vixl/Globals-vixl.h"
 #include "jit/arm64/vixl/Utils-vixl.h"
 
-namespace js {
-namespace jit {
+namespace vixl {
 
 const int kCounterNameMaxLength = 256;
 const uint64_t kDefaultInstrumentationSamplingPeriod = 1 << 22;
@@ -103,7 +102,6 @@ class Instrument : public DecoderVisitor
     uint64_t sample_period_;
 };
 
-} // namespace jit
-} // namespace js
+} // namespace vixl
 
 #endif  // VIXL_A64_INSTRUMENT_A64_H_

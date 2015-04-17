@@ -33,8 +33,7 @@
 
 #include <stdio.h>
 
-namespace js {
-namespace jit {
+namespace vixl {
 
 uint32_t
 float_to_rawbits(float value)
@@ -115,5 +114,4 @@ uint64_t LowestSetBit(uint64_t value) {
   return value & -value;
 }
 
-} // namespace jit
-} // namespace js
+} // namespace vixl

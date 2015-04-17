@@ -71,7 +71,7 @@ CodeGeneratorARM64::generateEpilogue()
     // FIXME: This probably doesn't work with the push(lr) in the prologue...
     MOZ_ASSERT(masm.framePushed() == 0);
     masm.pop(lr);
-    masm.MacroAssemblerVIXL::Ret(lr_64);
+    masm.MacroAssemblerVIXL::Ret(vixl::lr);
     masm.flushBuffer();
     return true;
 }
@@ -756,7 +756,7 @@ CodeGeneratorARM64::emitTableSwitchDispatch(MTableSwitch* mir, Register index_, 
     AutoForbidPools afp(&masm, 1 + 1 + 1 + cases*2);
     Label table;
     masm.Adr(ScratchReg2_64, &table);
-    masm.Ldr(ScratchReg2_64, MemOperand(ScratchReg2_64, index, LSL, 3));
+    masm.Ldr(ScratchReg2_64, MemOperand(ScratchReg2_64, index, vixl::LSL, 3));
     masm.Blr(ScratchReg2_64);
     // To fill in the CodeLabels for the case entries, we need to first generate
     // the case entries (we don't yet know their offsets in the instruction
@@ -1406,14 +1406,14 @@ CodeGeneratorARM64::visitAsmJSLoadHeap(LAsmJSLoadHeap* ins)
     LoadStoreOp op;
     const LAllocation* ptr = ins->ptr();
     switch (mir->accessType()) {
-      case Scalar::Int8:    op = LDRSB_w; break;
-      case Scalar::Uint8:   op = LDRB_w; break;
-      case Scalar::Int16:   op = LDRSH_w; break;
-      case Scalar::Uint16:  op = LDRH_w; break;
-      case Scalar::Int32:   op = LDR_w; break;
-      case Scalar::Uint32:  op = LDR_w; break;
-      case Scalar::Float64: op = LDR_d; break;
-      case Scalar::Float32: op = LDR_s; break;
+      case Scalar::Int8:    op = vixl::LDRSB_w; break;
+      case Scalar::Uint8:   op = vixl::LDRB_w; break;
+      case Scalar::Int16:   op = vixl::LDRSH_w; break;
+      case Scalar::Uint16:  op = vixl::LDRH_w; break;
+      case Scalar::Int32:   op = vixl::LDR_w; break;
+      case Scalar::Uint32:  op = vixl::LDR_w; break;
+      case Scalar::Float64: op = vixl::LDR_d; break;
+      case Scalar::Float32: op = vixl::LDR_s; break;
       default: MOZ_CRASH("unexpected array type");
     }
 
@@ -1445,13 +1445,13 @@ CodeGeneratorARM64::visitAsmJSStoreHeap(LAsmJSStoreHeap* ins)
     bool isSigned = false;
     switch (mir->accessType()) {
       case Scalar::Int8:
-      case Scalar::Uint8:   op = STRB_w; break;
+      case Scalar::Uint8:   op = vixl::STRB_w; break;
       case Scalar::Int16:
-      case Scalar::Uint16:  op = STRH_w; break;
+      case Scalar::Uint16:  op = vixl::STRH_w; break;
       case Scalar::Int32:
-      case Scalar::Uint32:  isSigned = true;  op = STR_w; break;
-      case Scalar::Float64: op = STR_d; break;
-      case Scalar::Float32: op = STR_s; break;
+      case Scalar::Uint32:  isSigned = true;  op = vixl::STR_w; break;
+      case Scalar::Float64: op = vixl::STR_d; break;
+      case Scalar::Float32: op = vixl::STR_s; break;
       default: MOZ_CRASH("unexpected array type");
     }
 
@@ -1589,7 +1589,7 @@ CodeGeneratorARM64::visitEffectiveAddress(LEffectiveAddress* ins)
     ARMRegister base = toXRegister(ins->base());
     ARMRegister index = toXRegister(ins->index());
     ARMRegister output = toXRegister(ins->output());
-    masm.Add(output, base, Operand(index, LSL, mir->scale()));
+    masm.Add(output, base, Operand(index, vixl::LSL, mir->scale()));
     masm.Add(output, output, Operand(mir->displacement()));
 }
 
@@ -1642,7 +1642,7 @@ CodeGeneratorARM64::visitAsmJSLoadFuncPtr(LAsmJSLoadFuncPtr* ins)
     ARMRegister out = toXRegister(ins->output());
     unsigned addr = mir->globalDataOffset();
     masm.Mov(tmp, int64_t(addr) - AsmJSGlobalRegBias);
-    masm.Add(tmp, tmp, Operand(index, LSL, 3));
+    masm.Add(tmp, tmp, Operand(index, vixl::LSL, 3));
     masm.Ldr(out, MemOperand(ARMRegister(GlobalReg, 64), tmp));
 }
 

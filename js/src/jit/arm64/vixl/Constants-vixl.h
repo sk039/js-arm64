@@ -32,8 +32,7 @@
 
 #include "jit/arm64/vixl/Globals-vixl.h"
 
-namespace js {
-namespace jit {
+namespace vixl {
 
 const unsigned kNumberOfRegisters = 32;
 const unsigned kNumberOfFloatRegisters = 32;
@@ -1200,7 +1199,6 @@ enum UnallocatedOp {
     UnallocatedFMask = 0x00000000
 };
 
-} // namespace jit
-} // namespace js
+} // namespace vixl
 
 #endif  // VIXL_A64_CONSTANTS_A64_H_

@@ -36,8 +36,7 @@
 
 #ifdef JS_ARM64_SIMULATOR
 
-namespace js {
-namespace jit {
+namespace vixl {
 
 // List of commands supported by the debugger.
 #define DEBUG_COMMAND_LIST(C)  \
@@ -1762,7 +1761,6 @@ InvalidCommand::Run(DebuggerARM64* debugger)
     return false;
 }
 
-} // namespace jit
-} // namespace js
+} // namespace vixl
 
 #endif  // JS_ARM64_SIMULATOR

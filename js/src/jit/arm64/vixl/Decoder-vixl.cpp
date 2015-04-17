@@ -32,8 +32,7 @@
 #include "jit/arm64/vixl/Globals-vixl.h"
 #include "jit/arm64/vixl/Utils-vixl.h"
 
-namespace js {
-namespace jit {
+namespace vixl {
 
 // Top-level instruction decode function.
 void
@@ -726,5 +725,4 @@ Decoder::DecodeAdvSIMDDataProcessing(Instruction* instr)
 VISITOR_LIST(DEFINE_VISITOR_CALLERS)
 #undef DEFINE_VISITOR_CALLERS
 
-} // namespace jit
-} // namespace js
+} // namespace vixl

@@ -46,8 +46,10 @@
     V(Str, CPURegister&, rt, StoreOpFor(rt))                       \
     V(Ldrsw, ARMRegister&, rt, LDRSW_x)
 
-namespace js {
-namespace jit {
+namespace vixl {
+
+// FIXME: Remove this.
+using js::jit::Register;
 
 enum BranchType {
     // Copies of architectural conditions.
@@ -89,13 +91,13 @@ enum BranchType {
 
 enum DiscardMoveMode { kDontDiscardForSameWReg, kDiscardForSameWReg };
 
-class MacroAssemblerVIXL : public Assembler
+class MacroAssemblerVIXL : public js::jit::Assembler
 {
   public:
     MacroAssemblerVIXL()
-      : Assembler(),
+      : js::jit::Assembler(),
         sp_(x28),
-        tmp_list_(ip0_64, ip1_64),
+        tmp_list_(ip0, ip1),
         fptmp_list_(d31)
     { }
 
@@ -733,7 +735,7 @@ class MacroAssemblerVIXL : public Assembler
         MOZ_ASSERT(!rn.IsZero());
         rbit(rd, rn);
     }
-    void Ret(const ARMRegister& xn = lr_64) {
+    void Ret(const ARMRegister& xn = lr) {
         MOZ_ASSERT(!xn.IsZero());
         ret(xn);
     }
@@ -1233,7 +1235,6 @@ class UseScratchRegisterScope {
     RegList old_availablefp_;   // kARMFPRegister
 };
 
-} // namespace jit
-} // namespace js
+} // namespace vixl
 
 #endif  // VIXL_A64_MACRO_ASSEMBLER_A64_H_

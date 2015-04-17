@@ -104,8 +104,8 @@ JitRuntime::generateEnterJIT(JSContext* cx, EnterJitType type)
     // Push the argument vector onto the stack.
     // WARNING: destructively modifies reg_argv
     {
-        ARMRegister tmp_argc = x16; // ip0 -- no functions below may use scratch registers.
-        ARMRegister tmp_sp = x17; // ip1
+        ARMRegister tmp_argc = vixl::ip0;
+        ARMRegister tmp_sp = vixl::ip1;
         Label noArguments;
         Label loopHead;
 
@@ -117,7 +117,7 @@ JitRuntime::generateEnterJIT(JSContext* cx, EnterJitType type)
         masm.Sub(PseudoStackPointer64, PseudoStackPointer64, Operand(8));
 
         // sp -= 8 * argc
-        masm.Sub(PseudoStackPointer64, PseudoStackPointer64, Operand(tmp_argc, SXTX, 3));
+        masm.Sub(PseudoStackPointer64, PseudoStackPointer64, Operand(tmp_argc, vixl::SXTX, 3));
 
         // Give sp 16-byte alignment.
         masm.And(PseudoStackPointer64, PseudoStackPointer64, Operand(-15));
@@ -135,16 +135,16 @@ JitRuntime::generateEnterJIT(JSContext* cx, EnterJitType type)
             masm.bind(&loopHead);
 
             // Load an argument from argv, then increment argv by 8.
-            masm.Ldr(x24, MemOperand(ARMRegister(reg_argv, 64), Operand(8), PostIndex));
+            masm.Ldr(x24, MemOperand(ARMRegister(reg_argv, 64), Operand(8), vixl::PostIndex));
 
             // Store the argument to tmp_sp, then increment tmp_sp by 8.
-            masm.Str(x24, MemOperand(tmp_sp, Operand(8), PostIndex));
+            masm.Str(x24, MemOperand(tmp_sp, Operand(8), vixl::PostIndex));
 
             // Set the condition codes for |cmp tmp_argc, 2| (using the old value).
             masm.Subs(tmp_argc, tmp_argc, Operand(1));
 
             // Branch if arguments remain.
-            masm.B(&loopHead, GreaterThanOrEqual_);
+            masm.B(&loopHead, Condition::ge);
         }
 
         masm.bind(&noArguments);
@@ -155,7 +155,7 @@ JitRuntime::generateEnterJIT(JSContext* cx, EnterJitType type)
     // The result address is used to store the actual number of arguments
     // without adding an argument to EnterJIT.
     masm.unboxInt32(Address(reg_vp, 0x0), ip0);
-    masm.MacroAssemblerVIXL::Push(ip0_64, ARMRegister(reg_callee, 64));
+    masm.MacroAssemblerVIXL::Push(vixl::ip0, ARMRegister(reg_callee, 64));
     masm.checkStackAlignment();
 
     // Calculate the number of bytes pushed so far.
@@ -232,7 +232,7 @@ JitRuntime::generateEnterJIT(JSContext* cx, EnterJitType type)
         masm.bind(&osrReturnPoint);
 
     masm.Pop(r19);
-    masm.Add(PseudoStackPointer64, PseudoStackPointer64, Operand(x19, LSR, FRAMESIZE_SHIFT));
+    masm.Add(PseudoStackPointer64, PseudoStackPointer64, Operand(x19, vixl::LSR, FRAMESIZE_SHIFT));
     // masm.spsUnmarkJit(&cx->runtime()->spsProfiler, r20);
     masm.SetStackPointer64(sp);
     masm.Add(sp, PseudoStackPointer64, Operand(0));
@@ -327,7 +327,7 @@ JitRuntime::generateArgumentsRectifier(JSContext* cx, void** returnAddrOut)
     masm.Mov(x7, x6);
 
     // Calculate the position that our arguments are at before sp gets modified
-    masm.Add(x3, masm.GetStackPointer64(), Operand(x8, LSL, 3));
+    masm.Add(x3, masm.GetStackPointer64(), Operand(x8, vixl::LSL, 3));
     masm.Add(x3, x3, Operand(sizeof(RectifierFrameLayout)));
 
     // pad to a multiple of 16 bytes
@@ -352,7 +352,7 @@ JitRuntime::generateArgumentsRectifier(JSContext* cx, void** returnAddrOut)
     {
         Label copyLoopTop;
         masm.bind(&copyLoopTop);
-        masm.Ldr(x4, MemOperand(x3, -sizeof(Value), PostIndex));
+        masm.Ldr(x4, MemOperand(x3, -sizeof(Value), vixl::PostIndex));
         masm.Push(r4);
         masm.Subs(x8, x8, Operand(1));
         masm.B(&copyLoopTop, Assembler::NotSigned);
@@ -377,10 +377,10 @@ JitRuntime::generateArgumentsRectifier(JSContext* cx, void** returnAddrOut)
     uint32_t returnOffset = masm.currentOffset();
     // Clean up!
     // Get the size of the stack frame, and clean up the later fixed frame
-    masm.Ldr(x4, MemOperand(masm.GetStackPointer64(), 24, PostIndex));
+    masm.Ldr(x4, MemOperand(masm.GetStackPointer64(), 24, vixl::PostIndex));
     // Now that the size of the stack frame sans the fixed frame has been loaded,
     // add that onto the stack pointer
-    masm.Add(masm.GetStackPointer64(), masm.GetStackPointer64(), Operand(x4, LSR, FRAMESIZE_SHIFT));
+    masm.Add(masm.GetStackPointer64(), masm.GetStackPointer64(), Operand(x4, vixl::LSR, FRAMESIZE_SHIFT));
     // Do that return thing
     masm.popReturn();
     Linker linker(masm);
@@ -761,7 +761,7 @@ JitRuntime::generateDebugTrapHandler(JSContext* cx)
     if (!code)
         return nullptr;
 
-    masm.MacroAssemblerVIXL::Push(lr_64, ARMRegister(scratch1, 64));
+    masm.MacroAssemblerVIXL::Push(vixl::lr, ARMRegister(scratch1, 64));
     EmitCallVM(code, masm);
 
     EmitLeaveStubFrame(masm);
@@ -772,16 +772,16 @@ JitRuntime::generateDebugTrapHandler(JSContext* cx)
     Label forcedReturn;
     masm.branchTest32(Assembler::NonZero, ReturnReg, ReturnReg, &forcedReturn);
     masm.syncStackPtr();
-    masm.Ret(lr_64);
+    masm.Ret(vixl::lr);
 
     masm.bind(&forcedReturn);
     masm.loadValue(Address(BaselineFrameReg, BaselineFrame::reverseOffsetOfReturnValue()),
                    JSReturnOperand);
     masm.Add(masm.GetStackPointer64(), ARMRegister(BaselineFrameReg, 64), Operand(0));
 
-    masm.MacroAssemblerVIXL::Pop(ARMRegister(BaselineFrameReg, 64), lr_64);
+    masm.MacroAssemblerVIXL::Pop(ARMRegister(BaselineFrameReg, 64), vixl::lr);
     masm.syncStackPtr();
-    masm.Ret(lr_64);
+    masm.Ret(vixl::lr);
 
     Linker linker(masm);
     JitCode* codeDbg = linker.newCode<NoGC>(cx, OTHER_CODE);
