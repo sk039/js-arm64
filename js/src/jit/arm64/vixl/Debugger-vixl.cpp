@@ -90,11 +90,11 @@ class ValueToken : public Token
 
 // Integer registers (X or W) and their aliases.
 // Format: wn or xn with 0 <= n < 32 or a name in the aliases list.
-class RegisterToken : public ValueToken<const ARMRegister>
+class RegisterToken : public ValueToken<const Register>
 {
   public:
-    explicit RegisterToken(const ARMRegister reg)
-      : ValueToken<const ARMRegister>(reg)
+    explicit RegisterToken(const Register reg)
+      : ValueToken<const Register>(reg)
     { }
 
     virtual bool IsRegister() const { return true; }
@@ -117,11 +117,11 @@ class RegisterToken : public ValueToken<const ARMRegister>
 
 // Floating point registers (D or S).
 // Format: sn or dn with 0 <= n < 32.
-class FloatRegisterToken : public ValueToken<const ARMFPRegister>
+class FloatRegisterToken : public ValueToken<const FPRegister>
 {
   public:
-    explicit FloatRegisterToken(const ARMFPRegister fpreg)
-      : ValueToken<const ARMFPRegister>(fpreg)
+    explicit FloatRegisterToken(const FPRegister fpreg)
+      : ValueToken<const FPRegister>(fpreg)
     { }
 
     virtual bool IsFloatRegister() const { return true; }
@@ -664,7 +664,7 @@ DebuggerARM64::PrintMemory(const uint8_t* address, const FormatToken* format, in
 }
 
 void
-DebuggerARM64::PrintRegister(const ARMRegister& target_reg, const char* name,
+DebuggerARM64::PrintRegister(const Register& target_reg, const char* name,
                              const FormatToken* format)
 {
     const uint64_t reg_size = target_reg.size();
@@ -685,7 +685,7 @@ DebuggerARM64::PrintRegister(const ARMRegister& target_reg, const char* name,
 }
 
 void
-DebuggerARM64::PrintFloatRegister(const ARMFPRegister& target_fpreg, const FormatToken* format)
+DebuggerARM64::PrintFloatRegister(const FPRegister& target_fpreg, const FormatToken* format)
 {
     const uint64_t fpreg_size = target_fpreg.size();
     const uint64_t format_size = format->SizeOf() * 8;
@@ -1112,13 +1112,13 @@ RegisterToken::Tokenize(const char* arg)
         // Is it a X register or alias?
         for (const char** current = kXAliases[i]; *current != NULL; current++) {
             if (strcmp(arg, *current) == 0)
-                return new RegisterToken(ARMRegister::XRegFromCode(i));
+                return new RegisterToken(Register::XRegFromCode(i));
         }
 
         // Is it a W register or alias?
         for (const char** current = kWAliases[i]; *current != NULL; current++) {
             if (strcmp(arg, *current) == 0)
-                return new RegisterToken(ARMRegister::WRegFromCode(i));
+                return new RegisterToken(Register::WRegFromCode(i));
         }
     }
 
@@ -1150,10 +1150,10 @@ FloatRegisterToken::Tokenize(const char* arg)
         if (code > kNumberOfFloatRegisters)
             return NULL;
 
-        ARMFPRegister fpreg = NoFPReg;
+        FPRegister fpreg = NoFPReg;
         switch (*arg) {
-          case 's': fpreg = ARMFPRegister::SRegFromCode(code); break;
-          case 'd': fpreg = ARMFPRegister::DRegFromCode(code); break;
+          case 's': fpreg = FPRegister::SRegFromCode(code); break;
+          case 'd': fpreg = FPRegister::DRegFromCode(code); break;
           default: VIXL_UNREACHABLE();
         }
 
@@ -1557,13 +1557,13 @@ PrintCommand::Run(DebuggerARM64* debugger)
 
     if (tok->IsRegister()) {
         RegisterToken* reg_tok = RegisterToken::Cast(tok);
-        ARMRegister reg = reg_tok->value();
+        Register reg = reg_tok->value();
         debugger->PrintRegister(reg, reg_tok->Name(), format_tok);
         return false;
     }
 
     if (tok->IsFloatRegister()) {
-        ARMFPRegister fpreg = FloatRegisterToken::Cast(tok)->value();
+        FPRegister fpreg = FloatRegisterToken::Cast(tok)->value();
         debugger->PrintFloatRegister(fpreg, format_tok);
         return false;
     }
@@ -1585,10 +1585,10 @@ PrintCommand::Build(std::vector<Token*> args)
     FormatToken* format = NULL;
     int target_size = 0;
     if (target->IsRegister()) {
-        ARMRegister reg = RegisterToken::Cast(target)->value();
+        Register reg = RegisterToken::Cast(target)->value();
         target_size = reg.SizeInBytes();
     } else if (target->IsFloatRegister()) {
-        ARMFPRegister fpreg = FloatRegisterToken::Cast(target)->value();
+        FPRegister fpreg = FloatRegisterToken::Cast(target)->value();
         target_size = fpreg.SizeInBytes();
     }
     // If the target is an identifier there must be no format. This is checked

@@ -65,7 +65,7 @@ CPURegList::PopHighestIndex()
 bool
 CPURegList::IsValid() const
 {
-    if ((type_ == CPURegister::kARMRegister) || (type_ == CPURegister::kARMFPRegister)) {
+    if ((type_ == CPURegister::kRegister) || (type_ == CPURegister::kFPRegister)) {
         bool is_valid = true;
         // Try to create a CPURegister for each element in the list.
         for (int i = 0; i < kRegListSizeInBits; i++) {
@@ -86,9 +86,9 @@ CPURegList::IsValid() const
 void
 CPURegList::RemoveCalleeSaved()
 {
-    if (type() == CPURegister::kARMRegister) {
+    if (type() == CPURegister::kRegister) {
         Remove(GetCalleeSaved(RegisterSizeInBits()));
-    } else if (type() == CPURegister::kARMFPRegister) {
+    } else if (type() == CPURegister::kFPRegister) {
         Remove(GetCalleeSavedFP(RegisterSizeInBits()));
     } else {
         MOZ_ASSERT(type() == CPURegister::kNoRegister);
@@ -100,20 +100,20 @@ CPURegList::RemoveCalleeSaved()
 CPURegList
 CPURegList::GetCalleeSaved(unsigned size)
 {
-    return CPURegList(CPURegister::kARMRegister, size, 19, 29);
+    return CPURegList(CPURegister::kRegister, size, 19, 29);
 }
 
 CPURegList
 CPURegList::GetCalleeSavedFP(unsigned size)
 {
-    return CPURegList(CPURegister::kARMFPRegister, size, 8, 15);
+    return CPURegList(CPURegister::kFPRegister, size, 8, 15);
 }
 
 CPURegList
 CPURegList::GetCallerSaved(unsigned size)
 {
-    // ARMRegisters x0-x18 and lr (x30) are caller-saved.
-    CPURegList list = CPURegList(CPURegister::kARMRegister, size, 0, 18);
+    // Registers x0-x18 and lr (x30) are caller-saved.
+    CPURegList list = CPURegList(CPURegister::kRegister, size, 0, 18);
     list.Combine(vixl::lr);
     return list;
 }
@@ -121,9 +121,9 @@ CPURegList::GetCallerSaved(unsigned size)
 CPURegList
 CPURegList::GetCallerSavedFP(unsigned size)
 {
-    // ARMRegisters d0-d7 and d16-d31 are caller-saved.
-    CPURegList list = CPURegList(CPURegister::kARMFPRegister, size, 0, 7);
-    list.Combine(CPURegList(CPURegister::kARMFPRegister, size, 16, 31));
+    // Registers d0-d7 and d16-d31 are caller-saved.
+    CPURegList list = CPURegList(CPURegister::kFPRegister, size, 0, 7);
+    list.Combine(CPURegList(CPURegister::kFPRegister, size, 16, 31));
     return list;
 }
 
@@ -134,31 +134,31 @@ const CPURegList kCallerSavedFP = CPURegList::GetCallerSavedFP();
 
 // Registers.
 #define WREG(n) w##n,
-const ARMRegister ARMRegister::wregisters[] = {
+const Register Register::wregisters[] = {
 REGISTER_CODE_LIST(WREG)
 };
 #undef WREG
 
 #define XREG(n) x##n,
-const ARMRegister ARMRegister::xregisters[] = {
+const Register Register::xregisters[] = {
 REGISTER_CODE_LIST(XREG)
 };
 #undef XREG
 
 #define SREG(n) s##n,
-const ARMFPRegister ARMFPRegister::sregisters[] = {
+const FPRegister FPRegister::sregisters[] = {
 REGISTER_CODE_LIST(SREG)
 };
 #undef SREG
 
 #define DREG(n) d##n,
-const ARMFPRegister ARMFPRegister::dregisters[] = {
+const FPRegister FPRegister::dregisters[] = {
 REGISTER_CODE_LIST(DREG)
 };
 #undef DREG
 
-const ARMRegister&
-ARMRegister::WRegFromCode(unsigned code)
+const Register&
+Register::WRegFromCode(unsigned code)
 {
     if (code == kSPRegInternalCode)
         return wsp;
@@ -166,8 +166,8 @@ ARMRegister::WRegFromCode(unsigned code)
     return wregisters[code];
 }
 
-const ARMRegister&
-ARMRegister::XRegFromCode(unsigned code)
+const Register&
+Register::XRegFromCode(unsigned code)
 {
     if (code == kSPRegInternalCode)
       return sp;
@@ -175,46 +175,46 @@ ARMRegister::XRegFromCode(unsigned code)
     return xregisters[code];
 }
 
-const ARMFPRegister&
-ARMFPRegister::SRegFromCode(unsigned code)
+const FPRegister&
+FPRegister::SRegFromCode(unsigned code)
 {
     MOZ_ASSERT(code < kNumberOfFloatRegisters);
     return sregisters[code];
 }
 
-const ARMFPRegister&
-ARMFPRegister::DRegFromCode(unsigned code)
+const FPRegister&
+FPRegister::DRegFromCode(unsigned code)
 {
     MOZ_ASSERT(code < kNumberOfFloatRegisters);
     return dregisters[code];
 }
 
-const ARMRegister&
+const Register&
 CPURegister::W() const
 {
     MOZ_ASSERT(IsValidRegister());
-    return ARMRegister::WRegFromCode(code_);
+    return Register::WRegFromCode(code_);
 }
 
-const ARMRegister&
+const Register&
 CPURegister::X() const
 {
     MOZ_ASSERT(IsValidRegister());
-    return ARMRegister::XRegFromCode(code_);
+    return Register::XRegFromCode(code_);
 }
 
-const ARMFPRegister&
+const FPRegister&
 CPURegister::S() const
 {
     MOZ_ASSERT(IsValidFPRegister());
-    return ARMFPRegister::SRegFromCode(code_);
+    return FPRegister::SRegFromCode(code_);
 }
 
-const ARMFPRegister&
+const FPRegister&
 CPURegister::D() const
 {
     MOZ_ASSERT(IsValidFPRegister());
-    return ARMFPRegister::DRegFromCode(code_);
+    return FPRegister::DRegFromCode(code_);
 
 }
 
@@ -228,7 +228,7 @@ Operand::Operand(int64_t immediate)
 {
 }
 
-Operand::Operand(ARMRegister reg, Shift shift, unsigned shift_amount)
+Operand::Operand(Register reg, Shift shift, unsigned shift_amount)
   : reg_(reg),
     shift_(shift),
     extend_(NO_EXTEND),
@@ -239,7 +239,7 @@ Operand::Operand(ARMRegister reg, Shift shift, unsigned shift_amount)
     MOZ_ASSERT(!reg.IsSP());
 }
 
-Operand::Operand(ARMRegister reg, Extend extend, unsigned shift_amount)
+Operand::Operand(Register reg, Extend extend, unsigned shift_amount)
   : reg_(reg),
     shift_(NO_SHIFT),
     extend_(extend),
@@ -288,13 +288,13 @@ Operand::ToExtendedRegister() const
 }
 
 // MemOperand
-MemOperand::MemOperand(ARMRegister base, ptrdiff_t offset, AddrMode addrmode)
+MemOperand::MemOperand(Register base, ptrdiff_t offset, AddrMode addrmode)
   : base_(base), regoffset_(NoReg), offset_(offset), addrmode_(addrmode)
 {
     MOZ_ASSERT(base.Is64Bits() && !base.IsZero());
 }
 
-MemOperand::MemOperand(ARMRegister base, ARMRegister regoffset,
+MemOperand::MemOperand(Register base, Register regoffset,
                        Extend extend, unsigned shift_amount)
   : base_(base), regoffset_(regoffset), offset_(0), addrmode_(Offset),
     shift_(NO_SHIFT), extend_(extend), shift_amount_(shift_amount)
@@ -307,7 +307,7 @@ MemOperand::MemOperand(ARMRegister base, ARMRegister regoffset,
     MOZ_ASSERT(regoffset.Is64Bits() || (extend != SXTX));
 }
 
-MemOperand::MemOperand(ARMRegister base, ARMRegister regoffset,
+MemOperand::MemOperand(Register base, Register regoffset,
                        Shift shift, unsigned shift_amount)
   : base_(base), regoffset_(regoffset), offset_(0), addrmode_(Offset),
     shift_(shift), extend_(NO_EXTEND), shift_amount_(shift_amount)
@@ -317,7 +317,7 @@ MemOperand::MemOperand(ARMRegister base, ARMRegister regoffset,
     MOZ_ASSERT(shift == LSL);
 }
 
-MemOperand::MemOperand(ARMRegister base, const Operand& offset, AddrMode addrmode)
+MemOperand::MemOperand(Register base, const Operand& offset, AddrMode addrmode)
   : base_(base), regoffset_(NoReg), addrmode_(addrmode)
 {
     MOZ_ASSERT(base.Is64Bits() && !base.IsZero());
@@ -485,7 +485,7 @@ AssemblerVIXL::LinkAndGetPageOffsetTo(BufferOffset branch, Label* label)
 
 // Code generation.
 void
-AssemblerVIXL::br(const ARMRegister& xn)
+AssemblerVIXL::br(const Register& xn)
 {
     MOZ_ASSERT(xn.Is64Bits());
     // No need for EmitBranch(): no immediate offset needs fixing.
@@ -493,7 +493,7 @@ AssemblerVIXL::br(const ARMRegister& xn)
 }
 // Code generation.
 void
-AssemblerVIXL::br(Instruction * at, const ARMRegister& xn)
+AssemblerVIXL::br(Instruction * at, const Register& xn)
 {
     MOZ_ASSERT(xn.Is64Bits());
     // No need for EmitBranch(): no immediate offset needs fixing.
@@ -501,14 +501,14 @@ AssemblerVIXL::br(Instruction * at, const ARMRegister& xn)
 }
 
 void
-AssemblerVIXL::blr(const ARMRegister& xn)
+AssemblerVIXL::blr(const Register& xn)
 {
     MOZ_ASSERT(xn.Is64Bits());
     // No need for EmitBranch(): no immediate offset needs fixing.
     Emit(BLR | Rn(xn));
 }
 void
-AssemblerVIXL::blr(Instruction* at, const ARMRegister& xn)
+AssemblerVIXL::blr(Instruction* at, const Register& xn)
 {
     MOZ_ASSERT(xn.Is64Bits());
     // No need for EmitBranch(): no immediate offset needs fixing.
@@ -516,7 +516,7 @@ AssemblerVIXL::blr(Instruction* at, const ARMRegister& xn)
 }
 
 void
-AssemblerVIXL::ret(const ARMRegister& xn)
+AssemblerVIXL::ret(const Register& xn)
 {
     MOZ_ASSERT(xn.Is64Bits());
     // No need for EmitBranch(): no immediate offset needs fixing.
@@ -597,19 +597,19 @@ AssemblerVIXL::bl(Label* label)
 }
 
 void
-AssemblerVIXL::cbz(const ARMRegister& rt, int imm19)
+AssemblerVIXL::cbz(const Register& rt, int imm19)
 {
     EmitBranch(SF(rt) | CBZ | ImmCmpBranch(imm19) | Rt(rt));
 }
 
 void
-AssemblerVIXL::cbz(Instruction* at, const ARMRegister& rt, int imm19)
+AssemblerVIXL::cbz(Instruction* at, const Register& rt, int imm19)
 {
     EmitBranch(at, SF(rt) | CBZ | ImmCmpBranch(imm19) | Rt(rt));
 }
 
 void
-AssemblerVIXL::cbz(const ARMRegister& rt, Label* label)
+AssemblerVIXL::cbz(const Register& rt, Label* label)
 {
     // Flush the instruction buffer before calculating relative offset.
     BufferOffset branch = b(0);
@@ -620,19 +620,19 @@ AssemblerVIXL::cbz(const ARMRegister& rt, Label* label)
 }
 
 void
-AssemblerVIXL::cbnz(const ARMRegister& rt, int imm19)
+AssemblerVIXL::cbnz(const Register& rt, int imm19)
 {
     EmitBranch(SF(rt) | CBNZ | ImmCmpBranch(imm19) | Rt(rt));
 }
 
 void
-AssemblerVIXL::cbnz(Instruction* at, const ARMRegister& rt, int imm19)
+AssemblerVIXL::cbnz(Instruction* at, const Register& rt, int imm19)
 {
     EmitBranch(at, SF(rt) | CBNZ | ImmCmpBranch(imm19) | Rt(rt));
 }
 
 void
-AssemblerVIXL::cbnz(const ARMRegister& rt, Label* label)
+AssemblerVIXL::cbnz(const Register& rt, Label* label)
 {
     // Flush the instruction buffer before calculating relative offset.
     BufferOffset branch = b(0);
@@ -643,21 +643,21 @@ AssemblerVIXL::cbnz(const ARMRegister& rt, Label* label)
 }
 
 void
-AssemblerVIXL::tbz(const ARMRegister& rt, unsigned bit_pos, int imm14)
+AssemblerVIXL::tbz(const Register& rt, unsigned bit_pos, int imm14)
 {
     MOZ_ASSERT(rt.Is64Bits() || (rt.Is32Bits() && (bit_pos < kWRegSize)));
     EmitBranch(TBZ | ImmTestBranchBit(bit_pos) | ImmTestBranch(imm14) | Rt(rt));
 }
 
 void
-AssemblerVIXL::tbz(Instruction* at, const ARMRegister& rt, unsigned bit_pos, int imm14)
+AssemblerVIXL::tbz(Instruction* at, const Register& rt, unsigned bit_pos, int imm14)
 {
     MOZ_ASSERT(rt.Is64Bits() || (rt.Is32Bits() && (bit_pos < kWRegSize)));
     EmitBranch(at, TBZ | ImmTestBranchBit(bit_pos) | ImmTestBranch(imm14) | Rt(rt));
 }
 
 void
-AssemblerVIXL::tbz(const ARMRegister& rt, unsigned bit_pos, Label* label)
+AssemblerVIXL::tbz(const Register& rt, unsigned bit_pos, Label* label)
 {
     // Flush the instruction buffer before calculating relative offset.
     BufferOffset branch = b(0);
@@ -668,21 +668,21 @@ AssemblerVIXL::tbz(const ARMRegister& rt, unsigned bit_pos, Label* label)
 }
 
 void
-AssemblerVIXL::tbnz(const ARMRegister& rt, unsigned bit_pos, int imm14)
+AssemblerVIXL::tbnz(const Register& rt, unsigned bit_pos, int imm14)
 {
     MOZ_ASSERT(rt.Is64Bits() || (rt.Is32Bits() && (bit_pos < kWRegSize)));
     EmitBranch(TBNZ | ImmTestBranchBit(bit_pos) | ImmTestBranch(imm14) | Rt(rt));
 }
 
 void
-AssemblerVIXL::tbnz(Instruction* at, const ARMRegister& rt, unsigned bit_pos, int imm14)
+AssemblerVIXL::tbnz(Instruction* at, const Register& rt, unsigned bit_pos, int imm14)
 {
     MOZ_ASSERT(rt.Is64Bits() || (rt.Is32Bits() && (bit_pos < kWRegSize)));
     EmitBranch(at, TBNZ | ImmTestBranchBit(bit_pos) | ImmTestBranch(imm14) | Rt(rt));
 }
 
 void
-AssemblerVIXL::tbnz(const ARMRegister& rt, unsigned bit_pos, Label* label)
+AssemblerVIXL::tbnz(const Register& rt, unsigned bit_pos, Label* label)
 {
     // Flush the instruction buffer before calculating relative offset.
     BufferOffset branch = b(0);
@@ -693,21 +693,21 @@ AssemblerVIXL::tbnz(const ARMRegister& rt, unsigned bit_pos, Label* label)
 }
 
 void
-AssemblerVIXL::adr(const ARMRegister& rd, int imm21)
+AssemblerVIXL::adr(const Register& rd, int imm21)
 {
     MOZ_ASSERT(rd.Is64Bits());
     Emit(ADR | ImmPCRelAddress(imm21) | Rd(rd));
 }
 
 void
-AssemblerVIXL::adr(Instruction* at, const ARMRegister& rd, int imm21)
+AssemblerVIXL::adr(Instruction* at, const Register& rd, int imm21)
 {
     MOZ_ASSERT(rd.Is64Bits());
     Emit(at, ADR | ImmPCRelAddress(imm21) | Rd(rd));
 }
 
 void
-AssemblerVIXL::adr(const ARMRegister& rd, Label* label)
+AssemblerVIXL::adr(const Register& rd, Label* label)
 {
     // Flush the instruction buffer before calculating relative offset.
     // ADR is not a branch.
@@ -721,7 +721,7 @@ AssemblerVIXL::adr(const ARMRegister& rd, Label* label)
 }
 
 void
-AssemblerVIXL::adrp(const ARMRegister& rd, int imm21)
+AssemblerVIXL::adrp(const Register& rd, int imm21)
 {
     MOZ_ASSERT(rd.Is64Bits());
     Emit(ADRP | ImmPCRelAddress(imm21) | Rd(rd));
@@ -729,7 +729,7 @@ AssemblerVIXL::adrp(const ARMRegister& rd, int imm21)
 
 
 void
-AssemblerVIXL::adrp(const ARMRegister& rd, Label* label)
+AssemblerVIXL::adrp(const Register& rd, Label* label)
 {
     MOZ_ASSERT(AllowPageOffsetDependentCode());
     MOZ_CRASH("adrp()");
@@ -737,152 +737,152 @@ AssemblerVIXL::adrp(const ARMRegister& rd, Label* label)
 }
 
 void
-AssemblerVIXL::add(const ARMRegister& rd, const ARMRegister& rn, const Operand& operand)
+AssemblerVIXL::add(const Register& rd, const Register& rn, const Operand& operand)
 {
     AddSub(rd, rn, operand, LeaveFlags, ADD);
 }
 
 void
-AssemblerVIXL::adds(const ARMRegister& rd, const ARMRegister& rn, const Operand& operand)
+AssemblerVIXL::adds(const Register& rd, const Register& rn, const Operand& operand)
 {
     AddSub(rd, rn, operand, SetFlags, ADD);
 }
 
 void
-AssemblerVIXL::cmn(const ARMRegister& rn, const Operand& operand)
+AssemblerVIXL::cmn(const Register& rn, const Operand& operand)
 {
-    ARMRegister zr = AppropriateZeroRegFor(rn);
+    Register zr = AppropriateZeroRegFor(rn);
     adds(zr, rn, operand);
 }
 
 void
-AssemblerVIXL::sub(const ARMRegister& rd, const ARMRegister& rn, const Operand& operand)
+AssemblerVIXL::sub(const Register& rd, const Register& rn, const Operand& operand)
 {
     AddSub(rd, rn, operand, LeaveFlags, SUB);
 }
 
 void
-AssemblerVIXL::subs(const ARMRegister& rd, const ARMRegister& rn, const Operand& operand)
+AssemblerVIXL::subs(const Register& rd, const Register& rn, const Operand& operand)
 {
     AddSub(rd, rn, operand, SetFlags, SUB);
 }
 
 void
-AssemblerVIXL::cmp(const ARMRegister& rn, const Operand& operand)
+AssemblerVIXL::cmp(const Register& rn, const Operand& operand)
 {
-    ARMRegister zr = AppropriateZeroRegFor(rn);
+    Register zr = AppropriateZeroRegFor(rn);
     subs(zr, rn, operand);
 }
 
 void
-AssemblerVIXL::neg(const ARMRegister& rd, const Operand& operand)
+AssemblerVIXL::neg(const Register& rd, const Operand& operand)
 {
-    ARMRegister zr = AppropriateZeroRegFor(rd);
+    Register zr = AppropriateZeroRegFor(rd);
     sub(rd, zr, operand);
 }
 
 void
-AssemblerVIXL::negs(const ARMRegister& rd, const Operand& operand)
+AssemblerVIXL::negs(const Register& rd, const Operand& operand)
 {
-    ARMRegister zr = AppropriateZeroRegFor(rd);
+    Register zr = AppropriateZeroRegFor(rd);
     subs(rd, zr, operand);
 }
 
 void
-AssemblerVIXL::adc(const ARMRegister& rd, const ARMRegister& rn, const Operand& operand)
+AssemblerVIXL::adc(const Register& rd, const Register& rn, const Operand& operand)
 {
     AddSubWithCarry(rd, rn, operand, LeaveFlags, ADC);
 }
 
 void
-AssemblerVIXL::adcs(const ARMRegister& rd, const ARMRegister& rn, const Operand& operand)
+AssemblerVIXL::adcs(const Register& rd, const Register& rn, const Operand& operand)
 {
     AddSubWithCarry(rd, rn, operand, SetFlags, ADC);
 }
 
 void
-AssemblerVIXL::sbc(const ARMRegister& rd, const ARMRegister& rn, const Operand& operand)
+AssemblerVIXL::sbc(const Register& rd, const Register& rn, const Operand& operand)
 {
     AddSubWithCarry(rd, rn, operand, LeaveFlags, SBC);
 }
 
 void
-AssemblerVIXL::sbcs(const ARMRegister& rd, const ARMRegister& rn, const Operand& operand)
+AssemblerVIXL::sbcs(const Register& rd, const Register& rn, const Operand& operand)
 {
     AddSubWithCarry(rd, rn, operand, SetFlags, SBC);
 }
 
 void
-AssemblerVIXL::ngc(const ARMRegister& rd, const Operand& operand)
+AssemblerVIXL::ngc(const Register& rd, const Operand& operand)
 {
-    ARMRegister zr = AppropriateZeroRegFor(rd);
+    Register zr = AppropriateZeroRegFor(rd);
     sbc(rd, zr, operand);
 }
 
 void
-AssemblerVIXL::ngcs(const ARMRegister& rd, const Operand& operand)
+AssemblerVIXL::ngcs(const Register& rd, const Operand& operand)
 {
-    ARMRegister zr = AppropriateZeroRegFor(rd);
+    Register zr = AppropriateZeroRegFor(rd);
     sbcs(rd, zr, operand);
 }
 
 // Logical instructions.
 void
-AssemblerVIXL::and_(const ARMRegister& rd, const ARMRegister& rn, const Operand& operand)
+AssemblerVIXL::and_(const Register& rd, const Register& rn, const Operand& operand)
 {
     Logical(rd, rn, operand, AND);
 }
 
 BufferOffset
-AssemblerVIXL::ands(const ARMRegister& rd, const ARMRegister& rn, const Operand& operand)
+AssemblerVIXL::ands(const Register& rd, const Register& rn, const Operand& operand)
 {
     return Logical(rd, rn, operand, ANDS);
 }
 
 BufferOffset
-AssemblerVIXL::tst(const ARMRegister& rn, const Operand& operand)
+AssemblerVIXL::tst(const Register& rn, const Operand& operand)
 {
     return ands(AppropriateZeroRegFor(rn), rn, operand);
 }
 
 void
-AssemblerVIXL::bic(const ARMRegister& rd, const ARMRegister& rn, const Operand& operand)
+AssemblerVIXL::bic(const Register& rd, const Register& rn, const Operand& operand)
 {
     Logical(rd, rn, operand, BIC);
 }
 
 void
-AssemblerVIXL::bics(const ARMRegister& rd, const ARMRegister& rn, const Operand& operand)
+AssemblerVIXL::bics(const Register& rd, const Register& rn, const Operand& operand)
 {
     Logical(rd, rn, operand, BICS);
 }
 
 void
-AssemblerVIXL::orr(const ARMRegister& rd, const ARMRegister& rn, const Operand& operand)
+AssemblerVIXL::orr(const Register& rd, const Register& rn, const Operand& operand)
 {
     Logical(rd, rn, operand, ORR);
 }
 
 void
-AssemblerVIXL::orn(const ARMRegister& rd, const ARMRegister& rn, const Operand& operand)
+AssemblerVIXL::orn(const Register& rd, const Register& rn, const Operand& operand)
 {
     Logical(rd, rn, operand, ORN);
 }
 
 void
-AssemblerVIXL::eor(const ARMRegister& rd, const ARMRegister& rn, const Operand& operand)
+AssemblerVIXL::eor(const Register& rd, const Register& rn, const Operand& operand)
 {
     Logical(rd, rn, operand, EOR);
 }
 
 void
-AssemblerVIXL::eon(const ARMRegister& rd, const ARMRegister& rn, const Operand& operand)
+AssemblerVIXL::eon(const Register& rd, const Register& rn, const Operand& operand)
 {
     Logical(rd, rn, operand, EON);
 }
 
 void
-AssemblerVIXL::lslv(const ARMRegister& rd, const ARMRegister& rn, const ARMRegister& rm)
+AssemblerVIXL::lslv(const Register& rd, const Register& rn, const Register& rm)
 {
     MOZ_ASSERT(rd.size() == rn.size());
     MOZ_ASSERT(rd.size() == rm.size());
@@ -890,7 +890,7 @@ AssemblerVIXL::lslv(const ARMRegister& rd, const ARMRegister& rn, const ARMRegis
 }
 
 void
-AssemblerVIXL::lsrv(const ARMRegister& rd, const ARMRegister& rn, const ARMRegister& rm)
+AssemblerVIXL::lsrv(const Register& rd, const Register& rn, const Register& rm)
 {
     MOZ_ASSERT(rd.size() == rn.size());
     MOZ_ASSERT(rd.size() == rm.size());
@@ -898,7 +898,7 @@ AssemblerVIXL::lsrv(const ARMRegister& rd, const ARMRegister& rn, const ARMRegis
 }
 
 void
-AssemblerVIXL::asrv(const ARMRegister& rd, const ARMRegister& rn, const ARMRegister& rm)
+AssemblerVIXL::asrv(const Register& rd, const Register& rn, const Register& rm)
 {
     MOZ_ASSERT(rd.size() == rn.size());
     MOZ_ASSERT(rd.size() == rm.size());
@@ -906,7 +906,7 @@ AssemblerVIXL::asrv(const ARMRegister& rd, const ARMRegister& rn, const ARMRegis
 }
 
 void
-AssemblerVIXL::rorv(const ARMRegister& rd, const ARMRegister& rn, const ARMRegister& rm)
+AssemblerVIXL::rorv(const Register& rd, const Register& rn, const Register& rm)
 {
     MOZ_ASSERT(rd.size() == rn.size());
     MOZ_ASSERT(rd.size() == rm.size());
@@ -915,7 +915,7 @@ AssemblerVIXL::rorv(const ARMRegister& rd, const ARMRegister& rn, const ARMRegis
 
 // Bitfield operations.
 void
-AssemblerVIXL::bfm(const ARMRegister& rd, const ARMRegister& rn, unsigned immr, unsigned imms)
+AssemblerVIXL::bfm(const Register& rd, const Register& rn, unsigned immr, unsigned imms)
 {
     MOZ_ASSERT(rd.size() == rn.size());
     Instr N = SF(rd) >> (kSFOffset - kBitfieldNOffset);
@@ -924,7 +924,7 @@ AssemblerVIXL::bfm(const ARMRegister& rd, const ARMRegister& rn, unsigned immr, 
 }
 
 void
-AssemblerVIXL::sbfm(const ARMRegister& rd, const ARMRegister& rn, unsigned immr, unsigned imms)
+AssemblerVIXL::sbfm(const Register& rd, const Register& rn, unsigned immr, unsigned imms)
 {
     MOZ_ASSERT(rd.Is64Bits() || rn.Is32Bits());
     Instr N = SF(rd) >> (kSFOffset - kBitfieldNOffset);
@@ -933,7 +933,7 @@ AssemblerVIXL::sbfm(const ARMRegister& rd, const ARMRegister& rn, unsigned immr,
 }
 
 void
-AssemblerVIXL::ubfm(const ARMRegister& rd, const ARMRegister& rn, unsigned immr, unsigned imms)
+AssemblerVIXL::ubfm(const Register& rd, const Register& rn, unsigned immr, unsigned imms)
 {
     MOZ_ASSERT(rd.size() == rn.size());
     Instr N = SF(rd) >> (kSFOffset - kBitfieldNOffset);
@@ -942,8 +942,8 @@ AssemblerVIXL::ubfm(const ARMRegister& rd, const ARMRegister& rn, unsigned immr,
 }
 
 void
-AssemblerVIXL::extr(const ARMRegister& rd, const ARMRegister& rn,
-                    const ARMRegister& rm, unsigned lsb)
+AssemblerVIXL::extr(const Register& rd, const Register& rn,
+                    const Register& rm, unsigned lsb)
 {
     MOZ_ASSERT(rd.size() == rn.size());
     MOZ_ASSERT(rd.size() == rm.size());
@@ -952,73 +952,73 @@ AssemblerVIXL::extr(const ARMRegister& rd, const ARMRegister& rn,
 }
 
 void
-AssemblerVIXL::csel(const ARMRegister& rd, const ARMRegister& rn,
-                    const ARMRegister& rm, Condition cond)
+AssemblerVIXL::csel(const Register& rd, const Register& rn,
+                    const Register& rm, Condition cond)
 {
     ConditionalSelect(rd, rn, rm, cond, CSEL);
 }
 
 void
-AssemblerVIXL::csinc(const ARMRegister& rd, const ARMRegister& rn,
-                     const ARMRegister& rm, Condition cond)
+AssemblerVIXL::csinc(const Register& rd, const Register& rn,
+                     const Register& rm, Condition cond)
 {
     ConditionalSelect(rd, rn, rm, cond, CSINC);
 }
 
 void
-AssemblerVIXL::csinv(const ARMRegister& rd, const ARMRegister& rn,
-                     const ARMRegister& rm, Condition cond)
+AssemblerVIXL::csinv(const Register& rd, const Register& rn,
+                     const Register& rm, Condition cond)
 {
     ConditionalSelect(rd, rn, rm, cond, CSINV);
 }
 
 void
-AssemblerVIXL::csneg(const ARMRegister& rd, const ARMRegister& rn,
-                     const ARMRegister& rm, Condition cond)
+AssemblerVIXL::csneg(const Register& rd, const Register& rn,
+                     const Register& rm, Condition cond)
 {
     ConditionalSelect(rd, rn, rm, cond, CSNEG);
 }
 
 void
-AssemblerVIXL::cset(const ARMRegister& rd, Condition cond)
+AssemblerVIXL::cset(const Register& rd, Condition cond)
 {
     MOZ_ASSERT((cond != al) && (cond != nv));
-    ARMRegister zr = AppropriateZeroRegFor(rd);
+    Register zr = AppropriateZeroRegFor(rd);
     csinc(rd, zr, zr, InvertCondition(cond));
 }
 
 void
-AssemblerVIXL::csetm(const ARMRegister& rd, Condition cond)
+AssemblerVIXL::csetm(const Register& rd, Condition cond)
 {
     MOZ_ASSERT((cond != al) && (cond != nv));
-    ARMRegister zr = AppropriateZeroRegFor(rd);
+    Register zr = AppropriateZeroRegFor(rd);
     csinv(rd, zr, zr, InvertCondition(cond));
 }
 
 void
-AssemblerVIXL::cinc(const ARMRegister& rd, const ARMRegister& rn, Condition cond)
+AssemblerVIXL::cinc(const Register& rd, const Register& rn, Condition cond)
 {
     MOZ_ASSERT((cond != al) && (cond != nv));
     csinc(rd, rn, rn, InvertCondition(cond));
 }
 
 void
-AssemblerVIXL::cinv(const ARMRegister& rd, const ARMRegister& rn, Condition cond)
+AssemblerVIXL::cinv(const Register& rd, const Register& rn, Condition cond)
 {
     MOZ_ASSERT((cond != al) && (cond != nv));
     csinv(rd, rn, rn, InvertCondition(cond));
 }
 
 void
-AssemblerVIXL::cneg(const ARMRegister& rd, const ARMRegister& rn, Condition cond)
+AssemblerVIXL::cneg(const Register& rd, const Register& rn, Condition cond)
 {
     MOZ_ASSERT((cond != al) && (cond != nv));
     csneg(rd, rn, rn, InvertCondition(cond));
 }
 
 void
-AssemblerVIXL::ConditionalSelect(const ARMRegister& rd, const ARMRegister& rn,
-                                 const ARMRegister& rm, Condition cond,
+AssemblerVIXL::ConditionalSelect(const Register& rd, const Register& rn,
+                                 const Register& rm, Condition cond,
                                  ConditionalSelectOp op)
 {
     MOZ_ASSERT(rd.size() == rn.size());
@@ -1027,56 +1027,56 @@ AssemblerVIXL::ConditionalSelect(const ARMRegister& rd, const ARMRegister& rn,
 }
 
 void
-AssemblerVIXL::ccmn(const ARMRegister& rn, const Operand& operand, StatusFlags nzcv, Condition cond)
+AssemblerVIXL::ccmn(const Register& rn, const Operand& operand, StatusFlags nzcv, Condition cond)
 {
     ConditionalCompare(rn, operand, nzcv, cond, CCMN);
 }
 
 void
-AssemblerVIXL::ccmp(const ARMRegister& rn, const Operand& operand, StatusFlags nzcv, Condition cond)
+AssemblerVIXL::ccmp(const Register& rn, const Operand& operand, StatusFlags nzcv, Condition cond)
 {
     ConditionalCompare(rn, operand, nzcv, cond, CCMP);
 }
 
 void
-AssemblerVIXL::DataProcessing3Source(const ARMRegister& rd, const ARMRegister& rn,
-                                     const ARMRegister& rm, const ARMRegister& ra,
+AssemblerVIXL::DataProcessing3Source(const Register& rd, const Register& rn,
+                                     const Register& rm, const Register& ra,
                                      DataProcessing3SourceOp op)
 {
     Emit(SF(rd) | op | Rm(rm) | Ra(ra) | Rn(rn) | Rd(rd));
 }
 
 void
-AssemblerVIXL::mul(const ARMRegister& rd, const ARMRegister& rn, const ARMRegister& rm)
+AssemblerVIXL::mul(const Register& rd, const Register& rn, const Register& rm)
 {
     MOZ_ASSERT(AreSameSizeAndType(rd, rn, rm));
     DataProcessing3Source(rd, rn, rm, AppropriateZeroRegFor(rd), MADD);
 }
 
 void
-AssemblerVIXL::madd(const ARMRegister& rd, const ARMRegister& rn,
-                    const ARMRegister& rm, const ARMRegister& ra)
+AssemblerVIXL::madd(const Register& rd, const Register& rn,
+                    const Register& rm, const Register& ra)
 {
     DataProcessing3Source(rd, rn, rm, ra, MADD);
 }
 
 void
-AssemblerVIXL::mneg(const ARMRegister& rd, const ARMRegister& rn, const ARMRegister& rm)
+AssemblerVIXL::mneg(const Register& rd, const Register& rn, const Register& rm)
 {
     MOZ_ASSERT(AreSameSizeAndType(rd, rn, rm));
     DataProcessing3Source(rd, rn, rm, AppropriateZeroRegFor(rd), MSUB);
 }
 
 void
-AssemblerVIXL::msub(const ARMRegister& rd, const ARMRegister& rn,
-                    const ARMRegister& rm, const ARMRegister& ra)
+AssemblerVIXL::msub(const Register& rd, const Register& rn,
+                    const Register& rm, const Register& ra)
 {
     DataProcessing3Source(rd, rn, rm, ra, MSUB);
 }
 
 void
-AssemblerVIXL::umaddl(const ARMRegister& rd, const ARMRegister& rn,
-                      const ARMRegister& rm, const ARMRegister& ra)
+AssemblerVIXL::umaddl(const Register& rd, const Register& rn,
+                      const Register& rm, const Register& ra)
 {
     MOZ_ASSERT(rd.Is64Bits() && ra.Is64Bits());
     MOZ_ASSERT(rn.Is32Bits() && rm.Is32Bits());
@@ -1084,8 +1084,8 @@ AssemblerVIXL::umaddl(const ARMRegister& rd, const ARMRegister& rn,
 }
 
 void
-AssemblerVIXL::smaddl(const ARMRegister& rd, const ARMRegister& rn,
-                      const ARMRegister& rm, const ARMRegister& ra)
+AssemblerVIXL::smaddl(const Register& rd, const Register& rn,
+                      const Register& rm, const Register& ra)
 {
     MOZ_ASSERT(rd.Is64Bits() && ra.Is64Bits());
     MOZ_ASSERT(rn.Is32Bits() && rm.Is32Bits());
@@ -1093,8 +1093,8 @@ AssemblerVIXL::smaddl(const ARMRegister& rd, const ARMRegister& rn,
 }
 
 void
-AssemblerVIXL::umsubl(const ARMRegister& rd, const ARMRegister& rn,
-                      const ARMRegister& rm, const ARMRegister& ra)
+AssemblerVIXL::umsubl(const Register& rd, const Register& rn,
+                      const Register& rm, const Register& ra)
 {
     MOZ_ASSERT(rd.Is64Bits() && ra.Is64Bits());
     MOZ_ASSERT(rn.Is32Bits() && rm.Is32Bits());
@@ -1102,8 +1102,8 @@ AssemblerVIXL::umsubl(const ARMRegister& rd, const ARMRegister& rn,
 }
 
 void
-AssemblerVIXL::smsubl(const ARMRegister& rd, const ARMRegister& rn,
-                      const ARMRegister& rm, const ARMRegister& ra)
+AssemblerVIXL::smsubl(const Register& rd, const Register& rn,
+                      const Register& rm, const Register& ra)
 {
     MOZ_ASSERT(rd.Is64Bits() && ra.Is64Bits());
     MOZ_ASSERT(rn.Is32Bits() && rm.Is32Bits());
@@ -1111,7 +1111,7 @@ AssemblerVIXL::smsubl(const ARMRegister& rd, const ARMRegister& rn,
 }
 
 void
-AssemblerVIXL::smull(const ARMRegister& rd, const ARMRegister& rn, const ARMRegister& rm)
+AssemblerVIXL::smull(const Register& rd, const Register& rn, const Register& rm)
 {
     MOZ_ASSERT(rd.Is64Bits());
     MOZ_ASSERT(rn.Is32Bits() && rm.Is32Bits());
@@ -1119,7 +1119,7 @@ AssemblerVIXL::smull(const ARMRegister& rd, const ARMRegister& rn, const ARMRegi
 }
 
 void
-AssemblerVIXL::sdiv(const ARMRegister& rd, const ARMRegister& rn, const ARMRegister& rm)
+AssemblerVIXL::sdiv(const Register& rd, const Register& rn, const Register& rm)
 {
     MOZ_ASSERT(rd.size() == rn.size());
     MOZ_ASSERT(rd.size() == rm.size());
@@ -1127,14 +1127,14 @@ AssemblerVIXL::sdiv(const ARMRegister& rd, const ARMRegister& rn, const ARMRegis
 }
 
 void
-AssemblerVIXL::smulh(const ARMRegister& xd, const ARMRegister& xn, const ARMRegister& xm)
+AssemblerVIXL::smulh(const Register& xd, const Register& xn, const Register& xm)
 {
     MOZ_ASSERT(xd.Is64Bits() && xn.Is64Bits() && xm.Is64Bits());
     DataProcessing3Source(xd, xn, xm, xzr, SMULH_x);
 }
 
 void
-AssemblerVIXL::udiv(const ARMRegister& rd, const ARMRegister& rn, const ARMRegister& rm)
+AssemblerVIXL::udiv(const Register& rd, const Register& rn, const Register& rm)
 {
     MOZ_ASSERT(rd.size() == rn.size());
     MOZ_ASSERT(rd.size() == rm.size());
@@ -1142,38 +1142,38 @@ AssemblerVIXL::udiv(const ARMRegister& rd, const ARMRegister& rn, const ARMRegis
 }
 
 void
-AssemblerVIXL::rbit(const ARMRegister& rd, const ARMRegister& rn)
+AssemblerVIXL::rbit(const Register& rd, const Register& rn)
 {
     DataProcessing1Source(rd, rn, RBIT);
 }
 
 void
-AssemblerVIXL::rev16(const ARMRegister& rd, const ARMRegister& rn)
+AssemblerVIXL::rev16(const Register& rd, const Register& rn)
 {
     DataProcessing1Source(rd, rn, REV16);
 }
 
 void
-AssemblerVIXL::rev32(const ARMRegister& rd, const ARMRegister& rn)
+AssemblerVIXL::rev32(const Register& rd, const Register& rn)
 {
     MOZ_ASSERT(rd.Is64Bits());
     DataProcessing1Source(rd, rn, REV);
 }
 
 void
-AssemblerVIXL::rev(const ARMRegister& rd, const ARMRegister& rn)
+AssemblerVIXL::rev(const Register& rd, const Register& rn)
 {
     DataProcessing1Source(rd, rn, rd.Is64Bits() ? REV_x : REV_w);
 }
 
 void
-AssemblerVIXL::clz(const ARMRegister& rd, const ARMRegister& rn)
+AssemblerVIXL::clz(const Register& rd, const Register& rn)
 {
     DataProcessing1Source(rd, rn, CLZ);
 }
 
 void
-AssemblerVIXL::cls(const ARMRegister& rd, const ARMRegister& rn)
+AssemblerVIXL::cls(const Register& rd, const Register& rn)
 {
     DataProcessing1Source(rd, rn, CLS);
 }
@@ -1191,7 +1191,7 @@ AssemblerVIXL::stp(const CPURegister& rt, const CPURegister& rt2, const MemOpera
 }
 
 void
-AssemblerVIXL::ldpsw(const ARMRegister& rt, const ARMRegister& rt2, const MemOperand& src)
+AssemblerVIXL::ldpsw(const Register& rt, const Register& rt2, const MemOperand& src)
 {
     MOZ_ASSERT(rt.Is64Bits());
     LoadStorePair(rt, rt2, src, LDPSW_x);
@@ -1249,7 +1249,7 @@ AssemblerVIXL::LoadStorePairNonTemporal(const CPURegister& rt, const CPURegister
 
 // Memory instructions.
 void
-AssemblerVIXL::ldrb(const ARMRegister& rt, const MemOperand& src, LoadStoreScalingOption option)
+AssemblerVIXL::ldrb(const Register& rt, const MemOperand& src, LoadStoreScalingOption option)
 {
     MOZ_ASSERT(option != RequireUnscaledOffset);
     MOZ_ASSERT(option != PreferUnscaledOffset);
@@ -1257,7 +1257,7 @@ AssemblerVIXL::ldrb(const ARMRegister& rt, const MemOperand& src, LoadStoreScali
 }
 
 void
-AssemblerVIXL::strb(const ARMRegister& rt, const MemOperand& dst, LoadStoreScalingOption option)
+AssemblerVIXL::strb(const Register& rt, const MemOperand& dst, LoadStoreScalingOption option)
 {
     MOZ_ASSERT(option != RequireUnscaledOffset);
     MOZ_ASSERT(option != PreferUnscaledOffset);
@@ -1265,7 +1265,7 @@ AssemblerVIXL::strb(const ARMRegister& rt, const MemOperand& dst, LoadStoreScali
 }
 
 void
-AssemblerVIXL::ldrsb(const ARMRegister& rt, const MemOperand& src, LoadStoreScalingOption option)
+AssemblerVIXL::ldrsb(const Register& rt, const MemOperand& src, LoadStoreScalingOption option)
 {
     MOZ_ASSERT(option != RequireUnscaledOffset);
     MOZ_ASSERT(option != PreferUnscaledOffset);
@@ -1273,7 +1273,7 @@ AssemblerVIXL::ldrsb(const ARMRegister& rt, const MemOperand& src, LoadStoreScal
 }
 
 void
-AssemblerVIXL::ldrh(const ARMRegister& rt, const MemOperand& src, LoadStoreScalingOption option)
+AssemblerVIXL::ldrh(const Register& rt, const MemOperand& src, LoadStoreScalingOption option)
 {
     MOZ_ASSERT(option != RequireUnscaledOffset);
     MOZ_ASSERT(option != PreferUnscaledOffset);
@@ -1281,7 +1281,7 @@ AssemblerVIXL::ldrh(const ARMRegister& rt, const MemOperand& src, LoadStoreScali
 }
 
 void
-AssemblerVIXL::strh(const ARMRegister& rt, const MemOperand& dst, LoadStoreScalingOption option)
+AssemblerVIXL::strh(const Register& rt, const MemOperand& dst, LoadStoreScalingOption option)
 {
     MOZ_ASSERT(option != RequireUnscaledOffset);
     MOZ_ASSERT(option != PreferUnscaledOffset);
@@ -1289,7 +1289,7 @@ AssemblerVIXL::strh(const ARMRegister& rt, const MemOperand& dst, LoadStoreScali
 }
 
 void
-AssemblerVIXL::ldrsh(const ARMRegister& rt, const MemOperand& src, LoadStoreScalingOption option)
+AssemblerVIXL::ldrsh(const Register& rt, const MemOperand& src, LoadStoreScalingOption option)
 {
     MOZ_ASSERT(option != RequireUnscaledOffset);
     MOZ_ASSERT(option != PreferUnscaledOffset);
@@ -1313,7 +1313,7 @@ AssemblerVIXL::str(const CPURegister& rt, const MemOperand& src, LoadStoreScalin
 }
 
 void
-AssemblerVIXL::ldrsw(const ARMRegister& rt, const MemOperand& src, LoadStoreScalingOption option)
+AssemblerVIXL::ldrsw(const Register& rt, const MemOperand& src, LoadStoreScalingOption option)
 {
     MOZ_ASSERT(option != RequireUnscaledOffset);
     MOZ_ASSERT(option != PreferUnscaledOffset);
@@ -1322,7 +1322,7 @@ AssemblerVIXL::ldrsw(const ARMRegister& rt, const MemOperand& src, LoadStoreScal
 }
 
 void
-AssemblerVIXL::ldurb(const ARMRegister& rt, const MemOperand& src, LoadStoreScalingOption option)
+AssemblerVIXL::ldurb(const Register& rt, const MemOperand& src, LoadStoreScalingOption option)
 {
     MOZ_ASSERT(option != RequireScaledOffset);
     MOZ_ASSERT(option != PreferScaledOffset);
@@ -1330,7 +1330,7 @@ AssemblerVIXL::ldurb(const ARMRegister& rt, const MemOperand& src, LoadStoreScal
 }
 
 void
-AssemblerVIXL::sturb(const ARMRegister& rt, const MemOperand& dst, LoadStoreScalingOption option)
+AssemblerVIXL::sturb(const Register& rt, const MemOperand& dst, LoadStoreScalingOption option)
 {
     MOZ_ASSERT(option != RequireScaledOffset);
     MOZ_ASSERT(option != PreferScaledOffset);
@@ -1338,7 +1338,7 @@ AssemblerVIXL::sturb(const ARMRegister& rt, const MemOperand& dst, LoadStoreScal
 }
 
 void
-AssemblerVIXL::ldursb(const ARMRegister& rt, const MemOperand& src, LoadStoreScalingOption option)
+AssemblerVIXL::ldursb(const Register& rt, const MemOperand& src, LoadStoreScalingOption option)
 {
     MOZ_ASSERT(option != RequireScaledOffset);
     MOZ_ASSERT(option != PreferScaledOffset);
@@ -1346,7 +1346,7 @@ AssemblerVIXL::ldursb(const ARMRegister& rt, const MemOperand& src, LoadStoreSca
 }
 
 void
-AssemblerVIXL::ldurh(const ARMRegister& rt, const MemOperand& src, LoadStoreScalingOption option)
+AssemblerVIXL::ldurh(const Register& rt, const MemOperand& src, LoadStoreScalingOption option)
 {
     MOZ_ASSERT(option != RequireScaledOffset);
     MOZ_ASSERT(option != PreferScaledOffset);
@@ -1354,7 +1354,7 @@ AssemblerVIXL::ldurh(const ARMRegister& rt, const MemOperand& src, LoadStoreScal
 }
 
 void
-AssemblerVIXL::sturh(const ARMRegister& rt, const MemOperand& dst, LoadStoreScalingOption option)
+AssemblerVIXL::sturh(const Register& rt, const MemOperand& dst, LoadStoreScalingOption option)
 {
     MOZ_ASSERT(option != RequireScaledOffset);
     MOZ_ASSERT(option != PreferScaledOffset);
@@ -1362,7 +1362,7 @@ AssemblerVIXL::sturh(const ARMRegister& rt, const MemOperand& dst, LoadStoreScal
 }
 
 void
-AssemblerVIXL::ldursh(const ARMRegister& rt, const MemOperand& src, LoadStoreScalingOption option)
+AssemblerVIXL::ldursh(const Register& rt, const MemOperand& src, LoadStoreScalingOption option)
 {
     MOZ_ASSERT(option != RequireScaledOffset);
     MOZ_ASSERT(option != PreferScaledOffset);
@@ -1386,7 +1386,7 @@ AssemblerVIXL::stur(const CPURegister& rt, const MemOperand& dst, LoadStoreScali
 }
 
 void
-AssemblerVIXL::ldursw(const ARMRegister& rt, const MemOperand& src, LoadStoreScalingOption option)
+AssemblerVIXL::ldursw(const Register& rt, const MemOperand& src, LoadStoreScalingOption option)
 {
     MOZ_ASSERT(rt.Is64Bits());
     MOZ_ASSERT(option != RequireScaledOffset);
@@ -1409,28 +1409,28 @@ AssemblerVIXL::ldr(Instruction* at, const CPURegister& rt, int imm19)
 }
 
 void
-AssemblerVIXL::ldrsw(const ARMRegister& rt, int imm19)
+AssemblerVIXL::ldrsw(const Register& rt, int imm19)
 {
     Emit(LDRSW_x_lit | ImmLLiteral(imm19) | Rt(rt));
 }
 
 // Exclusive-access instructions.
 void
-AssemblerVIXL::stxrb(const ARMRegister& rs, const ARMRegister& rt, const MemOperand& dst)
+AssemblerVIXL::stxrb(const Register& rs, const Register& rt, const MemOperand& dst)
 {
     MOZ_ASSERT(dst.IsImmediateOffset() && (dst.offset() == 0));
     Emit(STXRB_w | Rs(rs) | Rt(rt) | Rt2_mask | RnSP(dst.base()));
 }
 
 void
-AssemblerVIXL::stxrh(const ARMRegister& rs, const ARMRegister& rt, const MemOperand& dst)
+AssemblerVIXL::stxrh(const Register& rs, const Register& rt, const MemOperand& dst)
 {
     MOZ_ASSERT(dst.IsImmediateOffset() && (dst.offset() == 0));
     Emit(STXRH_w | Rs(rs) | Rt(rt) | Rt2_mask | RnSP(dst.base()));
 }
 
 void
-AssemblerVIXL::stxr(const ARMRegister& rs, const ARMRegister& rt, const MemOperand& dst)
+AssemblerVIXL::stxr(const Register& rs, const Register& rt, const MemOperand& dst)
 {
     MOZ_ASSERT(dst.IsImmediateOffset() && (dst.offset() == 0));
     LoadStoreExclusive op = rt.Is64Bits() ? STXR_x : STXR_w;
@@ -1438,21 +1438,21 @@ AssemblerVIXL::stxr(const ARMRegister& rs, const ARMRegister& rt, const MemOpera
 }
 
 void
-AssemblerVIXL::ldxrb(const ARMRegister& rt, const MemOperand& src)
+AssemblerVIXL::ldxrb(const Register& rt, const MemOperand& src)
 {
     MOZ_ASSERT(src.IsImmediateOffset() && (src.offset() == 0));
     Emit(LDXRB_w | Rs_mask | Rt(rt) | Rt2_mask | RnSP(src.base()));
 }
 
 void
-AssemblerVIXL::ldxrh(const ARMRegister& rt, const MemOperand& src)
+AssemblerVIXL::ldxrh(const Register& rt, const MemOperand& src)
 {
     MOZ_ASSERT(src.IsImmediateOffset() && (src.offset() == 0));
     Emit(LDXRH_w | Rs_mask | Rt(rt) | Rt2_mask | RnSP(src.base()));
 }
 
 void
-AssemblerVIXL::ldxr(const ARMRegister& rt, const MemOperand& src)
+AssemblerVIXL::ldxr(const Register& rt, const MemOperand& src)
 {
     MOZ_ASSERT(src.IsImmediateOffset() && (src.offset() == 0));
     LoadStoreExclusive op = rt.Is64Bits() ? LDXR_x : LDXR_w;
@@ -1460,7 +1460,7 @@ AssemblerVIXL::ldxr(const ARMRegister& rt, const MemOperand& src)
 }
 
 void
-AssemblerVIXL::stxp(const ARMRegister& rs, const ARMRegister& rt, const ARMRegister& rt2, const MemOperand& dst)
+AssemblerVIXL::stxp(const Register& rs, const Register& rt, const Register& rt2, const MemOperand& dst)
 {
     MOZ_ASSERT(rt.size() == rt2.size());
     MOZ_ASSERT(dst.IsImmediateOffset() && (dst.offset() == 0));
@@ -1469,7 +1469,7 @@ AssemblerVIXL::stxp(const ARMRegister& rs, const ARMRegister& rt, const ARMRegis
 }
 
 void
-AssemblerVIXL::ldxp(const ARMRegister& rt, const ARMRegister& rt2, const MemOperand& src)
+AssemblerVIXL::ldxp(const Register& rt, const Register& rt2, const MemOperand& src)
 {
     MOZ_ASSERT(rt.size() == rt2.size());
     MOZ_ASSERT(src.IsImmediateOffset() && (src.offset() == 0));
@@ -1478,21 +1478,21 @@ AssemblerVIXL::ldxp(const ARMRegister& rt, const ARMRegister& rt2, const MemOper
 }
 
 void
-AssemblerVIXL::stlxrb(const ARMRegister& rs, const ARMRegister& rt, const MemOperand& dst)
+AssemblerVIXL::stlxrb(const Register& rs, const Register& rt, const MemOperand& dst)
 {
     MOZ_ASSERT(dst.IsImmediateOffset() && (dst.offset() == 0));
     Emit(STLXRB_w | Rs(rs) | Rt(rt) | Rt2_mask | RnSP(dst.base()));
 }
 
 void
-AssemblerVIXL::stlxrh(const ARMRegister& rs, const ARMRegister& rt, const MemOperand& dst)
+AssemblerVIXL::stlxrh(const Register& rs, const Register& rt, const MemOperand& dst)
 {
     MOZ_ASSERT(dst.IsImmediateOffset() && (dst.offset() == 0));
     Emit(STLXRH_w | Rs(rs) | Rt(rt) | Rt2_mask | RnSP(dst.base()));
 }
 
 void
-AssemblerVIXL::stlxr(const ARMRegister& rs, const ARMRegister& rt, const MemOperand& dst)
+AssemblerVIXL::stlxr(const Register& rs, const Register& rt, const MemOperand& dst)
 {
     MOZ_ASSERT(dst.IsImmediateOffset() && (dst.offset() == 0));
     LoadStoreExclusive op = rt.Is64Bits() ? STLXR_x : STLXR_w;
@@ -1500,21 +1500,21 @@ AssemblerVIXL::stlxr(const ARMRegister& rs, const ARMRegister& rt, const MemOper
 }
 
 void
-AssemblerVIXL::ldaxrb(const ARMRegister& rt, const MemOperand& src)
+AssemblerVIXL::ldaxrb(const Register& rt, const MemOperand& src)
 {
     MOZ_ASSERT(src.IsImmediateOffset() && (src.offset() == 0));
     Emit(LDAXRB_w | Rs_mask | Rt(rt) | Rt2_mask | RnSP(src.base()));
 }
 
 void
-AssemblerVIXL::ldaxrh(const ARMRegister& rt, const MemOperand& src)
+AssemblerVIXL::ldaxrh(const Register& rt, const MemOperand& src)
 {
     MOZ_ASSERT(src.IsImmediateOffset() && (src.offset() == 0));
     Emit(LDAXRH_w | Rs_mask | Rt(rt) | Rt2_mask | RnSP(src.base()));
 }
 
 void
-AssemblerVIXL::ldaxr(const ARMRegister& rt, const MemOperand& src)
+AssemblerVIXL::ldaxr(const Register& rt, const MemOperand& src)
 {
     MOZ_ASSERT(src.IsImmediateOffset() && (src.offset() == 0));
     LoadStoreExclusive op = rt.Is64Bits() ? LDAXR_x : LDAXR_w;
@@ -1522,8 +1522,8 @@ AssemblerVIXL::ldaxr(const ARMRegister& rt, const MemOperand& src)
 }
 
 void
-AssemblerVIXL::stlxp(const ARMRegister& rs, const ARMRegister& rt,
-                     const ARMRegister& rt2, const MemOperand& dst)
+AssemblerVIXL::stlxp(const Register& rs, const Register& rt,
+                     const Register& rt2, const MemOperand& dst)
 {
     MOZ_ASSERT(rt.size() == rt2.size());
     MOZ_ASSERT(dst.IsImmediateOffset() && (dst.offset() == 0));
@@ -1531,7 +1531,7 @@ AssemblerVIXL::stlxp(const ARMRegister& rs, const ARMRegister& rt,
     Emit(op | Rs(rs) | Rt(rt) | Rt2(rt2) | RnSP(dst.base()));
 }
 
-void AssemblerVIXL::ldaxp(const ARMRegister& rt, const ARMRegister& rt2, const MemOperand& src)
+void AssemblerVIXL::ldaxp(const Register& rt, const Register& rt2, const MemOperand& src)
 {
     MOZ_ASSERT(rt.size() == rt2.size());
     MOZ_ASSERT(src.IsImmediateOffset() && (src.offset() == 0));
@@ -1540,21 +1540,21 @@ void AssemblerVIXL::ldaxp(const ARMRegister& rt, const ARMRegister& rt2, const M
 }
 
 void
-AssemblerVIXL::stlrb(const ARMRegister& rt, const MemOperand& dst)
+AssemblerVIXL::stlrb(const Register& rt, const MemOperand& dst)
 {
     MOZ_ASSERT(dst.IsImmediateOffset() && (dst.offset() == 0));
     Emit(STLRB_w | Rs_mask | Rt(rt) | Rt2_mask | RnSP(dst.base()));
 }
 
 void
-AssemblerVIXL::stlrh(const ARMRegister& rt, const MemOperand& dst)
+AssemblerVIXL::stlrh(const Register& rt, const MemOperand& dst)
 {
     MOZ_ASSERT(dst.IsImmediateOffset() && (dst.offset() == 0));
     Emit(STLRH_w | Rs_mask | Rt(rt) | Rt2_mask | RnSP(dst.base()));
 }
 
 void
-AssemblerVIXL::stlr(const ARMRegister& rt, const MemOperand& dst)
+AssemblerVIXL::stlr(const Register& rt, const MemOperand& dst)
 {
     MOZ_ASSERT(dst.IsImmediateOffset() && (dst.offset() == 0));
     LoadStoreExclusive op = rt.Is64Bits() ? STLR_x : STLR_w;
@@ -1562,21 +1562,21 @@ AssemblerVIXL::stlr(const ARMRegister& rt, const MemOperand& dst)
 }
 
 void
-AssemblerVIXL::ldarb(const ARMRegister& rt, const MemOperand& src)
+AssemblerVIXL::ldarb(const Register& rt, const MemOperand& src)
 {
     MOZ_ASSERT(src.IsImmediateOffset() && (src.offset() == 0));
     Emit(LDARB_w | Rs_mask | Rt(rt) | Rt2_mask | RnSP(src.base()));
 }
 
 void
-AssemblerVIXL::ldarh(const ARMRegister& rt, const MemOperand& src)
+AssemblerVIXL::ldarh(const Register& rt, const MemOperand& src)
 {
     MOZ_ASSERT(src.IsImmediateOffset() && (src.offset() == 0));
     Emit(LDARH_w | Rs_mask | Rt(rt) | Rt2_mask | RnSP(src.base()));
 }
 
 void
-AssemblerVIXL::ldar(const ARMRegister& rt, const MemOperand& src)
+AssemblerVIXL::ldar(const Register& rt, const MemOperand& src)
 {
     MOZ_ASSERT(src.IsImmediateOffset() && (src.offset() == 0));
     LoadStoreExclusive op = rt.Is64Bits() ? LDAR_x : LDAR_w;
@@ -1584,7 +1584,7 @@ AssemblerVIXL::ldar(const ARMRegister& rt, const MemOperand& src)
 }
 
 void
-AssemblerVIXL::mov(const ARMRegister& rd, const ARMRegister& rm)
+AssemblerVIXL::mov(const Register& rd, const Register& rm)
 {
     // Moves involving the stack pointer are encoded as add immediate with
     // second operand of zero. Otherwise, orr with first operand zr is
@@ -1597,20 +1597,20 @@ AssemblerVIXL::mov(const ARMRegister& rd, const ARMRegister& rm)
 }
 
 void
-AssemblerVIXL::mvn(const ARMRegister& rd, const Operand& operand)
+AssemblerVIXL::mvn(const Register& rd, const Operand& operand)
 {
     orn(rd, AppropriateZeroRegFor(rd), operand);
 }
 
 void
-AssemblerVIXL::mrs(const ARMRegister& rt, SystemRegister sysreg)
+AssemblerVIXL::mrs(const Register& rt, SystemRegister sysreg)
 {
     MOZ_ASSERT(rt.Is64Bits());
     Emit(MRS | ImmSystemRegister(sysreg) | Rt(rt));
 }
 
 void
-AssemblerVIXL::msr(SystemRegister sysreg, const ARMRegister& rt)
+AssemblerVIXL::msr(SystemRegister sysreg, const Register& rt)
 {
     MOZ_ASSERT(rt.Is64Bits());
     Emit(MSR | Rt(rt) | ImmSystemRegister(sysreg));
@@ -1652,7 +1652,7 @@ AssemblerVIXL::isb()
 }
 
 void
-AssemblerVIXL::fmov(const ARMFPRegister& fd, double imm)
+AssemblerVIXL::fmov(const FPRegister& fd, double imm)
 {
     MOZ_ASSERT(fd.Is64Bits());
     MOZ_ASSERT(IsImmFP64(imm));
@@ -1660,7 +1660,7 @@ AssemblerVIXL::fmov(const ARMFPRegister& fd, double imm)
 }
 
 void
-AssemblerVIXL::fmov(const ARMFPRegister& fd, float imm)
+AssemblerVIXL::fmov(const FPRegister& fd, float imm)
 {
     MOZ_ASSERT(fd.Is32Bits());
     MOZ_ASSERT(IsImmFP32(imm));
@@ -1668,7 +1668,7 @@ AssemblerVIXL::fmov(const ARMFPRegister& fd, float imm)
 }
 
 void
-AssemblerVIXL::fmov(const ARMRegister& rd, const ARMFPRegister& fn)
+AssemblerVIXL::fmov(const Register& rd, const FPRegister& fn)
 {
     MOZ_ASSERT(rd.size() == fn.size());
     FPIntegerConvertOp op = rd.Is32Bits() ? FMOV_ws : FMOV_xd;
@@ -1676,7 +1676,7 @@ AssemblerVIXL::fmov(const ARMRegister& rd, const ARMFPRegister& fn)
 }
 
 void
-AssemblerVIXL::fmov(const ARMFPRegister& fd, const ARMRegister& rn)
+AssemblerVIXL::fmov(const FPRegister& fd, const Register& rn)
 {
     MOZ_ASSERT(fd.size() == rn.size());
     FPIntegerConvertOp op = fd.Is32Bits() ? FMOV_sw : FMOV_dx;
@@ -1684,146 +1684,146 @@ AssemblerVIXL::fmov(const ARMFPRegister& fd, const ARMRegister& rn)
 }
 
 void
-AssemblerVIXL::fmov(const ARMFPRegister& fd, const ARMFPRegister& fn)
+AssemblerVIXL::fmov(const FPRegister& fd, const FPRegister& fn)
 {
     MOZ_ASSERT(fd.size() == fn.size());
     Emit(FPType(fd) | FMOV | Rd(fd) | Rn(fn));
 }
 
 void
-AssemblerVIXL::fadd(const ARMFPRegister& fd, const ARMFPRegister& fn, const ARMFPRegister& fm)
+AssemblerVIXL::fadd(const FPRegister& fd, const FPRegister& fn, const FPRegister& fm)
 {
     FPDataProcessing2Source(fd, fn, fm, FADD);
 }
 
 void
-AssemblerVIXL::fsub(const ARMFPRegister& fd, const ARMFPRegister& fn, const ARMFPRegister& fm)
+AssemblerVIXL::fsub(const FPRegister& fd, const FPRegister& fn, const FPRegister& fm)
 {
     FPDataProcessing2Source(fd, fn, fm, FSUB);
 }
 
 void
-AssemblerVIXL::fmul(const ARMFPRegister& fd, const ARMFPRegister& fn, const ARMFPRegister& fm)
+AssemblerVIXL::fmul(const FPRegister& fd, const FPRegister& fn, const FPRegister& fm)
 {
     FPDataProcessing2Source(fd, fn, fm, FMUL);
 }
 
 void
-AssemblerVIXL::fmadd(const ARMFPRegister& fd, const ARMFPRegister& fn,
-                     const ARMFPRegister& fm, const ARMFPRegister& fa)
+AssemblerVIXL::fmadd(const FPRegister& fd, const FPRegister& fn,
+                     const FPRegister& fm, const FPRegister& fa)
 {
     FPDataProcessing3Source(fd, fn, fm, fa, fd.Is32Bits() ? FMADD_s : FMADD_d);
 }
 
 void
-AssemblerVIXL::fmsub(const ARMFPRegister& fd, const ARMFPRegister& fn,
-                     const ARMFPRegister& fm, const ARMFPRegister& fa)
+AssemblerVIXL::fmsub(const FPRegister& fd, const FPRegister& fn,
+                     const FPRegister& fm, const FPRegister& fa)
 {
     FPDataProcessing3Source(fd, fn, fm, fa, fd.Is32Bits() ? FMSUB_s : FMSUB_d);
 }
 
 void
-AssemblerVIXL::fnmadd(const ARMFPRegister& fd, const ARMFPRegister& fn,
-                      const ARMFPRegister& fm, const ARMFPRegister& fa)
+AssemblerVIXL::fnmadd(const FPRegister& fd, const FPRegister& fn,
+                      const FPRegister& fm, const FPRegister& fa)
 {
     FPDataProcessing3Source(fd, fn, fm, fa, fd.Is32Bits() ? FNMADD_s : FNMADD_d);
 }
 
 void
-AssemblerVIXL::fnmsub(const ARMFPRegister& fd, const ARMFPRegister& fn,
-                      const ARMFPRegister& fm, const ARMFPRegister& fa)
+AssemblerVIXL::fnmsub(const FPRegister& fd, const FPRegister& fn,
+                      const FPRegister& fm, const FPRegister& fa)
 {
     FPDataProcessing3Source(fd, fn, fm, fa, fd.Is32Bits() ? FNMSUB_s : FNMSUB_d);
 }
 
 void
-AssemblerVIXL::fdiv(const ARMFPRegister& fd, const ARMFPRegister& fn, const ARMFPRegister& fm)
+AssemblerVIXL::fdiv(const FPRegister& fd, const FPRegister& fn, const FPRegister& fm)
 {
     FPDataProcessing2Source(fd, fn, fm, FDIV);
 }
 
 void
-AssemblerVIXL::fmax(const ARMFPRegister& fd, const ARMFPRegister& fn, const ARMFPRegister& fm)
+AssemblerVIXL::fmax(const FPRegister& fd, const FPRegister& fn, const FPRegister& fm)
 {
     FPDataProcessing2Source(fd, fn, fm, FMAX);
 }
 
 void
-AssemblerVIXL::fmaxnm(const ARMFPRegister& fd, const ARMFPRegister& fn, const ARMFPRegister& fm)
+AssemblerVIXL::fmaxnm(const FPRegister& fd, const FPRegister& fn, const FPRegister& fm)
 {
     FPDataProcessing2Source(fd, fn, fm, FMAXNM);
 }
 
 void
-AssemblerVIXL::fmin(const ARMFPRegister& fd, const ARMFPRegister& fn, const ARMFPRegister& fm)
+AssemblerVIXL::fmin(const FPRegister& fd, const FPRegister& fn, const FPRegister& fm)
 {
     FPDataProcessing2Source(fd, fn, fm, FMIN);
 }
 
 void
-AssemblerVIXL::fminnm(const ARMFPRegister& fd, const ARMFPRegister& fn, const ARMFPRegister& fm)
+AssemblerVIXL::fminnm(const FPRegister& fd, const FPRegister& fn, const FPRegister& fm)
 {
     FPDataProcessing2Source(fd, fn, fm, FMINNM);
 }
 
 void
-AssemblerVIXL::fabs(const ARMFPRegister& fd, const ARMFPRegister& fn)
+AssemblerVIXL::fabs(const FPRegister& fd, const FPRegister& fn)
 {
     MOZ_ASSERT(fd.size() == fn.size());
     FPDataProcessing1Source(fd, fn, FABS);
 }
 
 void
-AssemblerVIXL::fneg(const ARMFPRegister& fd, const ARMFPRegister& fn)
+AssemblerVIXL::fneg(const FPRegister& fd, const FPRegister& fn)
 {
     MOZ_ASSERT(fd.size() == fn.size());
     FPDataProcessing1Source(fd, fn, FNEG);
 }
 
 void
-AssemblerVIXL::fsqrt(const ARMFPRegister& fd, const ARMFPRegister& fn)
+AssemblerVIXL::fsqrt(const FPRegister& fd, const FPRegister& fn)
 {
     MOZ_ASSERT(fd.size() == fn.size());
     FPDataProcessing1Source(fd, fn, FSQRT);
 }
 
 void
-AssemblerVIXL::frinta(const ARMFPRegister& fd, const ARMFPRegister& fn)
+AssemblerVIXL::frinta(const FPRegister& fd, const FPRegister& fn)
 {
     MOZ_ASSERT(fd.size() == fn.size());
     FPDataProcessing1Source(fd, fn, FRINTA);
 }
 
 void
-AssemblerVIXL::frintm(const ARMFPRegister& fd, const ARMFPRegister& fn)
+AssemblerVIXL::frintm(const FPRegister& fd, const FPRegister& fn)
 {
     MOZ_ASSERT(fd.size() == fn.size());
     FPDataProcessing1Source(fd, fn, FRINTM);
 }
 
 void
-AssemblerVIXL::frintn(const ARMFPRegister& fd, const ARMFPRegister& fn)
+AssemblerVIXL::frintn(const FPRegister& fd, const FPRegister& fn)
 {
     MOZ_ASSERT(fd.size() == fn.size());
     FPDataProcessing1Source(fd, fn, FRINTN);
 }
 
 void
-AssemblerVIXL::frintz(const ARMFPRegister& fd, const ARMFPRegister& fn)
+AssemblerVIXL::frintz(const FPRegister& fd, const FPRegister& fn)
 {
     MOZ_ASSERT(fd.size() == fn.size());
     FPDataProcessing1Source(fd, fn, FRINTZ);
 }
 
 void
-AssemblerVIXL::fcmp(const ARMFPRegister& fn, const ARMFPRegister& fm)
+AssemblerVIXL::fcmp(const FPRegister& fn, const FPRegister& fm)
 {
     MOZ_ASSERT(fn.size() == fm.size());
     Emit(FPType(fn) | FCMP | Rm(fm) | Rn(fn));
 }
 
 void
-AssemblerVIXL::fcmp(const ARMFPRegister& fn, double value)
+AssemblerVIXL::fcmp(const FPRegister& fn, double value)
 {
     USE(value);
     // Although the fcmp instruction can strictly only take an immediate value of
@@ -1834,7 +1834,7 @@ AssemblerVIXL::fcmp(const ARMFPRegister& fn, double value)
 }
 
 void
-AssemblerVIXL::fccmp(const ARMFPRegister& fn, const ARMFPRegister& fm,
+AssemblerVIXL::fccmp(const FPRegister& fn, const FPRegister& fm,
                      StatusFlags nzcv, Condition cond)
 {
     MOZ_ASSERT(fn.size() == fm.size());
@@ -1842,8 +1842,8 @@ AssemblerVIXL::fccmp(const ARMFPRegister& fn, const ARMFPRegister& fm,
 }
 
 void
-AssemblerVIXL::fcsel(const ARMFPRegister& fd, const ARMFPRegister& fn,
-                     const ARMFPRegister& fm, Condition cond)
+AssemblerVIXL::fcsel(const FPRegister& fd, const FPRegister& fn,
+                     const FPRegister& fm, Condition cond)
 {
     MOZ_ASSERT(fd.size() == fn.size());
     MOZ_ASSERT(fd.size() == fm.size());
@@ -1851,13 +1851,13 @@ AssemblerVIXL::fcsel(const ARMFPRegister& fd, const ARMFPRegister& fn,
 }
 
 void
-AssemblerVIXL::FPConvertToInt(const ARMRegister& rd, const ARMFPRegister& fn, FPIntegerConvertOp op)
+AssemblerVIXL::FPConvertToInt(const Register& rd, const FPRegister& fn, FPIntegerConvertOp op)
 {
     Emit(SF(rd) | FPType(fn) | op | Rn(fn) | Rd(rd));
 }
 
 void
-AssemblerVIXL::fcvt(const ARMFPRegister& fd, const ARMFPRegister& fn)
+AssemblerVIXL::fcvt(const FPRegister& fd, const FPRegister& fn)
 {
     if (fd.Is64Bits()) {
       // Convert float to double.
@@ -1871,67 +1871,67 @@ AssemblerVIXL::fcvt(const ARMFPRegister& fd, const ARMFPRegister& fn)
 }
 
 void
-AssemblerVIXL::fcvtau(const ARMRegister& rd, const ARMFPRegister& fn)
+AssemblerVIXL::fcvtau(const Register& rd, const FPRegister& fn)
 {
     FPConvertToInt(rd, fn, FCVTAU);
 }
 
 void
-AssemblerVIXL::fcvtas(const ARMRegister& rd, const ARMFPRegister& fn)
+AssemblerVIXL::fcvtas(const Register& rd, const FPRegister& fn)
 {
     FPConvertToInt(rd, fn, FCVTAS);
 }
 
 void
-AssemblerVIXL::fcvtmu(const ARMRegister& rd, const ARMFPRegister& fn)
+AssemblerVIXL::fcvtmu(const Register& rd, const FPRegister& fn)
 {
     FPConvertToInt(rd, fn, FCVTMU);
 }
 
 void
-AssemblerVIXL::fcvtms(const ARMRegister& rd, const ARMFPRegister& fn)
+AssemblerVIXL::fcvtms(const Register& rd, const FPRegister& fn)
 {
     FPConvertToInt(rd, fn, FCVTMS);
 }
 void
-AssemblerVIXL::fcvtpu(const ARMRegister& rd, const ARMFPRegister& fn)
+AssemblerVIXL::fcvtpu(const Register& rd, const FPRegister& fn)
 {
     FPConvertToInt(rd, fn, FCVTPU);
 }
 
 void
-AssemblerVIXL::fcvtps(const ARMRegister& rd, const ARMFPRegister& fn)
+AssemblerVIXL::fcvtps(const Register& rd, const FPRegister& fn)
 {
     FPConvertToInt(rd, fn, FCVTPS);
 }
 
 void
-AssemblerVIXL::fcvtnu(const ARMRegister& rd, const ARMFPRegister& fn)
+AssemblerVIXL::fcvtnu(const Register& rd, const FPRegister& fn)
 {
     FPConvertToInt(rd, fn, FCVTNU);
 }
 
 void
-AssemblerVIXL::fcvtns(const ARMRegister& rd, const ARMFPRegister& fn)
+AssemblerVIXL::fcvtns(const Register& rd, const FPRegister& fn)
 {
     FPConvertToInt(rd, fn, FCVTNS);
 }
 
 void
-AssemblerVIXL::fcvtzu(const ARMRegister& rd, const ARMFPRegister& fn)
+AssemblerVIXL::fcvtzu(const Register& rd, const FPRegister& fn)
 {
     FPConvertToInt(rd, fn, FCVTZU);
 }
 
 void
-AssemblerVIXL::fcvtzs(const ARMRegister& rd, const ARMFPRegister& fn)
+AssemblerVIXL::fcvtzs(const Register& rd, const FPRegister& fn)
 {
 
     FPConvertToInt(rd, fn, FCVTZS);
 }
 
 void
-AssemblerVIXL::scvtf(const ARMFPRegister& fd, const ARMRegister& rn, unsigned fbits)
+AssemblerVIXL::scvtf(const FPRegister& fd, const Register& rn, unsigned fbits)
 {
     if (fbits == 0)
         Emit(SF(rn) | FPType(fd) | SCVTF | Rn(rn) | Rd(fd));
@@ -1940,7 +1940,7 @@ AssemblerVIXL::scvtf(const ARMFPRegister& fd, const ARMRegister& rn, unsigned fb
 }
 
 void
-AssemblerVIXL::ucvtf(const ARMFPRegister& fd, const ARMRegister& rn, unsigned fbits)
+AssemblerVIXL::ucvtf(const FPRegister& fd, const Register& rn, unsigned fbits)
 {
     if (fbits == 0)
         Emit(SF(rn) | FPType(fd) | UCVTF | Rn(rn) | Rd(fd));
@@ -1987,7 +1987,7 @@ AssemblerVIXL::ImmFP64(double imm)
 
 // Code generation helpers.
 void
-AssemblerVIXL::MoveWide(const ARMRegister& rd, uint64_t imm, int shift, MoveWideImmediateOp mov_op)
+AssemblerVIXL::MoveWide(const Register& rd, uint64_t imm, int shift, MoveWideImmediateOp mov_op)
 {
     // Ignore the top 32 bits of an immediate if we're moving to a W register.
     if (rd.Is32Bits()) {
@@ -2031,7 +2031,7 @@ AssemblerVIXL::MoveWide(const ARMRegister& rd, uint64_t imm, int shift, MoveWide
 }
 
 void
-AssemblerVIXL::AddSub(const ARMRegister& rd, const ARMRegister& rn, const Operand& operand,
+AssemblerVIXL::AddSub(const Register& rd, const Register& rn, const Operand& operand,
                       FlagsUpdate S, AddSubOp op)
 {
     MOZ_ASSERT(rd.size() == rn.size());
@@ -2067,7 +2067,7 @@ AssemblerVIXL::AddSub(const ARMRegister& rd, const ARMRegister& rn, const Operan
 }
 
 void
-AssemblerVIXL::AddSubWithCarry(const ARMRegister& rd, const ARMRegister& rn,
+AssemblerVIXL::AddSubWithCarry(const Register& rd, const Register& rn,
                                const Operand& operand, FlagsUpdate S, AddSubWithCarryOp op)
 {
     MOZ_ASSERT(rd.size() == rn.size());
@@ -2111,7 +2111,7 @@ AssemblerVIXL::nop(Instruction* at)
 }
 
 BufferOffset
-AssemblerVIXL::Logical(const ARMRegister& rd, const ARMRegister& rn,
+AssemblerVIXL::Logical(const Register& rd, const Register& rn,
                        const Operand& operand, LogicalOp op)
 {
     MOZ_ASSERT(rd.size() == rn.size());
@@ -2146,7 +2146,7 @@ AssemblerVIXL::Logical(const ARMRegister& rd, const ARMRegister& rn,
 }
 
 BufferOffset
-AssemblerVIXL::LogicalImmediate(const ARMRegister& rd, const ARMRegister& rn,
+AssemblerVIXL::LogicalImmediate(const Register& rd, const Register& rn,
                                 unsigned n, unsigned imm_s, unsigned imm_r, LogicalOp op)
 {
     unsigned reg_size = rd.size();
@@ -2156,7 +2156,7 @@ AssemblerVIXL::LogicalImmediate(const ARMRegister& rd, const ARMRegister& rn,
 }
 
 void
-AssemblerVIXL::ConditionalCompare(const ARMRegister& rn, const Operand& operand,
+AssemblerVIXL::ConditionalCompare(const Register& rn, const Operand& operand,
                                   StatusFlags nzcv, Condition cond, ConditionalCompareOp op)
 {
     Instr ccmpop;
@@ -2172,7 +2172,7 @@ AssemblerVIXL::ConditionalCompare(const ARMRegister& rn, const Operand& operand,
 }
 
 void
-AssemblerVIXL::DataProcessing1Source(const ARMRegister& rd, const ARMRegister& rn,
+AssemblerVIXL::DataProcessing1Source(const Register& rd, const Register& rn,
                                      DataProcessing1SourceOp op)
 {
     MOZ_ASSERT(rd.size() == rn.size());
@@ -2180,15 +2180,15 @@ AssemblerVIXL::DataProcessing1Source(const ARMRegister& rd, const ARMRegister& r
 }
 
 void
-AssemblerVIXL::FPDataProcessing1Source(const ARMFPRegister& fd, const ARMFPRegister& fn,
+AssemblerVIXL::FPDataProcessing1Source(const FPRegister& fd, const FPRegister& fn,
                                        FPDataProcessing1SourceOp op)
 {
     Emit(FPType(fn) | op | Rn(fn) | Rd(fd));
 }
 
 void
-AssemblerVIXL::FPDataProcessing2Source(const ARMFPRegister& fd, const ARMFPRegister& fn,
-                                       const ARMFPRegister& fm, FPDataProcessing2SourceOp op)
+AssemblerVIXL::FPDataProcessing2Source(const FPRegister& fd, const FPRegister& fn,
+                                       const FPRegister& fm, FPDataProcessing2SourceOp op)
 {
     MOZ_ASSERT(fd.size() == fn.size());
     MOZ_ASSERT(fd.size() == fm.size());
@@ -2196,8 +2196,8 @@ AssemblerVIXL::FPDataProcessing2Source(const ARMFPRegister& fd, const ARMFPRegis
 }
 
 void
-AssemblerVIXL::FPDataProcessing3Source(const ARMFPRegister& fd, const ARMFPRegister& fn,
-                                       const ARMFPRegister& fm, const ARMFPRegister& fa,
+AssemblerVIXL::FPDataProcessing3Source(const FPRegister& fd, const FPRegister& fn,
+                                       const FPRegister& fm, const FPRegister& fa,
                                        FPDataProcessing3SourceOp op)
 {
     MOZ_ASSERT(AreSameSizeAndType(fd, fn, fm, fa));
@@ -2205,7 +2205,7 @@ AssemblerVIXL::FPDataProcessing3Source(const ARMFPRegister& fd, const ARMFPRegis
 }
 
 void
-AssemblerVIXL::EmitShift(const ARMRegister& rd, const ARMRegister& rn,
+AssemblerVIXL::EmitShift(const Register& rd, const Register& rn,
                          Shift shift, unsigned shift_amount)
 {
     switch (shift) {
@@ -2227,13 +2227,13 @@ AssemblerVIXL::EmitShift(const ARMRegister& rd, const ARMRegister& rn,
 }
 
 void
-AssemblerVIXL::EmitExtendShift(const ARMRegister& rd, const ARMRegister& rn,
+AssemblerVIXL::EmitExtendShift(const Register& rd, const Register& rn,
                                Extend extend, unsigned left_shift)
 {
     MOZ_ASSERT(rd.size() >= rn.size());
     unsigned reg_size = rd.size();
     // Use the correct size of register.
-    ARMRegister rn_ = ARMRegister(rn.code(), rd.size());
+    Register rn_ = Register(rn.code(), rd.size());
     // Bits extracted are high_bit:0.
     unsigned high_bit = (8 << (extend & 0x3)) - 1;
     // Number of bits left in the result that are not introduced by the shift.
@@ -2263,7 +2263,7 @@ AssemblerVIXL::EmitExtendShift(const ARMRegister& rd, const ARMRegister& rn,
 }
 
 BufferOffset
-AssemblerVIXL::DataProcShiftedRegister(const ARMRegister& rd, const ARMRegister& rn,
+AssemblerVIXL::DataProcShiftedRegister(const Register& rd, const Register& rn,
                                        const Operand& operand, FlagsUpdate S, Instr op)
 {
     MOZ_ASSERT(operand.IsShiftedRegister());
@@ -2275,7 +2275,7 @@ AssemblerVIXL::DataProcShiftedRegister(const ARMRegister& rd, const ARMRegister&
 }
 
 void
-AssemblerVIXL::DataProcExtendedRegister(const ARMRegister& rd, const ARMRegister& rn,
+AssemblerVIXL::DataProcExtendedRegister(const Register& rd, const Register& rn,
                                         const Operand& operand, FlagsUpdate S, Instr op)
 {
     Instr dest_reg = (S == SetFlags) ? Rd(rd) : RdSP(rd);
@@ -2870,8 +2870,8 @@ AssemblerVIXL::RetargetNearBranch(Instruction* i, int byteOffset, bool final)
 
     // Valid compare branches are CBZ and CBNZ.
     if (i->IsCompareBranch()) {
-        ARMRegister rt = i->SixtyFourBits() ? ARMRegister::XRegFromCode(i->Rt())
-                                            : ARMRegister::WRegFromCode(i->Rt());
+        Register rt = i->SixtyFourBits() ? Register::XRegFromCode(i->Rt())
+                                            : Register::WRegFromCode(i->Rt());
 
         if (i->IsCBZ()) {
             cbz(i, rt, instOffset);
@@ -2891,7 +2891,7 @@ AssemblerVIXL::RetargetNearBranch(Instruction* i, int byteOffset, bool final)
         MOZ_ASSERT(is_uint6(bit_pos));
 
         // Register size doesn't matter for the encoding.
-        ARMRegister rt = ARMRegister::XRegFromCode(i->Rt());
+        Register rt = Register::XRegFromCode(i->Rt());
 
         //unsigned bit_pos = i->ImmTestBranchBit();
         if (i->IsTBZ()) {

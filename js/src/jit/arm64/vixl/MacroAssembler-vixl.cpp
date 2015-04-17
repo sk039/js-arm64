@@ -34,7 +34,7 @@
 namespace vixl {
 
 void
-MacroAssemblerVIXL::B(Label* label, BranchType type, ARMRegister reg, int bit)
+MacroAssemblerVIXL::B(Label* label, BranchType type, Register reg, int bit)
 {
     MOZ_ASSERT((reg.Is(NoReg) || (type >= kBranchTypeFirstUsingReg)));
     MOZ_ASSERT((bit == -1) || (type >= kBranchTypeFirstUsingBit));
@@ -56,61 +56,61 @@ MacroAssemblerVIXL::B(Label* label, BranchType type, ARMRegister reg, int bit)
 }
 
 void
-MacroAssemblerVIXL::And(const ARMRegister& rd, const ARMRegister& rn, const Operand& operand)
+MacroAssemblerVIXL::And(const Register& rd, const Register& rn, const Operand& operand)
 {
     LogicalMacro(rd, rn, operand, AND);
 }
 
 void
-MacroAssemblerVIXL::Ands(const ARMRegister& rd, const ARMRegister& rn, const Operand& operand)
+MacroAssemblerVIXL::Ands(const Register& rd, const Register& rn, const Operand& operand)
 {
     LogicalMacro(rd, rn, operand, ANDS);
 }
 
 void
-MacroAssemblerVIXL::Tst(const ARMRegister& rn, const Operand& operand)
+MacroAssemblerVIXL::Tst(const Register& rn, const Operand& operand)
 {
     Ands(AppropriateZeroRegFor(rn), rn, operand);
 }
 
 void
-MacroAssemblerVIXL::Bic(const ARMRegister& rd, const ARMRegister& rn, const Operand& operand)
+MacroAssemblerVIXL::Bic(const Register& rd, const Register& rn, const Operand& operand)
 {
     LogicalMacro(rd, rn, operand, BIC);
 }
 
 void
-MacroAssemblerVIXL::Bics(const ARMRegister& rd, const ARMRegister& rn, const Operand& operand)
+MacroAssemblerVIXL::Bics(const Register& rd, const Register& rn, const Operand& operand)
 {
     LogicalMacro(rd, rn, operand, BICS);
 }
 
 void
-MacroAssemblerVIXL::Orr(const ARMRegister& rd, const ARMRegister& rn, const Operand& operand)
+MacroAssemblerVIXL::Orr(const Register& rd, const Register& rn, const Operand& operand)
 {
     LogicalMacro(rd, rn, operand, ORR);
 }
 
 void
-MacroAssemblerVIXL::Orn(const ARMRegister& rd, const ARMRegister& rn, const Operand& operand)
+MacroAssemblerVIXL::Orn(const Register& rd, const Register& rn, const Operand& operand)
 {
     LogicalMacro(rd, rn, operand, ORN);
 }
 
 void
-MacroAssemblerVIXL::Eor(const ARMRegister& rd, const ARMRegister& rn, const Operand& operand)
+MacroAssemblerVIXL::Eor(const Register& rd, const Register& rn, const Operand& operand)
 {
     LogicalMacro(rd, rn, operand, EOR);
 }
 
 void
-MacroAssemblerVIXL::Eon(const ARMRegister& rd, const ARMRegister& rn, const Operand& operand)
+MacroAssemblerVIXL::Eon(const Register& rd, const Register& rn, const Operand& operand)
 {
     LogicalMacro(rd, rn, operand, EON);
 }
 
 void
-MacroAssemblerVIXL::LogicalMacro(const ARMRegister& rd, const ARMRegister& rn,
+MacroAssemblerVIXL::LogicalMacro(const Register& rd, const Register& rn,
                                  const Operand& operand, LogicalOp op)
 {
     UseScratchRegisterScope temps(this);
@@ -178,7 +178,7 @@ MacroAssemblerVIXL::LogicalMacro(const ARMRegister& rd, const ARMRegister& rn,
             LogicalImmediate(rd, rn, n, imm_s, imm_r, op);
         } else {
             // Immediate can't be encoded: synthesize using move immediate.
-            ARMRegister temp = temps.AcquireSameSizeAs(rn);
+            Register temp = temps.AcquireSameSizeAs(rn);
             Operand imm_operand = MoveImmediateForShiftedOp(temp, immediate);
 
             // VIXL can acquire temp registers. Assert that the caller is aware.
@@ -204,7 +204,7 @@ MacroAssemblerVIXL::LogicalMacro(const ARMRegister& rd, const ARMRegister& rn,
                     ((operand.extend() != UXTX) && (operand.extend() != SXTX)));
  
         temps.Exclude(operand.reg());
-        ARMRegister temp = temps.AcquireSameSizeAs(rn);
+        Register temp = temps.AcquireSameSizeAs(rn);
 
         // VIXL can acquire temp registers. Assert that the caller is aware.
         MOZ_ASSERT(!temp.Is(rd) && !temp.Is(rn));
@@ -221,7 +221,7 @@ MacroAssemblerVIXL::LogicalMacro(const ARMRegister& rd, const ARMRegister& rn,
 }
 
 void
-MacroAssemblerVIXL::Mov(const ARMRegister& rd, const Operand& operand, DiscardMoveMode discard_mode)
+MacroAssemblerVIXL::Mov(const Register& rd, const Operand& operand, DiscardMoveMode discard_mode)
 {
     if (operand.IsImmediate()) {
         // Call the macro assembler for generic immediates.
@@ -251,7 +251,7 @@ MacroAssemblerVIXL::Mov(const ARMRegister& rd, const Operand& operand, DiscardMo
 }
 
 void
-MacroAssemblerVIXL::Mvn(const ARMRegister& rd, const Operand& operand)
+MacroAssemblerVIXL::Mvn(const Register& rd, const Operand& operand)
 {
     if (operand.IsImmediate()) {
         // Call the macro assembler for generic immediates.
@@ -262,7 +262,7 @@ MacroAssemblerVIXL::Mvn(const ARMRegister& rd, const Operand& operand)
 
         // Emit two instructions for the extend case. This differs from Mov, as
         // the extend and invert can't be achieved in one instruction.
-        ARMRegister temp = temps.AcquireSameSizeAs(rd);
+        Register temp = temps.AcquireSameSizeAs(rd);
 
         // VIXL can acquire temp registers. Assert that the caller is aware.
         MOZ_ASSERT(!temp.Is(rd) && !temp.Is(operand.maybeReg()));
@@ -277,7 +277,7 @@ MacroAssemblerVIXL::Mvn(const ARMRegister& rd, const Operand& operand)
 }
 
 void
-MacroAssemblerVIXL::Mov(const ARMRegister& rd, uint64_t imm)
+MacroAssemblerVIXL::Mov(const Register& rd, uint64_t imm)
 {
     MOZ_ASSERT(is_uint32(imm) || is_int32(imm) || rd.Is64Bits());
 
@@ -319,7 +319,7 @@ MacroAssemblerVIXL::Mov(const ARMRegister& rd, uint64_t imm)
         // Mov instructions can't move values into the stack pointer, so set up a
         // temporary register, if needed.
         UseScratchRegisterScope temps(this);
-        ARMRegister temp = rd.IsSP() ? temps.AcquireSameSizeAs(rd) : rd;
+        Register temp = rd.IsSP() ? temps.AcquireSameSizeAs(rd) : rd;
 
         // Iterate through the halfwords. Use movn/movz for the first non-ignored
         // halfword, and movk for subsequent halfwords.
@@ -381,7 +381,7 @@ MacroAssemblerVIXL::IsImmMovn(uint64_t imm, unsigned reg_size)
 }
 
 void
-MacroAssemblerVIXL::Ccmp(const ARMRegister& rn, const Operand& operand,
+MacroAssemblerVIXL::Ccmp(const Register& rn, const Operand& operand,
                          StatusFlags nzcv, Condition cond)
 {
     if (operand.IsImmediate() && (operand.immediate() < 0))
@@ -391,7 +391,7 @@ MacroAssemblerVIXL::Ccmp(const ARMRegister& rn, const Operand& operand,
 }
 
 void
-MacroAssemblerVIXL::Ccmn(const ARMRegister& rn, const Operand& operand,
+MacroAssemblerVIXL::Ccmn(const Register& rn, const Operand& operand,
                          StatusFlags nzcv, Condition cond)
 {
     if (operand.IsImmediate() && (operand.immediate() < 0))
@@ -401,7 +401,7 @@ MacroAssemblerVIXL::Ccmn(const ARMRegister& rn, const Operand& operand,
 }
 
 void
-MacroAssemblerVIXL::ConditionalCompareMacro(const ARMRegister& rn, const Operand& operand,
+MacroAssemblerVIXL::ConditionalCompareMacro(const Register& rn, const Operand& operand,
                                             StatusFlags nzcv, Condition cond,
                                             ConditionalCompareOp op)
 {
@@ -415,7 +415,7 @@ MacroAssemblerVIXL::ConditionalCompareMacro(const ARMRegister& rn, const Operand
         UseScratchRegisterScope temps(this);
         // The operand isn't directly supported by the instruction: perform the
         // operation on a temporary register.
-        ARMRegister temp = temps.AcquireSameSizeAs(rn);
+        Register temp = temps.AcquireSameSizeAs(rn);
         MOZ_ASSERT(!temp.Is(rn) && !temp.Is(operand.maybeReg()));
 
         Mov(temp, operand);
@@ -424,7 +424,7 @@ MacroAssemblerVIXL::ConditionalCompareMacro(const ARMRegister& rn, const Operand
 }
 
 void
-MacroAssemblerVIXL::Csel(const ARMRegister& rd, const ARMRegister& rn,
+MacroAssemblerVIXL::Csel(const Register& rd, const Register& rn,
                          const Operand& operand, Condition cond)
 {
     MOZ_ASSERT(!rd.IsZero());
@@ -434,7 +434,7 @@ MacroAssemblerVIXL::Csel(const ARMRegister& rd, const ARMRegister& rn,
         // Immediate argument. Handle special cases of 0, 1 and -1 using zero
         // register.
         int64_t imm = operand.immediate();
-        ARMRegister zr = AppropriateZeroRegFor(rn);
+        Register zr = AppropriateZeroRegFor(rn);
         if (imm == 0) {
             csel(rd, rn, zr, cond);
         } else if (imm == 1) {
@@ -443,7 +443,7 @@ MacroAssemblerVIXL::Csel(const ARMRegister& rd, const ARMRegister& rn,
             csinv(rd, rn, zr, cond);
         } else {
             UseScratchRegisterScope temps(this);
-            ARMRegister temp = temps.AcquireSameSizeAs(rn);
+            Register temp = temps.AcquireSameSizeAs(rn);
             MOZ_ASSERT(!temp.Is(rd) && !temp.Is(rn));
             MOZ_ASSERT(!temp.Is(operand.maybeReg()));
 
@@ -456,7 +456,7 @@ MacroAssemblerVIXL::Csel(const ARMRegister& rd, const ARMRegister& rn,
     } else {
         // All other arguments.
         UseScratchRegisterScope temps(this);
-        ARMRegister temp = temps.AcquireSameSizeAs(rn);
+        Register temp = temps.AcquireSameSizeAs(rn);
         MOZ_ASSERT(!temp.Is(rd) && !temp.Is(rn));
         MOZ_ASSERT(!temp.Is(operand.maybeReg()));
 
@@ -466,7 +466,7 @@ MacroAssemblerVIXL::Csel(const ARMRegister& rd, const ARMRegister& rn,
 }
 
 void
-MacroAssemblerVIXL::Add(const ARMRegister& rd, const ARMRegister& rn, const Operand& operand)
+MacroAssemblerVIXL::Add(const Register& rd, const Register& rn, const Operand& operand)
 {
     if (operand.IsImmediate() && (operand.immediate() < 0) && IsImmAddSub(-operand.immediate()))
         AddSubMacro(rd, rn, -operand.immediate(), LeaveFlags, SUB);
@@ -475,7 +475,7 @@ MacroAssemblerVIXL::Add(const ARMRegister& rd, const ARMRegister& rn, const Oper
 }
 
 void
-MacroAssemblerVIXL::Adds(const ARMRegister& rd, const ARMRegister& rn, const Operand& operand)
+MacroAssemblerVIXL::Adds(const Register& rd, const Register& rn, const Operand& operand)
 {
     if (operand.IsImmediate() && (operand.immediate() < 0) && IsImmAddSub(-operand.immediate()))
         AddSubMacro(rd, rn, -operand.immediate(), SetFlags, SUB);
@@ -484,7 +484,7 @@ MacroAssemblerVIXL::Adds(const ARMRegister& rd, const ARMRegister& rn, const Ope
 }
 
 void
-MacroAssemblerVIXL::Sub(const ARMRegister& rd, const ARMRegister& rn, const Operand& operand)
+MacroAssemblerVIXL::Sub(const Register& rd, const Register& rn, const Operand& operand)
 {
     if (operand.IsImmediate() && (operand.immediate() < 0) && IsImmAddSub(-operand.immediate()))
         AddSubMacro(rd, rn, -operand.immediate(), LeaveFlags, ADD);
@@ -493,7 +493,7 @@ MacroAssemblerVIXL::Sub(const ARMRegister& rd, const ARMRegister& rn, const Oper
 }
 
 void
-MacroAssemblerVIXL::Subs(const ARMRegister& rd, const ARMRegister& rn, const Operand& operand)
+MacroAssemblerVIXL::Subs(const Register& rd, const Register& rn, const Operand& operand)
 {
     if (operand.IsImmediate() && (operand.immediate() < 0) && IsImmAddSub(-operand.immediate()))
         AddSubMacro(rd, rn, -operand.immediate(), SetFlags, ADD);
@@ -502,23 +502,23 @@ MacroAssemblerVIXL::Subs(const ARMRegister& rd, const ARMRegister& rn, const Ope
 }
 
 void
-MacroAssemblerVIXL::Cmn(const ARMRegister& rn, const Operand& operand)
+MacroAssemblerVIXL::Cmn(const Register& rn, const Operand& operand)
 {
     Adds(AppropriateZeroRegFor(rn), rn, operand);
 }
 
 void
-MacroAssemblerVIXL::Cmp(const ARMRegister& rn, const Operand& operand)
+MacroAssemblerVIXL::Cmp(const Register& rn, const Operand& operand)
 {
     Subs(AppropriateZeroRegFor(rn), rn, operand);
 }
 
 void
-MacroAssemblerVIXL::Fcmp(const ARMFPRegister& fn, double value)
+MacroAssemblerVIXL::Fcmp(const FPRegister& fn, double value)
 {
     if (value != 0.0) {
         UseScratchRegisterScope temps(this);
-        ARMFPRegister temp = temps.AcquireSameSizeAs(fn);
+        FPRegister temp = temps.AcquireSameSizeAs(fn);
         MOZ_ASSERT(!temp.Is(fn));
 
         Fmov(temp, value);
@@ -529,7 +529,7 @@ MacroAssemblerVIXL::Fcmp(const ARMFPRegister& fn, double value)
 }
 
 void
-MacroAssemblerVIXL::Fmov(ARMFPRegister fd, double imm)
+MacroAssemblerVIXL::Fmov(FPRegister fd, double imm)
 {
     if (fd.Is32Bits()) {
         Fmov(fd, static_cast<float>(imm));
@@ -546,7 +546,7 @@ MacroAssemblerVIXL::Fmov(ARMFPRegister fd, double imm)
 }
 
 void
-MacroAssemblerVIXL::Fmov(ARMFPRegister fd, float imm)
+MacroAssemblerVIXL::Fmov(FPRegister fd, float imm)
 {
     if (fd.Is64Bits()) {
         Fmov(fd, static_cast<double>(imm));
@@ -563,7 +563,7 @@ MacroAssemblerVIXL::Fmov(ARMFPRegister fd, float imm)
 }
 
 void
-MacroAssemblerVIXL::Neg(const ARMRegister& rd, const Operand& operand)
+MacroAssemblerVIXL::Neg(const Register& rd, const Operand& operand)
 {
     if (operand.IsImmediate())
         Mov(rd, -operand.immediate());
@@ -572,13 +572,13 @@ MacroAssemblerVIXL::Neg(const ARMRegister& rd, const Operand& operand)
 }
 
 void
-MacroAssemblerVIXL::Negs(const ARMRegister& rd, const Operand& operand)
+MacroAssemblerVIXL::Negs(const Register& rd, const Operand& operand)
 {
     Subs(rd, AppropriateZeroRegFor(rd), operand);
 }
 
 bool
-MacroAssemblerVIXL::TryOneInstrMoveImmediate(const ARMRegister& dst, int64_t imm)
+MacroAssemblerVIXL::TryOneInstrMoveImmediate(const Register& dst, int64_t imm)
 {
     unsigned n, imm_s, imm_r;
     int reg_size = dst.size();
@@ -614,7 +614,7 @@ MacroAssemblerVIXL::TryOneInstrMoveImmediate(const ARMRegister& dst, int64_t imm
 }
 
 Operand
-MacroAssemblerVIXL::MoveImmediateForShiftedOp(const ARMRegister& dst, int64_t imm)
+MacroAssemblerVIXL::MoveImmediateForShiftedOp(const Register& dst, int64_t imm)
 {
     int reg_size = dst.size();
 
@@ -647,7 +647,7 @@ MacroAssemblerVIXL::MoveImmediateForShiftedOp(const ARMRegister& dst, int64_t im
 }
 
 void
-MacroAssemblerVIXL::AddSubMacro(const ARMRegister& rd, const ARMRegister& rn,
+MacroAssemblerVIXL::AddSubMacro(const Register& rd, const Register& rn,
                                 const Operand& operand, FlagsUpdate S, AddSubOp op)
 {
     if (operand.IsZero() && rd.Is(rn) && rd.Is64Bits() && rn.Is64Bits() &&
@@ -661,7 +661,7 @@ MacroAssemblerVIXL::AddSubMacro(const ARMRegister& rd, const ARMRegister& rn,
         (operand.IsShiftedRegister() && (operand.shift() == ROR)))
     {
         UseScratchRegisterScope temps(this);
-        ARMRegister temp = temps.AcquireSameSizeAs(rn);
+        Register temp = temps.AcquireSameSizeAs(rn);
 
         // VIXL can acquire temp registers. Assert that the caller is aware.
         MOZ_ASSERT(!temp.Is(rd) && !temp.Is(rn));
@@ -680,45 +680,45 @@ MacroAssemblerVIXL::AddSubMacro(const ARMRegister& rd, const ARMRegister& rn,
 }
 
 void
-MacroAssemblerVIXL::Adc(const ARMRegister& rd, const ARMRegister& rn, const Operand& operand)
+MacroAssemblerVIXL::Adc(const Register& rd, const Register& rn, const Operand& operand)
 {
     AddSubWithCarryMacro(rd, rn, operand, LeaveFlags, ADC);
 }
 
 void
-MacroAssemblerVIXL::Adcs(const ARMRegister& rd, const ARMRegister& rn, const Operand& operand)
+MacroAssemblerVIXL::Adcs(const Register& rd, const Register& rn, const Operand& operand)
 {
     AddSubWithCarryMacro(rd, rn, operand, SetFlags, ADC);
 }
 
 void
-MacroAssemblerVIXL::Sbc(const ARMRegister& rd, const ARMRegister& rn, const Operand& operand)
+MacroAssemblerVIXL::Sbc(const Register& rd, const Register& rn, const Operand& operand)
 {
     AddSubWithCarryMacro(rd, rn, operand, LeaveFlags, SBC);
 }
 
 void
-MacroAssemblerVIXL::Sbcs(const ARMRegister& rd, const ARMRegister& rn, const Operand& operand)
+MacroAssemblerVIXL::Sbcs(const Register& rd, const Register& rn, const Operand& operand)
 {
     AddSubWithCarryMacro(rd, rn, operand, SetFlags, SBC);
 }
 
 void
-MacroAssemblerVIXL::Ngc(const ARMRegister& rd, const Operand& operand)
+MacroAssemblerVIXL::Ngc(const Register& rd, const Operand& operand)
 {
-    ARMRegister zr = AppropriateZeroRegFor(rd);
+    Register zr = AppropriateZeroRegFor(rd);
     Sbc(rd, zr, operand);
 }
 
 void
-MacroAssemblerVIXL::Ngcs(const ARMRegister& rd, const Operand& operand)
+MacroAssemblerVIXL::Ngcs(const Register& rd, const Operand& operand)
 {
-    ARMRegister zr = AppropriateZeroRegFor(rd);
+    Register zr = AppropriateZeroRegFor(rd);
     Sbcs(rd, zr, operand);
 }
 
 void
-MacroAssemblerVIXL::AddSubWithCarryMacro(const ARMRegister& rd, const ARMRegister& rn,
+MacroAssemblerVIXL::AddSubWithCarryMacro(const Register& rd, const Register& rn,
                                          const Operand& operand, FlagsUpdate S, AddSubWithCarryOp op)
 {
     MOZ_ASSERT(rd.size() == rn.size());
@@ -726,7 +726,7 @@ MacroAssemblerVIXL::AddSubWithCarryMacro(const ARMRegister& rd, const ARMRegiste
 
     if (operand.IsImmediate() || (operand.IsShiftedRegister() && (operand.shift() == ROR))) {
         // Add/sub with carry (immediate or ROR shifted register.)
-        ARMRegister temp = temps.AcquireSameSizeAs(rn);
+        Register temp = temps.AcquireSameSizeAs(rn);
         MOZ_ASSERT(!temp.Is(rd) && !temp.Is(rn) && !temp.Is(operand.maybeReg()));
 
         Mov(temp, operand);
@@ -739,7 +739,7 @@ MacroAssemblerVIXL::AddSubWithCarryMacro(const ARMRegister& rd, const ARMRegiste
                         operand.shift_amount()));
 
         temps.Exclude(operand.reg());
-        ARMRegister temp = temps.AcquireSameSizeAs(rn);
+        Register temp = temps.AcquireSameSizeAs(rn);
         MOZ_ASSERT(!temp.Is(rd) && !temp.Is(rn) && !temp.Is(operand.maybeReg()));
 
         EmitShift(temp, operand.reg(), operand.shift(), operand.shift_amount());
@@ -754,7 +754,7 @@ MacroAssemblerVIXL::AddSubWithCarryMacro(const ARMRegister& rd, const ARMRegiste
             ((operand.extend() != UXTX) && (operand.extend() != SXTX)));
 
         temps.Exclude(operand.reg());
-        ARMRegister temp = temps.AcquireSameSizeAs(rn);
+        Register temp = temps.AcquireSameSizeAs(rn);
         MOZ_ASSERT(!temp.Is(rd) && !temp.Is(rn) && !temp.Is(operand.maybeReg()));
 
         EmitExtendShift(temp, operand.reg(), operand.extend(), operand.shift_amount());
@@ -785,7 +785,7 @@ MacroAssemblerVIXL::LoadStoreMacro(const CPURegister& rt, const MemOperand& addr
         // Immediate offset that can't be encoded using unsigned or unscaled
         // addressing modes.
         UseScratchRegisterScope temps(this);
-        ARMRegister temp = temps.AcquireSameSizeAs(addr.base());
+        Register temp = temps.AcquireSameSizeAs(addr.base());
         MOZ_ASSERT(!temp.Is(rt));
         MOZ_ASSERT(!temp.Is(addr.base()) && !temp.Is(addr.regoffset()));
 
@@ -892,7 +892,7 @@ MacroAssemblerVIXL::PopCPURegList(CPURegList registers)
 }
 
 void
-MacroAssemblerVIXL::PushMultipleTimes(int count, ARMRegister src)
+MacroAssemblerVIXL::PushMultipleTimes(int count, Register src)
 {
     int size = src.SizeInBytes();
 
@@ -919,7 +919,7 @@ void
 MacroAssemblerVIXL::PushPseudoStackPointerHelper()
 {
     // FIXME: This is gross. The helper register should be required in the call.
-    ARMRegister scratch = vixl::ip1;
+    Register scratch = vixl::ip1;
 
     add(scratch, GetStackPointer64(), Operand(0));
     str(scratch, MemOperand(GetStackPointer64(), -8, PreIndex));
@@ -1042,7 +1042,7 @@ MacroAssemblerVIXL::PrepareForPop(int count, int size)
 }
 
 void
-MacroAssemblerVIXL::Poke(const ARMRegister& src, const Operand& offset)
+MacroAssemblerVIXL::Poke(const Register& src, const Operand& offset)
 {
     if (offset.IsImmediate())
         MOZ_ASSERT(offset.immediate() >= 0);
@@ -1051,7 +1051,7 @@ MacroAssemblerVIXL::Poke(const ARMRegister& src, const Operand& offset)
 }
 
 void
-MacroAssemblerVIXL::Peek(const ARMRegister& dst, const Operand& offset)
+MacroAssemblerVIXL::Peek(const Register& dst, const Operand& offset)
 {
     if (offset.IsImmediate())
         MOZ_ASSERT(offset.immediate() >= 0);
@@ -1171,9 +1171,9 @@ MacroAssemblerVIXL::PrintfNoPreserve(const char * format, const CPURegister& arg
     // The PCS varargs registers for printf. Note that x0 is used for the printf
     // format string.
     static const CPURegList kPCSVarargs =
-        CPURegList(CPURegister::kARMRegister, kXRegSize, 1, arg_count);
+        CPURegList(CPURegister::kRegister, kXRegSize, 1, arg_count);
     static const CPURegList kPCSVarargsFP =
-        CPURegList(CPURegister::kARMFPRegister, kDRegSize, 0, arg_count - 1);
+        CPURegList(CPURegister::kFPRegister, kDRegSize, 0, arg_count - 1);
 
     // We can use caller-saved registers as scratch values, except for the
     // arguments and the PCS registers where they might need to go.
@@ -1217,13 +1217,13 @@ MacroAssemblerVIXL::PrintfNoPreserve(const char * format, const CPURegister& arg
         // appropriate scratch register and then move it out of the way.
         if (kPCSVarargs.IncludesAliasOf(args[i]) || kPCSVarargsFP.IncludesAliasOf(args[i])) {
             if (args[i].IsRegister()) {
-                ARMRegister old_arg = ARMRegister(args[i]);
-                ARMRegister new_arg = temps.AcquireSameSizeAs(old_arg);
+                Register old_arg = Register(args[i]);
+                Register new_arg = temps.AcquireSameSizeAs(old_arg);
                 Mov(new_arg, old_arg);
                 args[i] = new_arg;
             } else {
-                ARMFPRegister old_arg = ARMFPRegister(args[i]);
-                ARMFPRegister new_arg = temps.AcquireSameSizeAs(old_arg);
+                FPRegister old_arg = FPRegister(args[i]);
+                FPRegister new_arg = temps.AcquireSameSizeAs(old_arg);
                 Fmov(new_arg, old_arg);
                 args[i] = new_arg;
             }
@@ -1235,13 +1235,13 @@ MacroAssemblerVIXL::PrintfNoPreserve(const char * format, const CPURegister& arg
     for (int i = 0; i < arg_count; i++) {
         MOZ_ASSERT(pcs[i].type() == args[i].type());
         if (pcs[i].IsRegister()) {
-            Mov(ARMRegister(pcs[i]), ARMRegister(args[i]), kDiscardForSameWReg);
+            Mov(Register(pcs[i]), Register(args[i]), kDiscardForSameWReg);
         } else {
             MOZ_ASSERT(pcs[i].IsFPRegister());
             if (pcs[i].size() == args[i].size())
-                Fmov(ARMFPRegister(pcs[i]), ARMFPRegister(args[i]));
+                Fmov(FPRegister(pcs[i]), FPRegister(args[i]));
             else
-                Fcvt(ARMFPRegister(pcs[i]), ARMFPRegister(args[i]));
+                Fcvt(FPRegister(pcs[i]), FPRegister(args[i]));
         }
     }
 
@@ -1294,7 +1294,7 @@ MacroAssemblerVIXL::PrintfNoPreserve(const char * format, const CPURegister& arg
         dc32(arg_pattern_list);   // kPrintfArgPatternListOffset
     }
 #else
-    ARMRegister tmp = temps.AcquireX();
+    Register tmp = temps.AcquireX();
     Mov(tmp, reinterpret_cast<uintptr_t>(printf));
     Blr(tmp);
 #endif
@@ -1339,17 +1339,17 @@ MacroAssemblerVIXL::Printf(const char * format, CPURegister arg0, CPURegister ar
         if (arg0_sp || arg1_sp || arg2_sp || arg3_sp) {
             // Allocate a register to hold the original stack pointer value, to pass
             // to PrintfNoPreserve as an argument.
-            ARMRegister arg_sp = temps.AcquireX();
+            Register arg_sp = temps.AcquireX();
             Add(arg_sp, GetStackPointer64(),
                 kCallerSaved.TotalSizeInBytes() + kCallerSavedFP.TotalSizeInBytes());
-            if (arg0_sp) arg0 = ARMRegister(arg_sp.code(), arg0.size());
-            if (arg1_sp) arg1 = ARMRegister(arg_sp.code(), arg1.size());
-            if (arg2_sp) arg2 = ARMRegister(arg_sp.code(), arg2.size());
-            if (arg3_sp) arg3 = ARMRegister(arg_sp.code(), arg3.size());
+            if (arg0_sp) arg0 = Register(arg_sp.code(), arg0.size());
+            if (arg1_sp) arg1 = Register(arg_sp.code(), arg1.size());
+            if (arg2_sp) arg2 = Register(arg_sp.code(), arg2.size());
+            if (arg3_sp) arg3 = Register(arg_sp.code(), arg3.size());
         }
 
         // Preserve NZCV.
-        ARMRegister tmp = temps.AcquireX();
+        Register tmp = temps.AcquireX();
         Mrs(tmp, NZCV);
         Push(tmp, xzr);
         temps.Release(tmp);
@@ -1502,18 +1502,18 @@ UseScratchRegisterScope::IsAvailable(const CPURegister& reg) const
     return available_->IncludesAliasOf(reg) || availablefp_->IncludesAliasOf(reg);
 }
 
-ARMRegister
-UseScratchRegisterScope::AcquireSameSizeAs(const ARMRegister& reg)
+Register
+UseScratchRegisterScope::AcquireSameSizeAs(const Register& reg)
 {
     int code = AcquireNextAvailable(available_).code();
-    return ARMRegister(code, reg.size());
+    return Register(code, reg.size());
 }
 
-ARMFPRegister
-UseScratchRegisterScope::AcquireSameSizeAs(const ARMFPRegister& reg)
+FPRegister
+UseScratchRegisterScope::AcquireSameSizeAs(const FPRegister& reg)
 {
     int code = AcquireNextAvailable(availablefp_).code();
-    return ARMFPRegister(code, reg.size());
+    return FPRegister(code, reg.size());
 }
 
 void
@@ -1530,18 +1530,18 @@ UseScratchRegisterScope::Release(const CPURegister& reg)
 void
 UseScratchRegisterScope::Include(const CPURegList& list)
 {
-    if (list.type() == CPURegister::kARMRegister) {
+    if (list.type() == CPURegister::kRegister) {
         // Make sure that neither sp nor xzr are included the list.
         IncludeByRegList(available_, list.list() & ~(xzr.Bit() | sp.Bit()));
     } else {
-        MOZ_ASSERT(list.type() == CPURegister::kARMFPRegister);
+        MOZ_ASSERT(list.type() == CPURegister::kFPRegister);
         IncludeByRegList(availablefp_, list.list());
     }
 }
 
 void
-UseScratchRegisterScope::Include(const ARMRegister& reg1, const ARMRegister& reg2,
-                                 const ARMRegister& reg3, const ARMRegister& reg4)
+UseScratchRegisterScope::Include(const Register& reg1, const Register& reg2,
+                                 const Register& reg3, const Register& reg4)
 {
     RegList include = reg1.Bit() | reg2.Bit() | reg3.Bit() | reg4.Bit();
     // Make sure that neither sp nor xzr are included the list.
@@ -1551,8 +1551,8 @@ UseScratchRegisterScope::Include(const ARMRegister& reg1, const ARMRegister& reg
 }
 
 void
-UseScratchRegisterScope::Include(const ARMFPRegister& reg1, const ARMFPRegister& reg2,
-                                 const ARMFPRegister& reg3, const ARMFPRegister& reg4)
+UseScratchRegisterScope::Include(const FPRegister& reg1, const FPRegister& reg2,
+                                 const FPRegister& reg3, const FPRegister& reg4)
 {
     RegList include = reg1.Bit() | reg2.Bit() | reg3.Bit() | reg4.Bit();
     IncludeByRegList(availablefp_, include);
@@ -1561,25 +1561,25 @@ UseScratchRegisterScope::Include(const ARMFPRegister& reg1, const ARMFPRegister&
 void
 UseScratchRegisterScope::Exclude(const CPURegList& list)
 {
-    if (list.type() == CPURegister::kARMRegister) {
+    if (list.type() == CPURegister::kRegister) {
         ExcludeByRegList(available_, list.list());
     } else {
-        MOZ_ASSERT(list.type() == CPURegister::kARMFPRegister);
+        MOZ_ASSERT(list.type() == CPURegister::kFPRegister);
         ExcludeByRegList(availablefp_, list.list());
     }
 }
 
 void
-UseScratchRegisterScope::Exclude(const ARMRegister& reg1, const ARMRegister& reg2,
-                                 const ARMRegister& reg3, const ARMRegister& reg4)
+UseScratchRegisterScope::Exclude(const Register& reg1, const Register& reg2,
+                                 const Register& reg3, const Register& reg4)
 {
     RegList exclude = reg1.Bit() | reg2.Bit() | reg3.Bit() | reg4.Bit();
     ExcludeByRegList(available_, exclude);
 }
 
 void
-UseScratchRegisterScope::Exclude(const ARMFPRegister& reg1, const ARMFPRegister& reg2,
-                                 const ARMFPRegister& reg3, const ARMFPRegister& reg4)
+UseScratchRegisterScope::Exclude(const FPRegister& reg1, const FPRegister& reg2,
+                                 const FPRegister& reg3, const FPRegister& reg4)
 {
     RegList excludefp = reg1.Bit() | reg2.Bit() | reg3.Bit() | reg4.Bit();
     ExcludeByRegList(availablefp_, excludefp);

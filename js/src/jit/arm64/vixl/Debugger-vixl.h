@@ -175,8 +175,8 @@ class DebuggerARM64 : public Simulator
 
     void PrintInstructions(void* address, int64_t count = 1);
     void PrintMemory(const uint8_t* address, const FormatToken* format, int64_t count = 1);
-    void PrintRegister(const ARMRegister& target_reg, const char* name, const FormatToken* format);
-    void PrintFloatRegister(const ARMFPRegister& target_fpreg, const FormatToken* format);
+    void PrintRegister(const Register& target_reg, const char* name, const FormatToken* format);
+    void PrintFloatRegister(const FPRegister& target_fpreg, const FormatToken* format);
 
   private:
     void LogSystemRegisters();

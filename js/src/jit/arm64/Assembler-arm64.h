@@ -14,9 +14,10 @@
 namespace js {
 namespace jit {
 
+typedef vixl::Register ARMRegister;
+typedef vixl::FPRegister ARMFPRegister;
+
 // FIXME: These should be removed once we convert back to vixl namespace fully.
-using vixl::ARMRegister;
-using vixl::ARMFPRegister;
 using vixl::ARMBuffer;
 using vixl::Instruction;
 

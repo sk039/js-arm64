@@ -36,20 +36,17 @@
 #include "jit/arm64/vixl/Globals-vixl.h"
 
 #define LS_MACRO_LIST(V)                                           \
-    V(Ldrb, ARMRegister&, rt, LDRB_w)                              \
-    V(Strb, ARMRegister&, rt, STRB_w)                              \
-    V(Ldrsb, ARMRegister&, rt, rt.Is64Bits() ? LDRSB_x : LDRSB_w)  \
-    V(Ldrh, ARMRegister&, rt, LDRH_w)                              \
-    V(Strh, ARMRegister&, rt, STRH_w)                              \
-    V(Ldrsh, ARMRegister&, rt, rt.Is64Bits() ? LDRSH_x : LDRSH_w)  \
+    V(Ldrb, Register&, rt, LDRB_w)                              \
+    V(Strb, Register&, rt, STRB_w)                              \
+    V(Ldrsb, Register&, rt, rt.Is64Bits() ? LDRSB_x : LDRSB_w)  \
+    V(Ldrh, Register&, rt, LDRH_w)                              \
+    V(Strh, Register&, rt, STRH_w)                              \
+    V(Ldrsh, Register&, rt, rt.Is64Bits() ? LDRSH_x : LDRSH_w)  \
     V(Ldr, CPURegister&, rt, LoadOpFor(rt))                        \
     V(Str, CPURegister&, rt, StoreOpFor(rt))                       \
-    V(Ldrsw, ARMRegister&, rt, LDRSW_x)
+    V(Ldrsw, Register&, rt, LDRSW_x)
 
 namespace vixl {
-
-// FIXME: Remove this.
-using js::jit::Register;
 
 enum BranchType {
     // Copies of architectural conditions.
@@ -102,48 +99,48 @@ class MacroAssemblerVIXL : public js::jit::Assembler
     { }
 
     // Logical macros.
-    void And(const ARMRegister& rd, const ARMRegister& rn, const Operand& operand);
-    void Ands(const ARMRegister& rd, const ARMRegister& rn, const Operand& operand);
-    void Bic(const ARMRegister& rd, const ARMRegister& rn, const Operand& operand);
-    void Bics(const ARMRegister& rd, const ARMRegister& rn, const Operand& operand);
-    void Orr(const ARMRegister& rd, const ARMRegister& rn, const Operand& operand);
-    void Orn(const ARMRegister& rd, const ARMRegister& rn, const Operand& operand);
-    void Eor(const ARMRegister& rd, const ARMRegister& rn, const Operand& operand);
-    void Eon(const ARMRegister& rd, const ARMRegister& rn, const Operand& operand);
-    void Tst(const ARMRegister& rn, const Operand& operand);
-    void LogicalMacro(const ARMRegister& rd, const ARMRegister& rn,
+    void And(const Register& rd, const Register& rn, const Operand& operand);
+    void Ands(const Register& rd, const Register& rn, const Operand& operand);
+    void Bic(const Register& rd, const Register& rn, const Operand& operand);
+    void Bics(const Register& rd, const Register& rn, const Operand& operand);
+    void Orr(const Register& rd, const Register& rn, const Operand& operand);
+    void Orn(const Register& rd, const Register& rn, const Operand& operand);
+    void Eor(const Register& rd, const Register& rn, const Operand& operand);
+    void Eon(const Register& rd, const Register& rn, const Operand& operand);
+    void Tst(const Register& rn, const Operand& operand);
+    void LogicalMacro(const Register& rd, const Register& rn,
                       const Operand& operand, LogicalOp op);
 
     // Add and sub macros.
-    void Add(const ARMRegister& rd, const ARMRegister& rn, const Operand& operand);
-    void Adds(const ARMRegister& rd, const ARMRegister& rn, const Operand& operand);
-    void Sub(const ARMRegister& rd, const ARMRegister& rn, const Operand& operand);
-    void Subs(const ARMRegister& rd, const ARMRegister& rn, const Operand& operand);
-    void Cmn(const ARMRegister& rn, const Operand& operand);
-    void Cmp(const ARMRegister& rn, const Operand& operand);
-    void Neg(const ARMRegister& rd, const Operand& operand);
-    void Negs(const ARMRegister& rd, const Operand& operand);
-    void AddSubMacro(const ARMRegister& rd, const ARMRegister& rn,
+    void Add(const Register& rd, const Register& rn, const Operand& operand);
+    void Adds(const Register& rd, const Register& rn, const Operand& operand);
+    void Sub(const Register& rd, const Register& rn, const Operand& operand);
+    void Subs(const Register& rd, const Register& rn, const Operand& operand);
+    void Cmn(const Register& rn, const Operand& operand);
+    void Cmp(const Register& rn, const Operand& operand);
+    void Neg(const Register& rd, const Operand& operand);
+    void Negs(const Register& rd, const Operand& operand);
+    void AddSubMacro(const Register& rd, const Register& rn,
                      const Operand& operand, FlagsUpdate S, AddSubOp op);
 
     // Add/sub with carry macros.
-    void Adc(const ARMRegister& rd, const ARMRegister& rn, const Operand& operand);
-    void Adcs(const ARMRegister& rd, const ARMRegister& rn, const Operand& operand);
-    void Sbc(const ARMRegister& rd, const ARMRegister& rn, const Operand& operand);
-    void Sbcs(const ARMRegister& rd, const ARMRegister& rn, const Operand& operand);
-    void Ngc(const ARMRegister& rd, const Operand& operand);
-    void Ngcs(const ARMRegister& rd, const Operand& operand);
-    void AddSubWithCarryMacro(const ARMRegister& rd, const ARMRegister& rn,
+    void Adc(const Register& rd, const Register& rn, const Operand& operand);
+    void Adcs(const Register& rd, const Register& rn, const Operand& operand);
+    void Sbc(const Register& rd, const Register& rn, const Operand& operand);
+    void Sbcs(const Register& rd, const Register& rn, const Operand& operand);
+    void Ngc(const Register& rd, const Operand& operand);
+    void Ngcs(const Register& rd, const Operand& operand);
+    void AddSubWithCarryMacro(const Register& rd, const Register& rn,
                               const Operand& operand, FlagsUpdate S, AddSubWithCarryOp op);
 
     // Move macros.
-    void Mov(const ARMRegister& rd, uint64_t imm);
-    void Mov(const ARMRegister& rd, const Operand& operand,
+    void Mov(const Register& rd, uint64_t imm);
+    void Mov(const Register& rd, const Operand& operand,
              DiscardMoveMode discard_mode = kDontDiscardForSameWReg);
-    void Mvn(const ARMRegister& rd, uint64_t imm) {
+    void Mvn(const Register& rd, uint64_t imm) {
         Mov(rd, (rd.size() == kXRegSize) ? ~imm : (~imm & kWRegMask));
     }
-    void Mvn(const ARMRegister& rd, const Operand& operand);
+    void Mvn(const Register& rd, const Operand& operand);
     bool IsImmMovz(uint64_t imm, unsigned reg_size);
     bool IsImmMovn(uint64_t imm, unsigned reg_size);
     unsigned CountClearHalfWords(uint64_t imm, unsigned reg_size);
@@ -151,21 +148,21 @@ class MacroAssemblerVIXL : public js::jit::Assembler
     // Try to move an immediate into the destination register in a single
     // instruction. Returns true for success, and updates the contents of dst.
     // Returns false, otherwise.
-    bool TryOneInstrMoveImmediate(const ARMRegister& dst, int64_t imm);
+    bool TryOneInstrMoveImmediate(const Register& dst, int64_t imm);
 
     // Move an immediate into register dst, and return an Operand object for
     // use with a subsequent instruction that accepts a shift. The value moved
     // into dst is not necessarily equal to imm; it may have had a shifting
     // operation applied to it that will be subsequently undone by the shift
     // applied in the Operand.
-    Operand MoveImmediateForShiftedOp(const ARMRegister& dst, int64_t imm);
+    Operand MoveImmediateForShiftedOp(const Register& dst, int64_t imm);
 
     // Conditional macros.
-    void Ccmp(const ARMRegister& rn, const Operand& operand, StatusFlags nzcv, Condition cond);
-    void Ccmn(const ARMRegister& rn, const Operand& operand, StatusFlags nzcv, Condition cond);
-    void ConditionalCompareMacro(const ARMRegister& rn, const Operand& operand,
+    void Ccmp(const Register& rn, const Operand& operand, StatusFlags nzcv, Condition cond);
+    void Ccmn(const Register& rn, const Operand& operand, StatusFlags nzcv, Condition cond);
+    void ConditionalCompareMacro(const Register& rn, const Operand& operand,
                                  StatusFlags nzcv, Condition cond, ConditionalCompareOp op);
-    void Csel(const ARMRegister& rd, const ARMRegister& rn, const Operand& operand, Condition cond);
+    void Csel(const Register& rd, const Register& rn, const Operand& operand, Condition cond);
 
     // Load/store macros.
 #define DECLARE_FUNCTION(FN, REGTYPE, REG, OP) \
@@ -220,11 +217,11 @@ class MacroAssemblerVIXL : public js::jit::Assembler
     void PopCPURegList(CPURegList registers);
 
     void PushSizeRegList(RegList registers, unsigned reg_size,
-                         CPURegister::RegisterType type = CPURegister::kARMRegister) {
+                         CPURegister::RegisterType type = CPURegister::kRegister) {
         PushCPURegList(CPURegList(type, reg_size, registers));
     }
     void PopSizeRegList(RegList registers, unsigned reg_size,
-                        CPURegister::RegisterType type = CPURegister::kARMRegister) {
+                        CPURegister::RegisterType type = CPURegister::kRegister) {
         PopCPURegList(CPURegList(type, reg_size, registers));
     }
     void PushXRegList(RegList regs) {
@@ -240,32 +237,32 @@ class MacroAssemblerVIXL : public js::jit::Assembler
         PopSizeRegList(regs, kWRegSize);
     }
     inline void PushDRegList(RegList regs) {
-        PushSizeRegList(regs, kDRegSize, CPURegister::kARMFPRegister);
+        PushSizeRegList(regs, kDRegSize, CPURegister::kFPRegister);
     }
     inline void PopDRegList(RegList regs) {
-        PopSizeRegList(regs, kDRegSize, CPURegister::kARMFPRegister);
+        PopSizeRegList(regs, kDRegSize, CPURegister::kFPRegister);
     }
     inline void PushSRegList(RegList regs) {
-        PushSizeRegList(regs, kSRegSize, CPURegister::kARMFPRegister);
+        PushSizeRegList(regs, kSRegSize, CPURegister::kFPRegister);
     }
     inline void PopSRegList(RegList regs) {
-        PopSizeRegList(regs, kSRegSize, CPURegister::kARMFPRegister);
+        PopSizeRegList(regs, kSRegSize, CPURegister::kFPRegister);
     }
 
     // Push the specified register 'count' times.
-    void PushMultipleTimes(int count, ARMRegister src);
+    void PushMultipleTimes(int count, Register src);
 
     // Poke 'src' onto the stack. The offset is in bytes.
     //
     // If the current stack pointer (as set by SetStackPointer64) is sp, then sp
     // must be aligned to 16 bytes.
-    void Poke(const ARMRegister& src, const Operand& offset);
+    void Poke(const Register& src, const Operand& offset);
 
     // Peek at a value on the stack, and put it in 'dst'. The offset is in bytes.
     //
     // If the current stack pointer (as set by SetStackPointer64) is sp, then sp
     // must be aligned to 16 bytes.
-    void Peek(const ARMRegister& dst, const Operand& offset);
+    void Peek(const Register& dst, const Operand& offset);
 
     // Claim or drop stack space without actually accessing memory.
     //
@@ -298,20 +295,20 @@ class MacroAssemblerVIXL : public js::jit::Assembler
     void PopCalleeSavedRegisters();
 
     // Remaining instructions are simple pass-through calls to the assembler.
-    void Adr(const ARMRegister& rd, Label* label) {
+    void Adr(const Register& rd, Label* label) {
         MOZ_ASSERT(!rd.IsZero());
         adr(rd, label);
     }
-    void Adrp(const ARMRegister& rd, Label* label) {
+    void Adrp(const Register& rd, Label* label) {
         MOZ_ASSERT(!rd.IsZero());
         adrp(rd, label);
     }
-    void Asr(const ARMRegister& rd, const ARMRegister& rn, unsigned shift) {
+    void Asr(const Register& rd, const Register& rn, unsigned shift) {
         MOZ_ASSERT(!rd.IsZero());
         MOZ_ASSERT(!rn.IsZero());
         asr(rd, rn, shift);
     }
-    void Asr(const ARMRegister& rd, const ARMRegister& rn, const ARMRegister& rm) {
+    void Asr(const Register& rd, const Register& rn, const Register& rm) {
         MOZ_ASSERT(!rd.IsZero());
         MOZ_ASSERT(!rn.IsZero());
         MOZ_ASSERT(!rm.IsZero());
@@ -329,7 +326,7 @@ class MacroAssemblerVIXL : public js::jit::Assembler
         return static_cast<BranchType>(type ^ 1);
     }
 
-    void B(Label* label, BranchType type, ARMRegister reg = NoReg, int bit = -1);
+    void B(Label* label, BranchType type, Register reg = NoReg, int bit = -1);
 
     void B(Label* label) {
         b(label);
@@ -341,12 +338,12 @@ class MacroAssemblerVIXL : public js::jit::Assembler
     void B(Condition cond, Label* label) {
         B(label, cond);
     }
-    void Bfi(const ARMRegister& rd, const ARMRegister& rn, unsigned lsb, unsigned width) {
+    void Bfi(const Register& rd, const Register& rn, unsigned lsb, unsigned width) {
         MOZ_ASSERT(!rd.IsZero());
         MOZ_ASSERT(!rn.IsZero());
         bfi(rd, rn, lsb, width);
     }
-    void Bfxil(const ARMRegister& rd, const ARMRegister& rn, unsigned lsb, unsigned width) {
+    void Bfxil(const Register& rd, const Register& rn, unsigned lsb, unsigned width) {
         MOZ_ASSERT(!rd.IsZero());
         MOZ_ASSERT(!rn.IsZero());
         bfxil(rd, rn, lsb, width);
@@ -357,31 +354,31 @@ class MacroAssemblerVIXL : public js::jit::Assembler
     void Bl(Label* label) {
         bl(label);
     }
-    void Blr(const ARMRegister& xn) {
+    void Blr(const Register& xn) {
         MOZ_ASSERT(!xn.IsZero());
         blr(xn);
     }
-    void Br(const ARMRegister& xn) {
+    void Br(const Register& xn) {
         MOZ_ASSERT(!xn.IsZero());
         br(xn);
     }
     void Brk(int code = 0) {
         brk(code);
     }
-    void Cbnz(const ARMRegister& rt, Label* label) {
+    void Cbnz(const Register& rt, Label* label) {
         MOZ_ASSERT(!rt.IsZero());
         cbnz(rt, label);
     }
-    void Cbz(const ARMRegister& rt, Label* label) {
+    void Cbz(const Register& rt, Label* label) {
         MOZ_ASSERT(!rt.IsZero());
         cbz(rt, label);
     }
-    void Cinc(const ARMRegister& rd, const ARMRegister& rn, Condition cond) {
+    void Cinc(const Register& rd, const Register& rn, Condition cond) {
         MOZ_ASSERT(!rd.IsZero());
         MOZ_ASSERT(!rn.IsZero());
         cinc(rd, rn, cond);
     }
-    void Cinv(const ARMRegister& rd, const ARMRegister& rn, Condition cond) {
+    void Cinv(const Register& rd, const Register& rn, Condition cond) {
         MOZ_ASSERT(!rd.IsZero());
         MOZ_ASSERT(!rn.IsZero());
         cinv(rd, rn, cond);
@@ -389,43 +386,43 @@ class MacroAssemblerVIXL : public js::jit::Assembler
     void Clrex() {
         clrex();
     }
-    void Cls(const ARMRegister& rd, const ARMRegister& rn) {
+    void Cls(const Register& rd, const Register& rn) {
         MOZ_ASSERT(!rd.IsZero());
         MOZ_ASSERT(!rn.IsZero());
         cls(rd, rn);
     }
-    void Clz(const ARMRegister& rd, const ARMRegister& rn) {
+    void Clz(const Register& rd, const Register& rn) {
         MOZ_ASSERT(!rd.IsZero());
         MOZ_ASSERT(!rn.IsZero());
         clz(rd, rn);
     }
-    void Cneg(const ARMRegister& rd, const ARMRegister& rn, Condition cond) {
+    void Cneg(const Register& rd, const Register& rn, Condition cond) {
         MOZ_ASSERT(!rd.IsZero());
         MOZ_ASSERT(!rn.IsZero());
         cneg(rd, rn, cond);
     }
-    void Cset(const ARMRegister& rd, Condition cond) {
+    void Cset(const Register& rd, Condition cond) {
         MOZ_ASSERT(!rd.IsZero());
         cset(rd, cond);
     }
-    void Csetm(const ARMRegister& rd, Condition cond) {
+    void Csetm(const Register& rd, Condition cond) {
         MOZ_ASSERT(!rd.IsZero());
         csetm(rd, cond);
     }
-    void Csinc(const ARMRegister& rd, const ARMRegister& rn, const ARMRegister& rm, Condition cond) {
+    void Csinc(const Register& rd, const Register& rn, const Register& rm, Condition cond) {
         MOZ_ASSERT(!rd.IsZero());
         MOZ_ASSERT(!rn.IsZero());
         MOZ_ASSERT((cond != al) && (cond != nv));
         csinc(rd, rn, rm, cond);
     }
-    void Csinv(const ARMRegister& rd, const ARMRegister& rn, const ARMRegister& rm, Condition cond) {
+    void Csinv(const Register& rd, const Register& rn, const Register& rm, Condition cond) {
         MOZ_ASSERT(!rd.IsZero());
         MOZ_ASSERT(!rn.IsZero());
         MOZ_ASSERT(!rm.IsZero());
         MOZ_ASSERT((cond != al) && (cond != nv));
         csinv(rd, rn, rm, cond);
     }
-    void Csneg(const ARMRegister& rd, const ARMRegister& rn, const ARMRegister& rm, Condition cond) {
+    void Csneg(const Register& rd, const Register& rn, const Register& rm, Condition cond) {
         MOZ_ASSERT(!rd.IsZero());
         MOZ_ASSERT(!rn.IsZero());
         MOZ_ASSERT((cond != al) && (cond != nv));
@@ -437,98 +434,98 @@ class MacroAssemblerVIXL : public js::jit::Assembler
     void Dsb(BarrierDomain domain, BarrierType type) {
         dsb(domain, type);
     }
-    void Extr(const ARMRegister& rd, const ARMRegister& rn, const ARMRegister& rm, unsigned lsb) {
+    void Extr(const Register& rd, const Register& rn, const Register& rm, unsigned lsb) {
         MOZ_ASSERT(!rd.IsZero());
         MOZ_ASSERT(!rn.IsZero());
         MOZ_ASSERT(!rm.IsZero());
         extr(rd, rn, rm, lsb);
     }
-    void Fabs(const ARMFPRegister& fd, const ARMFPRegister& fn) {
+    void Fabs(const FPRegister& fd, const FPRegister& fn) {
         fabs(fd, fn);
     }
-    void Fadd(const ARMFPRegister& fd, const ARMFPRegister& fn, const ARMFPRegister& fm) {
+    void Fadd(const FPRegister& fd, const FPRegister& fn, const FPRegister& fm) {
         fadd(fd, fn, fm);
     }
-    void Fccmp(const ARMFPRegister& fn, const ARMFPRegister& fm, StatusFlags nzcv, Condition cond) {
+    void Fccmp(const FPRegister& fn, const FPRegister& fm, StatusFlags nzcv, Condition cond) {
         MOZ_ASSERT((cond != al) && (cond != nv));
         fccmp(fn, fm, nzcv, cond);
     }
-    void Fcmp(const ARMFPRegister& fn, const ARMFPRegister& fm) {
+    void Fcmp(const FPRegister& fn, const FPRegister& fm) {
         fcmp(fn, fm);
     }
-    void Fcmp(const ARMFPRegister& fn, double value);
-    void Fcsel(const ARMFPRegister& fd, const ARMFPRegister& fn,
-               const ARMFPRegister& fm, Condition cond) {
+    void Fcmp(const FPRegister& fn, double value);
+    void Fcsel(const FPRegister& fd, const FPRegister& fn,
+               const FPRegister& fm, Condition cond) {
         MOZ_ASSERT((cond != al) && (cond != nv));
         fcsel(fd, fn, fm, cond);
     }
-    void Fcvt(const ARMFPRegister& fd, const ARMFPRegister& fn) {
+    void Fcvt(const FPRegister& fd, const FPRegister& fn) {
         fcvt(fd, fn);
     }
-    void Fcvtas(const ARMRegister& rd, const ARMFPRegister& fn) {
+    void Fcvtas(const Register& rd, const FPRegister& fn) {
         MOZ_ASSERT(!rd.IsZero());
         fcvtas(rd, fn);
     }
-    void Fcvtau(const ARMRegister& rd, const ARMFPRegister& fn) {
+    void Fcvtau(const Register& rd, const FPRegister& fn) {
         MOZ_ASSERT(!rd.IsZero());
         fcvtau(rd, fn);
     }
-    void Fcvtms(const ARMRegister& rd, const ARMFPRegister& fn) {
+    void Fcvtms(const Register& rd, const FPRegister& fn) {
         MOZ_ASSERT(!rd.IsZero());
         fcvtms(rd, fn);
     }
-    void Fcvtmu(const ARMRegister& rd, const ARMFPRegister& fn) {
+    void Fcvtmu(const Register& rd, const FPRegister& fn) {
         MOZ_ASSERT(!rd.IsZero());
         fcvtmu(rd, fn);
     }
-    void Fcvtps(const ARMRegister& rd, const ARMFPRegister& fn) {
+    void Fcvtps(const Register& rd, const FPRegister& fn) {
         MOZ_ASSERT(!rd.IsZero());
         fcvtps(rd, fn);
     }
-    void Fcvtpu(const ARMRegister& rd, const ARMFPRegister& fn) {
+    void Fcvtpu(const Register& rd, const FPRegister& fn) {
         MOZ_ASSERT(!rd.IsZero());
         fcvtpu(rd, fn);
     }
-    void Fcvtns(const ARMRegister& rd, const ARMFPRegister& fn) {
+    void Fcvtns(const Register& rd, const FPRegister& fn) {
         MOZ_ASSERT(!rd.IsZero());
         fcvtns(rd, fn);
     }
-    void Fcvtnu(const ARMRegister& rd, const ARMFPRegister& fn) {
+    void Fcvtnu(const Register& rd, const FPRegister& fn) {
         MOZ_ASSERT(!rd.IsZero());
         fcvtnu(rd, fn);
     }
-    void Fcvtzs(const ARMRegister& rd, const ARMFPRegister& fn) {
+    void Fcvtzs(const Register& rd, const FPRegister& fn) {
         MOZ_ASSERT(!rd.IsZero());
         fcvtzs(rd, fn);
     }
-    void Fcvtzu(const ARMRegister& rd, const ARMFPRegister& fn) {
+    void Fcvtzu(const Register& rd, const FPRegister& fn) {
         MOZ_ASSERT(!rd.IsZero());
         fcvtzu(rd, fn);
     }
-    void Fdiv(const ARMFPRegister& fd, const ARMFPRegister& fn, const ARMFPRegister& fm) {
+    void Fdiv(const FPRegister& fd, const FPRegister& fn, const FPRegister& fm) {
         fdiv(fd, fn, fm);
     }
-    void Fmax(const ARMFPRegister& fd, const ARMFPRegister& fn, const ARMFPRegister& fm) {
+    void Fmax(const FPRegister& fd, const FPRegister& fn, const FPRegister& fm) {
         fmax(fd, fn, fm);
     }
-    void Fmaxnm(const ARMFPRegister& fd, const ARMFPRegister& fn, const ARMFPRegister& fm) {
+    void Fmaxnm(const FPRegister& fd, const FPRegister& fn, const FPRegister& fm) {
         fmaxnm(fd, fn, fm);
     }
-    void Fmin(const ARMFPRegister& fd, const ARMFPRegister& fn, const ARMFPRegister& fm) {
+    void Fmin(const FPRegister& fd, const FPRegister& fn, const FPRegister& fm) {
         fmin(fd, fn, fm);
     }
-    void Fminnm(const ARMFPRegister& fd, const ARMFPRegister& fn, const ARMFPRegister& fm) {
+    void Fminnm(const FPRegister& fd, const FPRegister& fn, const FPRegister& fm) {
         fminnm(fd, fn, fm);
     }
-    void Fmov(ARMFPRegister fd, ARMFPRegister fn) {
+    void Fmov(FPRegister fd, FPRegister fn) {
         // Only emit an instruction if fd and fn are different, and they are both D
         // registers. fmov(s0, s0) is not a no-op because it clears the top word of
         // d0. Technically, fmov(d0, d0) is not a no-op either because it clears
-        // the top of q0, but ARMFPRegister does not currently support Q registers.
+        // the top of q0, but FPRegister does not currently support Q registers.
         if (!fd.Is(fn) || !fd.Is64Bits())
             fmov(fd, fn);
     }
-    void Fmov(ARMFPRegister fd, ARMRegister rn) {
+    void Fmov(FPRegister fd, Register rn) {
         MOZ_ASSERT(!rn.IsZero());
         fmov(fd, rn);
     }
@@ -536,55 +533,55 @@ class MacroAssemblerVIXL : public js::jit::Assembler
     // than relying on implicit C++ casts. This allows signalling NaNs to be
     // preserved when the immediate matches the format of fd. Most systems convert
     // signalling NaNs to quiet NaNs when converting between float and double.
-    void Fmov(ARMFPRegister fd, double imm);
-    void Fmov(ARMFPRegister fd, float imm);
+    void Fmov(FPRegister fd, double imm);
+    void Fmov(FPRegister fd, float imm);
     // Provide a template to allow other types to be converted automatically.
     template<typename T>
-    void Fmov(ARMFPRegister fd, T imm) {
+    void Fmov(FPRegister fd, T imm) {
         Fmov(fd, static_cast<double>(imm));
     }
-    void Fmov(ARMRegister rd, ARMFPRegister fn) {
+    void Fmov(Register rd, FPRegister fn) {
         MOZ_ASSERT(!rd.IsZero());
         fmov(rd, fn);
     }
-    void Fmul(const ARMFPRegister& fd, const ARMFPRegister& fn, const ARMFPRegister& fm) {
+    void Fmul(const FPRegister& fd, const FPRegister& fn, const FPRegister& fm) {
         fmul(fd, fn, fm);
     }
-    void Fmadd(const ARMFPRegister& fd, const ARMFPRegister& fn,
-               const ARMFPRegister& fm, const ARMFPRegister& fa) {
+    void Fmadd(const FPRegister& fd, const FPRegister& fn,
+               const FPRegister& fm, const FPRegister& fa) {
         fmadd(fd, fn, fm, fa);
     }
-    void Fmsub(const ARMFPRegister& fd, const ARMFPRegister& fn,
-               const ARMFPRegister& fm, const ARMFPRegister& fa) {
+    void Fmsub(const FPRegister& fd, const FPRegister& fn,
+               const FPRegister& fm, const FPRegister& fa) {
         fmsub(fd, fn, fm, fa);
     }
-    void Fnmadd(const ARMFPRegister& fd, const ARMFPRegister& fn,
-                const ARMFPRegister& fm, const ARMFPRegister& fa) {
+    void Fnmadd(const FPRegister& fd, const FPRegister& fn,
+                const FPRegister& fm, const FPRegister& fa) {
         fnmadd(fd, fn, fm, fa);
     }
-    void Fnmsub(const ARMFPRegister& fd, const ARMFPRegister& fn,
-                const ARMFPRegister& fm, const ARMFPRegister& fa) {
+    void Fnmsub(const FPRegister& fd, const FPRegister& fn,
+                const FPRegister& fm, const FPRegister& fa) {
         fnmsub(fd, fn, fm, fa);
     }
-    void Fneg(const ARMFPRegister& fd, const ARMFPRegister& fn) {
+    void Fneg(const FPRegister& fd, const FPRegister& fn) {
         fneg(fd, fn);
     }
-    void Frinta(const ARMFPRegister& fd, const ARMFPRegister& fn) {
+    void Frinta(const FPRegister& fd, const FPRegister& fn) {
         frinta(fd, fn);
     }
-    void Frintm(const ARMFPRegister& fd, const ARMFPRegister& fn) {
+    void Frintm(const FPRegister& fd, const FPRegister& fn) {
         frintm(fd, fn);
     }
-    void Frintn(const ARMFPRegister& fd, const ARMFPRegister& fn) {
+    void Frintn(const FPRegister& fd, const FPRegister& fn) {
         frintn(fd, fn);
     }
-    void Frintz(const ARMFPRegister& fd, const ARMFPRegister& fn) {
+    void Frintz(const FPRegister& fd, const FPRegister& fn) {
         frintz(fd, fn);
     }
-    void Fsqrt(const ARMFPRegister& fd, const ARMFPRegister& fn) {
+    void Fsqrt(const FPRegister& fd, const FPRegister& fn) {
         fsqrt(fd, fn);
     }
-    void Fsub(const ARMFPRegister& fd, const ARMFPRegister& fn, const ARMFPRegister& fm) {
+    void Fsub(const FPRegister& fd, const FPRegister& fn, const FPRegister& fm) {
         fsub(fd, fn, fm);
     }
     void Hint(SystemHint code) {
@@ -596,26 +593,26 @@ class MacroAssemblerVIXL : public js::jit::Assembler
     void Isb() {
         isb();
     }
-    void Ldar(const ARMRegister& rt, const MemOperand& src) {
+    void Ldar(const Register& rt, const MemOperand& src) {
         ldar(rt, src);
     }
-    void Ldarb(const ARMRegister& rt, const MemOperand& src) {
+    void Ldarb(const Register& rt, const MemOperand& src) {
         ldarb(rt, src);
     }
-    void Ldarh(const ARMRegister& rt, const MemOperand& src) {
+    void Ldarh(const Register& rt, const MemOperand& src) {
         ldarh(rt, src);
     }
-    void Ldaxp(const ARMRegister& rt, const ARMRegister& rt2, const MemOperand& src) {
+    void Ldaxp(const Register& rt, const Register& rt2, const MemOperand& src) {
         MOZ_ASSERT(!rt.Aliases(rt2));
         ldaxp(rt, rt2, src);
     }
-    void Ldaxr(const ARMRegister& rt, const MemOperand& src) {
+    void Ldaxr(const Register& rt, const MemOperand& src) {
         ldaxr(rt, src);
     }
-    void Ldaxrb(const ARMRegister& rt, const MemOperand& src) {
+    void Ldaxrb(const Register& rt, const MemOperand& src) {
         ldaxrb(rt, src);
     }
-    void Ldaxrh(const ARMRegister& rt, const MemOperand& src) {
+    void Ldaxrh(const Register& rt, const MemOperand& src) {
         ldaxrh(rt, src);
     }
     void Ldnp(const CPURegister& rt, const CPURegister& rt2, const MemOperand& src) {
@@ -624,104 +621,104 @@ class MacroAssemblerVIXL : public js::jit::Assembler
     void Ldp(const CPURegister& rt, const CPURegister& rt2, const MemOperand& src) {
         ldp(rt, rt2, src);
     }
-    void Ldpsw(const ARMRegister& rt, const ARMRegister& rt2, const MemOperand& src) {
+    void Ldpsw(const Register& rt, const Register& rt2, const MemOperand& src) {
         ldpsw(rt, rt2, src);
     }
     // Provide both double and float interfaces for FP immediate loads, rather
     // than relying on implicit C++ casts. This allows signalling NaNs to be
     // preserved when the immediate matches the format of fd. Most systems convert
     // signalling NaNs to quiet NaNs when converting between float and double.
-    void Ldr(const ARMFPRegister& ft, double imm) {
+    void Ldr(const FPRegister& ft, double imm) {
         if (ft.Is64Bits()) {
             ldr(ft, imm);
         } else {
             ldr(ft, static_cast<float>(imm));
         }
     }
-    void Ldr(const ARMFPRegister& ft, float imm) {
+    void Ldr(const FPRegister& ft, float imm) {
         if (ft.Is32Bits()) {
             ldr(ft, imm);
         } else {
             ldr(ft, static_cast<double>(imm));
         }
     }
-    void Ldr(const ARMRegister& rt, uint64_t imm) {
+    void Ldr(const Register& rt, uint64_t imm) {
         MOZ_ASSERT(!rt.IsZero());
         ldr(rt, imm);
     }
-    void Ldxp(const ARMRegister& rt, const ARMRegister& rt2, const MemOperand& src) {
+    void Ldxp(const Register& rt, const Register& rt2, const MemOperand& src) {
         MOZ_ASSERT(!rt.Aliases(rt2));
         ldxp(rt, rt2, src);
     }
-    void Ldxr(const ARMRegister& rt, const MemOperand& src) {
+    void Ldxr(const Register& rt, const MemOperand& src) {
         ldxr(rt, src);
     }
-    void Ldxrb(const ARMRegister& rt, const MemOperand& src) {
+    void Ldxrb(const Register& rt, const MemOperand& src) {
         ldxrb(rt, src);
     }
-    void Ldxrh(const ARMRegister& rt, const MemOperand& src) {
+    void Ldxrh(const Register& rt, const MemOperand& src) {
         ldxrh(rt, src);
     }
-    void Lsl(const ARMRegister& rd, const ARMRegister& rn, unsigned shift) {
+    void Lsl(const Register& rd, const Register& rn, unsigned shift) {
         MOZ_ASSERT(!rd.IsZero());
         MOZ_ASSERT(!rn.IsZero());
         lsl(rd, rn, shift);
     }
-    void Lsl(const ARMRegister& rd, const ARMRegister& rn, const ARMRegister& rm) {
+    void Lsl(const Register& rd, const Register& rn, const Register& rm) {
         MOZ_ASSERT(!rd.IsZero());
         MOZ_ASSERT(!rn.IsZero());
         MOZ_ASSERT(!rm.IsZero());
         lslv(rd, rn, rm);
     }
-    void Lsr(const ARMRegister& rd, const ARMRegister& rn, unsigned shift) {
+    void Lsr(const Register& rd, const Register& rn, unsigned shift) {
         MOZ_ASSERT(!rd.IsZero());
         MOZ_ASSERT(!rn.IsZero());
         lsr(rd, rn, shift);
     }
-    void Lsr(const ARMRegister& rd, const ARMRegister& rn, const ARMRegister& rm) {
+    void Lsr(const Register& rd, const Register& rn, const Register& rm) {
         MOZ_ASSERT(!rd.IsZero());
         MOZ_ASSERT(!rn.IsZero());
         MOZ_ASSERT(!rm.IsZero());
         lsrv(rd, rn, rm);
     }
-    void Madd(const ARMRegister& rd, const ARMRegister& rn,
-              const ARMRegister& rm, const ARMRegister& ra) {
+    void Madd(const Register& rd, const Register& rn,
+              const Register& rm, const Register& ra) {
         MOZ_ASSERT(!rd.IsZero());
         MOZ_ASSERT(!rn.IsZero());
         MOZ_ASSERT(!rm.IsZero());
         MOZ_ASSERT(!ra.IsZero());
         madd(rd, rn, rm, ra);
     }
-    void Mneg(const ARMRegister& rd, const ARMRegister& rn, const ARMRegister& rm) {
+    void Mneg(const Register& rd, const Register& rn, const Register& rm) {
         MOZ_ASSERT(!rd.IsZero());
         MOZ_ASSERT(!rn.IsZero());
         MOZ_ASSERT(!rm.IsZero());
         mneg(rd, rn, rm);
     }
-    void Mov(const ARMRegister& rd, const ARMRegister& rn) {
+    void Mov(const Register& rd, const Register& rn) {
         mov(rd, rn);
     }
-    void Movk(const ARMRegister& rd, uint64_t imm, int shift = -1) {
+    void Movk(const Register& rd, uint64_t imm, int shift = -1) {
         MOZ_ASSERT(!rd.IsZero());
         movk(rd, imm, shift);
     }
-    void Mrs(const ARMRegister& rt, SystemRegister sysreg) {
+    void Mrs(const Register& rt, SystemRegister sysreg) {
         MOZ_ASSERT(!rt.IsZero());
         mrs(rt, sysreg);
     }
-    void Msr(SystemRegister sysreg, const ARMRegister& rt) {
+    void Msr(SystemRegister sysreg, const Register& rt) {
         MOZ_ASSERT(!rt.IsZero());
         msr(sysreg, rt);
     }
-    void Msub(const ARMRegister& rd, const ARMRegister& rn,
-              const ARMRegister& rm, const ARMRegister& ra) {
+    void Msub(const Register& rd, const Register& rn,
+              const Register& rm, const Register& ra) {
         MOZ_ASSERT(!rd.IsZero());
         MOZ_ASSERT(!rn.IsZero());
         MOZ_ASSERT(!rm.IsZero());
         MOZ_ASSERT(!ra.IsZero());
         msub(rd, rn, rm, ra);
     }
-    void Mul(const ARMRegister& rd, const ARMRegister& rn, const ARMRegister& rm) {
+    void Mul(const Register& rd, const Register& rn, const Register& rm) {
         MOZ_ASSERT(!rd.IsZero());
         MOZ_ASSERT(!rn.IsZero());
         MOZ_ASSERT(!rm.IsZero());
@@ -730,117 +727,117 @@ class MacroAssemblerVIXL : public js::jit::Assembler
     void Nop() {
         nop();
     }
-    void Rbit(const ARMRegister& rd, const ARMRegister& rn) {
+    void Rbit(const Register& rd, const Register& rn) {
         MOZ_ASSERT(!rd.IsZero());
         MOZ_ASSERT(!rn.IsZero());
         rbit(rd, rn);
     }
-    void Ret(const ARMRegister& xn = lr) {
+    void Ret(const Register& xn = lr) {
         MOZ_ASSERT(!xn.IsZero());
         ret(xn);
     }
-    void Rev(const ARMRegister& rd, const ARMRegister& rn) {
+    void Rev(const Register& rd, const Register& rn) {
         MOZ_ASSERT(!rd.IsZero());
         MOZ_ASSERT(!rn.IsZero());
         rev(rd, rn);
     }
-    void Rev16(const ARMRegister& rd, const ARMRegister& rn) {
+    void Rev16(const Register& rd, const Register& rn) {
         MOZ_ASSERT(!rd.IsZero());
         MOZ_ASSERT(!rn.IsZero());
         rev16(rd, rn);
     }
-    void Rev32(const ARMRegister& rd, const ARMRegister& rn) {
+    void Rev32(const Register& rd, const Register& rn) {
         MOZ_ASSERT(!rd.IsZero());
         MOZ_ASSERT(!rn.IsZero());
         rev32(rd, rn);
     }
-    void Ror(const ARMRegister& rd, const ARMRegister& rs, unsigned shift) {
+    void Ror(const Register& rd, const Register& rs, unsigned shift) {
         MOZ_ASSERT(!rd.IsZero());
         MOZ_ASSERT(!rs.IsZero());
         ror(rd, rs, shift);
     }
-    void Ror(const ARMRegister& rd, const ARMRegister& rn, const ARMRegister& rm) {
+    void Ror(const Register& rd, const Register& rn, const Register& rm) {
         MOZ_ASSERT(!rd.IsZero());
         MOZ_ASSERT(!rn.IsZero());
         MOZ_ASSERT(!rm.IsZero());
         rorv(rd, rn, rm);
     }
-    void Sbfiz(const ARMRegister& rd, const ARMRegister& rn, unsigned lsb, unsigned width) {
+    void Sbfiz(const Register& rd, const Register& rn, unsigned lsb, unsigned width) {
         MOZ_ASSERT(!rd.IsZero());
         MOZ_ASSERT(!rn.IsZero());
         sbfiz(rd, rn, lsb, width);
     }
-    void Sbfx(const ARMRegister& rd, const ARMRegister& rn, unsigned lsb, unsigned width) {
+    void Sbfx(const Register& rd, const Register& rn, unsigned lsb, unsigned width) {
         MOZ_ASSERT(!rd.IsZero());
         MOZ_ASSERT(!rn.IsZero());
         sbfx(rd, rn, lsb, width);
     }
-    void Scvtf(const ARMFPRegister& fd, const ARMRegister& rn, unsigned fbits = 0) {
+    void Scvtf(const FPRegister& fd, const Register& rn, unsigned fbits = 0) {
         MOZ_ASSERT(!rn.IsZero());
         scvtf(fd, rn, fbits);
     }
-    void Sdiv(const ARMRegister& rd, const ARMRegister& rn, const ARMRegister& rm) {
+    void Sdiv(const Register& rd, const Register& rn, const Register& rm) {
         MOZ_ASSERT(!rd.IsZero());
         MOZ_ASSERT(!rn.IsZero());
         MOZ_ASSERT(!rm.IsZero());
         sdiv(rd, rn, rm);
     }
-    void Smaddl(const ARMRegister& rd, const ARMRegister& rn,
-                const ARMRegister& rm, const ARMRegister& ra) {
+    void Smaddl(const Register& rd, const Register& rn,
+                const Register& rm, const Register& ra) {
         MOZ_ASSERT(!rd.IsZero());
         MOZ_ASSERT(!rn.IsZero());
         MOZ_ASSERT(!rm.IsZero());
         MOZ_ASSERT(!ra.IsZero());
         smaddl(rd, rn, rm, ra);
     }
-    void Smsubl(const ARMRegister& rd, const ARMRegister& rn,
-                const ARMRegister& rm, const ARMRegister& ra) {
+    void Smsubl(const Register& rd, const Register& rn,
+                const Register& rm, const Register& ra) {
         MOZ_ASSERT(!rd.IsZero());
         MOZ_ASSERT(!rn.IsZero());
         MOZ_ASSERT(!rm.IsZero());
         MOZ_ASSERT(!ra.IsZero());
         smsubl(rd, rn, rm, ra);
     }
-    void Smull(const ARMRegister& rd, const ARMRegister& rn, const ARMRegister& rm) {
+    void Smull(const Register& rd, const Register& rn, const Register& rm) {
         MOZ_ASSERT(!rd.IsZero());
         MOZ_ASSERT(!rn.IsZero());
         MOZ_ASSERT(!rm.IsZero());
         smull(rd, rn, rm);
     }
-    void Smulh(const ARMRegister& xd, const ARMRegister& xn, const ARMRegister& xm) {
+    void Smulh(const Register& xd, const Register& xn, const Register& xm) {
         MOZ_ASSERT(!xd.IsZero());
         MOZ_ASSERT(!xn.IsZero());
         MOZ_ASSERT(!xm.IsZero());
         smulh(xd, xn, xm);
     }
-    void Stlr(const ARMRegister& rt, const MemOperand& dst) {
+    void Stlr(const Register& rt, const MemOperand& dst) {
         stlr(rt, dst);
     }
-    void Stlrb(const ARMRegister& rt, const MemOperand& dst) {
+    void Stlrb(const Register& rt, const MemOperand& dst) {
         stlrb(rt, dst);
     }
-    void Stlrh(const ARMRegister& rt, const MemOperand& dst) {
+    void Stlrh(const Register& rt, const MemOperand& dst) {
         stlrh(rt, dst);
     }
-    void Stlxp(const ARMRegister& rs, const ARMRegister& rt,
-               const ARMRegister& rt2, const MemOperand& dst)
+    void Stlxp(const Register& rs, const Register& rt,
+               const Register& rt2, const MemOperand& dst)
     {
         MOZ_ASSERT(!rs.Aliases(dst.base()));
         MOZ_ASSERT(!rs.Aliases(rt));
         MOZ_ASSERT(!rs.Aliases(rt2));
         stlxp(rs, rt, rt2, dst);
     }
-    void Stlxr(const ARMRegister& rs, const ARMRegister& rt, const MemOperand& dst) {
+    void Stlxr(const Register& rs, const Register& rt, const MemOperand& dst) {
         MOZ_ASSERT(!rs.Aliases(dst.base()));
         MOZ_ASSERT(!rs.Aliases(rt));
         stlxr(rs, rt, dst);
     }
-    void Stlxrb(const ARMRegister& rs, const ARMRegister& rt, const MemOperand& dst) {
+    void Stlxrb(const Register& rs, const Register& rt, const MemOperand& dst) {
         MOZ_ASSERT(!rs.Aliases(dst.base()));
         MOZ_ASSERT(!rs.Aliases(rt));
         stlxrb(rs, rt, dst);
     }
-    void Stlxrh(const ARMRegister& rs, const ARMRegister& rt, const MemOperand& dst) {
+    void Stlxrh(const Register& rs, const Register& rt, const MemOperand& dst) {
         MOZ_ASSERT(!rs.Aliases(dst.base()));
         MOZ_ASSERT(!rs.Aliases(rt));
         stlxrh(rs, rt, dst);
@@ -851,82 +848,82 @@ class MacroAssemblerVIXL : public js::jit::Assembler
     void Stp(const CPURegister& rt, const CPURegister& rt2, const MemOperand& dst) {
         stp(rt, rt2, dst);
     }
-    void Stxp(const ARMRegister& rs, const ARMRegister& rt,
-              const ARMRegister& rt2, const MemOperand& dst)
+    void Stxp(const Register& rs, const Register& rt,
+              const Register& rt2, const MemOperand& dst)
     {
         MOZ_ASSERT(!rs.Aliases(dst.base()));
         MOZ_ASSERT(!rs.Aliases(rt));
         MOZ_ASSERT(!rs.Aliases(rt2));
         stxp(rs, rt, rt2, dst);
     }
-    void Stxr(const ARMRegister& rs, const ARMRegister& rt, const MemOperand& dst) {
+    void Stxr(const Register& rs, const Register& rt, const MemOperand& dst) {
         MOZ_ASSERT(!rs.Aliases(dst.base()));
         MOZ_ASSERT(!rs.Aliases(rt));
         stxr(rs, rt, dst);
     }
-    void Stxrb(const ARMRegister& rs, const ARMRegister& rt, const MemOperand& dst) {
+    void Stxrb(const Register& rs, const Register& rt, const MemOperand& dst) {
         MOZ_ASSERT(!rs.Aliases(dst.base()));
         MOZ_ASSERT(!rs.Aliases(rt));
         stxrb(rs, rt, dst);
     }
-    void Stxrh(const ARMRegister& rs, const ARMRegister& rt, const MemOperand& dst) {
+    void Stxrh(const Register& rs, const Register& rt, const MemOperand& dst) {
         MOZ_ASSERT(!rs.Aliases(dst.base()));
         MOZ_ASSERT(!rs.Aliases(rt));
         stxrh(rs, rt, dst);
     }
-    void Sxtb(const ARMRegister& rd, const ARMRegister& rn) {
+    void Sxtb(const Register& rd, const Register& rn) {
         MOZ_ASSERT(!rd.IsZero());
         MOZ_ASSERT(!rn.IsZero());
         sxtb(rd, rn);
     }
-    void Sxth(const ARMRegister& rd, const ARMRegister& rn) {
+    void Sxth(const Register& rd, const Register& rn) {
         MOZ_ASSERT(!rd.IsZero());
         MOZ_ASSERT(!rn.IsZero());
         sxth(rd, rn);
     }
-    void Sxtw(const ARMRegister& rd, const ARMRegister& rn) {
+    void Sxtw(const Register& rd, const Register& rn) {
         MOZ_ASSERT(!rd.IsZero());
         MOZ_ASSERT(!rn.IsZero());
         sxtw(rd, rn);
     }
-    void Tbnz(const ARMRegister& rt, unsigned bit_pos, Label* label) {
+    void Tbnz(const Register& rt, unsigned bit_pos, Label* label) {
         MOZ_ASSERT(!rt.IsZero());
         tbnz(rt, bit_pos, label);
     }
-    void Tbz(const ARMRegister& rt, unsigned bit_pos, Label* label) {
+    void Tbz(const Register& rt, unsigned bit_pos, Label* label) {
         MOZ_ASSERT(!rt.IsZero());
         tbz(rt, bit_pos, label);
     }
-    void Ubfiz(const ARMRegister& rd, const ARMRegister& rn, unsigned lsb, unsigned width) {
+    void Ubfiz(const Register& rd, const Register& rn, unsigned lsb, unsigned width) {
         MOZ_ASSERT(!rd.IsZero());
         MOZ_ASSERT(!rn.IsZero());
         ubfiz(rd, rn, lsb, width);
     }
-    void Ubfx(const ARMRegister& rd, const ARMRegister& rn, unsigned lsb, unsigned width) {
+    void Ubfx(const Register& rd, const Register& rn, unsigned lsb, unsigned width) {
         MOZ_ASSERT(!rd.IsZero());
         MOZ_ASSERT(!rn.IsZero());
         ubfx(rd, rn, lsb, width);
     }
-    void Ucvtf(const ARMFPRegister& fd, const ARMRegister& rn, unsigned fbits = 0) {
+    void Ucvtf(const FPRegister& fd, const Register& rn, unsigned fbits = 0) {
         MOZ_ASSERT(!rn.IsZero());
         ucvtf(fd, rn, fbits);
     }
-    void Udiv(const ARMRegister& rd, const ARMRegister& rn, const ARMRegister& rm) {
+    void Udiv(const Register& rd, const Register& rn, const Register& rm) {
         MOZ_ASSERT(!rd.IsZero());
         MOZ_ASSERT(!rn.IsZero());
         MOZ_ASSERT(!rm.IsZero());
         udiv(rd, rn, rm);
     }
-    void Umaddl(const ARMRegister& rd, const ARMRegister& rn,
-                const ARMRegister& rm, const ARMRegister& ra) {
+    void Umaddl(const Register& rd, const Register& rn,
+                const Register& rm, const Register& ra) {
         MOZ_ASSERT(!rd.IsZero());
         MOZ_ASSERT(!rn.IsZero());
         MOZ_ASSERT(!rm.IsZero());
         MOZ_ASSERT(!ra.IsZero());
         umaddl(rd, rn, rm, ra);
     }
-    void Umsubl(const ARMRegister& rd, const ARMRegister& rn,
-                const ARMRegister& rm, const ARMRegister& ra) {
+    void Umsubl(const Register& rd, const Register& rn,
+                const Register& rm, const Register& ra) {
         MOZ_ASSERT(!rd.IsZero());
         MOZ_ASSERT(!rn.IsZero());
         MOZ_ASSERT(!rm.IsZero());
@@ -942,17 +939,17 @@ class MacroAssemblerVIXL : public js::jit::Assembler
         blr(xzr);
 #endif
     }
-    void Uxtb(const ARMRegister& rd, const ARMRegister& rn) {
+    void Uxtb(const Register& rd, const Register& rn) {
         MOZ_ASSERT(!rd.IsZero());
         MOZ_ASSERT(!rn.IsZero());
         uxtb(rd, rn);
     }
-    void Uxth(const ARMRegister& rd, const ARMRegister& rn) {
+    void Uxth(const Register& rd, const Register& rn) {
         MOZ_ASSERT(!rd.IsZero());
         MOZ_ASSERT(!rn.IsZero());
         uxth(rd, rn);
     }
-    void Uxtw(const ARMRegister& rd, const ARMRegister& rn) {
+    void Uxtw(const Register& rd, const Register& rn) {
         MOZ_ASSERT(!rd.IsZero());
         MOZ_ASSERT(!rn.IsZero());
         uxtw(rd, rn);
@@ -974,21 +971,21 @@ class MacroAssemblerVIXL : public js::jit::Assembler
     void BumpSystemStackPointer(const Operand& space);
 
     // Set the current stack pointer, but don't generate any code.
-    void SetStackPointer64(const ARMRegister& stack_pointer) {
+    void SetStackPointer64(const Register& stack_pointer) {
         MOZ_ASSERT(!TmpList()->IncludesAliasOf(stack_pointer));
         sp_ = stack_pointer;
     }
 
     // Return the current stack pointer, as set by SetStackPointer64.
-    const ARMRegister& GetStackPointer64() const {
+    const Register& GetStackPointer64() const {
         return sp_;
     }
-    const Register getStackPointer() const {
+    const js::jit::Register getStackPointer() const {
         int code = sp_.code();
         if (code == kSPRegInternalCode) {
             code = 31;
         }
-        return Register::FromCode(code);
+        return js::jit::Register::FromCode(code);
     }
 
     CPURegList* TmpList() { return &tmp_list_; }
@@ -997,8 +994,8 @@ class MacroAssemblerVIXL : public js::jit::Assembler
     // Like printf, but print at run-time from generated code.
     //
     // The caller must ensure that arguments for floating-point placeholders
-    // (such as %e, %f or %g) are ARMFPRegisters, and that arguments for integer
-    // placeholders are ARMRegisters.
+    // (such as %e, %f or %g) are FPRegisters, and that arguments for integer
+    // placeholders are Registers.
     //
     // At the moment it is only possible to print the value of sp if it is the
     // current stack pointer. Otherwise, the MacroAssemblerVIXL will automatically
@@ -1092,7 +1089,7 @@ class MacroAssemblerVIXL : public js::jit::Assembler
 #endif
 
     // The register to use as a stack pointer for stack operations.
-    ARMRegister sp_;
+    Register sp_;
 
     // Scratch registers available for use by the MacroAssemblerVIXL.
     CPURegList tmp_list_;
@@ -1159,8 +1156,8 @@ class UseScratchRegisterScope {
         old_available_(available_->list()),
         old_availablefp_(availablefp_->list())
     {
-        MOZ_ASSERT(available_->type() == CPURegister::kARMRegister);
-        MOZ_ASSERT(availablefp_->type() == CPURegister::kARMFPRegister);
+        MOZ_ASSERT(available_->type() == CPURegister::kRegister);
+        MOZ_ASSERT(availablefp_->type() == CPURegister::kFPRegister);
     }
 
     ~UseScratchRegisterScope();
@@ -1169,14 +1166,14 @@ class UseScratchRegisterScope {
 
     // Take a register from the appropriate temps list. It will be returned
     // automatically when the scope ends.
-    ARMRegister AcquireW() { return AcquireNextAvailable(available_).W(); }
-    ARMRegister AcquireX() { return AcquireNextAvailable(available_).X(); }
-    ARMFPRegister AcquireS() { return AcquireNextAvailable(availablefp_).S(); }
-    ARMFPRegister AcquireD() { return AcquireNextAvailable(availablefp_).D(); }
+    Register AcquireW() { return AcquireNextAvailable(available_).W(); }
+    Register AcquireX() { return AcquireNextAvailable(available_).X(); }
+    FPRegister AcquireS() { return AcquireNextAvailable(availablefp_).S(); }
+    FPRegister AcquireD() { return AcquireNextAvailable(availablefp_).D(); }
 
 
-    ARMRegister AcquireSameSizeAs(const ARMRegister& reg);
-    ARMFPRegister AcquireSameSizeAs(const ARMFPRegister& reg);
+    Register AcquireSameSizeAs(const Register& reg);
+    FPRegister AcquireSameSizeAs(const FPRegister& reg);
 
 
     // Explicitly release an acquired (or excluded) register, putting it back in
@@ -1187,28 +1184,28 @@ class UseScratchRegisterScope {
     // Make the specified registers available as scratch registers for the
     // duration of this scope.
     void Include(const CPURegList& list);
-    void Include(const ARMRegister& reg1,
-                 const ARMRegister& reg2 = NoReg,
-                 const ARMRegister& reg3 = NoReg,
-                 const ARMRegister& reg4 = NoReg);
-    void Include(const ARMFPRegister& reg1,
-                 const ARMFPRegister& reg2 = NoFPReg,
-                 const ARMFPRegister& reg3 = NoFPReg,
-                 const ARMFPRegister& reg4 = NoFPReg);
+    void Include(const Register& reg1,
+                 const Register& reg2 = NoReg,
+                 const Register& reg3 = NoReg,
+                 const Register& reg4 = NoReg);
+    void Include(const FPRegister& reg1,
+                 const FPRegister& reg2 = NoFPReg,
+                 const FPRegister& reg3 = NoFPReg,
+                 const FPRegister& reg4 = NoFPReg);
 
 
     // Make sure that the specified registers are not available in this scope.
     // This can be used to prevent helper functions from using sensitive
     // registers, for example.
     void Exclude(const CPURegList& list);
-    void Exclude(const ARMRegister& reg1,
-                 const ARMRegister& reg2 = NoReg,
-                 const ARMRegister& reg3 = NoReg,
-                 const ARMRegister& reg4 = NoReg);
-    void Exclude(const ARMFPRegister& reg1,
-                 const ARMFPRegister& reg2 = NoFPReg,
-                 const ARMFPRegister& reg3 = NoFPReg,
-                 const ARMFPRegister& reg4 = NoFPReg);
+    void Exclude(const Register& reg1,
+                 const Register& reg2 = NoReg,
+                 const Register& reg3 = NoReg,
+                 const Register& reg4 = NoReg);
+    void Exclude(const FPRegister& reg1,
+                 const FPRegister& reg2 = NoFPReg,
+                 const FPRegister& reg3 = NoFPReg,
+                 const FPRegister& reg4 = NoFPReg);
     void Exclude(const CPURegister& reg1,
                  const CPURegister& reg2 = NoCPUReg,
                  const CPURegister& reg3 = NoCPUReg,
@@ -1227,12 +1224,12 @@ class UseScratchRegisterScope {
     static void ExcludeByRegList(CPURegList* available, RegList exclude);
 
     // Available scratch registers.
-    CPURegList* available_;     // kARMRegister
-    CPURegList* availablefp_;   // kARMFPRegister
+    CPURegList* available_;     // kRegister
+    CPURegList* availablefp_;   // kFPRegister
 
     // The state of the available lists at the start of this scope.
-    RegList old_available_;     // kARMRegister
-    RegList old_availablefp_;   // kARMFPRegister
+    RegList old_available_;     // kRegister
+    RegList old_availablefp_;   // kFPRegister
 };
 
 } // namespace vixl

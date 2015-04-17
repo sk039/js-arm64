@@ -55,10 +55,10 @@ typedef js::jit::AssemblerBufferWithConstantPools<1024, 4, Instruction, Assemble
 typedef uint64_t RegList;
 static const int kRegListSizeInBits = sizeof(RegList) * 8;
 
-// Some CPURegister methods can return ARMRegister and ARMFPRegister types, so we
+// Some CPURegister methods can return Register and FPRegister types, so we
 // need to declare them in advance.
-class ARMRegister;
-class ARMFPRegister;
+class Register;
+class FPRegister;
 
 class CPURegister
 {
@@ -67,8 +67,8 @@ class CPURegister
         // The kInvalid value is used to detect uninitialized static instances,
         // which are always zero-initialized before any constructors are called.
         kInvalid = 0,
-        kARMRegister,
-        kARMFPRegister,
+        kRegister,
+        kFPRegister,
         kNoRegister
     };
 
@@ -172,17 +172,17 @@ class CPURegister
     }
 
     inline bool IsRegister() const {
-        return type_ == kARMRegister;
+        return type_ == kRegister;
     }
 
     inline bool IsFPRegister() const {
-        return type_ == kARMFPRegister;
+        return type_ == kFPRegister;
     }
 
-    const ARMRegister& W() const;
-    const ARMRegister& X() const;
-    const ARMFPRegister& S() const;
-    const ARMFPRegister& D() const;
+    const Register& W() const;
+    const Register& X() const;
+    const FPRegister& S() const;
+    const FPRegister& D() const;
 
     inline bool IsSameSizeAndType(const CPURegister& other) const {
         return (size_ == other.size_) && (type_ == other.type_);
@@ -200,23 +200,23 @@ class CPURegister
 };
 static const CPURegister noReg;
 
-class ARMRegister : public CPURegister
+class Register : public CPURegister
 {
   public:
-    explicit ARMRegister() : CPURegister() {}
+    explicit Register() : CPURegister() {}
 
-    inline explicit ARMRegister(const CPURegister& other)
+    inline explicit Register(const CPURegister& other)
       : CPURegister(other.code(), other.size(), other.type())
     {
       MOZ_ASSERT(IsValidRegister());
     }
 
-    MOZ_CONSTEXPR ARMRegister(unsigned code, unsigned size)
-      : CPURegister(code, size, kARMRegister)
+    MOZ_CONSTEXPR Register(unsigned code, unsigned size)
+      : CPURegister(code, size, kRegister)
     { }
 
-    MOZ_CONSTEXPR ARMRegister(js::jit::Register r, unsigned size)
-      : CPURegister(r.code(), size, kARMRegister)
+    MOZ_CONSTEXPR Register(js::jit::Register r, unsigned size)
+      : CPURegister(r.code(), size, kRegister)
     { }
 
     bool IsValid() const {
@@ -224,36 +224,36 @@ class ARMRegister : public CPURegister
         return IsValidRegister();
     }
 
-    static const ARMRegister& WRegFromCode(unsigned code);
-    static const ARMRegister& XRegFromCode(unsigned code);
+    static const Register& WRegFromCode(unsigned code);
+    static const Register& XRegFromCode(unsigned code);
 
     // V8 compatibility.
     static const int kNumRegisters = kNumberOfRegisters;
     static const int kNumAllocatableRegisters = kNumberOfRegisters - 1;
 
   private:
-    static const ARMRegister wregisters[];
-    static const ARMRegister xregisters[];
+    static const Register wregisters[];
+    static const Register xregisters[];
 };
 
-class ARMFPRegister : public CPURegister
+class FPRegister : public CPURegister
 {
   public:
-    inline ARMFPRegister() : CPURegister() {}
+    inline FPRegister() : CPURegister() {}
 
-    inline explicit ARMFPRegister(const CPURegister& other)
+    inline explicit FPRegister(const CPURegister& other)
       : CPURegister(other.code(), other.size(), other.type())
     {
       MOZ_ASSERT(IsValidFPRegister());
     }
-    MOZ_CONSTEXPR inline ARMFPRegister(js::jit::FloatRegister r, unsigned size)
-        : CPURegister(r.code_, size, kARMFPRegister)
+    MOZ_CONSTEXPR inline FPRegister(js::jit::FloatRegister r, unsigned size)
+        : CPURegister(r.code_, size, kFPRegister)
     { }
-    MOZ_CONSTEXPR inline ARMFPRegister(js::jit::FloatRegister r)
-        : CPURegister(r.code_, r.size() * 8, kARMFPRegister)
+    MOZ_CONSTEXPR inline FPRegister(js::jit::FloatRegister r)
+        : CPURegister(r.code_, r.size() * 8, kFPRegister)
     { }
-    MOZ_CONSTEXPR inline ARMFPRegister(unsigned code, unsigned size)
-      : CPURegister(code, size, kARMFPRegister)
+    MOZ_CONSTEXPR inline FPRegister(unsigned code, unsigned size)
+      : CPURegister(code, size, kFPRegister)
     { }
 
     bool IsValid() const {
@@ -261,45 +261,45 @@ class ARMFPRegister : public CPURegister
         return IsValidFPRegister();
     }
 
-    static const ARMFPRegister& SRegFromCode(unsigned code);
-    static const ARMFPRegister& DRegFromCode(unsigned code);
+    static const FPRegister& SRegFromCode(unsigned code);
+    static const FPRegister& DRegFromCode(unsigned code);
 
     // V8 compatibility.
     static const int kNumRegisters = kNumberOfFloatRegisters;
     static const int kNumAllocatableRegisters = kNumberOfFloatRegisters - 1;
 
   private:
-    static const ARMFPRegister sregisters[];
-    static const ARMFPRegister dregisters[];
+    static const FPRegister sregisters[];
+    static const FPRegister dregisters[];
 };
 
 // No*Reg is used to indicate an unused argument, or an error case. Note that
-// these all compare equal (using the Is() method). The ARMRegister and ARMFPRegister
+// these all compare equal (using the Is() method). The Register and FPRegister
 // variants are provided for convenience.
-const ARMRegister NoReg;
-const ARMFPRegister NoFPReg;
+const Register NoReg;
+const FPRegister NoFPReg;
 const CPURegister NoCPUReg;
 
 #define DEFINE_REGISTERS(N)  \
-constexpr ARMRegister w##N(N, kWRegSize);  \
-constexpr ARMRegister x##N(N, kXRegSize);
+constexpr Register w##N(N, kWRegSize);  \
+constexpr Register x##N(N, kXRegSize);
 REGISTER_CODE_LIST(DEFINE_REGISTERS)
 #undef DEFINE_REGISTERS
-constexpr ARMRegister wsp(kSPRegInternalCode, kWRegSize);
-constexpr ARMRegister sp(kSPRegInternalCode, kXRegSize);
+constexpr Register wsp(kSPRegInternalCode, kWRegSize);
+constexpr Register sp(kSPRegInternalCode, kXRegSize);
 
 #define DEFINE_FPREGISTERS(N)  \
-constexpr ARMFPRegister s##N(N, kSRegSize);  \
-constexpr ARMFPRegister d##N(N, kDRegSize);
+constexpr FPRegister s##N(N, kSRegSize);  \
+constexpr FPRegister d##N(N, kDRegSize);
 REGISTER_CODE_LIST(DEFINE_FPREGISTERS)
 #undef DEFINE_FPREGISTERS
 
-// ARMRegisters aliases.
-constexpr ARMRegister ip0 = x16;
-constexpr ARMRegister ip1 = x17;
-constexpr ARMRegister lr = x30;
-constexpr ARMRegister xzr = x31;
-constexpr ARMRegister wzr = w31;
+// Registers aliases.
+constexpr Register ip0 = x16;
+constexpr Register ip1 = x17;
+constexpr Register lr = x30;
+constexpr Register xzr = x31;
+constexpr Register wzr = w31;
 
 // AreAliased returns true if any of the named registers overlap. Arguments
 // set to NoReg are ignored. The system stack pointer may be specified.
@@ -350,9 +350,9 @@ class CPURegList
                       unsigned first_reg, unsigned last_reg)
       : size_(size), type_(type)
     {
-        MOZ_ASSERT(((type == CPURegister::kARMRegister) &&
+        MOZ_ASSERT(((type == CPURegister::kRegister) &&
                      (last_reg < kNumberOfRegisters)) ||
-                    ((type == CPURegister::kARMFPRegister) &&
+                    ((type == CPURegister::kFPRegister) &&
                      (last_reg < kNumberOfFloatRegisters)));
         MOZ_ASSERT(last_reg >= first_reg);
         list_ = (UINT64_C(1) << (last_reg + 1)) - 1;
@@ -365,7 +365,7 @@ class CPURegList
         return type_;
     }
 
-    // Combine another CPURegList into this one. ARMRegisters that already exist in
+    // Combine another CPURegList into this one. Registers that already exist in
     // this list are left unchanged. The type and size of the registers in the
     // 'other' list must match those in this list.
     void Combine(const CPURegList& other) {
@@ -375,7 +375,7 @@ class CPURegList
         list_ |= other.list();
     }
 
-    // Remove every register in the other CPURegList from this one. ARMRegisters that
+    // Remove every register in the other CPURegList from this one. Registers that
     // do not exist in this list are ignored. The type and size of the registers
     // in the 'other' list must match those in this list.
     void Remove(const CPURegList& other) {
@@ -504,14 +504,14 @@ class Operand
     //       <shift_amount> is uint6_t.
     // This is allowed to be an implicit constructor because Operand is
     // a wrapper class that doesn't normally perform any type conversion.
-    Operand(ARMRegister reg,
+    Operand(Register reg,
             Shift shift = LSL,
             unsigned shift_amount = 0);   // NOLINT(runtime/explicit)
 
     // rm, {<extend> {#<shift_amount>}}
     // where <extend> is one of {UXTB, UXTH, UXTW, UXTX, SXTB, SXTH, SXTW, SXTX}.
     //       <shift_amount> is uint2_t.
-    explicit Operand(ARMRegister reg, Extend extend, unsigned shift_amount = 0);
+    explicit Operand(Register reg, Extend extend, unsigned shift_amount = 0);
 
     bool IsImmediate() const;
     bool IsShiftedRegister() const;
@@ -527,7 +527,7 @@ class Operand
         return immediate_;
     }
 
-    ARMRegister reg() const {
+    Register reg() const {
         MOZ_ASSERT(IsShiftedRegister() || IsExtendedRegister());
         return reg_;
     }
@@ -555,7 +555,7 @@ class Operand
 
   private:
     int64_t immediate_;
-    ARMRegister reg_;
+    Register reg_;
     Shift shift_;
     Extend extend_;
     unsigned shift_amount_;
@@ -566,29 +566,29 @@ class Operand
 class MemOperand
 {
   public:
-    explicit MemOperand(ARMRegister base,
+    explicit MemOperand(Register base,
                         ptrdiff_t offset = 0,
                         AddrMode addrmode = Offset);
-    explicit MemOperand(ARMRegister base,
-                        ARMRegister regoffset,
+    explicit MemOperand(Register base,
+                        Register regoffset,
                         Shift shift = LSL,
                         unsigned shift_amount = 0);
-    explicit MemOperand(ARMRegister base,
-                        ARMRegister regoffset,
+    explicit MemOperand(Register base,
+                        Register regoffset,
                         Extend extend,
                         unsigned shift_amount = 0);
-    explicit MemOperand(ARMRegister base,
+    explicit MemOperand(Register base,
                         const Operand& offset,
                         AddrMode addrmode = Offset);
     explicit MemOperand(ptrdiff_t PCoffset);
 
     // Adapter constructors using C++11 delegating.
     explicit MemOperand(js::jit::Address addr)
-      : MemOperand(ARMRegister(addr.base, 64), (ptrdiff_t)addr.offset)
+      : MemOperand(Register(addr.base, 64), (ptrdiff_t)addr.offset)
     { }
 
-    const ARMRegister& base() const { return base_; }
-    const ARMRegister& regoffset() const { return regoffset_; }
+    const Register& base() const { return base_; }
+    const Register& regoffset() const { return regoffset_; }
     ptrdiff_t offset() const { return offset_; }
     AddrMode addrmode() const { return addrmode_; }
     Shift shift() const { return shift_; }
@@ -600,8 +600,8 @@ class MemOperand
     bool IsPostIndex() const;
 
  private:
-    ARMRegister base_;
-    ARMRegister regoffset_;
+    Register base_;
+    Register regoffset_;
     ptrdiff_t offset_;
     AddrMode addrmode_;
     Shift shift_;
@@ -832,14 +832,14 @@ class AssemblerVIXL : public js::jit::AssemblerShared
     // Branch / Jump instructions.
     // Branch to register.
 
-    void br(const ARMRegister& xn);
-    static void br(Instruction* at, const ARMRegister& xn);
+    void br(const Register& xn);
+    static void br(Instruction* at, const Register& xn);
 
     // Branch with link to register.
-    void blr(const ARMRegister& xn);
-    static void blr(Instruction* at, const ARMRegister& xn);
+    void blr(const Register& xn);
+    static void blr(Instruction* at, const Register& xn);
     // Branch to register with return hint.
-    void ret(const ARMRegister& xn = lr);
+    void ret(const Register& xn = lr);
 
     // Unconditional branch to label.
     BufferOffset b(Label* label);
@@ -863,153 +863,153 @@ class AssemblerVIXL : public js::jit::AssemblerShared
     static void bl(Instruction* at, int imm26);
 
     // Compare and branch to label if zero.
-    void cbz(const ARMRegister& rt, Label* label);
+    void cbz(const Register& rt, Label* label);
 
     // Compare and branch to PC offset if zero.
-    void cbz(const ARMRegister& rt, int imm19);
-    static void cbz(Instruction* at, const ARMRegister& rt, int imm19);
+    void cbz(const Register& rt, int imm19);
+    static void cbz(Instruction* at, const Register& rt, int imm19);
 
     // Compare and branch to label if not zero.
-    void cbnz(const ARMRegister& rt, Label* label);
+    void cbnz(const Register& rt, Label* label);
 
     // Compare and branch to PC offset if not zero.
-    void cbnz(const ARMRegister& rt, int imm19);
-    static void cbnz(Instruction* at, const ARMRegister& rt, int imm19);
+    void cbnz(const Register& rt, int imm19);
+    static void cbnz(Instruction* at, const Register& rt, int imm19);
 
     // Test bit and branch to label if zero.
-    void tbz(const ARMRegister& rt, unsigned bit_pos, Label* label);
+    void tbz(const Register& rt, unsigned bit_pos, Label* label);
 
     // Test bit and branch to PC offset if zero.
-    void tbz(const ARMRegister& rt, unsigned bit_pos, int imm14);
-    static void tbz(Instruction* at, const ARMRegister& rt, unsigned bit_pos, int imm14);
+    void tbz(const Register& rt, unsigned bit_pos, int imm14);
+    static void tbz(Instruction* at, const Register& rt, unsigned bit_pos, int imm14);
 
     // Test bit and branch to label if not zero.
-    void tbnz(const ARMRegister& rt, unsigned bit_pos, Label* label);
+    void tbnz(const Register& rt, unsigned bit_pos, Label* label);
 
     // Test bit and branch to PC offset if not zero.
-    void tbnz(const ARMRegister& rt, unsigned bit_pos, int imm14);
-    static void tbnz(Instruction* at, const ARMRegister& rt, unsigned bit_pos, int imm14);
+    void tbnz(const Register& rt, unsigned bit_pos, int imm14);
+    static void tbnz(Instruction* at, const Register& rt, unsigned bit_pos, int imm14);
 
     // Address calculation instructions.
     // Calculate a PC-relative address. Unlike for branches the offset in adr is
     // unscaled (i.e. the result can be unaligned).
 
     // Calculate the address of a label.
-    void adr(const ARMRegister& rd, Label* label);
+    void adr(const Register& rd, Label* label);
 
     // Calculate the address of a PC offset.
-    void adr(const ARMRegister& rd, int imm21);
-    static void adr(Instruction* at, const ARMRegister& rd, int imm21);
+    void adr(const Register& rd, int imm21);
+    static void adr(Instruction* at, const Register& rd, int imm21);
 
     // Calculate the page address of a label.
-    void adrp(const ARMRegister& rd, Label* label);
+    void adrp(const Register& rd, Label* label);
 
     // Calculate the page address of a PC offset.
-    void adrp(const ARMRegister& rd, int imm21);
+    void adrp(const Register& rd, int imm21);
 
     // Data Processing instructions.
     // Add.
-    void add(const ARMRegister& rd, const ARMRegister& rn, const Operand& operand);
+    void add(const Register& rd, const Register& rn, const Operand& operand);
 
     // Add and update status flags.
-    void adds(const ARMRegister& rd, const ARMRegister& rn, const Operand& operand);
+    void adds(const Register& rd, const Register& rn, const Operand& operand);
 
     // Compare negative.
-    void cmn(const ARMRegister& rn, const Operand& operand);
+    void cmn(const Register& rn, const Operand& operand);
 
     // Subtract.
-    void sub(const ARMRegister& rd, const ARMRegister& rn, const Operand& operand);
+    void sub(const Register& rd, const Register& rn, const Operand& operand);
 
     // Subtract and update status flags.
-    void subs(const ARMRegister& rd, const ARMRegister& rn, const Operand& operand);
+    void subs(const Register& rd, const Register& rn, const Operand& operand);
 
     // Compare.
-    void cmp(const ARMRegister& rn, const Operand& operand);
+    void cmp(const Register& rn, const Operand& operand);
 
     // Negate.
-    void neg(const ARMRegister& rd, const Operand& operand);
+    void neg(const Register& rd, const Operand& operand);
 
     // Negate and update status flags.
-    void negs(const ARMRegister& rd, const Operand& operand);
+    void negs(const Register& rd, const Operand& operand);
 
     // Add with carry bit.
-    void adc(const ARMRegister& rd, const ARMRegister& rn, const Operand& operand);
+    void adc(const Register& rd, const Register& rn, const Operand& operand);
 
     // Add with carry bit and update status flags.
-    void adcs(const ARMRegister& rd, const ARMRegister& rn, const Operand& operand);
+    void adcs(const Register& rd, const Register& rn, const Operand& operand);
 
     // Subtract with carry bit.
-    void sbc(const ARMRegister& rd, const ARMRegister& rn, const Operand& operand);
+    void sbc(const Register& rd, const Register& rn, const Operand& operand);
 
     // Subtract with carry bit and update status flags.
-    void sbcs(const ARMRegister& rd, const ARMRegister& rn, const Operand& operand);
+    void sbcs(const Register& rd, const Register& rn, const Operand& operand);
 
     // Negate with carry bit.
-    void ngc(const ARMRegister& rd, const Operand& operand);
+    void ngc(const Register& rd, const Operand& operand);
 
     // Negate with carry bit and update status flags.
-    void ngcs(const ARMRegister& rd, const Operand& operand);
+    void ngcs(const Register& rd, const Operand& operand);
 
     // Logical instructions.
     // Bitwise and (A & B).
-    void and_(const ARMRegister& rd, const ARMRegister& rn, const Operand& operand);
+    void and_(const Register& rd, const Register& rn, const Operand& operand);
 
     // Bitwise and (A & B) and update status flags.
-    BufferOffset ands(const ARMRegister& rd, const ARMRegister& rn, const Operand& operand);
+    BufferOffset ands(const Register& rd, const Register& rn, const Operand& operand);
 
     // Bit test and set flags.
-    BufferOffset tst(const ARMRegister& rn, const Operand& operand);
+    BufferOffset tst(const Register& rn, const Operand& operand);
 
     // Bit clear (A & ~B).
-    void bic(const ARMRegister& rd, const ARMRegister& rn, const Operand& operand);
+    void bic(const Register& rd, const Register& rn, const Operand& operand);
 
     // Bit clear (A & ~B) and update status flags.
-    void bics(const ARMRegister& rd, const ARMRegister& rn, const Operand& operand);
+    void bics(const Register& rd, const Register& rn, const Operand& operand);
 
     // Bitwise or (A | B).
-    void orr(const ARMRegister& rd, const ARMRegister& rn, const Operand& operand);
+    void orr(const Register& rd, const Register& rn, const Operand& operand);
 
     // Bitwise nor (A | ~B).
-    void orn(const ARMRegister& rd, const ARMRegister& rn, const Operand& operand);
+    void orn(const Register& rd, const Register& rn, const Operand& operand);
 
     // Bitwise eor/xor (A ^ B).
-    void eor(const ARMRegister& rd, const ARMRegister& rn, const Operand& operand);
+    void eor(const Register& rd, const Register& rn, const Operand& operand);
 
     // Bitwise enor/xnor (A ^ ~B).
-    void eon(const ARMRegister& rd, const ARMRegister& rn, const Operand& operand);
+    void eon(const Register& rd, const Register& rn, const Operand& operand);
 
     // Logical shift left by variable.
-    void lslv(const ARMRegister& rd, const ARMRegister& rn, const ARMRegister& rm);
+    void lslv(const Register& rd, const Register& rn, const Register& rm);
 
     // Logical shift right by variable.
-    void lsrv(const ARMRegister& rd, const ARMRegister& rn, const ARMRegister& rm);
+    void lsrv(const Register& rd, const Register& rn, const Register& rm);
 
     // Arithmetic shift right by variable.
-    void asrv(const ARMRegister& rd, const ARMRegister& rn, const ARMRegister& rm);
+    void asrv(const Register& rd, const Register& rn, const Register& rm);
 
     // Rotate right by variable.
-    void rorv(const ARMRegister& rd, const ARMRegister& rn, const ARMRegister& rm);
+    void rorv(const Register& rd, const Register& rn, const Register& rm);
 
     // Bitfield instructions.
     // Bitfield move.
-    void bfm(const ARMRegister& rd, const ARMRegister& rn, unsigned immr, unsigned imms);
+    void bfm(const Register& rd, const Register& rn, unsigned immr, unsigned imms);
 
     // Signed bitfield move.
-    void sbfm(const ARMRegister& rd, const ARMRegister& rn, unsigned immr, unsigned imms);
+    void sbfm(const Register& rd, const Register& rn, unsigned immr, unsigned imms);
 
     // Unsigned bitfield move.
-    void ubfm(const ARMRegister& rd, const ARMRegister& rn, unsigned immr, unsigned imms);
+    void ubfm(const Register& rd, const Register& rn, unsigned immr, unsigned imms);
 
     // Bfm aliases.
     // Bitfield insert.
-    inline void bfi(const ARMRegister& rd, const ARMRegister& rn, unsigned lsb, unsigned width) {
+    inline void bfi(const Register& rd, const Register& rn, unsigned lsb, unsigned width) {
         MOZ_ASSERT(width >= 1);
         MOZ_ASSERT(lsb + width <= rn.size());
         bfm(rd, rn, (rd.size() - lsb) & (rd.size() - 1), width - 1);
     }
 
     // Bitfield extract and insert low.
-    inline void bfxil(const ARMRegister& rd, const ARMRegister& rn, unsigned lsb, unsigned width) {
+    inline void bfxil(const Register& rd, const Register& rn, unsigned lsb, unsigned width) {
         MOZ_ASSERT(width >= 1);
         MOZ_ASSERT(lsb + width <= rn.size());
         bfm(rd, rn, lsb, lsb + width - 1);
@@ -1017,184 +1017,184 @@ class AssemblerVIXL : public js::jit::AssemblerShared
 
     // Sbfm aliases.
     // Arithmetic shift right.
-    inline void asr(const ARMRegister& rd, const ARMRegister& rn, unsigned shift) {
+    inline void asr(const Register& rd, const Register& rn, unsigned shift) {
         MOZ_ASSERT(shift < rd.size());
         sbfm(rd, rn, shift, rd.size() - 1);
     }
 
     // Signed bitfield insert with zero at right.
-    inline void sbfiz(const ARMRegister& rd, const ARMRegister& rn, unsigned lsb, unsigned width) {
+    inline void sbfiz(const Register& rd, const Register& rn, unsigned lsb, unsigned width) {
         MOZ_ASSERT(width >= 1);
         MOZ_ASSERT(lsb + width <= rn.size());
         sbfm(rd, rn, (rd.size() - lsb) & (rd.size() - 1), width - 1);
     }
 
     // Signed bitfield extract.
-    inline void sbfx(const ARMRegister& rd, const ARMRegister& rn, unsigned lsb, unsigned width) {
+    inline void sbfx(const Register& rd, const Register& rn, unsigned lsb, unsigned width) {
         MOZ_ASSERT(width >= 1);
         MOZ_ASSERT(lsb + width <= rn.size());
         sbfm(rd, rn, lsb, lsb + width - 1);
     }
 
     // Signed extend byte.
-    inline void sxtb(const ARMRegister& rd, const ARMRegister& rn) {
+    inline void sxtb(const Register& rd, const Register& rn) {
         sbfm(rd, rn, 0, 7);
     }
 
     // Signed extend halfword.
-    inline void sxth(const ARMRegister& rd, const ARMRegister& rn) {
+    inline void sxth(const Register& rd, const Register& rn) {
         sbfm(rd, rn, 0, 15);
     }
 
     // Signed extend word.
-    inline void sxtw(const ARMRegister& rd, const ARMRegister& rn) {
+    inline void sxtw(const Register& rd, const Register& rn) {
         sbfm(rd, rn, 0, 31);
     }
 
     // Ubfm aliases.
     // Logical shift left.
-    inline void lsl(const ARMRegister& rd, const ARMRegister& rn, unsigned shift) {
+    inline void lsl(const Register& rd, const Register& rn, unsigned shift) {
         unsigned reg_size = rd.size();
         MOZ_ASSERT(shift < reg_size);
         ubfm(rd, rn, (reg_size - shift) % reg_size, reg_size - shift - 1);
     }
 
     // Logical shift right.
-    inline void lsr(const ARMRegister& rd, const ARMRegister& rn, unsigned shift) {
+    inline void lsr(const Register& rd, const Register& rn, unsigned shift) {
         MOZ_ASSERT(shift < rd.size());
         ubfm(rd, rn, shift, rd.size() - 1);
     }
 
     // Unsigned bitfield insert with zero at right.
-    inline void ubfiz(const ARMRegister& rd, const ARMRegister& rn, unsigned lsb, unsigned width) {
+    inline void ubfiz(const Register& rd, const Register& rn, unsigned lsb, unsigned width) {
         MOZ_ASSERT(width >= 1);
         MOZ_ASSERT(lsb + width <= rn.size());
         ubfm(rd, rn, (rd.size() - lsb) & (rd.size() - 1), width - 1);
     }
 
     // Unsigned bitfield extract.
-    inline void ubfx(const ARMRegister& rd, const ARMRegister& rn, unsigned lsb, unsigned width) {
+    inline void ubfx(const Register& rd, const Register& rn, unsigned lsb, unsigned width) {
         MOZ_ASSERT(width >= 1);
         MOZ_ASSERT(lsb + width <= rn.size());
         ubfm(rd, rn, lsb, lsb + width - 1);
     }
 
     // Unsigned extend byte.
-    inline void uxtb(const ARMRegister& rd, const ARMRegister& rn) {
+    inline void uxtb(const Register& rd, const Register& rn) {
         ubfm(rd, rn, 0, 7);
     }
 
     // Unsigned extend halfword.
-    inline void uxth(const ARMRegister& rd, const ARMRegister& rn) {
+    inline void uxth(const Register& rd, const Register& rn) {
         ubfm(rd, rn, 0, 15);
     }
 
     // Unsigned extend word.
-    inline void uxtw(const ARMRegister& rd, const ARMRegister& rn) {
+    inline void uxtw(const Register& rd, const Register& rn) {
         ubfm(rd, rn, 0, 31);
     }
 
     // Extract.
-    void extr(const ARMRegister& rd, const ARMRegister& rn, const ARMRegister& rm, unsigned lsb);
+    void extr(const Register& rd, const Register& rn, const Register& rm, unsigned lsb);
 
     // Conditional select: rd = cond ? rn : rm.
-    void csel(const ARMRegister& rd, const ARMRegister& rn, const ARMRegister& rm, Condition cond);
+    void csel(const Register& rd, const Register& rn, const Register& rm, Condition cond);
 
     // Conditional select increment: rd = cond ? rn : rm + 1.
-    void csinc(const ARMRegister& rd, const ARMRegister& rn, const ARMRegister& rm, Condition cond);
+    void csinc(const Register& rd, const Register& rn, const Register& rm, Condition cond);
 
     // Conditional select inversion: rd = cond ? rn : ~rm.
-    void csinv(const ARMRegister& rd, const ARMRegister& rn, const ARMRegister& rm, Condition cond);
+    void csinv(const Register& rd, const Register& rn, const Register& rm, Condition cond);
 
     // Conditional select negation: rd = cond ? rn : -rm.
-    void csneg(const ARMRegister& rd, const ARMRegister& rn, const ARMRegister& rm, Condition cond);
+    void csneg(const Register& rd, const Register& rn, const Register& rm, Condition cond);
 
     // Conditional set: rd = cond ? 1 : 0.
-    void cset(const ARMRegister& rd, Condition cond);
+    void cset(const Register& rd, Condition cond);
 
     // Conditional set mask: rd = cond ? -1 : 0.
-    void csetm(const ARMRegister& rd, Condition cond);
+    void csetm(const Register& rd, Condition cond);
 
     // Conditional increment: rd = cond ? rn + 1 : rn.
-    void cinc(const ARMRegister& rd, const ARMRegister& rn, Condition cond);
+    void cinc(const Register& rd, const Register& rn, Condition cond);
 
     // Conditional invert: rd = cond ? ~rn : rn.
-    void cinv(const ARMRegister& rd, const ARMRegister& rn, Condition cond);
+    void cinv(const Register& rd, const Register& rn, Condition cond);
 
     // Conditional negate: rd = cond ? -rn : rn.
-    void cneg(const ARMRegister& rd, const ARMRegister& rn, Condition cond);
+    void cneg(const Register& rd, const Register& rn, Condition cond);
 
     // Rotate right.
-    inline void ror(const ARMRegister& rd, const ARMRegister& rs, unsigned shift) {
+    inline void ror(const Register& rd, const Register& rs, unsigned shift) {
         extr(rd, rs, rs, shift);
     }
 
     // Conditional comparison.
     // Conditional compare negative.
-    void ccmn(const ARMRegister& rn, const Operand& operand, StatusFlags nzcv, Condition cond);
+    void ccmn(const Register& rn, const Operand& operand, StatusFlags nzcv, Condition cond);
 
     // Conditional compare.
-    void ccmp(const ARMRegister& rn, const Operand& operand, StatusFlags nzcv, Condition cond);
+    void ccmp(const Register& rn, const Operand& operand, StatusFlags nzcv, Condition cond);
 
     // Multiply.
-    void mul(const ARMRegister& rd, const ARMRegister& rn, const ARMRegister& rm);
+    void mul(const Register& rd, const Register& rn, const Register& rm);
 
     // Negated multiply.
-    void mneg(const ARMRegister& rd, const ARMRegister& rn, const ARMRegister& rm);
+    void mneg(const Register& rd, const Register& rn, const Register& rm);
 
     // Signed long multiply: 32 x 32 -> 64-bit.
-    void smull(const ARMRegister& rd, const ARMRegister& rn, const ARMRegister& rm);
+    void smull(const Register& rd, const Register& rn, const Register& rm);
 
     // Signed multiply high: 64 x 64 -> 64-bit <127:64>.
-    void smulh(const ARMRegister& xd, const ARMRegister& xn, const ARMRegister& xm);
+    void smulh(const Register& xd, const Register& xn, const Register& xm);
 
     // Multiply and accumulate.
-    void madd(const ARMRegister& rd, const ARMRegister& rn,
-              const ARMRegister& rm, const ARMRegister& ra);
+    void madd(const Register& rd, const Register& rn,
+              const Register& rm, const Register& ra);
 
     // Multiply and subtract.
-    void msub(const ARMRegister& rd, const ARMRegister& rn,
-              const ARMRegister& rm, const ARMRegister& ra);
+    void msub(const Register& rd, const Register& rn,
+              const Register& rm, const Register& ra);
 
     // Signed long multiply and accumulate: 32 x 32 + 64 -> 64-bit.
-    void smaddl(const ARMRegister& rd, const ARMRegister& rn,
-                const ARMRegister& rm, const ARMRegister& ra);
+    void smaddl(const Register& rd, const Register& rn,
+                const Register& rm, const Register& ra);
 
     // Unsigned long multiply and accumulate: 32 x 32 + 64 -> 64-bit.
-    void umaddl(const ARMRegister& rd, const ARMRegister& rn,
-                const ARMRegister& rm, const ARMRegister& ra);
+    void umaddl(const Register& rd, const Register& rn,
+                const Register& rm, const Register& ra);
 
     // Signed long multiply and subtract: 64 - (32 x 32) -> 64-bit.
-    void smsubl(const ARMRegister& rd, const ARMRegister& rn,
-                const ARMRegister& rm, const ARMRegister& ra);
+    void smsubl(const Register& rd, const Register& rn,
+                const Register& rm, const Register& ra);
 
     // Unsigned long multiply and subtract: 64 - (32 x 32) -> 64-bit.
-    void umsubl(const ARMRegister& rd, const ARMRegister& rn,
-                const ARMRegister& rm, const ARMRegister& ra);
+    void umsubl(const Register& rd, const Register& rn,
+                const Register& rm, const Register& ra);
 
     // Signed integer divide.
-    void sdiv(const ARMRegister& rd, const ARMRegister& rn, const ARMRegister& rm);
+    void sdiv(const Register& rd, const Register& rn, const Register& rm);
 
     // Unsigned integer divide.
-    void udiv(const ARMRegister& rd, const ARMRegister& rn, const ARMRegister& rm);
+    void udiv(const Register& rd, const Register& rn, const Register& rm);
 
     // Bit reverse.
-    void rbit(const ARMRegister& rd, const ARMRegister& rn);
+    void rbit(const Register& rd, const Register& rn);
 
     // Reverse bytes in 16-bit half words.
-    void rev16(const ARMRegister& rd, const ARMRegister& rn);
+    void rev16(const Register& rd, const Register& rn);
 
     // Reverse bytes in 32-bit words.
-    void rev32(const ARMRegister& rd, const ARMRegister& rn);
+    void rev32(const Register& rd, const Register& rn);
 
     // Reverse bytes.
-    void rev(const ARMRegister& rd, const ARMRegister& rn);
+    void rev(const Register& rd, const Register& rn);
 
     // Count leading zeroes.
-    void clz(const ARMRegister& rd, const ARMRegister& rn);
+    void clz(const Register& rd, const Register& rn);
 
     // Count leading sign bits.
-    void cls(const ARMRegister& rd, const ARMRegister& rn);
+    void cls(const Register& rd, const Register& rn);
 
     // Memory instructions.
     // Load integer or FP register.
@@ -1206,31 +1206,31 @@ class AssemblerVIXL : public js::jit::AssemblerShared
              LoadStoreScalingOption option = PreferScaledOffset);
 
     // Load word with sign extension.
-    void ldrsw(const ARMRegister& rt, const MemOperand& src,
+    void ldrsw(const Register& rt, const MemOperand& src,
                LoadStoreScalingOption option = PreferScaledOffset);
 
     // Load byte.
-    void ldrb(const ARMRegister& rt, const MemOperand& src,
+    void ldrb(const Register& rt, const MemOperand& src,
               LoadStoreScalingOption option = PreferScaledOffset);
 
     // Store byte.
-    void strb(const ARMRegister& rt, const MemOperand& dst,
+    void strb(const Register& rt, const MemOperand& dst,
               LoadStoreScalingOption option = PreferScaledOffset);
 
     // Load byte with sign extension.
-    void ldrsb(const ARMRegister& rt, const MemOperand& src,
+    void ldrsb(const Register& rt, const MemOperand& src,
                LoadStoreScalingOption option = PreferScaledOffset);
 
     // Load half-word.
-    void ldrh(const ARMRegister& rt, const MemOperand& src,
+    void ldrh(const Register& rt, const MemOperand& src,
               LoadStoreScalingOption option = PreferScaledOffset);
 
     // Store half-word.
-    void strh(const ARMRegister& rt, const MemOperand& dst,
+    void strh(const Register& rt, const MemOperand& dst,
               LoadStoreScalingOption option = PreferScaledOffset);
 
     // Load half-word with sign extension.
-    void ldrsh(const ARMRegister& rt, const MemOperand& src,
+    void ldrsh(const Register& rt, const MemOperand& src,
                LoadStoreScalingOption option = PreferScaledOffset);
 
     // Load integer or FP register (with unscaled offset).
@@ -1242,31 +1242,31 @@ class AssemblerVIXL : public js::jit::AssemblerShared
               LoadStoreScalingOption option = PreferUnscaledOffset);
   
     // Load word with sign extension.
-    void ldursw(const ARMRegister& rt, const MemOperand& src,
+    void ldursw(const Register& rt, const MemOperand& src,
                 LoadStoreScalingOption option = PreferUnscaledOffset);
   
     // Load byte (with unscaled offset).
-    void ldurb(const ARMRegister& rt, const MemOperand& src,
+    void ldurb(const Register& rt, const MemOperand& src,
                LoadStoreScalingOption option = PreferUnscaledOffset);
   
     // Store byte (with unscaled offset).
-    void sturb(const ARMRegister& rt, const MemOperand& dst,
+    void sturb(const Register& rt, const MemOperand& dst,
                LoadStoreScalingOption option = PreferUnscaledOffset);
   
     // Load byte with sign extension (and unscaled offset).
-    void ldursb(const ARMRegister& rt, const MemOperand& src,
+    void ldursb(const Register& rt, const MemOperand& src,
                 LoadStoreScalingOption option = PreferUnscaledOffset);
   
     // Load half-word (with unscaled offset).
-    void ldurh(const ARMRegister& rt, const MemOperand& src,
+    void ldurh(const Register& rt, const MemOperand& src,
                LoadStoreScalingOption option = PreferUnscaledOffset);
   
     // Store half-word (with unscaled offset).
-    void sturh(const ARMRegister& rt, const MemOperand& dst,
+    void sturh(const Register& rt, const MemOperand& dst,
                LoadStoreScalingOption option = PreferUnscaledOffset);
   
     // Load half-word with sign extension (and unscaled offset).
-    void ldursh(const ARMRegister& rt, const MemOperand& src,
+    void ldursh(const Register& rt, const MemOperand& src,
                 LoadStoreScalingOption option = PreferUnscaledOffset);
 
     // Load integer or FP register pair.
@@ -1276,7 +1276,7 @@ class AssemblerVIXL : public js::jit::AssemblerShared
     void stp(const CPURegister& rt, const CPURegister& rt2, const MemOperand& dst);
 
     // Load word pair with sign extension.
-    void ldpsw(const ARMRegister& rt, const ARMRegister& rt2, const MemOperand& src);
+    void ldpsw(const Register& rt, const Register& rt2, const MemOperand& src);
 
     // Load integer or FP register pair, non-temporal.
     void ldnp(const CPURegister& rt, const CPURegister& rt2, const MemOperand& src);
@@ -1289,75 +1289,75 @@ class AssemblerVIXL : public js::jit::AssemblerShared
     static void ldr(Instruction* at, const CPURegister& rt, int imm19);
 
     // Load word with sign extension from pc + imm19 << 2.
-    void ldrsw(const ARMRegister& rt, int imm19);
+    void ldrsw(const Register& rt, int imm19);
 
     // Store exclusive byte.
-    void stxrb(const ARMRegister& rs, const ARMRegister& rt, const MemOperand& dst);
+    void stxrb(const Register& rs, const Register& rt, const MemOperand& dst);
   
     // Store exclusive half-word.
-    void stxrh(const ARMRegister& rs, const ARMRegister& rt, const MemOperand& dst);
+    void stxrh(const Register& rs, const Register& rt, const MemOperand& dst);
   
     // Store exclusive register.
-    void stxr(const ARMRegister& rs, const ARMRegister& rt, const MemOperand& dst);
+    void stxr(const Register& rs, const Register& rt, const MemOperand& dst);
   
     // Load exclusive byte.
-    void ldxrb(const ARMRegister& rt, const MemOperand& src);
+    void ldxrb(const Register& rt, const MemOperand& src);
   
     // Load exclusive half-word.
-    void ldxrh(const ARMRegister& rt, const MemOperand& src);
+    void ldxrh(const Register& rt, const MemOperand& src);
   
     // Load exclusive register.
-    void ldxr(const ARMRegister& rt, const MemOperand& src);
+    void ldxr(const Register& rt, const MemOperand& src);
   
     // Store exclusive register pair.
-    void stxp(const ARMRegister& rs, const ARMRegister& rt,
-              const ARMRegister& rt2, const MemOperand& dst);
+    void stxp(const Register& rs, const Register& rt,
+              const Register& rt2, const MemOperand& dst);
   
     // Load exclusive register pair.
-    void ldxp(const ARMRegister& rt, const ARMRegister& rt2, const MemOperand& src);
+    void ldxp(const Register& rt, const Register& rt2, const MemOperand& src);
   
     // Store-release exclusive byte.
-    void stlxrb(const ARMRegister& rs, const ARMRegister& rt, const MemOperand& dst);
+    void stlxrb(const Register& rs, const Register& rt, const MemOperand& dst);
   
     // Store-release exclusive half-word.
-    void stlxrh(const ARMRegister& rs, const ARMRegister& rt, const MemOperand& dst);
+    void stlxrh(const Register& rs, const Register& rt, const MemOperand& dst);
   
     // Store-release exclusive register.
-    void stlxr(const ARMRegister& rs, const ARMRegister& rt, const MemOperand& dst);
+    void stlxr(const Register& rs, const Register& rt, const MemOperand& dst);
   
     // Load-acquire exclusive byte.
-    void ldaxrb(const ARMRegister& rt, const MemOperand& src);
+    void ldaxrb(const Register& rt, const MemOperand& src);
   
     // Load-acquire exclusive half-word.
-    void ldaxrh(const ARMRegister& rt, const MemOperand& src);
+    void ldaxrh(const Register& rt, const MemOperand& src);
   
     // Load-acquire exclusive register.
-    void ldaxr(const ARMRegister& rt, const MemOperand& src);
+    void ldaxr(const Register& rt, const MemOperand& src);
   
     // Store-release exclusive register pair.
-    void stlxp(const ARMRegister& rs, const ARMRegister& rt,
-               const ARMRegister& rt2, const MemOperand& dst);
+    void stlxp(const Register& rs, const Register& rt,
+               const Register& rt2, const MemOperand& dst);
   
     // Load-acquire exclusive register pair.
-    void ldaxp(const ARMRegister& rt, const ARMRegister& rt2, const MemOperand& src);
+    void ldaxp(const Register& rt, const Register& rt2, const MemOperand& src);
   
     // Store-release byte.
-    void stlrb(const ARMRegister& rt, const MemOperand& dst);
+    void stlrb(const Register& rt, const MemOperand& dst);
   
     // Store-release half-word.
-    void stlrh(const ARMRegister& rt, const MemOperand& dst);
+    void stlrh(const Register& rt, const MemOperand& dst);
   
     // Store-release register.
-    void stlr(const ARMRegister& rt, const MemOperand& dst);
+    void stlr(const Register& rt, const MemOperand& dst);
   
     // Load-acquire byte.
-    void ldarb(const ARMRegister& rt, const MemOperand& src);
+    void ldarb(const Register& rt, const MemOperand& src);
   
     // Load-acquire half-word.
-    void ldarh(const ARMRegister& rt, const MemOperand& src);
+    void ldarh(const Register& rt, const MemOperand& src);
   
     // Load-acquire register.
-    void ldar(const ARMRegister& rt, const MemOperand& src);
+    void ldar(const Register& rt, const MemOperand& src);
 
     // Move instructions. The default shift of -1 indicates that the move
     // instruction will calculate an appropriate 16-bit immediate and left shift
@@ -1370,17 +1370,17 @@ class AssemblerVIXL : public js::jit::AssemblerShared
     // most-significant.
 
     // Move immediate and keep.
-    void movk(const ARMRegister& rd, uint64_t imm, int shift = -1) {
+    void movk(const Register& rd, uint64_t imm, int shift = -1) {
         MoveWide(rd, imm, shift, MOVK);
     }
 
     // Move inverted immediate.
-    void movn(const ARMRegister& rd, uint64_t imm, int shift = -1) {
+    void movn(const Register& rd, uint64_t imm, int shift = -1) {
         MoveWide(rd, imm, shift, MOVN);
     }
 
     // Move immediate.
-    void movz(const ARMRegister& rd, uint64_t imm, int shift = -1) {
+    void movz(const Register& rd, uint64_t imm, int shift = -1) {
         MoveWide(rd, imm, shift, MOVZ);
     }
 
@@ -1396,17 +1396,17 @@ class AssemblerVIXL : public js::jit::AssemblerShared
     void hlt(int code);
 
     // Move register to register.
-    void mov(const ARMRegister& rd, const ARMRegister& rn);
+    void mov(const Register& rd, const Register& rn);
 
     // Move inverted operand to register.
-    void mvn(const ARMRegister& rd, const Operand& operand);
+    void mvn(const Register& rd, const Operand& operand);
 
     // System instructions.
     // Move to register from system register.
-    void mrs(const ARMRegister& rt, SystemRegister sysreg);
+    void mrs(const Register& rt, SystemRegister sysreg);
 
     // Move from register to system register.
-    void msr(SystemRegister sysreg, const ARMRegister& rt);
+    void msr(SystemRegister sysreg, const Register& rt);
 
     // System hint.
     BufferOffset hint(SystemHint code);
@@ -1431,135 +1431,135 @@ class AssemblerVIXL : public js::jit::AssemblerShared
     static void nop(Instruction* at);
     // FP instructions.
     // Move double precision immediate to FP register.
-    void fmov(const ARMFPRegister& fd, double imm);
+    void fmov(const FPRegister& fd, double imm);
 
     // Move single precision immediate to FP register.
-    void fmov(const ARMFPRegister& fd, float imm);
+    void fmov(const FPRegister& fd, float imm);
 
     // Move FP register to register.
-    void fmov(const ARMRegister& rd, const ARMFPRegister& fn);
+    void fmov(const Register& rd, const FPRegister& fn);
 
     // Move register to FP register.
-    void fmov(const ARMFPRegister& fd, const ARMRegister& rn);
+    void fmov(const FPRegister& fd, const Register& rn);
 
     // Move FP register to FP register.
-    void fmov(const ARMFPRegister& fd, const ARMFPRegister& fn);
+    void fmov(const FPRegister& fd, const FPRegister& fn);
 
     // FP add.
-    void fadd(const ARMFPRegister& fd, const ARMFPRegister& fn, const ARMFPRegister& fm);
+    void fadd(const FPRegister& fd, const FPRegister& fn, const FPRegister& fm);
 
     // FP subtract.
-    void fsub(const ARMFPRegister& fd, const ARMFPRegister& fn, const ARMFPRegister& fm);
+    void fsub(const FPRegister& fd, const FPRegister& fn, const FPRegister& fm);
 
     // FP multiply.
-    void fmul(const ARMFPRegister& fd, const ARMFPRegister& fn, const ARMFPRegister& fm);
+    void fmul(const FPRegister& fd, const FPRegister& fn, const FPRegister& fm);
 
     // FP fused multiply and add.
-    void fmadd(const ARMFPRegister& fd, const ARMFPRegister& fn,
-               const ARMFPRegister& fm, const ARMFPRegister& fa);
+    void fmadd(const FPRegister& fd, const FPRegister& fn,
+               const FPRegister& fm, const FPRegister& fa);
 
     // FP fused multiply and subtract.
-    void fmsub(const ARMFPRegister& fd, const ARMFPRegister& fn,
-               const ARMFPRegister& fm, const ARMFPRegister& fa);
+    void fmsub(const FPRegister& fd, const FPRegister& fn,
+               const FPRegister& fm, const FPRegister& fa);
 
     // FP fused multiply, add and negate.
-    void fnmadd(const ARMFPRegister& fd, const ARMFPRegister& fn,
-                const ARMFPRegister& fm, const ARMFPRegister& fa);
+    void fnmadd(const FPRegister& fd, const FPRegister& fn,
+                const FPRegister& fm, const FPRegister& fa);
 
     // FP fused multiply, subtract and negate.
-    void fnmsub(const ARMFPRegister& fd, const ARMFPRegister& fn,
-                const ARMFPRegister& fm, const ARMFPRegister& fa);
+    void fnmsub(const FPRegister& fd, const FPRegister& fn,
+                const FPRegister& fm, const FPRegister& fa);
 
     // FP divide.
-    void fdiv(const ARMFPRegister& fd, const ARMFPRegister& fn, const ARMFPRegister& fm);
+    void fdiv(const FPRegister& fd, const FPRegister& fn, const FPRegister& fm);
 
     // FP maximum.
-    void fmax(const ARMFPRegister& fd, const ARMFPRegister& fn, const ARMFPRegister& fm);
+    void fmax(const FPRegister& fd, const FPRegister& fn, const FPRegister& fm);
 
     // FP minimum.
-    void fmin(const ARMFPRegister& fd, const ARMFPRegister& fn, const ARMFPRegister& fm);
+    void fmin(const FPRegister& fd, const FPRegister& fn, const FPRegister& fm);
 
     // FP maximum number.
-    void fmaxnm(const ARMFPRegister& fd, const ARMFPRegister& fn, const ARMFPRegister& fm);
+    void fmaxnm(const FPRegister& fd, const FPRegister& fn, const FPRegister& fm);
 
     // FP minimum number.
-    void fminnm(const ARMFPRegister& fd, const ARMFPRegister& fn, const ARMFPRegister& fm);
+    void fminnm(const FPRegister& fd, const FPRegister& fn, const FPRegister& fm);
 
     // FP absolute.
-    void fabs(const ARMFPRegister& fd, const ARMFPRegister& fn);
+    void fabs(const FPRegister& fd, const FPRegister& fn);
 
     // FP negate.
-    void fneg(const ARMFPRegister& fd, const ARMFPRegister& fn);
+    void fneg(const FPRegister& fd, const FPRegister& fn);
 
     // FP square root.
-    void fsqrt(const ARMFPRegister& fd, const ARMFPRegister& fn);
+    void fsqrt(const FPRegister& fd, const FPRegister& fn);
 
     // FP round to integer (nearest with ties to away).
-    void frinta(const ARMFPRegister& fd, const ARMFPRegister& fn);
+    void frinta(const FPRegister& fd, const FPRegister& fn);
 
     // FP round to integer (toward minus infinity).
-    void frintm(const ARMFPRegister& fd, const ARMFPRegister& fn);
+    void frintm(const FPRegister& fd, const FPRegister& fn);
 
     // FP round to integer (nearest with ties to even).
-    void frintn(const ARMFPRegister& fd, const ARMFPRegister& fn);
+    void frintn(const FPRegister& fd, const FPRegister& fn);
 
     // FP round to integer (towards zero).
-    void frintz(const ARMFPRegister& fd, const ARMFPRegister& fn);
+    void frintz(const FPRegister& fd, const FPRegister& fn);
 
     // FP compare registers.
-    void fcmp(const ARMFPRegister& fn, const ARMFPRegister& fm);
+    void fcmp(const FPRegister& fn, const FPRegister& fm);
 
     // FP compare immediate.
-    void fcmp(const ARMFPRegister& fn, double value);
+    void fcmp(const FPRegister& fn, double value);
 
     // FP conditional compare.
-    void fccmp(const ARMFPRegister& fn, const ARMFPRegister& fm, StatusFlags nzcv, Condition cond);
+    void fccmp(const FPRegister& fn, const FPRegister& fm, StatusFlags nzcv, Condition cond);
 
     // FP conditional select.
-    void fcsel(const ARMFPRegister& fd, const ARMFPRegister& fn,
-               const ARMFPRegister& fm, Condition cond);
+    void fcsel(const FPRegister& fd, const FPRegister& fn,
+               const FPRegister& fm, Condition cond);
 
     // Common FP Convert function.
-    void FPConvertToInt(const ARMRegister& rd, const ARMFPRegister& fn, FPIntegerConvertOp op);
+    void FPConvertToInt(const Register& rd, const FPRegister& fn, FPIntegerConvertOp op);
 
     // FP convert between single and double precision.
-    void fcvt(const ARMFPRegister& fd, const ARMFPRegister& fn);
+    void fcvt(const FPRegister& fd, const FPRegister& fn);
 
     // Convert FP to signed integer (nearest with ties to away).
-    void fcvtas(const ARMRegister& rd, const ARMFPRegister& fn);
+    void fcvtas(const Register& rd, const FPRegister& fn);
 
     // Convert FP to unsigned integer (nearest with ties to away).
-    void fcvtau(const ARMRegister& rd, const ARMFPRegister& fn);
+    void fcvtau(const Register& rd, const FPRegister& fn);
 
     // Convert FP to signed integer (round towards -infinity).
-    void fcvtms(const ARMRegister& rd, const ARMFPRegister& fn);
+    void fcvtms(const Register& rd, const FPRegister& fn);
 
     // Convert FP to unsigned integer (round towards -infinity).
-    void fcvtmu(const ARMRegister& rd, const ARMFPRegister& fn);
+    void fcvtmu(const Register& rd, const FPRegister& fn);
 
     // Convert FP to signed integer (round towards infinity).
-    void fcvtps(const ARMRegister& rd, const ARMFPRegister& fn);
+    void fcvtps(const Register& rd, const FPRegister& fn);
 
     // Convert FP to unsigned integer (round towards infinity).
-    void fcvtpu(const ARMRegister& rd, const ARMFPRegister& fn);
+    void fcvtpu(const Register& rd, const FPRegister& fn);
 
     // Convert FP to signed integer (nearest with ties to even).
-    void fcvtns(const ARMRegister& rd, const ARMFPRegister& fn);
+    void fcvtns(const Register& rd, const FPRegister& fn);
 
     // Convert FP to unsigned integer (nearest with ties to even).
-    void fcvtnu(const ARMRegister& rd, const ARMFPRegister& fn);
+    void fcvtnu(const Register& rd, const FPRegister& fn);
 
     // Convert FP to signed integer (round towards zero).
-    void fcvtzs(const ARMRegister& rd, const ARMFPRegister& fn);
+    void fcvtzs(const Register& rd, const FPRegister& fn);
 
     // Convert FP to unsigned integer (round towards zero).
-    void fcvtzu(const ARMRegister& rd, const ARMFPRegister& fn);
+    void fcvtzu(const Register& rd, const FPRegister& fn);
 
     // Convert signed integer or fixed point to FP.
-    void scvtf(const ARMFPRegister& fd, const ARMRegister& rn, unsigned fbits = 0);
+    void scvtf(const FPRegister& fd, const Register& rn, unsigned fbits = 0);
 
     // Convert unsigned integer or fixed point to FP.
-    void ucvtf(const ARMFPRegister& fd, const ARMRegister& rn, unsigned fbits = 0);
+    void ucvtf(const FPRegister& fd, const Register& rn, unsigned fbits = 0);
 
     // Emit generic instructions.
     // Emit raw instructions into the instruction stream.
@@ -1589,7 +1589,7 @@ class AssemblerVIXL : public js::jit::AssemblerShared
 
     // Code generation helpers.
 
-    // ARMRegister encoding.
+    // Register encoding.
     static Instr Rd(CPURegister rd) {
         MOZ_ASSERT(rd.code() != kSPRegInternalCode);
         return rd.code() << Rd_offset;
@@ -1627,12 +1627,12 @@ class AssemblerVIXL : public js::jit::AssemblerShared
 
     // These encoding functions allow the stack pointer to be encoded, and
     // disallow the zero register.
-    static Instr RdSP(ARMRegister rd) {
+    static Instr RdSP(Register rd) {
         MOZ_ASSERT(!rd.IsZero());
         return (rd.code() & kRegCodeMask) << Rd_offset;
     }
 
-    static Instr RnSP(ARMRegister rn) {
+    static Instr RnSP(Register rn) {
         MOZ_ASSERT(!rn.IsZero());
         return (rn.code() & kRegCodeMask) << Rn_offset;
     }
@@ -1694,7 +1694,7 @@ class AssemblerVIXL : public js::jit::AssemblerShared
     }
 
     // Data Processing encoding.
-    static Instr SF(ARMRegister rd) {
+    static Instr SF(Register rd) {
         return rd.Is64Bits() ? SixtyFourBits : ThirtyTwoBits;
     }
 
@@ -1850,7 +1850,7 @@ class AssemblerVIXL : public js::jit::AssemblerShared
     static Instr ImmFP64(double imm);
 
     // FP register type.
-    static Instr FPType(ARMFPRegister fd) {
+    static Instr FPType(FPRegister fd) {
         return fd.Is64Bits() ? FP64 : FP32;
     }
 
@@ -1878,7 +1878,7 @@ class AssemblerVIXL : public js::jit::AssemblerShared
     }
 
   protected:
-    inline const ARMRegister& AppropriateZeroRegFor(const CPURegister& reg) const {
+    inline const Register& AppropriateZeroRegFor(const CPURegister& reg) const {
         return reg.Is64Bits() ? xzr : wzr;
     }
 
@@ -1888,18 +1888,18 @@ class AssemblerVIXL : public js::jit::AssemblerShared
     static bool IsImmLSUnscaled(ptrdiff_t offset);
     static bool IsImmLSScaled(ptrdiff_t offset, LSDataSize size);
 
-    BufferOffset Logical(const ARMRegister& rd, const ARMRegister& rn,
+    BufferOffset Logical(const Register& rd, const Register& rn,
                  const Operand& operand, LogicalOp op);
-    BufferOffset LogicalImmediate(const ARMRegister& rd, const ARMRegister& rn, unsigned n,
+    BufferOffset LogicalImmediate(const Register& rd, const Register& rn, unsigned n,
                           unsigned imm_s, unsigned imm_r, LogicalOp op);
     static bool IsImmLogical(uint64_t value, unsigned width, unsigned* n = nullptr,
                              unsigned* imm_s = nullptr, unsigned* imm_r = nullptr);
 
-    void ConditionalCompare(const ARMRegister& rn, const Operand& operand, StatusFlags nzcv,
+    void ConditionalCompare(const Register& rn, const Operand& operand, StatusFlags nzcv,
                             Condition cond, ConditionalCompareOp op);
     static bool IsImmConditionalCompare(int64_t immediate);
 
-    void AddSubWithCarry(const ARMRegister& rd, const ARMRegister& rn, const Operand& operand,
+    void AddSubWithCarry(const Register& rd, const Register& rn, const Operand& operand,
                          FlagsUpdate S, AddSubWithCarryOp op);
 
     static bool IsImmFP32(float imm);
@@ -1907,11 +1907,11 @@ class AssemblerVIXL : public js::jit::AssemblerShared
 
     // Functions for emulating operands not directly supported by the instruction
     // set.
-    void EmitShift(const ARMRegister& rd, const ARMRegister& rn, Shift shift, unsigned amount);
-    void EmitExtendShift(const ARMRegister& rd, const ARMRegister& rn,
+    void EmitShift(const Register& rd, const Register& rn, Shift shift, unsigned amount);
+    void EmitExtendShift(const Register& rd, const Register& rn,
                          Extend extend, unsigned left_shift);
 
-    void AddSub(const ARMRegister& rd, const ARMRegister& rn, const Operand& operand,
+    void AddSub(const Register& rd, const Register& rn, const Operand& operand,
                 FlagsUpdate S, AddSubOp op);
     static bool IsImmAddSub(int64_t immediate);
 
@@ -1934,10 +1934,10 @@ class AssemblerVIXL : public js::jit::AssemblerShared
 
   private:
     // Instruction helpers.
-    void MoveWide(const ARMRegister& rd, uint64_t imm, int shift, MoveWideImmediateOp mov_op);
-    BufferOffset DataProcShiftedRegister(const ARMRegister& rd, const ARMRegister& rn,
+    void MoveWide(const Register& rd, uint64_t imm, int shift, MoveWideImmediateOp mov_op);
+    BufferOffset DataProcShiftedRegister(const Register& rd, const Register& rn,
                                  const Operand& operand, FlagsUpdate S, Instr op);
-    void DataProcExtendedRegister(const ARMRegister& rd, const ARMRegister& rn,
+    void DataProcExtendedRegister(const Register& rd, const Register& rn,
                                   const Operand& operand, FlagsUpdate S, Instr op);
     void LoadStorePair(const CPURegister& rt, const CPURegister& rt2,
                        const MemOperand& addr, LoadStorePairOp op);
@@ -1945,19 +1945,19 @@ class AssemblerVIXL : public js::jit::AssemblerShared
                                   const MemOperand& addr, LoadStorePairNonTemporalOp op);
     void LoadLiteral(const CPURegister& rt, uint64_t imm, LoadLiteralOp op);
     void LoadPCLiteral(const CPURegister& rt, ptrdiff_t PCInsOffset, LoadLiteralOp op);
-    void ConditionalSelect(const ARMRegister& rd, const ARMRegister& rn,
-                           const ARMRegister& rm, Condition cond, ConditionalSelectOp op);
-    void DataProcessing1Source(const ARMRegister& rd, const ARMRegister& rn,
+    void ConditionalSelect(const Register& rd, const Register& rn,
+                           const Register& rm, Condition cond, ConditionalSelectOp op);
+    void DataProcessing1Source(const Register& rd, const Register& rn,
                                DataProcessing1SourceOp op);
-    void DataProcessing3Source(const ARMRegister& rd, const ARMRegister& rn,
-                               const ARMRegister& rm, const ARMRegister& ra,
+    void DataProcessing3Source(const Register& rd, const Register& rn,
+                               const Register& rm, const Register& ra,
                                DataProcessing3SourceOp op);
-    void FPDataProcessing1Source(const ARMFPRegister& fd, const ARMFPRegister& fn,
+    void FPDataProcessing1Source(const FPRegister& fd, const FPRegister& fn,
                                  FPDataProcessing1SourceOp op);
-    void FPDataProcessing2Source(const ARMFPRegister& fd, const ARMFPRegister& fn,
-                                 const ARMFPRegister& fm, FPDataProcessing2SourceOp op);
-    void FPDataProcessing3Source(const ARMFPRegister& fd, const ARMFPRegister& fn,
-                                 const ARMFPRegister& fm, const ARMFPRegister& fa,
+    void FPDataProcessing2Source(const FPRegister& fd, const FPRegister& fn,
+                                 const FPRegister& fm, FPDataProcessing2SourceOp op);
+    void FPDataProcessing3Source(const FPRegister& fd, const FPRegister& fn,
+                                 const FPRegister& fm, const FPRegister& fa,
                                  FPDataProcessing3SourceOp op);
 
     void RecordLiteral(int64_t imm, unsigned size);
