@@ -1170,8 +1170,8 @@ RedirectJitCodeToInterruptCheck(JSRuntime* rt, CONTEXT* context)
         if (module.containsFunctionPC((void*)rt->mainThread.simulator()->get_pc()))
             rt->simulator()->set_resume_pc(int32_t(module.interruptExit()));
 #elif defined(JS_ARM64_SIMULATOR)
-        if (rt->mainThread.simulator() && module.containsFunctionPC((void*)rt->mainThread.simulator()->get_pc()))
-            rt->simulator()->set_resume_pc(int64_t(module.interruptExit()));
+        if (rt->mainThread.simulator() && module.containsFunctionPC((void*)rt->mainThread.simulator()->pc()))
+            rt->simulator()->set_resume_pc(reinterpret_cast<vixl::Instruction*>((module.interruptExit())));
 #endif
 
         uint8_t** ppc = ContextToPC(context);

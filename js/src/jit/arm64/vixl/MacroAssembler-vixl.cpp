@@ -283,7 +283,7 @@ MacroAssemblerVIXL::Mov(const Register& rd, uint64_t imm)
 
     // Immediates on Aarch64 can be produced using an initial value, and zero to
     // three move keep operations.
-    JS_STATIC_ASSERT(kMaxInstrForMoveImm == 4);
+    // JS_STATIC_ASSERT(kMaxInstrForMoveImm == 4);
 
     // Initial values can be generated with:
     //  1. 64-bit move zero (movz).
@@ -1445,6 +1445,7 @@ MacroAssemblerVIXL::AnnotateInstrumentation(const char* marker_name)
 void
 MacroAssemblerVIXL::StackCheck(int index, int value)
 {
+#if 0
 #ifdef JS_ARM64_SIMULATOR
     // The arguments to the trace pseudo instruction need to be contiguous in
     // memory, so make sure we don't try to emit a literal pool.
@@ -1463,11 +1464,13 @@ MacroAssemblerVIXL::StackCheck(int index, int value)
 #else
     // Emit nothing on real hardware.
 #endif
+#endif
 }
 
 void
 MacroAssemblerVIXL::StackCheckPushPop(int index, int value, int direction)
 {
+#if 0
 #ifdef JS_ARM64_SIMULATOR
     // The arguments to the trace pseudo instruction need to be contiguous in
     // memory, so make sure we don't try to emit a literal pool.
@@ -1487,6 +1490,7 @@ MacroAssemblerVIXL::StackCheckPushPop(int index, int value, int direction)
     dc32(direction);
 #else
     // Emit nothing on real hardware.
+#endif
 #endif
 }
 

@@ -1,6 +1,3 @@
-// -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
-// vim: set ts=8 sts=4 et sw=4 tw=99:
-//
 // Copyright 2013, ARM Limited
 // All rights reserved.
 //
@@ -30,86 +27,150 @@
 #ifndef VIXL_A64_DISASM_A64_H
 #define VIXL_A64_DISASM_A64_H
 
-#include "jit/arm64/vixl/Decoder-vixl.h"
-#include "jit/arm64/vixl/Instructions-vixl.h"
 #include "jit/arm64/vixl/Globals-vixl.h"
 #include "jit/arm64/vixl/Utils-vixl.h"
+#include "jit/arm64/vixl/Instructions-vixl.h"
+#include "jit/arm64/vixl/Decoder-vixl.h"
+#include "jit/arm64/vixl/Assembler-vixl.h"
 
 namespace vixl {
 
-class DisassemblerARM64 : public DecoderVisitor
-{
-  public:
-    DisassemblerARM64();
-    DisassemblerARM64(char* text_buffer, int buffer_size);
-    virtual ~DisassemblerARM64();
-    char* GetOutput();
+class Disassembler: public DecoderVisitor {
+ public:
+  Disassembler();
+  Disassembler(char* text_buffer, int buffer_size);
+  virtual ~Disassembler();
+  char* GetOutput();
 
-    // Declare all Visitor functions.
-    #define DECLARE(A)  void Visit##A(Instruction* instr);
-    VISITOR_LIST(DECLARE)
-    #undef DECLARE
+  // Declare all Visitor functions.
+  #define DECLARE(A) virtual void Visit##A(const Instruction* instr);
+  VISITOR_LIST(DECLARE)
+  #undef DECLARE
 
-  protected:
-    virtual void ProcessOutput(Instruction* instr);
+ protected:
+  virtual void ProcessOutput(const Instruction* instr);
 
-  private:
-    void Format(Instruction* instr, const char* mnemonic, const char* format);
-    void Substitute(Instruction* instr, const char* string);
-    int SubstituteField(Instruction* instr, const char* format);
-    int SubstituteRegisterField(Instruction* instr, const char* format);
-    int SubstituteImmediateField(Instruction* instr, const char* format);
-    int SubstituteLiteralField(Instruction* instr, const char* format);
-    int SubstituteBitfieldImmediateField(Instruction* instr, const char* format);
-    int SubstituteShiftField(Instruction* instr, const char* format);
-    int SubstituteExtendField(Instruction* instr, const char* format);
-    int SubstituteConditionField(Instruction* instr, const char* format);
-    int SubstitutePCRelAddressField(Instruction* instr, const char* format);
-    int SubstituteBranchTargetField(Instruction* instr, const char* format);
-    int SubstituteLSRegOffsetField(Instruction* instr, const char* format);
-    int SubstitutePrefetchField(Instruction* instr, const char* format);
-    int SubstituteBarrierField(Instruction* instr, const char* format);
+  // Default output functions.  The functions below implement a default way of
+  // printing elements in the disassembly. A sub-class can override these to
+  // customize the disassembly output.
 
-    inline bool RdIsZROrSP(Instruction* instr) const {
-        return (instr->Rd() == kZeroRegCode);
-    }
+  // Prints the name of a register.
+  virtual void AppendRegisterNameToOutput(const Instruction* instr,
+                                          const CPURegister& reg);
 
-    inline bool RnIsZROrSP(Instruction* instr) const {
-        return (instr->Rn() == kZeroRegCode);
-    }
+  // Prints a PC-relative offset. This is used for example when disassembling
+  // branches to immediate offsets.
+  virtual void AppendPCRelativeOffsetToOutput(const Instruction* instr,
+                                              int64_t offset);
 
-    inline bool RmIsZROrSP(Instruction* instr) const {
-        return (instr->Rm() == kZeroRegCode);
-    }
+  // Prints an address, in the general case. It can be code or data. This is
+  // used for example to print the target address of an ADR instruction.
+  virtual void AppendCodeRelativeAddressToOutput(const Instruction* instr,
+                                                 const void* addr);
 
-    inline bool RaIsZROrSP(Instruction* instr) const {
-        return (instr->Ra() == kZeroRegCode);
-    }
+  // Prints the address of some code.
+  // This is used for example to print the target address of a branch to an
+  // immediate offset.
+  // A sub-class can for example override this method to lookup the address and
+  // print an appropriate name.
+  virtual void AppendCodeRelativeCodeAddressToOutput(const Instruction* instr,
+                                                     const void* addr);
 
-    bool IsMovzMovnImm(unsigned reg_size, uint64_t value);
+  // Prints the address of some data.
+  // This is used for example to print the source address of a load literal
+  // instruction.
+  virtual void AppendCodeRelativeDataAddressToOutput(const Instruction* instr,
+                                                     const void* addr);
 
-    void ResetOutput();
-    void AppendToOutput(const char* string, ...) PRINTF_CHECK(2, 3);
+  // Same as the above, but for addresses that are not relative to the code
+  // buffer. They are currently not used by VIXL.
+  virtual void AppendAddressToOutput(const Instruction* instr,
+                                     const void* addr);
+  virtual void AppendCodeAddressToOutput(const Instruction* instr,
+                                         const void* addr);
+  virtual void AppendDataAddressToOutput(const Instruction* instr,
+                                         const void* addr);
 
-    char* buffer_;
-    uint32_t buffer_pos_;
-    uint32_t buffer_size_;
-    bool own_buffer_;
+ public:
+  // Get/Set the offset that should be added to code addresses when printing
+  // code-relative addresses in the AppendCodeRelative<Type>AddressToOutput()
+  // helpers.
+  // Below is an example of how a branch immediate instruction in memory at
+  // address 0xb010200 would disassemble with different offsets.
+  // Base address | Disassembly
+  //          0x0 | 0xb010200:  b #+0xcc  (addr 0xb0102cc)
+  //      0x10000 | 0xb000200:  b #+0xcc  (addr 0xb0002cc)
+  //    0xb010200 |       0x0:  b #+0xcc  (addr 0xcc)
+  void MapCodeAddress(int64_t base_address, const Instruction* instr_address);
+  int64_t CodeRelativeAddress(const void* instr);
+
+ private:
+  void Format(
+      const Instruction* instr, const char* mnemonic, const char* format);
+  void Substitute(const Instruction* instr, const char* string);
+  int SubstituteField(const Instruction* instr, const char* format);
+  int SubstituteRegisterField(const Instruction* instr, const char* format);
+  int SubstituteImmediateField(const Instruction* instr, const char* format);
+  int SubstituteLiteralField(const Instruction* instr, const char* format);
+  int SubstituteBitfieldImmediateField(
+      const Instruction* instr, const char* format);
+  int SubstituteShiftField(const Instruction* instr, const char* format);
+  int SubstituteExtendField(const Instruction* instr, const char* format);
+  int SubstituteConditionField(const Instruction* instr, const char* format);
+  int SubstitutePCRelAddressField(const Instruction* instr, const char* format);
+  int SubstituteBranchTargetField(const Instruction* instr, const char* format);
+  int SubstituteLSRegOffsetField(const Instruction* instr, const char* format);
+  int SubstitutePrefetchField(const Instruction* instr, const char* format);
+  int SubstituteBarrierField(const Instruction* instr, const char* format);
+
+  bool RdIsZROrSP(const Instruction* instr) const {
+    return (instr->Rd() == kZeroRegCode);
+  }
+
+  bool RnIsZROrSP(const Instruction* instr) const {
+    return (instr->Rn() == kZeroRegCode);
+  }
+
+  bool RmIsZROrSP(const Instruction* instr) const {
+    return (instr->Rm() == kZeroRegCode);
+  }
+
+  bool RaIsZROrSP(const Instruction* instr) const {
+    return (instr->Ra() == kZeroRegCode);
+  }
+
+  bool IsMovzMovnImm(unsigned reg_size, uint64_t value);
+
+  int64_t code_address_offset() const { return code_address_offset_; }
+
+ protected:
+  void ResetOutput();
+  void AppendToOutput(const char* string, ...) PRINTF_CHECK(2, 3);
+
+  void set_code_address_offset(int64_t code_address_offset) {
+    code_address_offset_ = code_address_offset;
+  }
+
+  char* buffer_;
+  uint32_t buffer_pos_;
+  uint32_t buffer_size_;
+  bool own_buffer_;
+
+  int64_t code_address_offset_;
 };
 
-class PrintDisassembler : public DisassemblerARM64
-{
-  public:
-    explicit PrintDisassembler(FILE* stream) : stream_(stream) { }
-    ~PrintDisassembler() { }
 
-  protected:
-    virtual void ProcessOutput(Instruction* instr);
+class PrintDisassembler: public Disassembler {
+ public:
+  explicit PrintDisassembler(FILE* stream) : stream_(stream) { }
+  virtual ~PrintDisassembler() { }
 
-  private:
-    FILE* stream_;
+ protected:
+  virtual void ProcessOutput(const Instruction* instr);
+
+ private:
+  FILE *stream_;
 };
-
-} // namespace vixl
+}  // namespace vixl
 
 #endif  // VIXL_A64_DISASM_A64_H

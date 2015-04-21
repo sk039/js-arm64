@@ -29,6 +29,8 @@
 
 #include "jit/arm64/vixl/Assembler-vixl.h"
 
+#include "jit/Label.h"
+
 #include "jsutil.h"
 
 #include <cmath>
@@ -404,7 +406,7 @@ AssemblerVIXL::FinalizeCode()
 void
 AssemblerVIXL::InsertIndexIntoTag(uint8_t* load, uint32_t index)
 {
-    // Store the PoolEntry index into the instruction.
+    // Store the js::jit::PoolEntry index into the instruction.
     // finishPool() will walk over all literal load instructions
     // and use PatchConstantPoolLoad() to patch to the final relative offset.
     *((uint32_t*)load) |= ImmLLiteral(index);
@@ -415,7 +417,7 @@ AssemblerVIXL::PatchConstantPoolLoad(void* loadAddr, void* constPoolAddr)
 {
     Instruction* load = reinterpret_cast<Instruction*>(loadAddr);
 
-    // The load currently contains the PoolEntry's index,
+    // The load currently contains the js::jit::PoolEntry's index,
     // as written by InsertIndexIntoTag().
     uint32_t index = load->ImmLLiteral();
 
@@ -441,7 +443,7 @@ ptrdiff_t
 AssemblerVIXL::LinkAndGetOffsetTo(BufferOffset branch, Label* label)
 {
     if (armbuffer_.oom())
-        return LabelBase::INVALID_OFFSET;
+        return js::jit::LabelBase::INVALID_OFFSET;
 
     // The label is bound: all uses are already linked.
     if (label->bound()) {
@@ -454,14 +456,14 @@ AssemblerVIXL::LinkAndGetOffsetTo(BufferOffset branch, Label* label)
     // for patching by bind().
     if (!label->used()) {
         label->use(branch.getOffset());
-        return LabelBase::INVALID_OFFSET;
+        return js::jit::LabelBase::INVALID_OFFSET;
     }
 
     // The label is unbound but used. Create an implicit linked list between
     // the branches, and update the linked list head in the label struct.
     ptrdiff_t prevHeadOffset = static_cast<ptrdiff_t>(label->offset());
     label->use(branch.getOffset());
-    MOZ_ASSERT(prevHeadOffset - branch.getOffset() != LabelBase::INVALID_OFFSET);
+    MOZ_ASSERT(prevHeadOffset - branch.getOffset() != js::jit::LabelBase::INVALID_OFFSET);
     return prevHeadOffset - branch.getOffset();
 }
 
@@ -2511,7 +2513,7 @@ AssemblerVIXL::IsImmLogical(uint64_t value, unsigned width, unsigned* n,
     }
 
     // If the repeat period d is not a power of two, it can't be encoded.
-    if (!IsPowerOfTwo(d)) {
+    if (!js::IsPowerOfTwo(d)) {
         return false;
     }
 
@@ -2770,23 +2772,11 @@ struct PoolHeader
         Header tmp(data);
         return tmp.isNatural;
     }
-
-    // FIXME: Remove?
-    /*
-    static bool isTHIS(const Instruction& i) {
-        return (*i.raw() & 0xffff0000) == 0xffff0000;
-    }
-    static const PoolHeader* asTHIS(const Instruction& i) {
-        if (!isTHIS(i))
-            return nullptr;
-        return static_cast<const PoolHeader*>(&i);
-    }
-    */
 };
 
 // FIXME: Share with Assembler-arm.cpp
 void
-AssemblerVIXL::WritePoolHeader(uint8_t* start, Pool* p, bool isNatural)
+AssemblerVIXL::WritePoolHeader(uint8_t* start, js::jit::Pool* p, bool isNatural)
 {
     JS_STATIC_ASSERT(sizeof(PoolHeader) == 4);
 
@@ -2804,7 +2794,7 @@ AssemblerVIXL::WritePoolHeader(uint8_t* start, Pool* p, bool isNatural)
 
 // FIXME: Share with Assembler-arm.cpp
 void
-AssemblerVIXL::WritePoolFooter(uint8_t* start, Pool* p, bool isNatural)
+AssemblerVIXL::WritePoolFooter(uint8_t* start, js::jit::Pool* p, bool isNatural)
 {
     return;
 }

@@ -1,6 +1,3 @@
-// -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
-// vim: set ts=8 sts=4 et sw=4 tw=99:
-//
 // Copyright 2013, ARM Limited
 // All rights reserved.
 //
@@ -30,78 +27,81 @@
 #ifndef VIXL_A64_INSTRUMENT_A64_H_
 #define VIXL_A64_INSTRUMENT_A64_H_
 
-#include "jit/arm64/vixl/Constants-vixl.h"
-#include "jit/arm64/vixl/Decoder-vixl.h"
 #include "jit/arm64/vixl/Globals-vixl.h"
 #include "jit/arm64/vixl/Utils-vixl.h"
+#include "jit/arm64/vixl/Decoder-vixl.h"
+#include "jit/arm64/vixl/Constants-vixl.h"
+#include "jit/arm64/vixl/Instrument-vixl.h"
 
 namespace vixl {
 
 const int kCounterNameMaxLength = 256;
 const uint64_t kDefaultInstrumentationSamplingPeriod = 1 << 22;
 
+
 enum InstrumentState {
-    InstrumentStateDisable = 0,
-    InstrumentStateEnable = 1
+  InstrumentStateDisable = 0,
+  InstrumentStateEnable = 1
 };
+
 
 enum CounterType {
-    Gauge = 0,      // Gauge counters reset themselves after reading.
-    Cumulative = 1  // Cumulative counters keep their value after reading.
+  Gauge = 0,      // Gauge counters reset themselves after reading.
+  Cumulative = 1  // Cumulative counters keep their value after reading.
 };
 
-class Counter
-{
-  public:
-    Counter(const char* name, CounterType type = Gauge);
 
-    void Increment();
-    void Enable();
-    void Disable();
-    bool IsEnabled();
-    uint64_t count();
-    const char* name();
-    CounterType type();
+class Counter {
+ public:
+  explicit Counter(const char* name, CounterType type = Gauge);
 
-  private:
-    char name_[kCounterNameMaxLength];
-    uint64_t count_;
-    bool enabled_;
-    CounterType type_;
+  void Increment();
+  void Enable();
+  void Disable();
+  bool IsEnabled();
+  uint64_t count();
+  const char* name();
+  CounterType type();
+
+ private:
+  char name_[kCounterNameMaxLength];
+  uint64_t count_;
+  bool enabled_;
+  CounterType type_;
 };
 
-class Instrument : public DecoderVisitor
-{
-  public:
-    explicit Instrument(const char* datafile = NULL,
-            uint64_t sample_period = kDefaultInstrumentationSamplingPeriod);
-    ~Instrument();
 
-    void Enable();
-    void Disable();
+class Instrument: public DecoderVisitor {
+ public:
+  explicit Instrument(const char* datafile = NULL,
+    uint64_t sample_period = kDefaultInstrumentationSamplingPeriod);
+  ~Instrument();
 
-    // Declare all Visitor functions.
-    #define DECLARE(A) void Visit##A(Instruction* instr);
-    VISITOR_LIST(DECLARE)
-    #undef DECLARE
+  void Enable();
+  void Disable();
 
-  private:
-    void Update();
-    void DumpCounters();
-    void DumpCounterNames();
-    void DumpEventMarker(unsigned marker);
-    void HandleInstrumentationEvent(unsigned event);
-    Counter* GetCounter(const char* name);
+  // Declare all Visitor functions.
+  #define DECLARE(A) void Visit##A(const Instruction* instr);
+  VISITOR_LIST(DECLARE)
+  #undef DECLARE
 
-    void InstrumentLoadStore(Instruction* instr);
-    void InstrumentLoadStorePair(Instruction* instr);
+ private:
+  void Update();
+  void DumpCounters();
+  void DumpCounterNames();
+  void DumpEventMarker(unsigned marker);
+  void HandleInstrumentationEvent(unsigned event);
+  Counter* GetCounter(const char* name);
 
-    std::list<Counter*> counters_;
+  void InstrumentLoadStore(const Instruction* instr);
+  void InstrumentLoadStorePair(const Instruction* instr);
 
-    FILE* output_stream_;
-    uint64_t sample_period_;
+  std::list<Counter*> counters_;
+
+  FILE *output_stream_;
+  uint64_t sample_period_;
 };
 
-} // namespace vixl
+}  // namespace vixl
 
 #endif  // VIXL_A64_INSTRUMENT_A64_H_

@@ -342,7 +342,7 @@ PatchJump(CodeLocationJump& jump_, CodeLocationLabel label) {
     //printInstruction(jump-12,3);
     //printf("*");
     //printInstruction(jump,3);
-    uint8_t** pe = reinterpret_cast<uint8_t**>(jump->LiteralAddress());
+    uint8_t** pe = jump->LiteralAddress<uint8_t**>();
     //printf("patching %p with %p->[%p]\n", jump, label.raw(), pe);
     *pe = label.raw();
     jump += 4;
@@ -375,7 +375,7 @@ Assembler::PatchDataWithValueCheck(CodeLocationLabel label, PatchedImmPtr newVal
                                    PatchedImmPtr expected)
 {
     Instruction* i = (Instruction*)label.raw();
-    void** pValue = reinterpret_cast<void**>(i->LiteralAddress());
+    void** pValue = i->LiteralAddress<void**>();
     MOZ_ASSERT(*pValue == expected.value);
     *pValue = newValue.value;
 }
@@ -580,7 +580,7 @@ Assembler::FixupNurseryObjects(JSContext* cx, JitCode* code, CompactBufferReader
     while (reader.more()) {
         size_t offset = reader.readUnsigned();
         Instruction* ins = (Instruction*)(buffer + offset);
-        uintptr_t* word_ptr = reinterpret_cast<uintptr_t*>(ins->LiteralAddress());
+        uintptr_t* word_ptr = ins->LiteralAddress<uintptr_t*>();
         if (*word_ptr >> JSVAL_TAG_SHIFT)
             continue;
         if (!(*word_ptr & 0x1))

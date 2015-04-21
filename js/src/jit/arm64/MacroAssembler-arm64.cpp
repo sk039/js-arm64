@@ -8,6 +8,7 @@
 
 #include "jit/arm64/BaselineRegisters-arm64.h"
 #include "jit/arm64/MoveEmitter-arm64.h"
+#include "jit/Bailouts.h"
 #include "jit/BaselineFrame.h"
 #include "jit/MacroAssembler.h"
 
