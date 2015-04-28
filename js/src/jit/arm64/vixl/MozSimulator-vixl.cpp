@@ -316,7 +316,7 @@ class Redirection
     sim->setRedirection(this);
 
     Instruction* instr = (Instruction*)(&svcInstruction_);
-    AssemblerVIXL::svc(instr, kCallRtRedirected);
+    vixl::Assembler::svc(instr, kCallRtRedirected);
   }
 
  public:

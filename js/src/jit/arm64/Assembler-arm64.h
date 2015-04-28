@@ -180,11 +180,11 @@ static_assert(CodeAlignment % SimdMemoryAlignment == 0,
 static const uint32_t AsmJSStackAlignment = SimdMemoryAlignment;
 
 static const int32_t AsmJSGlobalRegBias = 1024;
-class Assembler : public vixl::AssemblerVIXL
+class Assembler : public vixl::Assembler
 {
   public:
     Assembler()
-      : vixl::AssemblerVIXL()
+      : vixl::Assembler()
     { }
 
     typedef vixl::Condition Condition;

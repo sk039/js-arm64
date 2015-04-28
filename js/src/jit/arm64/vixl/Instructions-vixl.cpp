@@ -264,7 +264,7 @@ void Instruction::SetPCRelImmTarget(const Instruction* target) {
     uintptr_t target_page = reinterpret_cast<uintptr_t>(target) / kPageSize;
     imm21 = target_page - this_page;
   }
-  Instr imm = AssemblerVIXL::ImmPCRelAddress(imm21);
+  Instr imm = vixl::Assembler::ImmPCRelAddress(imm21);
 
   SetInstructionBits(Mask(~ImmPCRel_mask) | imm);
 }
@@ -277,22 +277,22 @@ void Instruction::SetBranchImmTarget(const Instruction* target) {
   int offset = (target - this) >> kInstructionSizeLog2;
   switch (BranchType()) {
     case CondBranchType: {
-      branch_imm = AssemblerVIXL::ImmCondBranch(offset);
+      branch_imm = vixl::Assembler::ImmCondBranch(offset);
       imm_mask = ImmCondBranch_mask;
       break;
     }
     case UncondBranchType: {
-      branch_imm = AssemblerVIXL::ImmUncondBranch(offset);
+      branch_imm = vixl::Assembler::ImmUncondBranch(offset);
       imm_mask = ImmUncondBranch_mask;
       break;
     }
     case CompareBranchType: {
-      branch_imm = AssemblerVIXL::ImmCmpBranch(offset);
+      branch_imm = vixl::Assembler::ImmCmpBranch(offset);
       imm_mask = ImmCmpBranch_mask;
       break;
     }
     case TestBranchType: {
-      branch_imm = AssemblerVIXL::ImmTestBranch(offset);
+      branch_imm = vixl::Assembler::ImmTestBranch(offset);
       imm_mask = ImmTestBranch_mask;
       break;
     }
@@ -305,7 +305,7 @@ void Instruction::SetBranchImmTarget(const Instruction* target) {
 void Instruction::SetImmLLiteral(const Instruction* source) {
   VIXL_ASSERT(IsWordAligned(source));
   ptrdiff_t offset = (source - this) >> kLiteralEntrySizeLog2;
-  Instr imm = AssemblerVIXL::ImmLLiteral(offset);
+  Instr imm = vixl::Assembler::ImmLLiteral(offset);
   Instr mask = ImmLLiteral_mask;
 
   SetInstructionBits(Mask(~mask) | imm);

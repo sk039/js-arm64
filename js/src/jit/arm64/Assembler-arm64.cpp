@@ -75,7 +75,7 @@ Assembler::finish()
 
     // The extended jump table is part of the code buffer.
     ExtendedJumpTable_ = emitExtendedJumpTable();
-    AssemblerVIXL::FinalizeCode();
+    Assembler::FinalizeCode();
 
     // The jump relocation table starts with a fixed-width integer pointing
     // to the start of the extended jump table.
@@ -349,7 +349,7 @@ PatchJump(CodeLocationJump& jump_, CodeLocationLabel label) {
     if (jump->IsCondBranchImm()) {
         jump += 4;
     }
-    vixl::AssemblerVIXL::br(jump, ScratchReg2_64);
+    vixl::Assembler::br(jump, ScratchReg2_64);
     // jumpWithPatch() returns the offset of the jump and never a pool or nop.
 #if 0
     Assembler::Condition c;

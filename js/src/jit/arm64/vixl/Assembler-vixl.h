@@ -47,8 +47,8 @@ using js::jit::Address;
 using js::jit::BaseIndex;
 
 // Exciting buffer logic, before it gets replaced with the new hotness.
-class AssemblerVIXL;
-typedef js::jit::AssemblerBufferWithConstantPools<1024, 4, Instruction, AssemblerVIXL> ARMBuffer;
+class Assembler;
+typedef js::jit::AssemblerBufferWithConstantPools<1024, 4, Instruction, Assembler> ARMBuffer;
 
 // Registers.
 
@@ -681,10 +681,10 @@ enum LoadStoreScalingOption {
 };
 
 // Assembler.
-class AssemblerVIXL : public js::jit::AssemblerShared
+class Assembler : public js::jit::AssemblerShared
 {
   public:
-    AssemblerVIXL()
+    Assembler()
         // TODO: GetPoolMaxOffset() instead of 1024
         // TODO: GetNopFill() instead of 0x0
         // TODO: Bother to check the rest of the values
@@ -700,7 +700,7 @@ class AssemblerVIXL : public js::jit::AssemblerShared
     //  * The Assembler object has not been used.
     //  * Nothing has been emitted since the last Reset() call.
     //  * Nothing has been emitted since the last FinalizeCode() call.
-    ~AssemblerVIXL() {
+    ~Assembler() {
         // FIXME: Probably useful to assert the above, once we hook up ARMBuffer.
         // MOZ_ASSERT(finalized_ || (pc_ == buffer_));
     }
@@ -2053,7 +2053,7 @@ class AssemblerVIXL : public js::jit::AssemblerShared
         ARMBuffer* armbuffer_;
 
       public:
-        AutoBlockLiteralPool(AssemblerVIXL* assembler, size_t maxInst)
+        AutoBlockLiteralPool(Assembler* assembler, size_t maxInst)
           : armbuffer_(&assembler->armbuffer_)
         {
             armbuffer_->enterNoPool(maxInst);

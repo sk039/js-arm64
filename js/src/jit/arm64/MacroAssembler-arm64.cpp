@@ -191,7 +191,7 @@ MacroAssemblerCompat::movePatchablePtr(ImmPtr ptr, Register dest)
 
     // Emit the instruction mask in the scratch space.
     // The offset doesn't matter: it will be fixed up later.
-    AssemblerVIXL::ldr((Instruction*)&instructionScratch, ARMRegister(dest, 64), 0);
+    vixl::Assembler::ldr((Instruction*)&instructionScratch, ARMRegister(dest, 64), 0);
 
     // Add the entry to the pool, fix up the LDR imm19 offset,
     // and add the completed instruction to the buffer.
@@ -217,7 +217,7 @@ MacroAssemblerCompat::movePatchablePtr(ImmWord ptr, Register dest)
 
     // Emit the instruction mask in the scratch space.
     // The offset doesn't matter: it will be fixed up later.
-    AssemblerVIXL::ldr((Instruction*)&instructionScratch, ARMRegister(dest, 64), 0);
+    vixl::Assembler::ldr((Instruction*)&instructionScratch, ARMRegister(dest, 64), 0);
 
     // Add the entry to the pool, fix up the LDR imm19 offset,
     // and add the completed instruction to the buffer.
