@@ -15,55 +15,6 @@
 namespace js {
 namespace jit {
 
-class MDefinition;
-
-#if 0
-static MOZ_CONSTEXPR_VAR Register StackPointer = { 0 };
-static MOZ_CONSTEXPR_VAR Register FramePointer = { 0 };
-static MOZ_CONSTEXPR_VAR Register ReturnReg = { 0 };
-static MOZ_CONSTEXPR_VAR FloatRegister ReturnFloat32Reg = { 0 };
-static MOZ_CONSTEXPR_VAR FloatRegister ReturnDoubleReg = { 0 };
-static MOZ_CONSTEXPR_VAR FloatRegister ReturnSimdReg = { 0 };
-static MOZ_CONSTEXPR_VAR FloatRegister ScratchFloat32Reg = { 0 };
-static MOZ_CONSTEXPR_VAR FloatRegister ScratchDoubleReg = { 0 };
-static MOZ_CONSTEXPR_VAR FloatRegister ScratchSimdReg = { 0 };
-static MOZ_CONSTEXPR_VAR FloatRegister InvalidFloatReg = { 0 };
-static MOZ_CONSTEXPR_VAR Register RegExpStackPointer = { 0 };
-
-static MOZ_CONSTEXPR_VAR Register OsrFrameReg = { 0 };
-static MOZ_CONSTEXPR_VAR Register ArgumentsRectifierReg = { 0 };
-static MOZ_CONSTEXPR_VAR Register PreBarrierReg = { 0 };
-static MOZ_CONSTEXPR_VAR Register CallTempReg0 = { 0 };
-static MOZ_CONSTEXPR_VAR Register CallTempReg1 = { 0 };
-static MOZ_CONSTEXPR_VAR Register CallTempReg2 = { 0 };
-static MOZ_CONSTEXPR_VAR Register CallTempReg3 = { 0 };
-static MOZ_CONSTEXPR_VAR Register CallTempReg4 = { 0 };
-static MOZ_CONSTEXPR_VAR Register CallTempReg5 = { 0 };
-static MOZ_CONSTEXPR_VAR Register InvalidReg = { 0 };
-
-static MOZ_CONSTEXPR_VAR Register IntArgReg0 = { 0 };
-static MOZ_CONSTEXPR_VAR Register IntArgReg1 = { 0 };
-static MOZ_CONSTEXPR_VAR Register IntArgReg2 = { 0 };
-static MOZ_CONSTEXPR_VAR Register IntArgReg3 = { 0 };
-static MOZ_CONSTEXPR_VAR Register GlobalReg = { 0 };
-static MOZ_CONSTEXPR_VAR Register HeapReg = { 0 };
-
-static MOZ_CONSTEXPR_VAR Register AsmJSIonExitRegCallee = { 0 };
-static MOZ_CONSTEXPR_VAR Register AsmJSIonExitRegE0 = { 0 };
-static MOZ_CONSTEXPR_VAR Register AsmJSIonExitRegE1 = { 0 };
-static MOZ_CONSTEXPR_VAR Register AsmJSIonExitRegE2 = { 0 };
-static MOZ_CONSTEXPR_VAR Register AsmJSIonExitRegE3 = { 0 };
-
-static MOZ_CONSTEXPR_VAR Register AsmJSIonExitRegReturnData = { 0 };
-static MOZ_CONSTEXPR_VAR Register AsmJSIonExitRegReturnType = { 0 };
-static MOZ_CONSTEXPR_VAR Register AsmJSIonExitRegD0 = { 0 };
-static MOZ_CONSTEXPR_VAR Register AsmJSIonExitRegD1 = { 0 };
-static MOZ_CONSTEXPR_VAR Register AsmJSIonExitRegD2 = { 0 };
-
-static MOZ_CONSTEXPR_VAR Register JSReturnReg_Type = { 0 };
-static MOZ_CONSTEXPR_VAR Register JSReturnReg_Data = { 0 };
-static MOZ_CONSTEXPR_VAR Register JSReturnReg = { 0 };
-#endif
 static MOZ_CONSTEXPR_VAR Register StackPointer = { Registers::invalid_reg };
 static MOZ_CONSTEXPR_VAR Register FramePointer = { Registers::invalid_reg };
 static MOZ_CONSTEXPR_VAR Register ReturnReg = { Registers::invalid_reg };

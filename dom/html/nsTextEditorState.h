@@ -13,6 +13,7 @@
 #include "nsITextControlFrame.h"
 #include "nsCycleCollectionParticipant.h"
 #include "mozilla/dom/Element.h"
+#include "mozilla/Attributes.h"
 #include "mozilla/WeakPtr.h"
 
 class nsTextInputListener;
@@ -127,7 +128,7 @@ class RestoreSelectionState;
 
 class nsTextEditorState : public mozilla::SupportsWeakPtr<nsTextEditorState> {
 public:
-  MOZ_DECLARE_REFCOUNTED_TYPENAME(nsTextEditorState)
+  MOZ_DECLARE_WEAKREFERENCE_TYPENAME(nsTextEditorState)
   explicit nsTextEditorState(nsITextControlElement* aOwningElement);
   ~nsTextEditorState();
 
@@ -269,7 +270,9 @@ private:
   friend class InitializationGuard;
   friend class PrepareEditorEvent;
 
-  nsITextControlElement* const mTextCtrlElement;
+  // The text control element owns this object, and ensures that this object
+  // has a smaller lifetime.
+  nsITextControlElement* const MOZ_NON_OWNING_REF mTextCtrlElement;
   nsRefPtr<nsTextInputSelectionImpl> mSelCon;
   nsRefPtr<RestoreSelectionState> mRestoringSelection;
   nsCOMPtr<nsIEditor> mEditor;

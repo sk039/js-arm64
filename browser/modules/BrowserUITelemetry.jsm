@@ -77,10 +77,6 @@ XPCOMUtils.defineLazyGetter(this, "DEFAULT_AREA_PLACEMENTS", function() {
     result["PanelUI-contents"].push("characterencoding-button");
   }
 
-  if (Services.metro && Services.metro.supported) {
-    result["PanelUI-contents"].push("switch-to-metro-button");
-  }
-
   return result;
 });
 
@@ -287,9 +283,11 @@ this.BrowserUITelemetry = {
     });
 
     Services.search.init(rv => {
-      // If there are no such windows, we're out of luck. :(
-      this._firstWindowMeasurements = win ? this._getWindowMeasurements(win, rv)
-                                          : {};
+      // If there are no such windows (or we've just about found one
+      // but it's closed already), we're out of luck. :(
+      let hasWindow = win && !win.closed;
+      this._firstWindowMeasurements = hasWindow ? this._getWindowMeasurements(win, rv)
+                                                : {};
     });
   },
 

@@ -91,17 +91,13 @@ hardware (via AudioStream).
 #include "MediaMetadataManager.h"
 #include "mozilla/RollingMean.h"
 #include "MediaTimer.h"
-
-class nsITimer;
+#include "StateMirroring.h"
 
 namespace mozilla {
 
 class AudioSegment;
-class VideoSegment;
 class MediaTaskQueue;
-class SharedThreadPool;
 class AudioSink;
-class MediaDecoderStateMachineScheduler;
 
 // GetCurrentTime is defined in winbase.h as zero argument macro forwarding to
 // GetTickCount() and conflicts with MediaDecoderStateMachine::GetCurrentTime
@@ -127,6 +123,7 @@ class MediaDecoderStateMachine
   friend class AudioSink;
   NS_INLINE_DECL_THREADSAFE_REFCOUNTING(MediaDecoderStateMachine)
 public:
+  typedef MediaDecoderOwner::NextFrameStatus NextFrameStatus;
   typedef MediaDecoder::DecodedStreamData DecodedStreamData;
   MediaDecoderStateMachine(MediaDecoder* aDecoder,
                                MediaDecoderReader* aReader,
@@ -213,8 +210,6 @@ public:
   // on the appropriate threads.
   bool OnDecodeTaskQueue() const;
   bool OnTaskQueue() const;
-
-  MediaDecoderOwner::NextFrameStatus GetNextFrameStatus();
 
   // Cause state transitions. These methods obtain the decoder monitor
   // to synchronise the change of state, and to notify other threads
@@ -331,22 +326,6 @@ public:
   // Returns the state machine task queue.
   MediaTaskQueue* TaskQueue() const { return mTaskQueue; }
 
-  // Returns the tail dispatcher associated with TaskQueue(), which will fire
-  // its tasks when the current task completes. May only be called when running
-  // in TaskQueue().
-  TaskDispatcher& TailDispatcher()
-  {
-    MOZ_ASSERT(OnTaskQueue());
-    return TaskQueue()->TailDispatcher();
-  }
-
-  // Convenience method to perform a tail dispatch.
-  void TailDispatch(AbstractThread* aThread,
-                    already_AddRefed<nsIRunnable> aTask)
-  {
-    TailDispatcher().AddTask(aThread, Move(aTask));
-  }
-
   // Calls ScheduleStateMachine() after taking the decoder lock. Also
   // notifies the decoder thread in case it's waiting on the decoder lock.
   void ScheduleStateMachineWithLockAndWakeDecoder();
@@ -453,6 +432,16 @@ protected:
   // aSample must not be null.
   void Push(AudioData* aSample);
   void Push(VideoData* aSample);
+  void PushFront(AudioData* aSample);
+  void PushFront(VideoData* aSample);
+
+  // Pops MediaData* samples from their respective MediaQueues.
+  // Note that the audio queue is also drained on the audio thread,
+  // which we can't easily react to - This should be fixed when we
+  // remove the audio thread in bug 750596.
+  already_AddRefed<AudioData> PopAudio();
+  already_AddRefed<VideoData> PopVideo();
+
 
   class WakeDecoderRunnable : public nsRunnable {
   public:
@@ -538,8 +527,9 @@ protected:
   // Returns true if we recently exited "quick buffering" mode.
   bool JustExitedQuickBuffering();
 
-  // Dispatches an asynchronous event to update the media element's ready state.
-  void UpdateReadyState();
+  // Recomputes mNextFrameStatus, possibly dispatching notifications to interested
+  // parties.
+  void UpdateNextFrameStatus();
 
   // Called when AudioSink reaches the end. |mPlayStartTime| and
   // |mPlayDuration| are updated to provide a good base for calculating video
@@ -734,16 +724,9 @@ protected:
   // Can only be called on the state machine thread.
   void SetPlayStartTime(const TimeStamp& aTimeStamp);
 
-private:
+public:
   // Update mAudioEndTime.
   void OnAudioEndTimeUpdate(int64_t aAudioEndTime);
-public:
-  void DispatchOnAudioEndTimeUpdate(int64_t aAudioEndTime)
-  {
-    RefPtr<nsRunnable> r =
-      NS_NewRunnableMethodWithArg<int64_t>(this, &MediaDecoderStateMachine::OnAudioEndTimeUpdate, aAudioEndTime);
-    TaskQueue()->Dispatch(r.forget());
-  }
 
 private:
   // Update mDecoder's playback offset.
@@ -827,7 +810,7 @@ public:
       mRequest.Begin(mMediaTimer->WaitUntil(mTarget, __func__)->RefableThen(
         mSelf->TaskQueue(), __func__, mSelf,
         &MediaDecoderStateMachine::OnDelayedSchedule,
-        &MediaDecoderStateMachine::NotReached, mSelf->TailDispatcher()));
+        &MediaDecoderStateMachine::NotReached));
     }
 
     void CompleteRequest()
@@ -861,7 +844,7 @@ public:
   // NotifyAll on the monitor must be called when the state is changed so
   // that interested threads can wake up and alter behaviour if appropriate
   // Accessed on state machine, audio, main, and AV thread.
-  State mState;
+  Watchable<State> mState;
 
   // The task queue in which we run decode tasks. This is referred to as
   // the "decode thread", though in practise tasks can run on a different
@@ -902,6 +885,14 @@ public:
   // as mStartTime and mEndTime could have been set separately.
   bool mDurationSet;
 
+  // The status of our next frame. Mirrored on the main thread and used to
+  // compute ready state.
+  WatcherHolder mNextFrameStatusUpdater;
+  Canonical<NextFrameStatus>::Holder mNextFrameStatus;
+public:
+  AbstractCanonical<NextFrameStatus>* CanonicalNextFrameStatus() { return &mNextFrameStatus; }
+protected:
+
   struct SeekJob {
     void Steal(SeekJob& aOther)
     {
@@ -917,17 +908,17 @@ public:
       return mTarget.IsValid();
     }
 
-    void Resolve(bool aAtEnd, const char* aCallSite, TaskDispatcher& aDispatcher)
+    void Resolve(bool aAtEnd, const char* aCallSite)
     {
       mTarget.Reset();
       MediaDecoder::SeekResolveValue val(aAtEnd, mTarget.mEventVisibility);
-      mPromise.Resolve(val, aCallSite, aDispatcher);
+      mPromise.Resolve(val, aCallSite);
     }
 
-    void RejectIfExists(const char* aCallSite, TaskDispatcher& aDispatcher)
+    void RejectIfExists(const char* aCallSite)
     {
       mTarget.Reset();
-      mPromise.RejectIfExists(true, aCallSite, aDispatcher);
+      mPromise.RejectIfExists(true, aCallSite);
     }
 
     ~SeekJob()
@@ -1165,7 +1156,7 @@ public:
   // the state machine thread. Synchronised via decoder monitor.
   // When data is being sent to a MediaStream, this is true when all data has
   // been written to the MediaStream.
-  bool mAudioCompleted;
+  Watchable<bool> mAudioCompleted;
 
   // True if mDuration has a value obtained from an HTTP header, or from
   // the media index/metadata. Accessed on the state machine thread.
@@ -1233,8 +1224,6 @@ public:
   nsAutoPtr<MetadataTags> mMetadataTags;
 
   mozilla::MediaMetadataManager mMetadataManager;
-
-  MediaDecoderOwner::NextFrameStatus mLastFrameStatus;
 
   mozilla::RollingMean<uint32_t, uint32_t> mCorruptFrames;
 

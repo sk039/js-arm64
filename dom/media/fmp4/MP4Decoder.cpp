@@ -97,6 +97,12 @@ IsSupportedH264Codec(const nsAString& aCodec)
       !WMFDecoderModule::HasH264()) {
     return false;
   }
+
+  // Disable 4k video on windows vista since it performs poorly.
+  if (!IsWin7OrLater() &&
+      level >= H264_LEVEL_5) {
+    return false;
+  }
 #endif
 
   // Just assume what we can play on all platforms the codecs/formats that
@@ -209,7 +215,11 @@ IsAndroidAvailable()
 static bool
 IsGonkMP4DecoderAvailable()
 {
+#ifndef MOZ_GONK_MEDIACODEC
+  return false;
+#else
   return Preferences::GetBool("media.fragmented-mp4.gonk.enabled", false);
+#endif
 }
 
 static bool

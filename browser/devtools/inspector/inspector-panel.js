@@ -259,10 +259,10 @@ InspectorPanel.prototype = {
       if (front) {
         return front;
       }
-      return this.walker.documentElement(this.walker.rootNode);
+      return this.walker.documentElement();
     }).then(node => {
-      if (walker !== this.walker) {
-        promise.reject(null);
+      if (hasNavigated()) {
+        return promise.reject("navigated; resolution of _defaultNode aborted");
       }
       this._defaultNode = node;
       return node;
@@ -281,13 +281,6 @@ InspectorPanel.prototype = {
    */
   set target(value) {
     this._target = value;
-  },
-
-  /**
-   * Expose gViewSourceUtils so that other tools can make use of them.
-   */
-  get viewSourceUtils() {
-    return this.panelWin.gViewSourceUtils;
   },
 
   /**
@@ -409,6 +402,10 @@ InspectorPanel.prototype = {
    * reload
    */
   set selectionCssSelector(cssSelector = null) {
+    if (this._panelDestroyer) {
+      return;
+    }
+
     this._selectionCssSelector = {
       selector: cssSelector,
       url: this._target.url
@@ -669,19 +666,27 @@ InspectorPanel.prototype = {
       deleteNode.setAttribute("disabled", "true");
     }
 
-    // Disable / enable "Copy Unique Selector", "Copy inner HTML" &
-    // "Copy outer HTML" as appropriate
+    // Disable / enable "Copy Unique Selector", "Copy inner HTML",
+    // "Copy outer HTML" & "Scroll Into View" as appropriate
     let unique = this.panelDoc.getElementById("node-menu-copyuniqueselector");
     let copyInnerHTML = this.panelDoc.getElementById("node-menu-copyinner");
     let copyOuterHTML = this.panelDoc.getElementById("node-menu-copyouter");
+    let scrollIntoView = this.panelDoc.getElementById("node-menu-scrollnodeintoview");
+
+    this._target.actorHasMethod("domnode", "scrollIntoView").then(value => {
+      scrollIntoView.hidden = !value;
+    });
+
     if (isSelectionElement) {
       unique.removeAttribute("disabled");
       copyInnerHTML.removeAttribute("disabled");
       copyOuterHTML.removeAttribute("disabled");
+      scrollIntoView.removeAttribute("disabled");
     } else {
       unique.setAttribute("disabled", "true");
       copyInnerHTML.setAttribute("disabled", "true");
       copyOuterHTML.setAttribute("disabled", "true");
+      scrollIntoView.setAttribute("disabled", "true");
     }
     if (!this.canGetUniqueSelector) {
       unique.hidden = true;
@@ -820,6 +825,12 @@ InspectorPanel.prototype = {
     let sidePane = this.panelDoc.querySelector("#inspector-sidebar");
     let button = this._paneToggleButton;
     let isVisible = !button.hasAttribute("pane-collapsed");
+
+    // Make sure the sidebar has a width attribute before collapsing because
+    // ViewHelpers needs it.
+    if (isVisible && !sidePane.hasAttribute("width")) {
+      sidePane.setAttribute("width", sidePane.getBoundingClientRect().width);
+    }
 
     ViewHelpers.togglePane({
       visible: !isVisible,
@@ -993,6 +1004,18 @@ InspectorPanel.prototype = {
     this.selection.nodeFront.getUniqueSelector().then((selector) => {
       clipboardHelper.copyString(selector);
     }).then(null, console.error);
+  },
+
+  /**
+   * Scroll the node into view.
+   */
+  scrollNodeIntoView: function InspectorPanel_scrollNodeIntoView()
+  {
+    if (!this.selection.isNode()) {
+      return;
+    }
+
+    this.selection.nodeFront.scrollIntoView();
   },
 
   /**

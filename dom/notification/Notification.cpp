@@ -83,7 +83,7 @@ public:
     ErrorResult rv;
     notification->InitFromBase64(aCx, aData, rv);
     if (rv.Failed()) {
-      return rv.ErrorCode();
+      return rv.StealNSResult();
     }
 
     notification->SetStoredState(true);
@@ -338,7 +338,7 @@ NotificationPermissionRequest::CallCallback()
 {
   ErrorResult rv;
   mCallback->Call(mPermission, rv);
-  return rv.ErrorCode();
+  return rv.StealNSResult();
 }
 
 NS_IMETHODIMP
@@ -941,7 +941,7 @@ Notification::InitFromJSVal(JSContext* aCx, JS::Handle<JS::Value> aData,
     return;
   }
   mDataObjectContainer = new nsStructuredCloneContainer();
-  aRv = mDataObjectContainer->InitFromJSVal(aData);
+  aRv = mDataObjectContainer->InitFromJSVal(aData, aCx);
 }
 
 void Notification::InitFromBase64(JSContext* aCx, const nsAString& aData,

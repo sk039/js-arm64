@@ -13,9 +13,11 @@ Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 Cu.import("resource://gre/modules/Services.jsm");
 Cu.import("resource://gre/modules/Task.jsm");
 
+XPCOMUtils.defineLazyModuleGetter(this, "CustomizableUI", "resource:///modules/CustomizableUI.jsm");
 XPCOMUtils.defineLazyModuleGetter(this, "PlacesUtils","resource://gre/modules/PlacesUtils.jsm");
 XPCOMUtils.defineLazyModuleGetter(this, "ReaderMode", "resource://gre/modules/ReaderMode.jsm");
 XPCOMUtils.defineLazyModuleGetter(this, "ReadingList", "resource:///modules/readinglist/ReadingList.jsm");
+XPCOMUtils.defineLazyModuleGetter(this, "UITour", "resource:///modules/UITour.jsm");
 
 const gStringBundle = Services.strings.createBundle("chrome://global/locale/aboutReader.properties");
 
@@ -23,9 +25,11 @@ let ReaderParent = {
 
   MESSAGES: [
     "Reader:AddToList",
+    "Reader:AddToPocket",
     "Reader:ArticleGet",
     "Reader:FaviconRequest",
     "Reader:ListStatusRequest",
+    "Reader:PocketEnabledGet",
     "Reader:RemoveFromList",
     "Reader:Share",
     "Reader:SystemUIVisibility",
@@ -43,7 +47,7 @@ let ReaderParent = {
 
   receiveMessage: function(message) {
     switch (message.name) {
-      case "Reader:AddToList":
+      case "Reader:AddToList": {
         let article = message.data.article;
         ReadingList.getMetadataFromBrowser(message.target).then(function(metadata) {
           if (metadata.previews.length > 0) {
@@ -58,6 +62,25 @@ let ReaderParent = {
           });
         });
         break;
+      }
+
+      case "Reader:AddToPocket": {
+        let doc = message.target.ownerDocument;
+        let pocketWidget = doc.getElementById("pocket-button");
+        let placement = CustomizableUI.getPlacementOfWidget("pocket-button");
+        if (placement) {
+          if (placement.area == CustomizableUI.AREA_PANEL) {
+            doc.defaultView.PanelUI.show().then(function() {
+              // The DOM node might not exist yet if the panel wasn't opened before.
+              pocketWidget = doc.getElementById("pocket-button");
+              pocketWidget.doCommand();
+            });
+          } else {
+            pocketWidget.doCommand();
+          }
+        }
+        break;
+      }
 
       case "Reader:ArticleGet":
         this._getArticle(message.data.url, message.target).then((article) => {
@@ -67,6 +90,13 @@ let ReaderParent = {
           }
         });
         break;
+
+      case "Reader:PocketEnabledGet": {
+        let pocketPlacement = CustomizableUI.getPlacementOfWidget("pocket-button");
+        let isPocketEnabled = pocketPlacement && pocketPlacement.area;
+        message.target.messageManager.sendAsyncMessage("Reader:PocketEnabledData", { enabled: !!isPocketEnabled});
+        break;
+      }
 
       case "Reader:FaviconRequest": {
         if (message.target.messageManager) {
@@ -164,7 +194,7 @@ let ReaderParent = {
     this.updateReaderButton(browser);
   },
 
-  buttonClick: function(event) {
+  buttonClick(event) {
     if (event.button != 0) {
       return;
     }
@@ -186,6 +216,23 @@ let ReaderParent = {
     } else {
       browser.messageManager.sendAsyncMessage("Reader:ParseDocument", { url: url });
     }
+  },
+
+  /**
+   * Shows an info panel from the UITour for Reader Mode.
+   *
+   * @param browser The <browser> that the tour should be started for.
+   */
+  showReaderModeInfoPanel(browser) {
+    let win = browser.ownerDocument.defaultView;
+    let targetPromise = UITour.getTarget(win, "readerMode-urlBar");
+    targetPromise.then(target => {
+      let browserBundle = Services.strings.createBundle("chrome://browser/locale/browser.properties");
+      UITour.showInfo(win, browser.messageManager, target,
+                      browserBundle.GetStringFromName("readerView.promo.firstDetectedArticle.title"),
+                      browserBundle.GetStringFromName("readerView.promo.firstDetectedArticle.body"),
+                      "chrome://browser/skin/reader-tour.png");
+    });
   },
 
   /**

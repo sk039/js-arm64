@@ -16,30 +16,30 @@ const LOOP_SESSION_TYPE = {
 };
 
 /***
- * Buckets that we segment 2-way media connection length telemetry probes
+ * Values that we segment 2-way media connection length telemetry probes
  * into.
  *
- * @type {{SHORTER_THAN_10S: string, BETWEEN_10S_AND_30S: string,
- *   BETWEEN_30S_AND_5M: string, MORE_THAN_5M: string}}
+ * @type {{SHORTER_THAN_10S: Number, BETWEEN_10S_AND_30S: Number,
+ *   BETWEEN_30S_AND_5M: Number, MORE_THAN_5M: Number}}
  */
 const TWO_WAY_MEDIA_CONN_LENGTH = {
-  SHORTER_THAN_10S: "SHORTER_THAN_10S",
-  BETWEEN_10S_AND_30S: "BETWEEN_10S_AND_30S",
-  BETWEEN_30S_AND_5M: "BETWEEN_30S_AND_5M",
-  MORE_THAN_5M: "MORE_THAN_5M",
+  SHORTER_THAN_10S: 0,
+  BETWEEN_10S_AND_30S: 1,
+  BETWEEN_30S_AND_5M: 2,
+  MORE_THAN_5M: 3,
 };
 
 /**
- * Buckets that we segment sharing state change telemetry probes into.
+ * Values that we segment sharing state change telemetry probes into.
  *
- * @type {{WINDOW_ENABLED: String, WINDOW_DISABLED: String,
- *   BROWSER_ENABLED: String, BROWSER_DISABLED: String}}
+ * @type {{WINDOW_ENABLED: Number, WINDOW_DISABLED: Number,
+ *   BROWSER_ENABLED: Number, BROWSER_DISABLED: Number}}
  */
 const SHARING_STATE_CHANGE = {
-  WINDOW_ENABLED: "WINDOW_ENABLED",
-  WINDOW_DISABLED: "WINDOW_DISABLED",
-  BROWSER_ENABLED: "BROWSER_ENABLED",
-  BROWSER_DISABLED: "BROWSER_DISABLED"
+  WINDOW_ENABLED: 0,
+  WINDOW_DISABLED: 1,
+  BROWSER_ENABLED: 2,
+  BROWSER_DISABLED: 3
 };
 
 // See LOG_LEVELS in Console.jsm. Common examples: "All", "Info", "Warn", & "Error".
@@ -959,6 +959,9 @@ let MozLoopServiceInternal = {
 
     gFxAOAuthClientPromise = this.promiseFxAOAuthParameters().then(
       parameters => {
+        // Add the fact that we want keys to the parameters.
+        parameters.keys = true;
+
         try {
           gFxAOAuthClient = new FxAccountsOAuthClient({
             parameters: parameters,
@@ -1031,7 +1034,10 @@ let MozLoopServiceInternal = {
    * @param {Deferred} deferred used to resolve the gFxAOAuthClientPromise
    * @param {Object} result (with code and state)
    */
-  _fxAOAuthComplete: function(deferred, result) {
+  _fxAOAuthComplete: function(deferred, result, keys) {
+    if (keys.kBr) {
+      Services.prefs.setCharPref("loop.key.fxa", keys.kBr.k);
+    }
     gFxAOAuthClientPromise = null;
     // Note: The state was already verified in FxAccountsOAuthClient.
     deferred.resolve(result);
@@ -1331,8 +1337,14 @@ this.MozLoopService = {
     return new Promise((resolve, reject) => {
       if (this.userProfile) {
         // We're an FxA user.
-        // XXX Bug 1153788 will implement this for FxA.
-        reject(new Error("unimplemented"));
+        if (Services.prefs.prefHasUserValue("loop.key.fxa")) {
+          resolve(MozLoopService.getLoopPref("key.fxa"));
+          return;
+        }
+
+        // XXX If we don't have a key for FxA yet, then simply reject for now.
+        // We'll create some sign-in/sign-out UX in bug 1153788.
+        reject(new Error("FxA re-register not implemented"));
         return;
       }
 
@@ -1649,6 +1661,16 @@ this.MozLoopService = {
       log.error("Error opening Getting Started tour", ex);
     }
   }),
+
+  /**
+   * Opens a URL in a new tab in the browser.
+   *
+   * @param {String} url The new url to open
+   */
+  openURL: function(url) {
+    let win = Services.wm.getMostRecentWindow("navigator:browser");
+    win.openUILinkIn(url, "tab");
+  },
 
   /**
    * Performs a hawk based request to the loop server.

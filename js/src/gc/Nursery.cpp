@@ -411,67 +411,6 @@ class MinorCollectionTracer : public JS::CallbackTracer
 } /* namespace gc */
 } /* namespace js */
 
-static AllocKind
-GetObjectAllocKindForCopy(const Nursery& nursery, JSObject* obj)
-{
-    if (obj->is<ArrayObject>()) {
-        ArrayObject* aobj = &obj->as<ArrayObject>();
-        MOZ_ASSERT(aobj->numFixedSlots() == 0);
-
-        /* Use minimal size object if we are just going to copy the pointer. */
-        if (!nursery.isInside(aobj->getElementsHeader()))
-            return AllocKind::OBJECT0_BACKGROUND;
-
-        size_t nelements = aobj->getDenseCapacity();
-        return GetBackgroundAllocKind(GetGCArrayKind(nelements));
-    }
-
-    if (obj->is<JSFunction>())
-        return obj->as<JSFunction>().getAllocKind();
-
-    /*
-     * Typed arrays in the nursery may have a lazily allocated buffer, make
-     * sure there is room for the array's fixed data when moving the array.
-     */
-    if (obj->is<TypedArrayObject>() && !obj->as<TypedArrayObject>().buffer()) {
-        size_t nbytes = obj->as<TypedArrayObject>().byteLength();
-        return GetBackgroundAllocKind(TypedArrayObject::AllocKindForLazyBuffer(nbytes));
-    }
-
-    // Proxies have finalizers and are not nursery allocated.
-    MOZ_ASSERT(!IsProxy(obj));
-
-    // Unboxed plain objects are sized according to the data they store.
-    if (obj->is<UnboxedPlainObject>()) {
-        size_t nbytes = obj->as<UnboxedPlainObject>().layoutDontCheckGeneration().size();
-        return GetGCObjectKindForBytes(UnboxedPlainObject::offsetOfData() + nbytes);
-    }
-
-    // Inlined typed objects are followed by their data, so make sure we copy
-    // it all over to the new object.
-    if (obj->is<InlineTypedObject>()) {
-        // Figure out the size of this object, from the prototype's TypeDescr.
-        // The objects we are traversing here are all tenured, so we don't need
-        // to check forwarding pointers.
-        TypeDescr* descr = &obj->as<InlineTypedObject>().typeDescr();
-        MOZ_ASSERT(!IsInsideNursery(descr));
-        return InlineTypedObject::allocKindForTypeDescriptor(descr);
-    }
-
-    // Outline typed objects use the minimum allocation kind.
-    if (obj->is<OutlineTypedObject>())
-        return AllocKind::OBJECT0;
-
-    // All nursery allocatable non-native objects are handled above.
-    MOZ_ASSERT(obj->isNative());
-
-    AllocKind kind = GetGCObjectFixedSlotsKind(obj->as<NativeObject>().numFixedSlots());
-    MOZ_ASSERT(!IsBackgroundFinalized(kind));
-    if (!CanBeFinalizedInBackground(kind, obj->getClass()))
-        return kind;
-    return GetBackgroundAllocKind(kind);
-}
-
 MOZ_ALWAYS_INLINE TenuredCell*
 js::Nursery::allocateFromTenured(Zone* zone, AllocKind thingKind)
 {
@@ -598,8 +537,28 @@ MOZ_ALWAYS_INLINE void
 js::Nursery::traceObject(MinorCollectionTracer* trc, JSObject* obj)
 {
     const Class* clasp = obj->getClass();
-    if (clasp->trace)
+    if (clasp->trace) {
+        if (clasp->trace == InlineTypedObject::obj_trace) {
+            TypeDescr* descr = &obj->as<InlineTypedObject>().typeDescr();
+            if (descr->hasTraceList()) {
+                markTraceList(trc, descr->traceList(),
+                              obj->as<InlineTypedObject>().inlineTypedMem());
+            }
+            return;
+        }
+        if (clasp == &UnboxedPlainObject::class_) {
+            JSObject** pexpando = obj->as<UnboxedPlainObject>().addressOfExpando();
+            if (*pexpando)
+                markObject(trc, pexpando);
+            const UnboxedLayout& layout = obj->as<UnboxedPlainObject>().layout();
+            if (layout.traceList()) {
+                markTraceList(trc, layout.traceList(),
+                              obj->as<UnboxedPlainObject>().data());
+            }
+            return;
+        }
         clasp->trace(trc, obj);
+    }
 
     MOZ_ASSERT(obj->isNative() == clasp->isNative());
     if (!clasp->isNative())
@@ -640,23 +599,49 @@ js::Nursery::markSlot(MinorCollectionTracer* trc, HeapSlot* slotp)
         return;
 
     JSObject* obj = &slotp->toObject();
-    if (!IsInsideNursery(obj))
-        return;
-
-    if (getForwardedPointer(&obj)) {
+    if (markObject(trc, &obj))
         slotp->unsafeGet()->setObject(*obj);
-        return;
-    }
+}
 
-    JSObject* tenured = static_cast<JSObject*>(moveToTenured(trc, obj));
-    slotp->unsafeGet()->setObject(*tenured);
+MOZ_ALWAYS_INLINE void
+js::Nursery::markTraceList(MinorCollectionTracer* trc, const int32_t* traceList, uint8_t* memory)
+{
+    while (*traceList != -1) {
+        // Strings are not in the nursery and do not need tracing.
+        traceList++;
+    }
+    traceList++;
+    while (*traceList != -1) {
+        JSObject** pobj = reinterpret_cast<JSObject **>(memory + *traceList);
+        markObject(trc, pobj);
+        traceList++;
+    }
+    traceList++;
+    while (*traceList != -1) {
+        HeapSlot* pslot = reinterpret_cast<HeapSlot *>(memory + *traceList);
+        markSlot(trc, pslot);
+        traceList++;
+    }
+}
+
+MOZ_ALWAYS_INLINE bool
+js::Nursery::markObject(MinorCollectionTracer* trc, JSObject** pobj)
+{
+    if (!IsInsideNursery(*pobj))
+        return false;
+
+    if (getForwardedPointer(pobj))
+        return true;
+
+    *pobj = static_cast<JSObject*>(moveToTenured(trc, *pobj));
+    return true;
 }
 
 void*
 js::Nursery::moveToTenured(MinorCollectionTracer* trc, JSObject* src)
 {
 
-    AllocKind dstKind = GetObjectAllocKindForCopy(*this, src);
+    AllocKind dstKind = src->allocKindForTenure(*this);
     Zone* zone = src->zone();
     JSObject* dst = reinterpret_cast<JSObject*>(allocateFromTenured(zone, dstKind));
     if (!dst)

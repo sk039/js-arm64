@@ -7,6 +7,10 @@
 #ifndef jit_EffectiveAddressAnalysis_h
 #define jit_EffectiveAddressAnalysis_h
 
+#include "jit/MIR.h"
+#include "jit/MIRGenerator.h"
+#include "jit/MIRGraph.h"
+
 namespace js {
 namespace jit {
 
@@ -14,11 +18,18 @@ class MIRGraph;
 
 class EffectiveAddressAnalysis
 {
+    MIRGenerator* mir_;
     MIRGraph& graph_;
 
+    template<typename MAsmJSHeapAccessType>
+    bool tryAddDisplacement(MAsmJSHeapAccessType* ins, int32_t o);
+
+    template<typename MAsmJSHeapAccessType>
+    void analyzeAsmHeapAccess(MAsmJSHeapAccessType* ins);
+
   public:
-    explicit EffectiveAddressAnalysis(MIRGraph& graph)
-      : graph_(graph)
+    EffectiveAddressAnalysis(MIRGenerator* mir, MIRGraph& graph)
+      : mir_(mir), graph_(graph)
     {}
 
     bool analyze();

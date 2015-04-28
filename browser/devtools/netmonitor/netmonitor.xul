@@ -34,6 +34,16 @@
       <menuitem id="request-menu-context-copy-as-curl"
                 label="&netmonitorUI.context.copyAsCurl;"
                 oncommand="NetMonitorView.RequestsMenu.copyAsCurl();"/>
+      <menuitem id="request-menu-context-copy-request-headers"
+                label="&netmonitorUI.context.copyRequestHeaders;"
+                accesskey="&netmonitorUI.context.copyRequestHeaders.accesskey;"
+                oncommand="NetMonitorView.RequestsMenu.copyRequestHeaders();"/>
+      <menuitem id="response-menu-context-copy-response-headers"
+                label="&netmonitorUI.context.copyResponseHeaders;"
+                oncommand="NetMonitorView.RequestsMenu.copyResponseHeaders();"/>
+      <menuitem id="request-menu-context-copy-response"
+                label="&netmonitorUI.context.copyResponse;"
+                accesskey="&netmonitorUI.context.copyResponse.accesskey;"/>
       <menuitem id="request-menu-context-copy-image-as-data-uri"
                 label="&netmonitorUI.context.copyImageAsDataUri;"
                 accesskey="&netmonitorUI.context.copyImageAsDataUri.accesskey;"/>
@@ -408,7 +418,7 @@
                 <vbox flex="1">
                   <label id="response-content-info-header"/>
                   <vbox id="response-content-json-box" flex="1" hidden="true">
-                    <vbox id="response-content-json" flex="1"/>
+                    <vbox id="response-content-json" flex="1" context="network-response-popup" />
                   </vbox>
                   <vbox id="response-content-textarea-box" flex="1" hidden="true">
                     <vbox id="response-content-textarea" flex="1"/>

@@ -3361,6 +3361,8 @@ NS_INTERFACE_MAP_END_INHERITING(DOMEventTargetHelper)
 NS_IMPL_ADDREF_INHERITED(nsDOMDeviceStorage, DOMEventTargetHelper)
 NS_IMPL_RELEASE_INHERITED(nsDOMDeviceStorage, DOMEventTargetHelper)
 
+int nsDOMDeviceStorage::sInstanceCount = 0;
+
 nsDOMDeviceStorage::nsDOMDeviceStorage(nsPIDOMWindow* aWindow)
   : DOMEventTargetHelper(aWindow)
   , mIsShareable(false)
@@ -3368,6 +3370,8 @@ nsDOMDeviceStorage::nsDOMDeviceStorage(nsPIDOMWindow* aWindow)
   , mIsWatchingFile(false)
   , mAllowedToWatchFile(false)
 {
+  MOZ_ASSERT(NS_IsMainThread());
+  sInstanceCount++;
 }
 
 /* virtual */ JSObject*
@@ -3453,6 +3457,8 @@ nsDOMDeviceStorage::Init(nsPIDOMWindow* aWindow, const nsAString &aType,
 
 nsDOMDeviceStorage::~nsDOMDeviceStorage()
 {
+  MOZ_ASSERT(NS_IsMainThread());
+  sInstanceCount--;
 }
 
 void
@@ -3699,7 +3705,7 @@ nsDOMDeviceStorage::Add(nsIDOMBlob *aBlob, nsIDOMDOMRequest * *_retval)
   ErrorResult rv;
   nsRefPtr<DOMRequest> request = Add(aBlob, rv);
   request.forget(_retval);
-  return rv.ErrorCode();
+  return rv.StealNSResult();
 }
 
 already_AddRefed<DOMRequest>
@@ -3748,7 +3754,7 @@ nsDOMDeviceStorage::AddNamed(nsIDOMBlob *aBlob,
   ErrorResult rv;
   nsRefPtr<DOMRequest> request = AddNamed(aBlob, aPath, rv);
   request.forget(_retval);
-  return rv.ErrorCode();
+  return rv.StealNSResult();
 }
 
 already_AddRefed<DOMRequest>
@@ -3844,7 +3850,7 @@ nsDOMDeviceStorage::Get(const nsAString& aPath, nsIDOMDOMRequest** aRetval)
   ErrorResult rv;
   nsRefPtr<DOMRequest> request = Get(aPath, rv);
   request.forget(aRetval);
-  return rv.ErrorCode();
+  return rv.StealNSResult();
 }
 
 NS_IMETHODIMP
@@ -3854,7 +3860,7 @@ nsDOMDeviceStorage::GetEditable(const nsAString& aPath,
   ErrorResult rv;
   nsRefPtr<DOMRequest> request = GetEditable(aPath, rv);
   request.forget(aRetval);
-  return rv.ErrorCode();
+  return rv.StealNSResult();
 }
 
 already_AddRefed<DOMRequest>
@@ -3921,7 +3927,7 @@ nsDOMDeviceStorage::Delete(const nsAString& aPath, nsIDOMDOMRequest** aRetval)
   ErrorResult rv;
   nsRefPtr<DOMRequest> request = Delete(aPath, rv);
   request.forget(aRetval);
-  return rv.ErrorCode();
+  return rv.StealNSResult();
 }
 
 already_AddRefed<DOMRequest>
@@ -3983,7 +3989,7 @@ nsDOMDeviceStorage::FreeSpace(nsIDOMDOMRequest** aRetval)
   ErrorResult rv;
   nsRefPtr<DOMRequest> request = FreeSpace(rv);
   request.forget(aRetval);
-  return rv.ErrorCode();
+  return rv.StealNSResult();
 }
 
 already_AddRefed<DOMRequest>
@@ -4017,7 +4023,7 @@ nsDOMDeviceStorage::UsedSpace(nsIDOMDOMRequest** aRetval)
   ErrorResult rv;
   nsRefPtr<DOMRequest> request = UsedSpace(rv);
   request.forget(aRetval);
-  return rv.ErrorCode();
+  return rv.StealNSResult();
 }
 
 already_AddRefed<DOMRequest>
@@ -4055,7 +4061,7 @@ nsDOMDeviceStorage::Available(nsIDOMDOMRequest** aRetval)
   ErrorResult rv;
   nsRefPtr<DOMRequest> request = Available(rv);
   request.forget(aRetval);
-  return rv.ErrorCode();
+  return rv.StealNSResult();
 }
 
 already_AddRefed<DOMRequest>

@@ -258,7 +258,6 @@ class Instruction;
 class InstReg;
 class InstImm;
 class InstJump;
-class BranchInstBlock;
 
 uint32_t RS(Register r);
 uint32_t RT(Register r);
@@ -447,7 +446,6 @@ enum FunctionField {
     ff_null        = 0
 };
 
-class MacroAssemblerMIPS;
 class Operand;
 
 // A BOffImm16 is a 16 bit immediate that is used for branches.
