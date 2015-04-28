@@ -88,10 +88,10 @@ enum BranchType {
 
 enum DiscardMoveMode { kDontDiscardForSameWReg, kDiscardForSameWReg };
 
-class MacroAssemblerVIXL : public js::jit::Assembler
+class MacroAssembler : public js::jit::Assembler
 {
   public:
-    MacroAssemblerVIXL()
+    MacroAssembler()
       : js::jit::Assembler(),
         sp_(x28),
         tmp_list_(ip0, ip1),
@@ -998,7 +998,7 @@ class MacroAssemblerVIXL : public js::jit::Assembler
     // placeholders are Registers.
     //
     // At the moment it is only possible to print the value of sp if it is the
-    // current stack pointer. Otherwise, the MacroAssemblerVIXL will automatically
+    // current stack pointer. Otherwise, the MacroAssembler will automatically
     // update sp on every push (using BumpSystemStackPointer), so determining its
     // value is difficult.
     //
@@ -1084,27 +1084,27 @@ class MacroAssemblerVIXL : public js::jit::Assembler
 
 #if DEBUG
     // Tell whether any of the macro instruction can be used. When false the
-    // MacroAssemblerVIXL will assert if a method which can emit a variable number
+    // MacroAssembler will assert if a method which can emit a variable number
     // of instructions is called.
 #endif
 
     // The register to use as a stack pointer for stack operations.
     Register sp_;
 
-    // Scratch registers available for use by the MacroAssemblerVIXL.
+    // Scratch registers available for use by the MacroAssembler.
     CPURegList tmp_list_;
     CPURegList fptmp_list_;
 };
 
 
 // Use this scope when you need a one-to-one mapping between methods and
-// instructions. This scope prevents the MacroAssemblerVIXL from being called and
+// instructions. This scope prevents the MacroAssembler from being called and
 // literal pools from being emitted. It also asserts the number of instructions
 // emitted is what you specified when creating the scope.
 class InstructionAccurateScope {
   public:
 #ifdef DEBUG
-    explicit InstructionAccurateScope(MacroAssemblerVIXL* masm, int count = 0)
+    explicit InstructionAccurateScope(MacroAssembler* masm, int count = 0)
       : masm_(masm), size_(count * kInstructionSize)
     {
         //masm_->BlockLiteralPool();
@@ -1113,7 +1113,7 @@ class InstructionAccurateScope {
         }
     }
 #else
-    explicit InstructionAccurateScope(MacroAssemblerVIXL* masm, int count = 0)
+    explicit InstructionAccurateScope(MacroAssembler* masm, int count = 0)
       : masm_(masm)
     {
         USE(count);
@@ -1133,7 +1133,7 @@ class InstructionAccurateScope {
     }
 
   private:
-    MacroAssemblerVIXL* masm_;
+    MacroAssembler* masm_;
 #ifdef DEBUG
     uint64_t size_;
     Label start_;
@@ -1142,15 +1142,15 @@ class InstructionAccurateScope {
 
 
 // This scope utility allows scratch registers to be managed safely. The
-// MacroAssemblerVIXL's TmpList() (and FPTmpList()) is used as a pool of scratch
+// MacroAssembler's TmpList() (and FPTmpList()) is used as a pool of scratch
 // registers. These registers can be allocated on demand, and will be returned
 // at the end of the scope.
 //
-// When the scope ends, the MacroAssemblerVIXL's lists will be restored to their
+// When the scope ends, the MacroAssembler's lists will be restored to their
 // original state, even if the lists were modified by some other means.
 class UseScratchRegisterScope {
   public:
-    explicit UseScratchRegisterScope(MacroAssemblerVIXL* masm)
+    explicit UseScratchRegisterScope(MacroAssembler* masm)
       : available_(masm->TmpList()),
         availablefp_(masm->FPTmpList()),
         old_available_(available_->list()),

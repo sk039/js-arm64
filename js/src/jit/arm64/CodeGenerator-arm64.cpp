@@ -71,7 +71,7 @@ CodeGeneratorARM64::generateEpilogue()
     // FIXME: This probably doesn't work with the push(lr) in the prologue...
     MOZ_ASSERT(masm.framePushed() == 0);
     masm.pop(lr);
-    masm.MacroAssemblerVIXL::Ret(vixl::lr);
+    masm.asVIXL().Ret(vixl::lr);
     masm.flushBuffer();
     return true;
 }
@@ -230,7 +230,7 @@ void
 CodeGeneratorARM64::visitOutOfLineBailout(OutOfLineBailout* ool)
 {
     masm.Mov(ScratchReg2_32, Operand(ool->snapshot()->snapshotOffset()));
-    masm.MacroAssemblerVIXL::Push(ScratchReg64, ScratchReg2_64); // BailoutStack::snapshotOffset_
+    masm.asVIXL().Push(ScratchReg64, ScratchReg2_64); // BailoutStack::snapshotOffset_
     masm.b(&deoptLabel_);
 }
 

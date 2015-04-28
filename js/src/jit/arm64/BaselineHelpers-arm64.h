@@ -95,7 +95,7 @@ EmitTailCallVM(JitCode* target, MacroAssembler& masm, uint32_t argSize)
     // Push frame descriptor (minus the return address) and perform the tail call.
     MOZ_ASSERT(BaselineTailCallReg == lr);
     masm.makeFrameDescriptor(r0, JitFrame_BaselineJS);
-    masm.MacroAssemblerVIXL::Push(x0);
+    masm.asVIXL().Push(x0);
 
     // The return address will be pushed by the VM wrapper, for compatibility
     // with direct calls. Refer to the top of generateVMWrapper().
@@ -148,10 +148,10 @@ EmitEnterStubFrame(MacroAssembler& masm, Register scratch)
     // Push frame descriptor and return address.
     // Save old frame pointer, stack pointer, and stub reg.
     masm.makeFrameDescriptor(scratch, JitFrame_BaselineJS);
-    masm.MacroAssemblerVIXL::Push(ARMRegister(scratch, 64),
-                                  ARMRegister(BaselineTailCallReg, 64),
-                                  ARMRegister(BaselineStubReg, 64),
-                                  ARMRegister(BaselineFrameReg, 64));
+    masm.asVIXL().Push(ARMRegister(scratch, 64),
+                       ARMRegister(BaselineTailCallReg, 64),
+                       ARMRegister(BaselineStubReg, 64),
+                       ARMRegister(BaselineFrameReg, 64));
 
     // Update the frame register.
     masm.Add(ARMRegister(BaselineFrameReg, 64), masm.GetStackPointer64(), Operand(0));
@@ -176,10 +176,10 @@ EmitLeaveStubFrame(MacroAssembler& masm, bool calledIntoIon = false)
     }
 
     // Pop values, discarding the frame descriptor.
-    masm.MacroAssemblerVIXL::Pop(ARMRegister(BaselineFrameReg, 64),
-                                 ARMRegister(BaselineStubReg, 64),
-                                 ARMRegister(BaselineTailCallReg, 64),
-                                 ScratchReg64);
+    masm.asVIXL().Pop(ARMRegister(BaselineFrameReg, 64),
+                      ARMRegister(BaselineStubReg, 64),
+                      ARMRegister(BaselineTailCallReg, 64),
+                      ScratchReg64);
 
     // Stack should remain 16-byte aligned.
     masm.checkStackAlignment();
@@ -197,7 +197,7 @@ EmitStowICValues(MacroAssembler& masm, int values)
       case 2:
         // Stow R0 and R1.
         masm.pushValue(R0);
-        masm.pushValue(R1); // TODO: Use MacroAssemblerVIXL::Push().
+        masm.pushValue(R1); // TODO: Use vixl::MacroAssembler::Push().
         break;
     }
 }
@@ -220,7 +220,7 @@ EmitUnstowICValues(MacroAssembler& masm, int values, bool discard = false)
             masm.addPtr(Imm32(sizeof(Value) * 2), BaselineStackReg);
         } else {
             masm.popValue(R1);
-            masm.popValue(R0); // TODO: Use MacroAssemblerVIXL::Pop().
+            masm.popValue(R0); // TODO: Use vixl::MacroAssembler::Pop().
         }
     }
 }
@@ -235,8 +235,8 @@ EmitCallTypeUpdateIC(MacroAssembler& masm, JitCode* code, uint32_t objectOffset)
 
     // Save the current BaselineStubReg to stack, as well as the TailCallReg,
     // since on AArch64, the LR is live.
-    masm.MacroAssemblerVIXL::Push(ARMRegister(BaselineStubReg, 64),
-                                  ARMRegister(BaselineTailCallReg, 64));
+    masm.asVIXL().Push(ARMRegister(BaselineStubReg, 64),
+                       ARMRegister(BaselineTailCallReg, 64));
 
     // This is expected to be called from within an IC, when BaselineStubReg
     // is properly initialized to point to the stub.
@@ -250,8 +250,8 @@ EmitCallTypeUpdateIC(MacroAssembler& masm, JitCode* code, uint32_t objectOffset)
     masm.Blr(ARMRegister(BaselineTailCallReg, 64));
 
     // Restore the old stub reg and tailcall reg.
-    masm.MacroAssemblerVIXL::Pop(ARMRegister(BaselineTailCallReg, 64),
-                                 ARMRegister(BaselineStubReg, 64));
+    masm.asVIXL().Pop(ARMRegister(BaselineTailCallReg, 64),
+                      ARMRegister(BaselineStubReg, 64));
 
     // The update IC will store 0 or 1 in R1.scratchReg() reflecting if the
     // value in R0 type-checked properly or not.
@@ -266,7 +266,7 @@ EmitCallTypeUpdateIC(MacroAssembler& masm, JitCode* code, uint32_t objectOffset)
 
     masm.pushValue(R0);
     masm.pushValue(R1);
-    masm.push(BaselineStubReg); // TODO: Use MacroAssemblerVIXL::Push().
+    masm.push(BaselineStubReg); // TODO: Use vixl::MacroAssembler::Push().
 
     // Load previous frame pointer, push BaselineFrame*.
     masm.loadPtr(Address(BaselineFrameReg, 0), R0.scratchReg());

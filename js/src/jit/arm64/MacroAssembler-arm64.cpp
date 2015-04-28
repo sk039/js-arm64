@@ -48,7 +48,7 @@ MacroAssembler::PushRegsInMask(LiveRegisterSet set)
             adjustFrame(8);
         }
 
-        MacroAssemblerVIXL::Push(src0, src1, src2, src3);
+        vixl::MacroAssembler::Push(src0, src1, src2, src3);
     }
     FloatRegisterSet fset = set.fpus().reduceSetForPush();
     for (FloatRegisterBackwardIterator iter(fset); iter.more(); ) {
@@ -79,7 +79,7 @@ MacroAssembler::PushRegsInMask(LiveRegisterSet set)
             adjustFrame(8);
         }
 
-        MacroAssemblerVIXL::Push(src0, src1, src2, src3);
+        vixl::MacroAssembler::Push(src0, src1, src2, src3);
     }
 }
 
@@ -296,9 +296,9 @@ MacroAssemblerCompat::handleFailureWithHandlerTail(void* handler)
     loadValue(Address(BaselineFrameReg, BaselineFrame::reverseOffsetOfReturnValue()),
               JSReturnOperand);
     movePtr(BaselineFrameReg, r28);
-    MacroAssemblerVIXL::Pop(ARMRegister(BaselineFrameReg, 64), vixl::lr);
+    vixl::MacroAssembler::Pop(ARMRegister(BaselineFrameReg, 64), vixl::lr);
     syncStackPtr();
-    MacroAssemblerVIXL::Ret(vixl::lr);
+    vixl::MacroAssembler::Ret(vixl::lr);
 
     // If we are bailing out to baseline to handle an exception,
     // jump to the bailout tail stub.
@@ -554,7 +554,7 @@ MacroAssemblerCompat::callWithABI(Address fun, MoveOp::Type result)
 void
 MacroAssembler::Push(Register reg)
 {
-    MacroAssemblerVIXL::Push(ARMRegister(reg, 64));
+    vixl::MacroAssembler::Push(ARMRegister(reg, 64));
     adjustFrame(sizeof(intptr_t));
 }
 
@@ -706,16 +706,28 @@ MacroAssembler::restoreFrameAlignmentForICArguments(MacroAssembler::AfterICSaveL
     // Exists for MIPS compatibility.
 }
 
-MacroAssembler&
+js::jit::MacroAssembler&
 MacroAssemblerCompat::asMasm()
 {
-    return *static_cast<MacroAssembler*>(this);
+    return *static_cast<js::jit::MacroAssembler*>(this);
 }
 
-const MacroAssembler&
+const js::jit::MacroAssembler&
 MacroAssemblerCompat::asMasm() const
 {
-    return *static_cast<const MacroAssembler*>(this);
+    return *static_cast<const js::jit::MacroAssembler*>(this);
+}
+
+vixl::MacroAssembler&
+MacroAssemblerCompat::asVIXL()
+{
+    return *static_cast<vixl::MacroAssembler*>(this);
+}
+
+const vixl::MacroAssembler&
+MacroAssemblerCompat::asVIXL() const
+{
+    return *static_cast<const vixl::MacroAssembler*>(this);
 }
 
 } // namespace jit

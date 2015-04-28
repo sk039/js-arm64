@@ -34,7 +34,7 @@
 namespace vixl {
 
 void
-MacroAssemblerVIXL::B(Label* label, BranchType type, Register reg, int bit)
+MacroAssembler::B(Label* label, BranchType type, Register reg, int bit)
 {
     MOZ_ASSERT((reg.Is(NoReg) || (type >= kBranchTypeFirstUsingReg)));
     MOZ_ASSERT((bit == -1) || (type >= kBranchTypeFirstUsingBit));
@@ -56,61 +56,61 @@ MacroAssemblerVIXL::B(Label* label, BranchType type, Register reg, int bit)
 }
 
 void
-MacroAssemblerVIXL::And(const Register& rd, const Register& rn, const Operand& operand)
+MacroAssembler::And(const Register& rd, const Register& rn, const Operand& operand)
 {
     LogicalMacro(rd, rn, operand, AND);
 }
 
 void
-MacroAssemblerVIXL::Ands(const Register& rd, const Register& rn, const Operand& operand)
+MacroAssembler::Ands(const Register& rd, const Register& rn, const Operand& operand)
 {
     LogicalMacro(rd, rn, operand, ANDS);
 }
 
 void
-MacroAssemblerVIXL::Tst(const Register& rn, const Operand& operand)
+MacroAssembler::Tst(const Register& rn, const Operand& operand)
 {
     Ands(AppropriateZeroRegFor(rn), rn, operand);
 }
 
 void
-MacroAssemblerVIXL::Bic(const Register& rd, const Register& rn, const Operand& operand)
+MacroAssembler::Bic(const Register& rd, const Register& rn, const Operand& operand)
 {
     LogicalMacro(rd, rn, operand, BIC);
 }
 
 void
-MacroAssemblerVIXL::Bics(const Register& rd, const Register& rn, const Operand& operand)
+MacroAssembler::Bics(const Register& rd, const Register& rn, const Operand& operand)
 {
     LogicalMacro(rd, rn, operand, BICS);
 }
 
 void
-MacroAssemblerVIXL::Orr(const Register& rd, const Register& rn, const Operand& operand)
+MacroAssembler::Orr(const Register& rd, const Register& rn, const Operand& operand)
 {
     LogicalMacro(rd, rn, operand, ORR);
 }
 
 void
-MacroAssemblerVIXL::Orn(const Register& rd, const Register& rn, const Operand& operand)
+MacroAssembler::Orn(const Register& rd, const Register& rn, const Operand& operand)
 {
     LogicalMacro(rd, rn, operand, ORN);
 }
 
 void
-MacroAssemblerVIXL::Eor(const Register& rd, const Register& rn, const Operand& operand)
+MacroAssembler::Eor(const Register& rd, const Register& rn, const Operand& operand)
 {
     LogicalMacro(rd, rn, operand, EOR);
 }
 
 void
-MacroAssemblerVIXL::Eon(const Register& rd, const Register& rn, const Operand& operand)
+MacroAssembler::Eon(const Register& rd, const Register& rn, const Operand& operand)
 {
     LogicalMacro(rd, rn, operand, EON);
 }
 
 void
-MacroAssemblerVIXL::LogicalMacro(const Register& rd, const Register& rn,
+MacroAssembler::LogicalMacro(const Register& rd, const Register& rn,
                                  const Operand& operand, LogicalOp op)
 {
     UseScratchRegisterScope temps(this);
@@ -221,7 +221,7 @@ MacroAssemblerVIXL::LogicalMacro(const Register& rd, const Register& rn,
 }
 
 void
-MacroAssemblerVIXL::Mov(const Register& rd, const Operand& operand, DiscardMoveMode discard_mode)
+MacroAssembler::Mov(const Register& rd, const Operand& operand, DiscardMoveMode discard_mode)
 {
     if (operand.IsImmediate()) {
         // Call the macro assembler for generic immediates.
@@ -251,7 +251,7 @@ MacroAssemblerVIXL::Mov(const Register& rd, const Operand& operand, DiscardMoveM
 }
 
 void
-MacroAssemblerVIXL::Mvn(const Register& rd, const Operand& operand)
+MacroAssembler::Mvn(const Register& rd, const Operand& operand)
 {
     if (operand.IsImmediate()) {
         // Call the macro assembler for generic immediates.
@@ -277,7 +277,7 @@ MacroAssemblerVIXL::Mvn(const Register& rd, const Operand& operand)
 }
 
 void
-MacroAssemblerVIXL::Mov(const Register& rd, uint64_t imm)
+MacroAssembler::Mov(const Register& rd, uint64_t imm)
 {
     MOZ_ASSERT(is_uint32(imm) || is_int32(imm) || rd.Is64Bits());
 
@@ -351,7 +351,7 @@ MacroAssemblerVIXL::Mov(const Register& rd, uint64_t imm)
 }
 
 unsigned
-MacroAssemblerVIXL::CountClearHalfWords(uint64_t imm, unsigned reg_size)
+MacroAssembler::CountClearHalfWords(uint64_t imm, unsigned reg_size)
 {
     MOZ_ASSERT((reg_size % 8) == 0);
     int count = 0;
@@ -366,7 +366,7 @@ MacroAssemblerVIXL::CountClearHalfWords(uint64_t imm, unsigned reg_size)
 // The movz instruction can generate immediates containing an arbitrary 16-bit
 // value, with remaining bits clear, eg. 0x00001234, 0x0000123400000000.
 bool
-MacroAssemblerVIXL::IsImmMovz(uint64_t imm, unsigned reg_size)
+MacroAssembler::IsImmMovz(uint64_t imm, unsigned reg_size)
 {
     MOZ_ASSERT((reg_size == kXRegSize) || (reg_size == kWRegSize));
     return CountClearHalfWords(imm, reg_size) >= ((reg_size / 16) - 1);
@@ -375,13 +375,13 @@ MacroAssemblerVIXL::IsImmMovz(uint64_t imm, unsigned reg_size)
 // The movn instruction can generate immediates containing an arbitrary 16-bit
 // value, with remaining bits set, eg. 0xffff1234, 0xffff1234ffffffff.
 bool
-MacroAssemblerVIXL::IsImmMovn(uint64_t imm, unsigned reg_size)
+MacroAssembler::IsImmMovn(uint64_t imm, unsigned reg_size)
 {
     return IsImmMovz(~imm, reg_size);
 }
 
 void
-MacroAssemblerVIXL::Ccmp(const Register& rn, const Operand& operand,
+MacroAssembler::Ccmp(const Register& rn, const Operand& operand,
                          StatusFlags nzcv, Condition cond)
 {
     if (operand.IsImmediate() && (operand.immediate() < 0))
@@ -391,7 +391,7 @@ MacroAssemblerVIXL::Ccmp(const Register& rn, const Operand& operand,
 }
 
 void
-MacroAssemblerVIXL::Ccmn(const Register& rn, const Operand& operand,
+MacroAssembler::Ccmn(const Register& rn, const Operand& operand,
                          StatusFlags nzcv, Condition cond)
 {
     if (operand.IsImmediate() && (operand.immediate() < 0))
@@ -401,7 +401,7 @@ MacroAssemblerVIXL::Ccmn(const Register& rn, const Operand& operand,
 }
 
 void
-MacroAssemblerVIXL::ConditionalCompareMacro(const Register& rn, const Operand& operand,
+MacroAssembler::ConditionalCompareMacro(const Register& rn, const Operand& operand,
                                             StatusFlags nzcv, Condition cond,
                                             ConditionalCompareOp op)
 {
@@ -424,7 +424,7 @@ MacroAssemblerVIXL::ConditionalCompareMacro(const Register& rn, const Operand& o
 }
 
 void
-MacroAssemblerVIXL::Csel(const Register& rd, const Register& rn,
+MacroAssembler::Csel(const Register& rd, const Register& rn,
                          const Operand& operand, Condition cond)
 {
     MOZ_ASSERT(!rd.IsZero());
@@ -466,7 +466,7 @@ MacroAssemblerVIXL::Csel(const Register& rd, const Register& rn,
 }
 
 void
-MacroAssemblerVIXL::Add(const Register& rd, const Register& rn, const Operand& operand)
+MacroAssembler::Add(const Register& rd, const Register& rn, const Operand& operand)
 {
     if (operand.IsImmediate() && (operand.immediate() < 0) && IsImmAddSub(-operand.immediate()))
         AddSubMacro(rd, rn, -operand.immediate(), LeaveFlags, SUB);
@@ -475,7 +475,7 @@ MacroAssemblerVIXL::Add(const Register& rd, const Register& rn, const Operand& o
 }
 
 void
-MacroAssemblerVIXL::Adds(const Register& rd, const Register& rn, const Operand& operand)
+MacroAssembler::Adds(const Register& rd, const Register& rn, const Operand& operand)
 {
     if (operand.IsImmediate() && (operand.immediate() < 0) && IsImmAddSub(-operand.immediate()))
         AddSubMacro(rd, rn, -operand.immediate(), SetFlags, SUB);
@@ -484,7 +484,7 @@ MacroAssemblerVIXL::Adds(const Register& rd, const Register& rn, const Operand& 
 }
 
 void
-MacroAssemblerVIXL::Sub(const Register& rd, const Register& rn, const Operand& operand)
+MacroAssembler::Sub(const Register& rd, const Register& rn, const Operand& operand)
 {
     if (operand.IsImmediate() && (operand.immediate() < 0) && IsImmAddSub(-operand.immediate()))
         AddSubMacro(rd, rn, -operand.immediate(), LeaveFlags, ADD);
@@ -493,7 +493,7 @@ MacroAssemblerVIXL::Sub(const Register& rd, const Register& rn, const Operand& o
 }
 
 void
-MacroAssemblerVIXL::Subs(const Register& rd, const Register& rn, const Operand& operand)
+MacroAssembler::Subs(const Register& rd, const Register& rn, const Operand& operand)
 {
     if (operand.IsImmediate() && (operand.immediate() < 0) && IsImmAddSub(-operand.immediate()))
         AddSubMacro(rd, rn, -operand.immediate(), SetFlags, ADD);
@@ -502,19 +502,19 @@ MacroAssemblerVIXL::Subs(const Register& rd, const Register& rn, const Operand& 
 }
 
 void
-MacroAssemblerVIXL::Cmn(const Register& rn, const Operand& operand)
+MacroAssembler::Cmn(const Register& rn, const Operand& operand)
 {
     Adds(AppropriateZeroRegFor(rn), rn, operand);
 }
 
 void
-MacroAssemblerVIXL::Cmp(const Register& rn, const Operand& operand)
+MacroAssembler::Cmp(const Register& rn, const Operand& operand)
 {
     Subs(AppropriateZeroRegFor(rn), rn, operand);
 }
 
 void
-MacroAssemblerVIXL::Fcmp(const FPRegister& fn, double value)
+MacroAssembler::Fcmp(const FPRegister& fn, double value)
 {
     if (value != 0.0) {
         UseScratchRegisterScope temps(this);
@@ -529,7 +529,7 @@ MacroAssemblerVIXL::Fcmp(const FPRegister& fn, double value)
 }
 
 void
-MacroAssemblerVIXL::Fmov(FPRegister fd, double imm)
+MacroAssembler::Fmov(FPRegister fd, double imm)
 {
     if (fd.Is32Bits()) {
         Fmov(fd, static_cast<float>(imm));
@@ -546,7 +546,7 @@ MacroAssemblerVIXL::Fmov(FPRegister fd, double imm)
 }
 
 void
-MacroAssemblerVIXL::Fmov(FPRegister fd, float imm)
+MacroAssembler::Fmov(FPRegister fd, float imm)
 {
     if (fd.Is64Bits()) {
         Fmov(fd, static_cast<double>(imm));
@@ -563,7 +563,7 @@ MacroAssemblerVIXL::Fmov(FPRegister fd, float imm)
 }
 
 void
-MacroAssemblerVIXL::Neg(const Register& rd, const Operand& operand)
+MacroAssembler::Neg(const Register& rd, const Operand& operand)
 {
     if (operand.IsImmediate())
         Mov(rd, -operand.immediate());
@@ -572,13 +572,13 @@ MacroAssemblerVIXL::Neg(const Register& rd, const Operand& operand)
 }
 
 void
-MacroAssemblerVIXL::Negs(const Register& rd, const Operand& operand)
+MacroAssembler::Negs(const Register& rd, const Operand& operand)
 {
     Subs(rd, AppropriateZeroRegFor(rd), operand);
 }
 
 bool
-MacroAssemblerVIXL::TryOneInstrMoveImmediate(const Register& dst, int64_t imm)
+MacroAssembler::TryOneInstrMoveImmediate(const Register& dst, int64_t imm)
 {
     unsigned n, imm_s, imm_r;
     int reg_size = dst.size();
@@ -614,7 +614,7 @@ MacroAssemblerVIXL::TryOneInstrMoveImmediate(const Register& dst, int64_t imm)
 }
 
 Operand
-MacroAssemblerVIXL::MoveImmediateForShiftedOp(const Register& dst, int64_t imm)
+MacroAssembler::MoveImmediateForShiftedOp(const Register& dst, int64_t imm)
 {
     int reg_size = dst.size();
 
@@ -647,7 +647,7 @@ MacroAssemblerVIXL::MoveImmediateForShiftedOp(const Register& dst, int64_t imm)
 }
 
 void
-MacroAssemblerVIXL::AddSubMacro(const Register& rd, const Register& rn,
+MacroAssembler::AddSubMacro(const Register& rd, const Register& rn,
                                 const Operand& operand, FlagsUpdate S, AddSubOp op)
 {
     if (operand.IsZero() && rd.Is(rn) && rd.Is64Bits() && rn.Is64Bits() &&
@@ -680,45 +680,45 @@ MacroAssemblerVIXL::AddSubMacro(const Register& rd, const Register& rn,
 }
 
 void
-MacroAssemblerVIXL::Adc(const Register& rd, const Register& rn, const Operand& operand)
+MacroAssembler::Adc(const Register& rd, const Register& rn, const Operand& operand)
 {
     AddSubWithCarryMacro(rd, rn, operand, LeaveFlags, ADC);
 }
 
 void
-MacroAssemblerVIXL::Adcs(const Register& rd, const Register& rn, const Operand& operand)
+MacroAssembler::Adcs(const Register& rd, const Register& rn, const Operand& operand)
 {
     AddSubWithCarryMacro(rd, rn, operand, SetFlags, ADC);
 }
 
 void
-MacroAssemblerVIXL::Sbc(const Register& rd, const Register& rn, const Operand& operand)
+MacroAssembler::Sbc(const Register& rd, const Register& rn, const Operand& operand)
 {
     AddSubWithCarryMacro(rd, rn, operand, LeaveFlags, SBC);
 }
 
 void
-MacroAssemblerVIXL::Sbcs(const Register& rd, const Register& rn, const Operand& operand)
+MacroAssembler::Sbcs(const Register& rd, const Register& rn, const Operand& operand)
 {
     AddSubWithCarryMacro(rd, rn, operand, SetFlags, SBC);
 }
 
 void
-MacroAssemblerVIXL::Ngc(const Register& rd, const Operand& operand)
+MacroAssembler::Ngc(const Register& rd, const Operand& operand)
 {
     Register zr = AppropriateZeroRegFor(rd);
     Sbc(rd, zr, operand);
 }
 
 void
-MacroAssemblerVIXL::Ngcs(const Register& rd, const Operand& operand)
+MacroAssembler::Ngcs(const Register& rd, const Operand& operand)
 {
     Register zr = AppropriateZeroRegFor(rd);
     Sbcs(rd, zr, operand);
 }
 
 void
-MacroAssemblerVIXL::AddSubWithCarryMacro(const Register& rd, const Register& rn,
+MacroAssembler::AddSubWithCarryMacro(const Register& rd, const Register& rn,
                                          const Operand& operand, FlagsUpdate S, AddSubWithCarryOp op)
 {
     MOZ_ASSERT(rd.size() == rn.size());
@@ -766,14 +766,14 @@ MacroAssemblerVIXL::AddSubWithCarryMacro(const Register& rd, const Register& rn,
 }
 
 #define DEFINE_FUNCTION(FN, REGTYPE, REG, OP)                             \
-void MacroAssemblerVIXL::FN(const REGTYPE REG, const MemOperand& addr) {  \
+void MacroAssembler::FN(const REGTYPE REG, const MemOperand& addr) {  \
     LoadStoreMacro(REG, addr, OP);                                        \
 }
 LS_MACRO_LIST(DEFINE_FUNCTION)
 #undef DEFINE_FUNCTION
 
 BufferOffset
-MacroAssemblerVIXL::LoadStoreMacro(const CPURegister& rt, const MemOperand& addr, LoadStoreOp op)
+MacroAssembler::LoadStoreMacro(const CPURegister& rt, const MemOperand& addr, LoadStoreOp op)
 {
     int64_t offset = addr.offset();
     LSDataSize size = CalcLSDataSize(op);
@@ -807,7 +807,7 @@ MacroAssemblerVIXL::LoadStoreMacro(const CPURegister& rt, const MemOperand& addr
 }
 
 void
-MacroAssemblerVIXL::Push(const CPURegister& src0, const CPURegister& src1,
+MacroAssembler::Push(const CPURegister& src0, const CPURegister& src1,
                          const CPURegister& src2, const CPURegister& src3)
 {
     MOZ_ASSERT(AreSameSizeAndType(src0, src1, src2, src3));
@@ -835,7 +835,7 @@ MacroAssemblerVIXL::Push(const CPURegister& src0, const CPURegister& src1,
 }
 
 void
-MacroAssemblerVIXL::Pop(const CPURegister& dst0, const CPURegister& dst1,
+MacroAssembler::Pop(const CPURegister& dst0, const CPURegister& dst1,
                         const CPURegister& dst2, const CPURegister& dst3)
 {
     // It is not valid to pop into the same register more than once in one
@@ -852,7 +852,7 @@ MacroAssemblerVIXL::Pop(const CPURegister& dst0, const CPURegister& dst1,
 }
     
 void
-MacroAssemblerVIXL::PushCPURegList(CPURegList registers)
+MacroAssembler::PushCPURegList(CPURegList registers)
 {
     int size = registers.RegisterSizeInBytes();
 
@@ -872,7 +872,7 @@ MacroAssemblerVIXL::PushCPURegList(CPURegList registers)
 }
 
 void
-MacroAssemblerVIXL::PopCPURegList(CPURegList registers)
+MacroAssembler::PopCPURegList(CPURegList registers)
 {
     int size = registers.RegisterSizeInBytes();
 
@@ -892,7 +892,7 @@ MacroAssemblerVIXL::PopCPURegList(CPURegList registers)
 }
 
 void
-MacroAssemblerVIXL::PushMultipleTimes(int count, Register src)
+MacroAssembler::PushMultipleTimes(int count, Register src)
 {
     int size = src.SizeInBytes();
 
@@ -916,7 +916,7 @@ MacroAssemblerVIXL::PushMultipleTimes(int count, Register src)
 }
 
 void
-MacroAssemblerVIXL::PushPseudoStackPointerHelper()
+MacroAssembler::PushPseudoStackPointerHelper()
 {
     // FIXME: This is gross. The helper register should be required in the call.
     Register scratch = vixl::ip1;
@@ -926,7 +926,7 @@ MacroAssemblerVIXL::PushPseudoStackPointerHelper()
 }
 
 void
-MacroAssemblerVIXL::PushHelper(int count, int size, const CPURegister& src0,
+MacroAssembler::PushHelper(int count, int size, const CPURegister& src0,
                                const CPURegister& src1, const CPURegister& src2,
                                const CPURegister& src3)
 {
@@ -975,7 +975,7 @@ MacroAssemblerVIXL::PushHelper(int count, int size, const CPURegister& src0,
 }
 
 void
-MacroAssemblerVIXL::PopHelper(int count, int size, const CPURegister& dst0,
+MacroAssembler::PopHelper(int count, int size, const CPURegister& dst0,
                               const CPURegister& dst1, const CPURegister& dst2,
                               const CPURegister& dst3)
 {
@@ -1015,7 +1015,7 @@ MacroAssemblerVIXL::PopHelper(int count, int size, const CPURegister& dst0,
 }
 
 void
-MacroAssemblerVIXL::PrepareForPush(int count, int size)
+MacroAssembler::PrepareForPush(int count, int size)
 {
     if (sp.Is(GetStackPointer64())) {
         // If the current stack pointer is sp, then it must be aligned to 16 bytes
@@ -1031,7 +1031,7 @@ MacroAssemblerVIXL::PrepareForPush(int count, int size)
 }
 
 void
-MacroAssemblerVIXL::PrepareForPop(int count, int size)
+MacroAssembler::PrepareForPop(int count, int size)
 {
     if (sp.Is(GetStackPointer64())) {
         // If the current stack pointer is sp, then it must be aligned to 16 bytes
@@ -1042,7 +1042,7 @@ MacroAssemblerVIXL::PrepareForPop(int count, int size)
 }
 
 void
-MacroAssemblerVIXL::Poke(const Register& src, const Operand& offset)
+MacroAssembler::Poke(const Register& src, const Operand& offset)
 {
     if (offset.IsImmediate())
         MOZ_ASSERT(offset.immediate() >= 0);
@@ -1051,7 +1051,7 @@ MacroAssemblerVIXL::Poke(const Register& src, const Operand& offset)
 }
 
 void
-MacroAssemblerVIXL::Peek(const Register& dst, const Operand& offset)
+MacroAssembler::Peek(const Register& dst, const Operand& offset)
 {
     if (offset.IsImmediate())
         MOZ_ASSERT(offset.immediate() >= 0);
@@ -1060,7 +1060,7 @@ MacroAssemblerVIXL::Peek(const Register& dst, const Operand& offset)
 }
 
 void
-MacroAssemblerVIXL::Claim(const Operand& size)
+MacroAssembler::Claim(const Operand& size)
 {
     if (size.IsZero())
         return;
@@ -1078,7 +1078,7 @@ MacroAssemblerVIXL::Claim(const Operand& size)
 }
 
 void
-MacroAssemblerVIXL::Drop(const Operand& size)
+MacroAssembler::Drop(const Operand& size)
 {
     if (size.IsZero())
         return;
@@ -1093,7 +1093,7 @@ MacroAssemblerVIXL::Drop(const Operand& size)
 }
 
 void
-MacroAssemblerVIXL::PushCalleeSavedRegisters()
+MacroAssembler::PushCalleeSavedRegisters()
 {
     // Ensure that the macro-assembler doesn't use any scratch registers.
     InstructionAccurateScope scope(this);
@@ -1117,7 +1117,7 @@ MacroAssemblerVIXL::PushCalleeSavedRegisters()
 }
 
 void
-MacroAssemblerVIXL::PopCalleeSavedRegisters()
+MacroAssembler::PopCalleeSavedRegisters()
 {
     // Ensure that the macro-assembler doesn't use any scratch registers.
     InstructionAccurateScope scope(this);
@@ -1141,7 +1141,7 @@ MacroAssemblerVIXL::PopCalleeSavedRegisters()
 }
 
 void
-MacroAssemblerVIXL::BumpSystemStackPointer(const Operand& space)
+MacroAssembler::BumpSystemStackPointer(const Operand& space)
 {
     MOZ_ASSERT(!sp.Is(GetStackPointer64()));
     // TODO: Several callers rely on this not using scratch registers, so we use
@@ -1154,7 +1154,7 @@ MacroAssemblerVIXL::BumpSystemStackPointer(const Operand& space)
 // This is the main Printf implementation. All callee-saved registers are
 // preserved, but NZCV and the caller-saved registers may be clobbered.
 void
-MacroAssemblerVIXL::PrintfNoPreserve(const char * format, const CPURegister& arg0,
+MacroAssembler::PrintfNoPreserve(const char * format, const CPURegister& arg0,
                                      const CPURegister& arg1, const CPURegister& arg2,
                                      const CPURegister& arg3)
 {
@@ -1301,7 +1301,7 @@ MacroAssemblerVIXL::PrintfNoPreserve(const char * format, const CPURegister& arg
 }
 
 void
-MacroAssemblerVIXL::Printf(const char * format, CPURegister arg0, CPURegister arg1,
+MacroAssembler::Printf(const char * format, CPURegister arg0, CPURegister arg1,
                            CPURegister arg2, CPURegister arg3)
 {
     // We can only print sp if it is the current stack pointer.
@@ -1368,7 +1368,7 @@ MacroAssemblerVIXL::Printf(const char * format, CPURegister arg0, CPURegister ar
 }
 
 void
-MacroAssemblerVIXL::Trace(TraceParameters parameters, TraceCommand command)
+MacroAssembler::Trace(TraceParameters parameters, TraceCommand command)
 {
 #ifdef JS_ARM64_SIMULATOR
     // The arguments to the trace pseudo instruction need to be contiguous in
@@ -1393,7 +1393,7 @@ MacroAssemblerVIXL::Trace(TraceParameters parameters, TraceCommand command)
 }
 
 void
-MacroAssemblerVIXL::Log(TraceParameters parameters)
+MacroAssembler::Log(TraceParameters parameters)
 {
 #ifdef JS_ARM64_SIMULATOR
     // The arguments to the log pseudo instruction need to be contiguous in
@@ -1415,7 +1415,7 @@ MacroAssemblerVIXL::Log(TraceParameters parameters)
 }
 
 void
-MacroAssemblerVIXL::EnableInstrumentation()
+MacroAssembler::EnableInstrumentation()
 {
     MOZ_ASSERT(!isprint(InstrumentStateEnable));
     InstructionAccurateScope scope(this, 1);
@@ -1423,7 +1423,7 @@ MacroAssemblerVIXL::EnableInstrumentation()
 }
 
 void
-MacroAssemblerVIXL::DisableInstrumentation()
+MacroAssembler::DisableInstrumentation()
 {
     MOZ_ASSERT(!isprint(InstrumentStateDisable));
     InstructionAccurateScope scope(this, 1);
@@ -1431,7 +1431,7 @@ MacroAssemblerVIXL::DisableInstrumentation()
 }
 
 void
-MacroAssemblerVIXL::AnnotateInstrumentation(const char* marker_name)
+MacroAssembler::AnnotateInstrumentation(const char* marker_name)
 {
     MOZ_ASSERT(strlen(marker_name) == 2);
 
@@ -1443,7 +1443,7 @@ MacroAssemblerVIXL::AnnotateInstrumentation(const char* marker_name)
     movn(xzr, (marker_name[1] << 8) | marker_name[0]);
 }
 void
-MacroAssemblerVIXL::StackCheck(int index, int value)
+MacroAssembler::StackCheck(int index, int value)
 {
 #if 0
 #ifdef JS_ARM64_SIMULATOR
@@ -1468,7 +1468,7 @@ MacroAssemblerVIXL::StackCheck(int index, int value)
 }
 
 void
-MacroAssemblerVIXL::StackCheckPushPop(int index, int value, int direction)
+MacroAssembler::StackCheckPushPop(int index, int value, int direction)
 {
 #if 0
 #ifdef JS_ARM64_SIMULATOR

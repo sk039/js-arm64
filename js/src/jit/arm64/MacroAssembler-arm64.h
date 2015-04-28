@@ -45,15 +45,20 @@ struct ImmTag : public Imm32
     { }
 };
 
-class MacroAssemblerCompat : public vixl::MacroAssemblerVIXL
+class MacroAssemblerCompat : public vixl::MacroAssembler
 {
   public:
     typedef vixl::Condition Condition;
 
   private:
     // Perform a downcast. Should be removed by Bug 996602.
-    MacroAssembler& asMasm();
-    const MacroAssembler& asMasm() const;
+    js::jit::MacroAssembler& asMasm();
+    const js::jit::MacroAssembler& asMasm() const;
+
+  public:
+    // Restrict to only VIXL-internal functions.
+    vixl::MacroAssembler& asVIXL();
+    const MacroAssembler& asVIXL() const;
 
   protected:
     bool enoughMemory_;
@@ -71,7 +76,7 @@ class MacroAssemblerCompat : public vixl::MacroAssemblerVIXL
     bool dynamicAlignment_;
 
     MacroAssemblerCompat()
-      : vixl::MacroAssemblerVIXL(),
+      : vixl::MacroAssembler(),
         enoughMemory_(true),
         framePushed_(0),
         inCall_(false),
@@ -126,7 +131,7 @@ class MacroAssemblerCompat : public vixl::MacroAssemblerVIXL
         adjustFrame(reg.size() / 8);
     }
     void Push(Register reg) {
-        MacroAssemblerVIXL::Push(ARMRegister(reg, 64));
+        vixl::MacroAssembler::Push(ARMRegister(reg, 64));
         adjustFrame(8);
     }
     void Push(Imm32 imm) {
@@ -142,55 +147,55 @@ class MacroAssemblerCompat : public vixl::MacroAssemblerVIXL
         adjustFrame(sizeof(void*));
     }
     void push(FloatRegister f) {
-        MacroAssemblerVIXL::Push(ARMFPRegister(f, 64));
+        vixl::MacroAssembler::Push(ARMFPRegister(f, 64));
     }
     void push(ARMFPRegister f) {
-        MacroAssemblerVIXL::Push(f);
+        vixl::MacroAssembler::Push(f);
     }
     void push(Imm32 imm) {
         if (imm.value == 0) {
-            MacroAssemblerVIXL::Push(vixl::xzr);
+            vixl::MacroAssembler::Push(vixl::xzr);
         } else {
             move32(imm, ScratchReg);
-            MacroAssemblerVIXL::Push(ScratchReg64);
+            vixl::MacroAssembler::Push(ScratchReg64);
         }
     }
     void push(ImmWord imm) {
         if (imm.value == 0) {
-            MacroAssemblerVIXL::Push(vixl::xzr);
+            vixl::MacroAssembler::Push(vixl::xzr);
         } else {
             Mov(ScratchReg64, imm.value);
-            MacroAssemblerVIXL::Push(ScratchReg64);
+            vixl::MacroAssembler::Push(ScratchReg64);
         }
     }
     void push(ImmPtr imm) {
         if (imm.value == nullptr) {
-            MacroAssemblerVIXL::Push(vixl::xzr);
+            vixl::MacroAssembler::Push(vixl::xzr);
         } else {
             movePtr(imm, ScratchReg);
-            MacroAssemblerVIXL::Push(ScratchReg64);
+            vixl::MacroAssembler::Push(ScratchReg64);
         }
     }
     void push(ImmGCPtr imm) {
         if (imm.value == nullptr) {
-            MacroAssemblerVIXL::Push(vixl::xzr);
+            vixl::MacroAssembler::Push(vixl::xzr);
         } else {
             movePtr(imm, ScratchReg);
-            MacroAssemblerVIXL::Push(ScratchReg64);
+            vixl::MacroAssembler::Push(ScratchReg64);
         }
     }
     void push(ImmMaybeNurseryPtr imm) {
         push(noteMaybeNurseryPtr(imm));
     }
     void push(Register reg) {
-        MacroAssemblerVIXL::Push(ARMRegister(reg, 64));
+        vixl::MacroAssembler::Push(ARMRegister(reg, 64));
     }
     void push(ARMRegister reg) {
-        MacroAssemblerVIXL::Push(reg);
+        vixl::MacroAssembler::Push(reg);
     }
     void push(Address a) {
         loadPtr(a, ScratchReg);
-        MacroAssemblerVIXL::Push(ScratchReg64);
+        vixl::MacroAssembler::Push(ScratchReg64);
     }
 
     void pushReturnAddress() {
@@ -204,10 +209,10 @@ class MacroAssemblerCompat : public vixl::MacroAssemblerVIXL
         pop(v.valueReg());
     }
     void pop(const FloatRegister& f) {
-        MacroAssemblerVIXL::Pop(ARMRegister(f.code(), 64));
+        vixl::MacroAssembler::Pop(ARMRegister(f.code(), 64));
     }
     void pop(Register reg) {
-        MacroAssemblerVIXL::Pop(ARMRegister(reg, 64));
+        vixl::MacroAssembler::Pop(ARMRegister(reg, 64));
     }
 
     void implicitPop(uint32_t args) {
@@ -215,7 +220,7 @@ class MacroAssemblerCompat : public vixl::MacroAssemblerVIXL
         adjustFrame(-args);
     }
     void Pop(ARMRegister r) {
-        MacroAssemblerVIXL::Pop(r);
+        vixl::MacroAssembler::Pop(r);
         adjustFrame(- r.size() / 8);
     }
     // FIXME: This is the same on every arch.
@@ -243,15 +248,15 @@ class MacroAssemblerCompat : public vixl::MacroAssemblerVIXL
     void reserveStack(uint32_t amount) {
         // TODO: This bumps |sp| every time we reserve using a second register.
         // It would save some instructions if we had a fixed, maximum frame size.
-        MacroAssemblerVIXL::Claim(Operand(amount));
+        vixl::MacroAssembler::Claim(Operand(amount));
         adjustFrame(amount);
     }
     void freeStack(uint32_t amount) {
-        MacroAssemblerVIXL::Drop(Operand(amount));
+        vixl::MacroAssembler::Drop(Operand(amount));
         adjustFrame(-((int32_t)amount));
     }
     void freeStack(Register amount) {
-        MacroAssemblerVIXL::Drop(Operand(ARMRegister(amount, 64)));
+        vixl::MacroAssembler::Drop(Operand(ARMRegister(amount, 64)));
     }
 
     // Update sp with the value of the current active stack pointer, if necessary.
@@ -325,10 +330,10 @@ class MacroAssemblerCompat : public vixl::MacroAssemblerVIXL
         Orr(ARMRegister(dest.valueReg(), 64), ARMRegister(payload, 64), Operand(ImmShiftedTag(type).value));
     }
     void pushValue(ValueOperand val) {
-        MacroAssemblerVIXL::Push(ARMRegister(val.valueReg(), 64));
+        vixl::MacroAssembler::Push(ARMRegister(val.valueReg(), 64));
     }
     void popValue(ValueOperand val) {
-        MacroAssemblerVIXL::Pop(ARMRegister(val.valueReg(), 64));
+        vixl::MacroAssembler::Pop(ARMRegister(val.valueReg(), 64));
     }
     void pushValue(const Value& val) {
         jsval_layout jv = JSVAL_TO_IMPL(val);
@@ -2720,7 +2725,7 @@ class MacroAssemblerCompat : public vixl::MacroAssemblerVIXL
 
     void abiret() {
         syncStackPtr();
-        MacroAssemblerVIXL::Ret(vixl::lr);
+        vixl::MacroAssembler::Ret(vixl::lr);
     }
 
     void mulBy3(Register src, Register dest) {

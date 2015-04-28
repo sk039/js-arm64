@@ -49,25 +49,25 @@ JitRuntime::generateEnterJIT(JSContext* cx, EnterJitType type)
     masm.SetStackPointer64(sp);
 
     // Save old frame pointer and return address; set new frame pointer.
-    masm.MacroAssemblerVIXL::Push(x29, x30);
+    masm.asVIXL().Push(x29, x30);
     masm.Add(x29, masm.GetStackPointer64(), Operand(0));
 
     // Save callee-save integer registers.
     // Also save x7 (reg_vp) and x30 (lr), for use later.
-    masm.MacroAssemblerVIXL::Push(x19, x20, x21, x22);
-    masm.MacroAssemblerVIXL::Push(x23, x24, x25, x26);
-    masm.MacroAssemblerVIXL::Push(x27, x28, x7,  x30);
+    masm.asVIXL().Push(x19, x20, x21, x22);
+    masm.asVIXL().Push(x23, x24, x25, x26);
+    masm.asVIXL().Push(x27, x28, x7,  x30);
 
     // Save callee-save floating-point registers.
     // AArch64 ABI specifies that only the lower 64 bits must be saved.
-    masm.MacroAssemblerVIXL::Push(d8,  d9,  d10, d11);
-    masm.MacroAssemblerVIXL::Push(d12, d13, d14, d15);
+    masm.asVIXL().Push(d8,  d9,  d10, d11);
+    masm.asVIXL().Push(d12, d13, d14, d15);
 
 #ifdef DEBUG
     // Emit stack canaries.
     masm.movePtr(ImmWord(0xdeadd00d), r23);
     masm.movePtr(ImmWord(0xdeadd11d), r24);
-    masm.MacroAssemblerVIXL::Push(x23, x24);
+    masm.asVIXL().Push(x23, x24);
 #endif
 
     // Common code below attempts to push single registers at a time,
@@ -155,7 +155,7 @@ JitRuntime::generateEnterJIT(JSContext* cx, EnterJitType type)
     // The result address is used to store the actual number of arguments
     // without adding an argument to EnterJIT.
     masm.unboxInt32(Address(reg_vp, 0x0), ip0);
-    masm.MacroAssemblerVIXL::Push(vixl::ip0, ARMRegister(reg_callee, 64));
+    masm.asVIXL().Push(vixl::ip0, ARMRegister(reg_callee, 64));
     masm.checkStackAlignment();
 
     // Calculate the number of bytes pushed so far.
@@ -173,7 +173,7 @@ JitRuntime::generateEnterJIT(JSContext* cx, EnterJitType type)
 
         // Push return address and previous frame pointer.
         masm.Adr(ScratchReg2_64, &osrReturnPoint);
-        masm.MacroAssemblerVIXL::Push(ScratchReg2_64, BaselineFrameReg64);
+        masm.asVIXL().Push(ScratchReg2_64, BaselineFrameReg64);
 
         // Reserve frame.
         masm.Sub(masm.GetStackPointer64(), masm.GetStackPointer64(), Operand(BaselineFrame::Size()));
@@ -187,11 +187,11 @@ JitRuntime::generateEnterJIT(JSContext* cx, EnterJitType type)
         // Enter exit frame.
         masm.addPtr(Imm32(BaselineFrame::Size() + BaselineFrame::FramePointerOffset), r19);
         masm.makeFrameDescriptor(r19, JitFrame_BaselineJS);
-        masm.MacroAssemblerVIXL::Push(x19, xzr); // Push xzr for a fake return address.
+        masm.asVIXL().Push(x19, xzr); // Push xzr for a fake return address.
         // No GC things to mark: push a bare token.
         masm.enterFakeExitFrame(ExitFrameLayout::BareToken());
 
-        masm.MacroAssemblerVIXL::Push(BaselineFrameReg64, ARMRegister(reg_code, 64));
+        masm.asVIXL().Push(BaselineFrameReg64, ARMRegister(reg_code, 64));
 
         // Initialize the frame, including filling in the slots.
         masm.setupUnalignedABICall(3, r19);
@@ -200,7 +200,7 @@ JitRuntime::generateEnterJIT(JSContext* cx, EnterJitType type)
         masm.passABIArg(reg_osrNStack);
         masm.callWithABI(JS_FUNC_TO_DATA_PTR(void*, jit::InitBaselineFrameForOsr));
 
-        masm.MacroAssemblerVIXL::Pop(x19, BaselineFrameReg64);
+        masm.asVIXL().Pop(x19, BaselineFrameReg64);
 
         MOZ_ASSERT(r19 != ReturnReg);
 
@@ -240,7 +240,7 @@ JitRuntime::generateEnterJIT(JSContext* cx, EnterJitType type)
 #ifdef DEBUG
     // Check that canaries placed on function entry are still present.
     // TODO: Once this patch is ready, we can probably remove the canaries.
-    masm.MacroAssemblerVIXL::Pop(x24, x23);
+    masm.asVIXL().Pop(x24, x23);
     Label x23OK, x24OK;
 
     masm.branchPtr(Assembler::Equal, r23, ImmWord(0xdeadd00d), &x23OK);
@@ -253,20 +253,20 @@ JitRuntime::generateEnterJIT(JSContext* cx, EnterJitType type)
 #endif
     
     // Restore callee-save floating-point registers.
-    masm.MacroAssemblerVIXL::Pop(d15, d14, d13, d12);
-    masm.MacroAssemblerVIXL::Pop(d11, d10,  d9,  d8);
+    masm.asVIXL().Pop(d15, d14, d13, d12);
+    masm.asVIXL().Pop(d11, d10,  d9,  d8);
 
     // Restore callee-save integer registers.
     // Also restore x7 (reg_vp) and x30 (lr).
-    masm.MacroAssemblerVIXL::Pop(x30, x7,  x28, x27);
-    masm.MacroAssemblerVIXL::Pop(x26, x25, x24, x23);
-    masm.MacroAssemblerVIXL::Pop(x22, x21, x20, x19);
+    masm.asVIXL().Pop(x30, x7,  x28, x27);
+    masm.asVIXL().Pop(x26, x25, x24, x23);
+    masm.asVIXL().Pop(x22, x21, x20, x19);
 
     // Store return value (in JSReturnReg = x2 to just-popped reg_vp).
     masm.storeValue(JSReturnOperand, Address(reg_vp, 0));
 
     // Restore old frame pointer.
-    masm.MacroAssemblerVIXL::Pop(x30, x29);
+    masm.asVIXL().Pop(x30, x29);
 
     // Return using the value popped into x30.
     masm.ret();
@@ -286,7 +286,7 @@ JitRuntime::generateInvalidator(JSContext* cx)
 {
     // FIXME: Actually implement.
     MacroAssembler masm;
-    masm.MacroAssemblerVIXL::Push(x0, x1, x2, x3);
+    masm.asVIXL().Push(x0, x1, x2, x3);
     masm.PushRegsInMask(AllRegs);
     masm.Mov(x0, masm.GetStackPointer64());
     masm.Sub(masm.GetStackPointer64(), masm.GetStackPointer64(), Operand(sizeof(size_t)));
@@ -440,7 +440,7 @@ PushBailoutFrame(MacroAssembler& masm, uint32_t frameClass, Register spArg)
     // the end of the current stack. Sadly, the ABI says that we need to always
     // point to the lowest place that has been written. The OS is free to do
     // whatever it wants below sp.
-    masm.MacroAssemblerVIXL::Push(x30, x9);
+    masm.asVIXL().Push(x30, x9);
     masm.Mov(ARMRegister(spArg, 64), masm.GetStackPointer64());
 }
 
@@ -761,7 +761,7 @@ JitRuntime::generateDebugTrapHandler(JSContext* cx)
     if (!code)
         return nullptr;
 
-    masm.MacroAssemblerVIXL::Push(vixl::lr, ARMRegister(scratch1, 64));
+    masm.asVIXL().Push(vixl::lr, ARMRegister(scratch1, 64));
     EmitCallVM(code, masm);
 
     EmitLeaveStubFrame(masm);
@@ -779,7 +779,7 @@ JitRuntime::generateDebugTrapHandler(JSContext* cx)
                    JSReturnOperand);
     masm.Add(masm.GetStackPointer64(), ARMRegister(BaselineFrameReg, 64), Operand(0));
 
-    masm.MacroAssemblerVIXL::Pop(ARMRegister(BaselineFrameReg, 64), vixl::lr);
+    masm.asVIXL().Pop(ARMRegister(BaselineFrameReg, 64), vixl::lr);
     masm.syncStackPtr();
     masm.Ret(vixl::lr);
 
