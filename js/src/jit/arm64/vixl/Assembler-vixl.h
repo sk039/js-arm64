@@ -32,6 +32,7 @@
 
 #include "jit/arm64/vixl/Instructions-vixl.h"
 #include "jit/arm64/vixl/Globals-vixl.h"
+#include "jit/arm64/vixl/MozBaseAssembler-vixl.h"
 #include "jit/arm64/vixl/Utils-vixl.h"
 
 #include "jit/JitSpewer.h"
@@ -46,9 +47,6 @@ using js::jit::Label;
 using js::jit::Address;
 using js::jit::BaseIndex;
 
-// Exciting buffer logic, before it gets replaced with the new hotness.
-class Assembler;
-typedef js::jit::AssemblerBufferWithConstantPools<1024, 4, Instruction, Assembler> ARMBuffer;
 
 // Registers.
 
@@ -609,41 +607,6 @@ class MemOperand
     unsigned shift_amount_;
 };
 
-#if 0 // Unused: around to preserve interface during porting.
-class Label {
- public:
-    Label() : is_bound_(false), link_(NULL), target_(NULL) {}
-    ~Label() {
-      // If the label has been linked to, it needs to be bound to a target.
-      MOZ_ASSERT(!IsLinked() || IsBound());
-    }
-
-    inline Instruction* link() const { return link_; }
-    inline Instruction* target() const { return target_; }
-
-    inline bool IsBound() const { return is_bound_; }
-    inline bool IsLinked() const { return link_ != NULL; }
-
-    inline void set_link(Instruction* new_link) { link_ = new_link; }
-
-    static const int kEndOfChain = 0;
-
- private:
-    // Indicates if the label has been bound, ie its location is fixed.
-    bool is_bound_;
-    // Branches instructions branching to this label form a chained list, with
-    // their offset indicating where the next instruction is located.
-    // link_ points to the latest branch instruction generated branching to this
-    // branch.
-    // If link_ is not NULL, the label has been linked to.
-    Instruction* link_;
-    // The label location.
-    Instruction* target_;
-
-    friend class Assembler;
-};
-#endif
-
 // Control whether or not position-independent code should be emitted.
 enum PositionIndependentCodeOption {
     // All code generated will be position-independent; all branches and
@@ -681,15 +644,11 @@ enum LoadStoreScalingOption {
 };
 
 // Assembler.
-class Assembler : public js::jit::AssemblerShared
+class Assembler : public MozBaseAssembler
 {
   public:
     Assembler()
-        // TODO: GetPoolMaxOffset() instead of 1024
-        // TODO: GetNopFill() instead of 0x0
-        // TODO: Bother to check the rest of the values
-        : armbuffer_(1, 1, 8, 1024, 0, BRK | ImmException(0xdead), HINT | ImmHint(0) | Rt(xzr), 0x0), // FIXME: What on earth is this
-        pc_(nullptr) // FIXME: Yeah this thing needs some lovin'.
+      : pc_(nullptr) // FIXME: Yeah this thing needs some lovin'.
     {
 #ifdef DEBUG
         finalized_ = false;
@@ -707,13 +666,6 @@ class Assembler : public js::jit::AssemblerShared
 
     // System functions.
 
-    // Helper function for use with the ARMBuffer.
-    // We need to wait until an AutoJitContextAlloc is created by the
-    // MacroAssembler before allocating any space.
-    void initWithAllocator() {
-        armbuffer_.initWithAllocator();
-    }
-
     // Start generating code from the beginning of the buffer, discarding any code
     // and data that has already been emitted into the buffer.
     //
@@ -724,19 +676,6 @@ class Assembler : public js::jit::AssemblerShared
     // Finalize a code buffer of generated instructions. This function must be
     // called before executing or copying code from the buffer.
     void FinalizeCode();
-
-    // Return the Instruction at a given byte offset.
-    Instruction* getInstructionAt(BufferOffset offset) {
-        return armbuffer_.getInst(offset);
-    }
-
-    // Return the byte offset of a bound label.
-    template <typename T>
-    inline T GetLabelByteOffset(const Label* label) {
-        MOZ_ASSERT(label->bound());
-        JS_STATIC_ASSERT(sizeof(T) >= sizeof(uint32_t));
-        return reinterpret_cast<T>(label->offset());
-    }
 
 #define COPYENUM(v) static const Condition v = vixl::v
 #define COPYENUM_(v) static const Condition v = vixl::v##_
@@ -906,6 +845,7 @@ class Assembler : public js::jit::AssemblerShared
 
     // Calculate the page address of a PC offset.
     void adrp(const Register& rd, int imm21);
+    static void adrp(Instruction* at, const Register& rd, int imm21);
 
     // Data Processing instructions.
     // Add.
@@ -1973,77 +1913,12 @@ class Assembler : public js::jit::AssemblerShared
     template <int element_size>
     ptrdiff_t LinkAndGetOffsetTo(BufferOffset branch, Label* label);
 
-    // Emit the instruction, returning its offset.
-    BufferOffset Emit(Instr instruction, bool isBranch = false) {
-        JS_STATIC_ASSERT(sizeof(*pc_) == 1);
-        JS_STATIC_ASSERT(sizeof(instruction) == kInstructionSize);
-        // TODO: MOZ_ASSERT((pc_ + sizeof(instruction)) <= (buffer_ + buffer_size_));
-
-#ifdef DEBUG
-        finalized_ = false;
-#endif
-
-        pc_ += sizeof(instruction);
-        return armbuffer_.putInt(*(uint32_t*)(&instruction), isBranch);
-    }
-
-    BufferOffset EmitBranch(Instr instruction) {
-        BufferOffset ret = Emit(instruction, /* isBranch = */ true);
-        return ret;
-    }
-
-  // FIXME: This interface should not be public.
-  public:
-    // Emit the instruction at |at|.
-    static void Emit(Instruction* at, Instr instruction) {
-        JS_STATIC_ASSERT(sizeof(instruction) == kInstructionSize);
-        memcpy(at, &instruction, sizeof(instruction));
-    }
-
-    static void EmitBranch(Instruction* at, Instr instruction) {
-        // FIXME: Anything special to do here? Probably not, since this is actually
-        // just overwriting an instruction. Maybe rename from Emit() to Overwrite()?
-        Emit(at, instruction);
-    }
-
-  public:
-    // Emit data inline in the instruction stream.
-    BufferOffset EmitData(void const * data, unsigned size) {
-        JS_STATIC_ASSERT(sizeof(*pc_) == 1);
-        MOZ_ASSERT(size % 4 == 0);
-        pc_ += 1;
-        BufferOffset ret = armbuffer_.allocEntry(size / sizeof(uint32_t), 0, (uint8_t*)(data), nullptr);
-        // TODO: MOZ_ASSERT((pc_ + size) <= (buffer_ + buffer_size_));
-
-#ifdef DEBUG
-        finalized_ = false;
-#endif
-        return ret;
-
-    }
   private:
     inline void CheckBufferSpace() {
         MOZ_ASSERT(!armbuffer_.oom());
         // TODO: MOZ_ASSERT(pc_ < (buffer_ + buffer_size_));
         // FIXME: Integration with constant pool?
     }
-
-  public:
-    // Interface used by IonAssemblerBufferWithConstantPools.
-    static void InsertIndexIntoTag(uint8_t* load, uint32_t index);
-    static bool PatchConstantPoolLoad(void* loadAddr, void* constPoolAddr);
-    static uint32_t PlaceConstantPoolBarrier(int offset) {
-        MOZ_CRASH("PlaceConstantPoolBarrier");
-    }
-    static void WritePoolHeader(uint8_t* start, js::jit::Pool* p, bool isNatural);
-    static void WritePoolFooter(uint8_t* start, js::jit::Pool* p, bool isNatural);
-    static void WritePoolGuard(BufferOffset branch, Instruction* inst, BufferOffset dest);
-
-    // Static interface used by IonAssemblerBufferWithConstantPools.
-    static ptrdiff_t GetBranchOffset(const Instruction* i);
-    static void RetargetNearBranch(Instruction* i, int offset, Condition cond, bool final = true);
-    static void RetargetNearBranch(Instruction* i, int offset, bool final = true);
-    static void RetargetFarBranch(Instruction* i, uint8_t** slot, uint8_t* dest, Condition cond);
 
   protected:
     // Prevent generation of a literal pool for the next |maxInst| instructions.
@@ -2064,20 +1939,8 @@ class Assembler : public js::jit::AssemblerShared
     };
 
   protected:
-    // The buffer into which code and relocation info are generated.
-    ARMBuffer armbuffer_;
-
-    js::jit::CompactBufferWriter jumpRelocations_;
-    js::jit::CompactBufferWriter dataRelocations_;
-    js::jit::CompactBufferWriter relocations_;
-    js::jit::CompactBufferWriter preBarriers_;
-
-    // Literal pools.
-    mozilla::Array<js::jit::Pool, 4> pools_;
-
     PositionIndependentCodeOption pic_;
 
-  protected:
     // Pointer of current instruction (into the ARMBuffer).
     Instruction* pc_;
 

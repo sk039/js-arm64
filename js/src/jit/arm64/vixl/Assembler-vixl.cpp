@@ -1089,13 +1089,6 @@ Assembler::ldr(const CPURegister& rt, int imm19)
 }
 
 void
-Assembler::ldr(Instruction* at, const CPURegister& rt, int imm19)
-{
-    LoadLiteralOp op = LoadLiteralOpFor(rt);
-    Emit(at, op | ImmLLiteral(imm19) | Rt(rt));
-}
-
-void
 Assembler::ldrsw(const Register& rt, int imm19)
 {
     Emit(LDRSW_x_lit | ImmLLiteral(imm19) | Rt(rt));
@@ -1303,16 +1296,7 @@ Assembler::msr(SystemRegister sysreg, const Register& rt)
     Emit(MSR | Rt(rt) | ImmSystemRegister(sysreg));
 }
 
-BufferOffset
-Assembler::hint(SystemHint code)
-{
-    return Emit(HINT | ImmHint(code) | Rt(xzr));
-}
-void
-Assembler::hint(Instruction* at, SystemHint code)
-{
-    Emit(at, HINT | ImmHint(code) | Rt(xzr));
-}
+
 
 void
 Assembler::clrex(int imm4)
@@ -1784,18 +1768,6 @@ Assembler::svc(int code)
     Emit(SVC | ImmException(code));
 }
 
-void
-Assembler::svc(Instruction* at, int code)
-{
-    MOZ_ASSERT(is_uint16(code));
-    Emit(at, SVC | ImmException(code));
-}
-
-void
-Assembler::nop(Instruction* at)
-{
-    hint(at, NOP);
-}
 
 void
 Assembler::ConditionalCompare(const Register& rn, const Operand& operand,
@@ -2353,18 +2325,6 @@ Assembler::LoadLiteralOpFor(const CPURegister& rt)
 }
 
 // FIXME: Share with arm/Assembler-arm.cpp
-
-
-
-
-ptrdiff_t
-Assembler::GetBranchOffset(const Instruction* ins)
-{
-    MOZ_ASSERT_IF(!ins->IsBranchLinkImm(), ins->BranchType() != UnknownBranchType);
-    // Convert from instruction offset to byte offset.
-    return ins->ImmPCRawOffset() * kInstructionSize;
-}
-
 
 
 void

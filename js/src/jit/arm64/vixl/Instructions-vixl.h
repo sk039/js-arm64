@@ -259,6 +259,8 @@ class Instruction {
   bool IsCBZ() const;
   bool IsCBNZ() const;
   bool IsLDR() const;
+  bool IsADR() const;
+  bool IsADRP() const;
   bool IsBranchLinkImm() const;
   bool IsTargetReachable(Instruction* target) const;
   ptrdiff_t ImmPCRawOffset() const;

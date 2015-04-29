@@ -78,6 +78,16 @@ bool Instruction::IsLDR() const {
 }
 
 
+bool Instruction::IsADR() const {
+  return Mask(PCRelAddressingMask) == ADR;
+}
+
+
+bool Instruction::IsADRP() const {
+  return Mask(PCRelAddressingMask) == ADRP;
+}
+
+
 bool Instruction::IsBranchLinkImm() const {
   return Mask(UnconditionalBranchFMask) == (UnconditionalBranchFixed | BL);
 }
