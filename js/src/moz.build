@@ -434,7 +434,8 @@ elif CONFIG['JS_CODEGEN_ARM64']:
         'jit/arm64/vixl/Instructions-vixl.cpp',
         'jit/arm64/vixl/Instrument-vixl.cpp',
         'jit/arm64/vixl/MacroAssembler-vixl.cpp',
-	'jit/arm64/vixl/MozInstructions-vixl.cpp',
+        'jit/arm64/vixl/MozAssembler-vixl.cpp',
+        'jit/arm64/vixl/MozInstructions-vixl.cpp',
         'jit/arm64/vixl/Utils-vixl.cpp'
     ]
     if CONFIG['JS_ARM64_SIMULATOR']:
