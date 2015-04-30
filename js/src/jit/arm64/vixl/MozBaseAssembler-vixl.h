@@ -117,6 +117,30 @@ class MozBaseAssembler : public js::jit::AssemblerShared {
   }
 
  public:
+  // Size of the code generated in bytes, including pools.
+  size_t SizeOfCodeGenerated() const {
+    return armbuffer_.size();
+  }
+
+  // Move the pool into the instruction stream.
+  void flushBuffer() {
+    armbuffer_.flushPool();
+  }
+
+  // Inhibit pool flushing for the given number of instructions.
+  // Generating more than |maxInst| instructions in a no-pool region
+  // triggers an assertion within the ARMBuffer.
+  // Does not nest.
+  void enterNoPool(size_t maxInst) {
+    armbuffer_.enterNoPool(maxInst);
+  }
+
+  // Marks the end of a no-pool region.
+  void leaveNoPool() {
+    armbuffer_.leaveNoPool();
+  }
+
+ public:
   // Static interface used by IonAssemblerBufferWithConstantPools.
   static void InsertIndexIntoTag(uint8_t* load, uint32_t index);
   static bool PatchConstantPoolLoad(void* loadAddr, void* constPoolAddr);

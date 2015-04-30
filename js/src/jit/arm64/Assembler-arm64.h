@@ -275,18 +275,6 @@ class Assembler : public vixl::Assembler
         return true;
     }
     void retarget(Label* cur, Label* next);
-    // Move our entire pool into the instruction stream. This is to force an
-    // opportunistic dump of the pool, preferrably when it is more convenient
-    // to do a dump.
-    void flushBuffer() {
-        armbuffer_.flushPool();
-    }
-    void enterNoPool(size_t maxInst) {
-        armbuffer_.enterNoPool(maxInst);
-    }
-    void leaveNoPool() {
-        armbuffer_.leaveNoPool();
-    }
 
     // The buffer is about to be linked. Ensure any constant pools or
     // excess bookkeeping has been flushed to the instruction stream.
@@ -579,7 +567,7 @@ GetTempRegForIntArg(uint32_t usedIntArgs, uint32_t usedFloatArgs, Register* out)
 
 }
 
-// FIXME: Should be shared with ARM's Assembler.
+// Forbids pool generation during a specified interval. Not nestable.
 class AutoForbidPools
 {
     Assembler* asm_;
