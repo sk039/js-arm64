@@ -173,13 +173,13 @@ const Register& Register::XRegFromCode(unsigned code) {
 
 
 const FPRegister& FPRegister::SRegFromCode(unsigned code) {
-  MOZ_ASSERT(code < kNumberOfFloatRegisters);
+  MOZ_ASSERT(code < kNumberOfFPRegisters);
   return sregisters[code];
 }
 
 
 const FPRegister& FPRegister::DRegFromCode(unsigned code) {
-  MOZ_ASSERT(code < kNumberOfFloatRegisters);
+  MOZ_ASSERT(code < kNumberOfFPRegisters);
   return dregisters[code];
 }
 

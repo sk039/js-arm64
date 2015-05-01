@@ -36,9 +36,6 @@ namespace vixl {
 const unsigned kNumberOfRegisters = 32;
 const unsigned kNumberOfFPRegisters = 32;
 
-// FIXME: Remove this, temporary
-const unsigned kNumberOfFloatRegisters = 32;
-
 // Supervisor Call (svc) specific support.
 //
 // The SVC instruction encodes an optional 16-bit immediate value.

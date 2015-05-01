@@ -137,7 +137,7 @@ class CPURegister {
   bool IsValidFPRegister() const {
     return IsFPRegister() &&
            ((size_ == kSRegSize) || (size_ == kDRegSize)) &&
-           (code_ < kNumberOfFloatRegisters);
+           (code_ < kNumberOfFPRegisters);
   }
 
   bool IsNone() const {
@@ -258,8 +258,8 @@ class FPRegister : public CPURegister {
   static const FPRegister& DRegFromCode(unsigned code);
 
   // V8 compatibility.
-  static const int kNumRegisters = kNumberOfFloatRegisters;
-  static const int kNumAllocatableRegisters = kNumberOfFloatRegisters - 1;
+  static const int kNumRegisters = kNumberOfFPRegisters;
+  static const int kNumAllocatableRegisters = kNumberOfFPRegisters - 1;
 
  private:
   static const FPRegister sregisters[];
@@ -342,7 +342,7 @@ class CPURegList {
     MOZ_ASSERT(((type == CPURegister::kRegister) &&
                 (last_reg < kNumberOfRegisters)) ||
                ((type == CPURegister::kFPRegister) &&
-                (last_reg < kNumberOfFloatRegisters)));
+                (last_reg < kNumberOfFPRegisters)));
     MOZ_ASSERT(last_reg >= first_reg);
     list_ = (UINT64_C(1) << (last_reg + 1)) - 1;
     list_ &= ~((UINT64_C(1) << first_reg) - 1);
