@@ -807,6 +807,23 @@ MacroAssembler::LoadStoreMacro(const CPURegister& rt, const MemOperand& addr, Lo
 }
 
 void
+MacroAssembler::PushStackPointer()
+{
+    PrepareForPush(1, 8);
+
+    // Pushing the current stack pointer leads to implementation-defined
+    // behavior, which may be surprising. In particular,
+    //   str sp, [sp, #-8]!
+    // pre-decrements the stack pointer, storing the decremented value.
+    // Instead, we must use a scratch register.
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.AcquireX();
+
+    Mov(scratch, GetStackPointer64());
+    str(scratch, MemOperand(GetStackPointer64(), -8, PreIndex));
+}
+
+void
 MacroAssembler::Push(const CPURegister& src0, const CPURegister& src1,
                          const CPURegister& src2, const CPURegister& src3)
 {
@@ -816,22 +833,15 @@ MacroAssembler::Push(const CPURegister& src0, const CPURegister& src1,
     int count = 1 + src1.IsValid() + src2.IsValid() + src3.IsValid();
     int size = src0.SizeInBytes();
 
-    PrepareForPush(count, size);
-
-    // Pushing the current stack pointer leads to implementation-defined
-    // behavior, which may be surprising. In particular, this emits:
-    //   str sp, [sp, #-8]!
-    // which pre-decrements the stack pointer, storing the decremented value.
-    //
-    // Instead, we must use a scratch register. This hijacks ip1.
     if (src0.Is(GetStackPointer64())) {
-        // Only pushing the pseudo-stackpointer by itself is handled.
-        MOZ_ASSERT(!src1.IsValid() && !src2.IsValid() && !src3.IsValid());
-        MOZ_ASSERT(!GetStackPointer64().Is(sp));
-        PushPseudoStackPointerHelper();
-    } else {
-        PushHelper(count, size, src0, src1, src2, src3);
+        MOZ_ASSERT(count == 1);
+        MOZ_ASSERT(size == 8);
+        PushStackPointer();
+        return;
     }
+
+    PrepareForPush(count, size);
+    PushHelper(count, size, src0, src1, src2, src3);
 }
 
 void
@@ -916,16 +926,6 @@ MacroAssembler::PushMultipleTimes(int count, Register src)
 }
 
 void
-MacroAssembler::PushPseudoStackPointerHelper()
-{
-    // FIXME: This is gross. The helper register should be required in the call.
-    Register scratch = vixl::ip1;
-
-    add(scratch, GetStackPointer64(), Operand(0));
-    str(scratch, MemOperand(GetStackPointer64(), -8, PreIndex));
-}
-
-void
 MacroAssembler::PushHelper(int count, int size, const CPURegister& src0,
                                const CPURegister& src1, const CPURegister& src2,
                                const CPURegister& src3)
@@ -936,7 +936,7 @@ MacroAssembler::PushHelper(int count, int size, const CPURegister& src0,
     MOZ_ASSERT(AreSameSizeAndType(src0, src1, src2, src3));
     MOZ_ASSERT(size == src0.SizeInBytes());
 
-    // Pushing the stack pointer has unexpected behavior. See Push().
+    // Pushing the stack pointer has unexpected behavior. See PushStackPointer().
     MOZ_ASSERT(!src0.Is(GetStackPointer64()) && !src0.Is(sp));
     MOZ_ASSERT(!src1.Is(GetStackPointer64()) && !src1.Is(sp));
     MOZ_ASSERT(!src2.Is(GetStackPointer64()) && !src2.Is(sp));

@@ -202,6 +202,7 @@ class MacroAssembler : public js::jit::Assembler
               const CPURegister& src2 = NoReg, const CPURegister& src3 = NoReg);
     void Pop(const CPURegister& dst0, const CPURegister& dst1 = NoReg,
              const CPURegister& dst2 = NoReg, const CPURegister& dst3 = NoReg);
+    void PushStackPointer();
 
     // Alternative forms of Push and Pop, taking a RegList or CPURegList that
     // specifies the registers that are to be pushed or popped. Higher-numbered
@@ -1071,10 +1072,6 @@ class MacroAssembler : public js::jit::Assembler
     void PopHelper(int count, int size,
                    const CPURegister& dst0, const CPURegister& dst1,
                    const CPURegister& dst2, const CPURegister& dst3);
-
-    // A special helper function that pushes the pseudo-stackpointer
-    // using PostIndex, matching behavior on x86.
-    void PushPseudoStackPointerHelper();
 
     // Perform necessary maintenance operations before a push or pop.
     //
