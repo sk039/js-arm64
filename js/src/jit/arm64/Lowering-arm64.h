@@ -8,7 +8,6 @@
 #define jit_arm64_Lowering_arm64_h
 
 #include "jit/shared/Lowering-shared.h"
-#include "jit/shared/Lowering-shared-inl.h"
 
 namespace js {
 namespace jit {

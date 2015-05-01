@@ -40,18 +40,17 @@
 #define __STDC_FORMAT_MACROS
 #endif
 
-#include <stdint.h>
-#include <inttypes.h>
+#include "mozilla/Assertions.h"
 
+#include <inttypes.h>
 #include <stdarg.h>
-#include <stdio.h>
-#include <stdint.h>
-#include <stdlib.h>
 #include <stddef.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 #include "jit/arm64/vixl/Platform-vixl.h"
 #include "js/Utility.h"
-#include "mozilla/Assertions.h"
 
 
 typedef uint8_t byte;

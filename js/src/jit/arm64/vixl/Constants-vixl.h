@@ -27,6 +27,10 @@
 #ifndef VIXL_A64_CONSTANTS_A64_H_
 #define VIXL_A64_CONSTANTS_A64_H_
 
+#include <stdint.h>
+
+#include "jit/arm64/vixl/Globals-vixl.h"
+
 namespace vixl {
 
 const unsigned kNumberOfRegisters = 32;
@@ -35,15 +39,14 @@ const unsigned kNumberOfFPRegisters = 32;
 // FIXME: Remove this, temporary
 const unsigned kNumberOfFloatRegisters = 32;
 
-// FIXME: Put in better place
 // Supervisor Call (svc) specific support.
 //
 // The SVC instruction encodes an optional 16-bit immediate value.
 // The simulator understands the codes below.
 enum SVCSimulatorCodes {
-    kCallRtRedirected = 0x10,  // Transition to x86_64 C code.
-    kMarkStackPointer = 0x11,  // Push the current SP on a special Simulator stack.
-    kCheckStackPointer = 0x12  // Pop from the special Simulator stack and compare to SP.
+  kCallRtRedirected = 0x10,  // Transition to x86_64 C code.
+  kMarkStackPointer = 0x11,  // Push the current SP on a special Simulator stack.
+  kCheckStackPointer = 0x12  // Pop from the special Simulator stack and compare to SP.
 };
 
 #define REGISTER_CODE_LIST(R)                                                  \

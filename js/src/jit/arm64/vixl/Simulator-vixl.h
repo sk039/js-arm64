@@ -27,15 +27,17 @@
 #ifndef VIXL_A64_SIMULATOR_A64_H_
 #define VIXL_A64_SIMULATOR_A64_H_
 
+#include "mozilla/Vector.h"
+
 #include "jsalloc.h"
-#include "jit/arm64/vixl/Globals-vixl.h"
-#include "jit/arm64/vixl/Utils-vixl.h"
-#include "jit/arm64/vixl/Instructions-vixl.h"
+
 #include "jit/arm64/vixl/Assembler-vixl.h"
 #include "jit/arm64/vixl/Disasm-vixl.h"
+#include "jit/arm64/vixl/Globals-vixl.h"
+#include "jit/arm64/vixl/Instructions-vixl.h"
 #include "jit/arm64/vixl/Instrument-vixl.h"
+#include "jit/arm64/vixl/Utils-vixl.h"
 #include "jit/IonTypes.h"
-#include "mozilla/Vector.h"
 #include "vm/PosixNSPR.h"
 
 #define JS_CHECK_SIMULATOR_RECURSION_WITH_EXTRA(cx, extra, onerror)             \

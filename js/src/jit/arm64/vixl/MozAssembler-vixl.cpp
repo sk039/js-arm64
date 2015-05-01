@@ -24,11 +24,10 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "jit/arm64/vixl/Assembler-vixl.h"
-
-#include "jit/Label.h"
-
 #include "jsutil.h"
+
+#include "jit/arm64/vixl/Assembler-vixl.h"
+#include "jit/Label.h"
 
 namespace vixl {
 

@@ -10,7 +10,6 @@
 #include "jit/arm64/Assembler-arm64.h"
 #include "jit/arm64/vixl/Debugger-vixl.h"
 #include "jit/arm64/vixl/MacroAssembler-vixl.h"
-#include "jit/arm64/vixl/Globals-vixl.h"
 
 #include "jit/AtomicOp.h"
 #include "jit/JitFrames.h"

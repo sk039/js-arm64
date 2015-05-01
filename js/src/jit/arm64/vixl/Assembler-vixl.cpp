@@ -29,11 +29,10 @@
 
 #include "jit/arm64/vixl/Assembler-vixl.h"
 
-#include "jit/Label.h"
+#include <cmath>
 
 #include "jsutil.h"
-
-#include <cmath>
+#include "jit/Label.h"
 
 namespace vixl {
 

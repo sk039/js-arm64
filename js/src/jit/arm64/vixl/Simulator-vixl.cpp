@@ -30,8 +30,8 @@
 
 #include "jit/arm64/vixl/Simulator-vixl.h"
 
-#include <string.h>
 #include <math.h>
+#include <string.h>
 
 namespace vixl {
 
