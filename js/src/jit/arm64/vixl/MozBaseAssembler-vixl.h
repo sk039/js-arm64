@@ -82,7 +82,7 @@ class MozBaseAssembler : public js::jit::AssemblerShared {
   // Return the byte offset of a bound label.
   template <typename T>
   inline T GetLabelByteOffset(const js::jit::Label* label) {
-    MOZ_ASSERT(label->bound());
+    VIXL_ASSERT(label->bound());
     JS_STATIC_ASSERT(sizeof(T) >= sizeof(uint32_t));
     return reinterpret_cast<T>(label->offset());
   }
@@ -112,7 +112,7 @@ class MozBaseAssembler : public js::jit::AssemblerShared {
 
   // Emit data inline in the instruction stream.
   BufferOffset EmitData(void const * data, unsigned size) {
-    MOZ_ASSERT(size % 4 == 0);
+    VIXL_ASSERT(size % 4 == 0);
     return armbuffer_.allocEntry(size / sizeof(uint32_t), 0, (uint8_t*)(data), nullptr);
   }
 

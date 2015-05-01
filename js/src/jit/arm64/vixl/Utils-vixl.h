@@ -1,6 +1,3 @@
-// -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
-// vim: set ts=8 sts=4 et sw=4 tw=99:
-//
 // Copyright 2013, ARM Limited
 // All rights reserved.
 //
@@ -46,19 +43,19 @@ namespace vixl {
 
 // Check number width.
 inline bool is_intn(unsigned n, int64_t x) {
-    MOZ_ASSERT((0 < n) && (n < 64));
-    int64_t limit = INT64_C(1) << (n - 1);
-    return (-limit <= x) && (x < limit);
+  VIXL_ASSERT((0 < n) && (n < 64));
+  int64_t limit = INT64_C(1) << (n - 1);
+  return (-limit <= x) && (x < limit);
 }
 
 inline bool is_uintn(unsigned n, int64_t x) {
-    MOZ_ASSERT((0 < n) && (n < 64));
-    return !(x >> n);
+  VIXL_ASSERT((0 < n) && (n < 64));
+  return !(x >> n);
 }
 
 inline unsigned truncate_to_intn(unsigned n, int64_t x) {
-    MOZ_ASSERT((0 < n) && (n < 64));
-    return (x & ((INT64_C(1) << n) - 1));
+  VIXL_ASSERT((0 < n) && (n < 64));
+  return (x & ((INT64_C(1) << n) - 1));
 }
 
 #define INT_1_TO_63_LIST(V)                                                    \
@@ -86,19 +83,19 @@ INT_1_TO_63_LIST(DECLARE_TRUNCATE_TO_INT_N)
 
 // Bit field extraction.
 inline uint32_t unsigned_bitextract_32(int msb, int lsb, uint32_t x) {
-    return (x >> lsb) & ((1 << (1 + msb - lsb)) - 1);
+  return (x >> lsb) & ((1 << (1 + msb - lsb)) - 1);
 }
 
 inline uint64_t unsigned_bitextract_64(int msb, int lsb, uint64_t x) {
-    return (x >> lsb) & ((static_cast<uint64_t>(1) << (1 + msb - lsb)) - 1);
+  return (x >> lsb) & ((static_cast<uint64_t>(1) << (1 + msb - lsb)) - 1);
 }
 
 inline int32_t signed_bitextract_32(int msb, int lsb, int32_t x) {
-    return (x << (31 - msb)) >> (lsb + 31 - msb);
+  return (x << (31 - msb)) >> (lsb + 31 - msb);
 }
 
 inline int64_t signed_bitextract_64(int msb, int lsb, int64_t x) {
-    return (x << (63 - msb)) >> (lsb + 63 - msb);
+  return (x << (63 - msb)) >> (lsb + 63 - msb);
 }
 
 // Floating point representation.
@@ -109,46 +106,46 @@ double rawbits_to_double(uint64_t bits);
 
 // NaN tests.
 inline bool IsSignallingNaN(double num) {
-    const uint64_t kFP64QuietNaNMask = UINT64_C(0x0008000000000000);
-    uint64_t raw = double_to_rawbits(num);
-    if (mozilla::IsNaN(num) && ((raw & kFP64QuietNaNMask) == 0))
-        return true;
-    return false;
+  const uint64_t kFP64QuietNaNMask = UINT64_C(0x0008000000000000);
+  uint64_t raw = double_to_rawbits(num);
+  if (mozilla::IsNaN(num) && ((raw & kFP64QuietNaNMask) == 0))
+    return true;
+  return false;
 }
 
 inline bool IsSignallingNaN(float num) {
-    const uint32_t kFP32QuietNaNMask = 0x00400000;
-    uint32_t raw = float_to_rawbits(num);
-    if (mozilla::IsNaN(num) && ((raw & kFP32QuietNaNMask) == 0))
-        return true;
-    return false;
+  const uint32_t kFP32QuietNaNMask = 0x00400000;
+  uint32_t raw = float_to_rawbits(num);
+  if (mozilla::IsNaN(num) && ((raw & kFP32QuietNaNMask) == 0))
+    return true;
+  return false;
 }
 
 template <typename T>
 inline bool IsQuietNaN(T num) {
-    return mozilla::IsNaN(num) && !IsSignallingNaN(num);
+  return mozilla::IsNaN(num) && !IsSignallingNaN(num);
 }
 
 // Convert the NaN in 'num' to a quiet NaN.
 inline double ToQuietNaN(double num) {
-    const uint64_t kFP64QuietNaNMask = UINT64_C(0x0008000000000000);
-    MOZ_ASSERT(mozilla::IsNaN(num));
-    return rawbits_to_double(double_to_rawbits(num) | kFP64QuietNaNMask);
+  const uint64_t kFP64QuietNaNMask = UINT64_C(0x0008000000000000);
+  VIXL_ASSERT(mozilla::IsNaN(num));
+  return rawbits_to_double(double_to_rawbits(num) | kFP64QuietNaNMask);
 }
 
 inline float ToQuietNaN(float num) {
-    const uint32_t kFP32QuietNaNMask = 0x00400000;
-    MOZ_ASSERT(mozilla::IsNaN(num));
-    return rawbits_to_float(float_to_rawbits(num) | kFP32QuietNaNMask);
+  const uint32_t kFP32QuietNaNMask = 0x00400000;
+  VIXL_ASSERT(mozilla::IsNaN(num));
+  return rawbits_to_float(float_to_rawbits(num) | kFP32QuietNaNMask);
 }
 
 // Fused multiply-add.
 inline double FusedMultiplyAdd(double op1, double op2, double a) {
-    return fma(op1, op2, a);
+  return fma(op1, op2, a);
 }
 
 inline float FusedMultiplyAdd(float op1, float op2, float a) {
-    return fmaf(op1, op2, a);
+  return fmaf(op1, op2, a);
 }
 
 // Bit counting.
@@ -162,40 +159,41 @@ uint64_t LowestSetBit(uint64_t value);
 // TODO: rename/refactor to make it specific to instructions.
 template<typename T>
 bool IsWordAligned(T pointer) {
-    MOZ_ASSERT(sizeof(pointer) == sizeof(intptr_t));   // NOLINT(runtime/sizeof)
-    return (reinterpret_cast<intptr_t>(pointer) & 3) == 0;
+  VIXL_ASSERT(sizeof(pointer) == sizeof(intptr_t));   // NOLINT(runtime/sizeof)
+  return (reinterpret_cast<intptr_t>(pointer) & 3) == 0;
 }
 
 // Increment a pointer until it has the specified alignment.
 template<class T>
 T AlignUp(T pointer, size_t alignment) {
-    // Use C-style casts to get static_cast behaviour for integral types (T), and
-    // reinterpret_cast behaviour for other types.
+  // Use C-style casts to get static_cast behaviour for integral types (T), and
+  // reinterpret_cast behaviour for other types.
 
-    uintptr_t pointer_raw = (uintptr_t)pointer;
-    JS_STATIC_ASSERT(sizeof(pointer) == sizeof(pointer_raw));
+  uintptr_t pointer_raw = (uintptr_t)pointer;
+  JS_STATIC_ASSERT(sizeof(pointer) == sizeof(pointer_raw));
 
-    size_t align_step = (alignment - pointer_raw) % alignment;
-    MOZ_ASSERT((pointer_raw + align_step) % alignment == 0);
+  size_t align_step = (alignment - pointer_raw) % alignment;
+  VIXL_ASSERT((pointer_raw + align_step) % alignment == 0);
 
-    return (T)(pointer_raw + align_step);
+  return (T)(pointer_raw + align_step);
 }
 
 // Decrement a pointer until it has the specified alignment.
 template<class T>
 T AlignDown(T pointer, size_t alignment) {
-    // Use C-style casts to get static_cast behaviour for integral types (T), and
-    // reinterpret_cast behaviour for other types.
+  // Use C-style casts to get static_cast behaviour for integral types (T), and
+  // reinterpret_cast behaviour for other types.
 
-    uintptr_t pointer_raw = (uintptr_t)pointer;
-    JS_STATIC_ASSERT(sizeof(pointer) == sizeof(pointer_raw));
+  uintptr_t pointer_raw = (uintptr_t)pointer;
+  JS_STATIC_ASSERT(sizeof(pointer) == sizeof(pointer_raw));
 
-    size_t align_step = pointer_raw % alignment;
-    MOZ_ASSERT((pointer_raw - align_step) % alignment == 0);
+  size_t align_step = pointer_raw % alignment;
+  VIXL_ASSERT((pointer_raw - align_step) % alignment == 0);
 
-    return (T)(pointer_raw - align_step);
+  return (T)(pointer_raw - align_step);
 }
 
-} // namespace vixl
+}  // namespace vixl
 
 #endif  // VIXL_UTILS_H
+

@@ -1,6 +1,3 @@
-// -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
-// vim: set ts=8 sts=4 et sw=4 tw=99:
-//
 // Copyright 2013, ARM Limited
 // All rights reserved.
 //
@@ -78,53 +75,53 @@ class CPURegister {
   }
 
   unsigned code() const {
-    MOZ_ASSERT(IsValid());
+    VIXL_ASSERT(IsValid());
     return code_;
   }
 
   RegisterType type() const {
-    MOZ_ASSERT(IsValidOrNone());
+    VIXL_ASSERT(IsValidOrNone());
     return type_;
   }
 
   RegList Bit() const {
-    MOZ_ASSERT(code_ < (sizeof(RegList) * 8));
+    VIXL_ASSERT(code_ < (sizeof(RegList) * 8));
     return IsValid() ? (static_cast<RegList>(1) << code_) : 0;
   }
 
   unsigned size() const {
-    MOZ_ASSERT(IsValid());
+    VIXL_ASSERT(IsValid());
     return size_;
   }
 
   int SizeInBytes() const {
-    MOZ_ASSERT(IsValid());
-    MOZ_ASSERT(size() % 8 == 0);
+    VIXL_ASSERT(IsValid());
+    VIXL_ASSERT(size() % 8 == 0);
     return size_ / 8;
   }
 
   int SizeInBits() const {
-    MOZ_ASSERT(IsValid());
+    VIXL_ASSERT(IsValid());
     return size_;
   }
 
   bool Is32Bits() const {
-    MOZ_ASSERT(IsValid());
+    VIXL_ASSERT(IsValid());
     return size_ == 32;
   }
 
   bool Is64Bits() const {
-    MOZ_ASSERT(IsValid());
+    VIXL_ASSERT(IsValid());
     return size_ == 64;
   }
 
   bool IsValid() const {
     if (IsValidRegister() || IsValidFPRegister()) {
-      MOZ_ASSERT(!IsNone());
+      VIXL_ASSERT(!IsNone());
       return true;
     }
 
-    MOZ_ASSERT(IsNone());
+    VIXL_ASSERT(IsNone());
     return false;
   }
 
@@ -142,29 +139,29 @@ class CPURegister {
 
   bool IsNone() const {
     // kNoRegister types should always have size 0 and code 0.
-    MOZ_ASSERT((type_ != kNoRegister) || (code_ == 0));
-    MOZ_ASSERT((type_ != kNoRegister) || (size_ == 0));
+    VIXL_ASSERT((type_ != kNoRegister) || (code_ == 0));
+    VIXL_ASSERT((type_ != kNoRegister) || (size_ == 0));
 
     return type_ == kNoRegister;
   }
 
   bool Aliases(const CPURegister& other) const {
-    MOZ_ASSERT(IsValidOrNone() && other.IsValidOrNone());
+    VIXL_ASSERT(IsValidOrNone() && other.IsValidOrNone());
     return (code_ == other.code_) && (type_ == other.type_);
   }
 
   bool Is(const CPURegister& other) const {
-    MOZ_ASSERT(IsValidOrNone() && other.IsValidOrNone());
+    VIXL_ASSERT(IsValidOrNone() && other.IsValidOrNone());
     return Aliases(other) && (size_ == other.size_);
   }
 
   inline bool IsZero() const {
-    MOZ_ASSERT(IsValid());
+    VIXL_ASSERT(IsValid());
     return IsRegister() && (code_ == kZeroRegCode);
   }
 
   inline bool IsSP() const {
-    MOZ_ASSERT(IsValid());
+    VIXL_ASSERT(IsValid());
     return IsRegister() && (code_ == kSPRegInternalCode);
   }
 
@@ -203,7 +200,7 @@ class Register : public CPURegister {
 
   inline explicit Register(const CPURegister& other)
     : CPURegister(other.code(), other.size(), other.type()) {
-    MOZ_ASSERT(IsValidRegister());
+    VIXL_ASSERT(IsValidRegister());
   }
 
   MOZ_CONSTEXPR Register(unsigned code, unsigned size)
@@ -215,7 +212,7 @@ class Register : public CPURegister {
   }
 
   bool IsValid() const {
-    MOZ_ASSERT(IsRegister() || IsNone());
+    VIXL_ASSERT(IsRegister() || IsNone());
     return IsValidRegister();
   }
 
@@ -237,7 +234,7 @@ class FPRegister : public CPURegister {
 
   inline explicit FPRegister(const CPURegister& other)
     : CPURegister(other.code(), other.size(), other.type()) {
-    MOZ_ASSERT(IsValidFPRegister());
+    VIXL_ASSERT(IsValidFPRegister());
   }
   MOZ_CONSTEXPR inline FPRegister(js::jit::FloatRegister r, unsigned size)
     : CPURegister(r.code_, size, kFPRegister) {
@@ -250,7 +247,7 @@ class FPRegister : public CPURegister {
   }
 
   bool IsValid() const {
-    MOZ_ASSERT(IsFPRegister() || IsNone());
+    VIXL_ASSERT(IsFPRegister() || IsNone());
     return IsValidFPRegister();
   }
 
@@ -327,30 +324,30 @@ class CPURegList {
                              CPURegister reg4 = NoCPUReg)
     : list_(reg1.Bit() | reg2.Bit() | reg3.Bit() | reg4.Bit()),
       size_(reg1.size()), type_(reg1.type()) {
-    MOZ_ASSERT(AreSameSizeAndType(reg1, reg2, reg3, reg4));
-    MOZ_ASSERT(IsValid());
+    VIXL_ASSERT(AreSameSizeAndType(reg1, reg2, reg3, reg4));
+    VIXL_ASSERT(IsValid());
   }
 
   inline CPURegList(CPURegister::RegisterType type, unsigned size, RegList list)
     : list_(list), size_(size), type_(type) {
-    MOZ_ASSERT(IsValid());
+    VIXL_ASSERT(IsValid());
   }
 
   inline CPURegList(CPURegister::RegisterType type, unsigned size,
                     unsigned first_reg, unsigned last_reg)
     : size_(size), type_(type) {
-    MOZ_ASSERT(((type == CPURegister::kRegister) &&
+    VIXL_ASSERT(((type == CPURegister::kRegister) &&
                 (last_reg < kNumberOfRegisters)) ||
                ((type == CPURegister::kFPRegister) &&
                 (last_reg < kNumberOfFPRegisters)));
-    MOZ_ASSERT(last_reg >= first_reg);
+    VIXL_ASSERT(last_reg >= first_reg);
     list_ = (UINT64_C(1) << (last_reg + 1)) - 1;
     list_ &= ~((UINT64_C(1) << first_reg) - 1);
-    MOZ_ASSERT(IsValid());
+    VIXL_ASSERT(IsValid());
   }
 
   inline CPURegister::RegisterType type() const {
-    MOZ_ASSERT(IsValid());
+    VIXL_ASSERT(IsValid());
     return type_;
   }
 
@@ -358,9 +355,9 @@ class CPURegList {
   // this list are left unchanged. The type and size of the registers in the
   // 'other' list must match those in this list.
   void Combine(const CPURegList& other) {
-    MOZ_ASSERT(IsValid());
-    MOZ_ASSERT(other.type() == type_);
-    MOZ_ASSERT(other.RegisterSizeInBits() == size_);
+    VIXL_ASSERT(IsValid());
+    VIXL_ASSERT(other.type() == type_);
+    VIXL_ASSERT(other.RegisterSizeInBits() == size_);
     list_ |= other.list();
   }
 
@@ -368,46 +365,46 @@ class CPURegList {
   // do not exist in this list are ignored. The type and size of the registers
   // in the 'other' list must match those in this list.
   void Remove(const CPURegList& other) {
-    MOZ_ASSERT(IsValid());
-    MOZ_ASSERT(other.type() == type_);
-    MOZ_ASSERT(other.RegisterSizeInBits() == size_);
+    VIXL_ASSERT(IsValid());
+    VIXL_ASSERT(other.type() == type_);
+    VIXL_ASSERT(other.RegisterSizeInBits() == size_);
     list_ &= ~other.list();
   }
 
   // Variants of Combine and Remove which take a single register.
   inline void Combine(const CPURegister& other) {
-    MOZ_ASSERT(other.type() == type_);
-    MOZ_ASSERT(other.size() == size_);
+    VIXL_ASSERT(other.type() == type_);
+    VIXL_ASSERT(other.size() == size_);
     Combine(other.code());
   }
 
   inline void Remove(const CPURegister& other) {
-    MOZ_ASSERT(other.type() == type_);
-    MOZ_ASSERT(other.size() == size_);
+    VIXL_ASSERT(other.type() == type_);
+    VIXL_ASSERT(other.size() == size_);
     Remove(other.code());
   }
 
   // Variants of Combine and Remove which take a single register by its code;
   // the type and size of the register is inferred from this list.
   inline void Combine(int code) {
-    MOZ_ASSERT(IsValid());
-    MOZ_ASSERT(CPURegister(code, size_, type_).IsValid());
+    VIXL_ASSERT(IsValid());
+    VIXL_ASSERT(CPURegister(code, size_, type_).IsValid());
     list_ |= (UINT64_C(1) << code);
   }
 
   inline void Remove(int code) {
-    MOZ_ASSERT(IsValid());
-    MOZ_ASSERT(CPURegister(code, size_, type_).IsValid());
+    VIXL_ASSERT(IsValid());
+    VIXL_ASSERT(CPURegister(code, size_, type_).IsValid());
     list_ &= ~(UINT64_C(1) << code);
   }
 
   inline RegList list() const {
-    MOZ_ASSERT(IsValid());
+    VIXL_ASSERT(IsValid());
     return list_;
   }
 
   inline void set_list(RegList new_list) {
-    MOZ_ASSERT(IsValid());
+    VIXL_ASSERT(IsValid());
     list_ = new_list;
   }
 
@@ -427,38 +424,38 @@ class CPURegList {
   static CPURegList GetCallerSavedFP(unsigned size = kDRegSize);
 
   inline bool IsEmpty() const {
-    MOZ_ASSERT(IsValid());
+    VIXL_ASSERT(IsValid());
     return list_ == 0;
   }
 
   inline bool IncludesAliasOf(const CPURegister& other) const {
-    MOZ_ASSERT(IsValid());
+    VIXL_ASSERT(IsValid());
     return (type_ == other.type()) && ((other.Bit() & list_) != 0);
   }
 
   inline bool IncludesAliasOf(int code) const {
-    MOZ_ASSERT(IsValid());
+    VIXL_ASSERT(IsValid());
     return ((code & list_) != 0);
   }
 
   inline int Count() const {
-    MOZ_ASSERT(IsValid());
+    VIXL_ASSERT(IsValid());
     return CountSetBits(list_, kRegListSizeInBits);
   }
 
   inline unsigned RegisterSizeInBits() const {
-    MOZ_ASSERT(IsValid());
+    VIXL_ASSERT(IsValid());
     return size_;
   }
 
   inline unsigned RegisterSizeInBytes() const {
     int size_in_bits = RegisterSizeInBits();
-    MOZ_ASSERT((size_in_bits % 8) == 0);
+    VIXL_ASSERT((size_in_bits % 8) == 0);
     return size_in_bits / 8;
   }
 
   inline unsigned TotalSizeInBytes() const {
-    MOZ_ASSERT(IsValid());
+    VIXL_ASSERT(IsValid());
     return RegisterSizeInBytes() * Count();
   }
 
@@ -511,12 +508,12 @@ class Operand {
   Operand ToExtendedRegister() const;
 
   int64_t immediate() const {
-    MOZ_ASSERT(IsImmediate());
+    VIXL_ASSERT(IsImmediate());
     return immediate_;
   }
 
   Register reg() const {
-    MOZ_ASSERT(IsShiftedRegister() || IsExtendedRegister());
+    VIXL_ASSERT(IsShiftedRegister() || IsExtendedRegister());
     return reg_;
   }
 
@@ -527,17 +524,17 @@ class Operand {
   }
 
   Shift shift() const {
-    MOZ_ASSERT(IsShiftedRegister());
+    VIXL_ASSERT(IsShiftedRegister());
     return shift_;
   }
 
   Extend extend() const {
-    MOZ_ASSERT(IsExtendedRegister());
+    VIXL_ASSERT(IsExtendedRegister());
     return extend_;
   }
 
   unsigned shift_amount() const {
-    MOZ_ASSERT(IsShiftedRegister() || IsExtendedRegister());
+    VIXL_ASSERT(IsShiftedRegister() || IsExtendedRegister());
     return shift_amount_;
   }
 
@@ -662,7 +659,7 @@ class Assembler : public MozBaseAssembler {
   //  * Nothing has been emitted since the last FinalizeCode() call.
   ~Assembler() {
     // FIXME: Probably useful to assert the above, once we hook up ARMBuffer.
-    // MOZ_ASSERT(finalized_ || (pc_ == buffer_));
+    // VIXL_ASSERT(finalized_ || (pc_ == buffer_));
   }
 
   // System functions.
@@ -725,7 +722,7 @@ class Assembler : public MozBaseAssembler {
   static inline Condition InvertCondition(Condition cond) {
     // Conditions al and nv behave identically, as "always true". They can't be
     // inverted, because there is no "always false" condition.
-    MOZ_ASSERT((cond != al) && (cond != nv));
+    VIXL_ASSERT((cond != al) && (cond != nv));
     return static_cast<Condition>(cond ^ 1);
   }
   // This is chaging the condition codes for cmp a, b to the same codes for cmp b, a.
@@ -763,7 +760,7 @@ class Assembler : public MozBaseAssembler {
   }
 
   static inline Condition ConditionFromDoubleCondition(DoubleCondition cond) {
-    MOZ_ASSERT(!(cond & DoubleConditionBitSpecial));
+    VIXL_ASSERT(!(cond & DoubleConditionBitSpecial));
     return static_cast<Condition>(cond);
   }
 
@@ -944,36 +941,36 @@ class Assembler : public MozBaseAssembler {
   // Bfm aliases.
   // Bitfield insert.
   inline void bfi(const Register& rd, const Register& rn, unsigned lsb, unsigned width) {
-    MOZ_ASSERT(width >= 1);
-    MOZ_ASSERT(lsb + width <= rn.size());
+    VIXL_ASSERT(width >= 1);
+    VIXL_ASSERT(lsb + width <= rn.size());
     bfm(rd, rn, (rd.size() - lsb) & (rd.size() - 1), width - 1);
   }
 
   // Bitfield extract and insert low.
   inline void bfxil(const Register& rd, const Register& rn, unsigned lsb, unsigned width) {
-    MOZ_ASSERT(width >= 1);
-    MOZ_ASSERT(lsb + width <= rn.size());
+    VIXL_ASSERT(width >= 1);
+    VIXL_ASSERT(lsb + width <= rn.size());
     bfm(rd, rn, lsb, lsb + width - 1);
   }
 
   // Sbfm aliases.
   // Arithmetic shift right.
   inline void asr(const Register& rd, const Register& rn, unsigned shift) {
-    MOZ_ASSERT(shift < rd.size());
+    VIXL_ASSERT(shift < rd.size());
     sbfm(rd, rn, shift, rd.size() - 1);
   }
 
   // Signed bitfield insert with zero at right.
   inline void sbfiz(const Register& rd, const Register& rn, unsigned lsb, unsigned width) {
-    MOZ_ASSERT(width >= 1);
-    MOZ_ASSERT(lsb + width <= rn.size());
+    VIXL_ASSERT(width >= 1);
+    VIXL_ASSERT(lsb + width <= rn.size());
     sbfm(rd, rn, (rd.size() - lsb) & (rd.size() - 1), width - 1);
   }
 
   // Signed bitfield extract.
   inline void sbfx(const Register& rd, const Register& rn, unsigned lsb, unsigned width) {
-    MOZ_ASSERT(width >= 1);
-    MOZ_ASSERT(lsb + width <= rn.size());
+    VIXL_ASSERT(width >= 1);
+    VIXL_ASSERT(lsb + width <= rn.size());
     sbfm(rd, rn, lsb, lsb + width - 1);
   }
 
@@ -996,27 +993,27 @@ class Assembler : public MozBaseAssembler {
   // Logical shift left.
   inline void lsl(const Register& rd, const Register& rn, unsigned shift) {
     unsigned reg_size = rd.size();
-    MOZ_ASSERT(shift < reg_size);
+    VIXL_ASSERT(shift < reg_size);
     ubfm(rd, rn, (reg_size - shift) % reg_size, reg_size - shift - 1);
   }
 
   // Logical shift right.
   inline void lsr(const Register& rd, const Register& rn, unsigned shift) {
-    MOZ_ASSERT(shift < rd.size());
+    VIXL_ASSERT(shift < rd.size());
     ubfm(rd, rn, shift, rd.size() - 1);
   }
 
   // Unsigned bitfield insert with zero at right.
   inline void ubfiz(const Register& rd, const Register& rn, unsigned lsb, unsigned width) {
-    MOZ_ASSERT(width >= 1);
-    MOZ_ASSERT(lsb + width <= rn.size());
+    VIXL_ASSERT(width >= 1);
+    VIXL_ASSERT(lsb + width <= rn.size());
     ubfm(rd, rn, (rd.size() - lsb) & (rd.size() - 1), width - 1);
   }
 
   // Unsigned bitfield extract.
   inline void ubfx(const Register& rd, const Register& rn, unsigned lsb, unsigned width) {
-    MOZ_ASSERT(width >= 1);
-    MOZ_ASSERT(lsb + width <= rn.size());
+    VIXL_ASSERT(width >= 1);
+    VIXL_ASSERT(lsb + width <= rn.size());
     ubfm(rd, rn, lsb, lsb + width - 1);
   }
 
@@ -1522,7 +1519,7 @@ class Assembler : public MozBaseAssembler {
   // character. The instruction pointer (pc_) is then aligned correctly for
   // subsequent instructions.
   void EmitStringData(const char * string) {
-    MOZ_ASSERT(string != NULL);
+    VIXL_ASSERT(string != NULL);
 
     size_t len = strlen(string) + 1;
     EmitData(string, len);
@@ -1538,49 +1535,49 @@ class Assembler : public MozBaseAssembler {
 
   // Register encoding.
   static Instr Rd(CPURegister rd) {
-    MOZ_ASSERT(rd.code() != kSPRegInternalCode);
+    VIXL_ASSERT(rd.code() != kSPRegInternalCode);
     return rd.code() << Rd_offset;
   }
 
   static Instr Rn(CPURegister rn) {
-    MOZ_ASSERT(rn.code() != kSPRegInternalCode);
+    VIXL_ASSERT(rn.code() != kSPRegInternalCode);
     return rn.code() << Rn_offset;
   }
 
   static Instr Rm(CPURegister rm) {
-    MOZ_ASSERT(rm.code() != kSPRegInternalCode);
+    VIXL_ASSERT(rm.code() != kSPRegInternalCode);
     return rm.code() << Rm_offset;
   }
 
   static Instr Ra(CPURegister ra) {
-    MOZ_ASSERT(ra.code() != kSPRegInternalCode);
+    VIXL_ASSERT(ra.code() != kSPRegInternalCode);
     return ra.code() << Ra_offset;
   }
 
   static Instr Rt(CPURegister rt) {
-    MOZ_ASSERT(rt.code() != kSPRegInternalCode);
+    VIXL_ASSERT(rt.code() != kSPRegInternalCode);
     return rt.code() << Rt_offset;
   }
 
   static Instr Rt2(CPURegister rt2) {
-    MOZ_ASSERT(rt2.code() != kSPRegInternalCode);
+    VIXL_ASSERT(rt2.code() != kSPRegInternalCode);
     return rt2.code() << Rt2_offset;
   }
 
   static Instr Rs(CPURegister rs) {
-    MOZ_ASSERT(rs.code() != kSPRegInternalCode);
+    VIXL_ASSERT(rs.code() != kSPRegInternalCode);
     return rs.code() << Rs_offset;
   }
 
   // These encoding functions allow the stack pointer to be encoded, and
   // disallow the zero register.
   static Instr RdSP(Register rd) {
-    MOZ_ASSERT(!rd.IsZero());
+    VIXL_ASSERT(!rd.IsZero());
     return (rd.code() & kRegCodeMask) << Rd_offset;
   }
 
   static Instr RnSP(Register rn) {
-    MOZ_ASSERT(!rn.IsZero());
+    VIXL_ASSERT(!rn.IsZero());
     return (rn.code() & kRegCodeMask) << Rn_offset;
   }
 
@@ -1602,7 +1599,7 @@ class Assembler : public MozBaseAssembler {
 
   // PC-relative address encoding.
   static Instr ImmPCRelAddress(int imm21) {
-    MOZ_ASSERT(is_int21(imm21));
+    VIXL_ASSERT(is_int21(imm21));
     Instr imm = static_cast<Instr>(truncate_to_int21(imm21));
     Instr immhi = (imm >> ImmPCRelLo_width) << ImmPCRelHi_offset;
     Instr immlo = imm << ImmPCRelLo_offset;
@@ -1611,27 +1608,27 @@ class Assembler : public MozBaseAssembler {
 
   // Branch encoding.
   static Instr ImmUncondBranch(int imm26) {
-    MOZ_ASSERT(is_int26(imm26));
+    VIXL_ASSERT(is_int26(imm26));
     return truncate_to_int26(imm26) << ImmUncondBranch_offset;
   }
 
   static Instr ImmCondBranch(int imm19) {
-    MOZ_ASSERT(is_int19(imm19));
+    VIXL_ASSERT(is_int19(imm19));
     return truncate_to_int19(imm19) << ImmCondBranch_offset;
   }
 
   static Instr ImmCmpBranch(int imm19) {
-    MOZ_ASSERT(is_int19(imm19));
+    VIXL_ASSERT(is_int19(imm19));
     return truncate_to_int19(imm19) << ImmCmpBranch_offset;
   }
 
   static Instr ImmTestBranch(int imm14) {
-    MOZ_ASSERT(is_int14(imm14));
+    VIXL_ASSERT(is_int14(imm14));
     return truncate_to_int14(imm14) << ImmTestBranch_offset;
   }
 
   static Instr ImmTestBranchBit(unsigned bit_pos) {
-    MOZ_ASSERT(is_uint6(bit_pos));
+    VIXL_ASSERT(is_uint6(bit_pos));
     // Subtract five from the shift offset, as we need bit 5 from bit_pos.
     unsigned b5 = bit_pos << (ImmTestBranchBit5_offset - 5);
     unsigned b40 = bit_pos << ImmTestBranchBit40_offset;
@@ -1646,62 +1643,62 @@ class Assembler : public MozBaseAssembler {
   }
 
   static Instr ImmAddSub(int64_t imm) {
-    MOZ_ASSERT(IsImmAddSub(imm));
+    VIXL_ASSERT(IsImmAddSub(imm));
     if (is_uint12(imm)) // No shift required.
       return imm << ImmAddSub_offset;
     return ((imm >> 12) << ImmAddSub_offset) | (1 << ShiftAddSub_offset);
   }
 
   static inline Instr ImmS(unsigned imms, unsigned reg_size) {
-    MOZ_ASSERT(((reg_size == kXRegSize) && is_uint6(imms)) ||
+    VIXL_ASSERT(((reg_size == kXRegSize) && is_uint6(imms)) ||
                ((reg_size == kWRegSize) && is_uint5(imms)));
     USE(reg_size);
     return imms << ImmS_offset;
   }
 
   static inline Instr ImmR(unsigned immr, unsigned reg_size) {
-    MOZ_ASSERT(((reg_size == kXRegSize) && is_uint6(immr)) ||
+    VIXL_ASSERT(((reg_size == kXRegSize) && is_uint6(immr)) ||
                ((reg_size == kWRegSize) && is_uint5(immr)));
     USE(reg_size);
-    MOZ_ASSERT(is_uint6(immr));
+    VIXL_ASSERT(is_uint6(immr));
     return immr << ImmR_offset;
   }
 
   static inline Instr ImmSetBits(unsigned imms, unsigned reg_size) {
-    MOZ_ASSERT((reg_size == kWRegSize) || (reg_size == kXRegSize));
-    MOZ_ASSERT(is_uint6(imms));
-    MOZ_ASSERT((reg_size == kXRegSize) || is_uint6(imms + 3));
+    VIXL_ASSERT((reg_size == kWRegSize) || (reg_size == kXRegSize));
+    VIXL_ASSERT(is_uint6(imms));
+    VIXL_ASSERT((reg_size == kXRegSize) || is_uint6(imms + 3));
     USE(reg_size);
     return imms << ImmSetBits_offset;
   }
 
   static inline Instr ImmRotate(unsigned immr, unsigned reg_size) {
-    MOZ_ASSERT((reg_size == kWRegSize) || (reg_size == kXRegSize));
-    MOZ_ASSERT(((reg_size == kXRegSize) && is_uint6(immr)) ||
+    VIXL_ASSERT((reg_size == kWRegSize) || (reg_size == kXRegSize));
+    VIXL_ASSERT(((reg_size == kXRegSize) && is_uint6(immr)) ||
                ((reg_size == kWRegSize) && is_uint5(immr)));
     USE(reg_size);
     return immr << ImmRotate_offset;
   }
 
   static inline Instr ImmLLiteral(int imm19) {
-    MOZ_ASSERT(is_int19(imm19));
+    VIXL_ASSERT(is_int19(imm19));
     return truncate_to_int19(imm19) << ImmLLiteral_offset;
   }
 
   static inline Instr BitN(unsigned bitn, unsigned reg_size) {
-    MOZ_ASSERT((reg_size == kWRegSize) || (reg_size == kXRegSize));
-    MOZ_ASSERT((reg_size == kXRegSize) || (bitn == 0));
+    VIXL_ASSERT((reg_size == kWRegSize) || (reg_size == kXRegSize));
+    VIXL_ASSERT((reg_size == kXRegSize) || (bitn == 0));
     USE(reg_size);
     return bitn << BitN_offset;
   }
 
   static Instr ShiftDP(Shift shift) {
-    MOZ_ASSERT(shift == LSL || shift == LSR || shift == ASR || shift == ROR);
+    VIXL_ASSERT(shift == LSL || shift == LSR || shift == ASR || shift == ROR);
     return shift << ShiftDP_offset;
   }
 
   static Instr ImmDPShift(unsigned amount) {
-    MOZ_ASSERT(is_uint6(amount));
+    VIXL_ASSERT(is_uint6(amount));
     return amount << ImmDPShift_offset;
   }
 
@@ -1710,12 +1707,12 @@ class Assembler : public MozBaseAssembler {
   }
 
   static Instr ImmExtendShift(unsigned left_shift) {
-    MOZ_ASSERT(left_shift <= 4);
+    VIXL_ASSERT(left_shift <= 4);
     return left_shift << ImmExtendShift_offset;
   }
 
   static Instr ImmCondCmp(unsigned imm) {
-    MOZ_ASSERT(is_uint5(imm));
+    VIXL_ASSERT(is_uint5(imm));
     return imm << ImmCondCmp_offset;
   }
 
@@ -1725,70 +1722,70 @@ class Assembler : public MozBaseAssembler {
 
   // MemOperand offset encoding.
   static Instr ImmLSUnsigned(int imm12) {
-    MOZ_ASSERT(is_uint12(imm12));
+    VIXL_ASSERT(is_uint12(imm12));
     return imm12 << ImmLSUnsigned_offset;
   }
 
   static Instr ImmLS(int imm9) {
-    MOZ_ASSERT(is_int9(imm9));
+    VIXL_ASSERT(is_int9(imm9));
     return truncate_to_int9(imm9) << ImmLS_offset;
   }
 
   static Instr ImmLSPair(int imm7, LSDataSize size) {
-    MOZ_ASSERT(((imm7 >> size) << size) == imm7);
+    VIXL_ASSERT(((imm7 >> size) << size) == imm7);
     int scaled_imm7 = imm7 >> size;
-    MOZ_ASSERT(is_int7(scaled_imm7));
+    VIXL_ASSERT(is_int7(scaled_imm7));
     return truncate_to_int7(scaled_imm7) << ImmLSPair_offset;
   }
 
   static Instr ImmShiftLS(unsigned shift_amount) {
-    MOZ_ASSERT(is_uint1(shift_amount));
+    VIXL_ASSERT(is_uint1(shift_amount));
     return shift_amount << ImmShiftLS_offset;
   }
 
   static Instr ImmException(int imm16) {
-    MOZ_ASSERT(is_uint16(imm16));
+    VIXL_ASSERT(is_uint16(imm16));
     return imm16 << ImmException_offset;
   }
 
   static Instr ImmSystemRegister(int imm15) {
-    MOZ_ASSERT(is_uint15(imm15));
+    VIXL_ASSERT(is_uint15(imm15));
     return imm15 << ImmSystemRegister_offset;
   }
 
   static Instr ImmHint(int imm7) {
-    MOZ_ASSERT(is_uint7(imm7));
+    VIXL_ASSERT(is_uint7(imm7));
     return imm7 << ImmHint_offset;
   }
 
   static Instr CRm(int imm4) {
-    MOZ_ASSERT(is_uint4(imm4));
+    VIXL_ASSERT(is_uint4(imm4));
     return imm4 << CRm_offset;
   }
 
   static Instr ImmBarrierDomain(int imm2) {
-    MOZ_ASSERT(is_uint2(imm2));
+    VIXL_ASSERT(is_uint2(imm2));
     return imm2 << ImmBarrierDomain_offset;
   }
 
   static Instr ImmBarrierType(int imm2) {
-    MOZ_ASSERT(is_uint2(imm2));
+    VIXL_ASSERT(is_uint2(imm2));
     return imm2 << ImmBarrierType_offset;
   }
 
   static LSDataSize CalcLSDataSize(LoadStoreOp op) {
-    MOZ_ASSERT((SizeLS_offset + SizeLS_width) == (kInstructionSize * 8));
+    VIXL_ASSERT((SizeLS_offset + SizeLS_width) == (kInstructionSize * 8));
     return static_cast<LSDataSize>(op >> SizeLS_offset);
   }
 
   // Move immediates encoding.
   static Instr ImmMoveWide(uint64_t imm) {
-    MOZ_ASSERT(is_uint16(imm));
+    VIXL_ASSERT(is_uint16(imm));
     return imm << ImmMoveWide_offset;
   }
 
   static Instr ShiftMoveWide(int64_t shift) {
-    MOZ_ASSERT(is_uint2(shift));
+    VIXL_ASSERT(is_uint2(shift));
     return shift << ShiftMoveWide_offset;
   }
 
@@ -1802,7 +1799,7 @@ class Assembler : public MozBaseAssembler {
   }
 
   static Instr FPScale(unsigned scale) {
-    MOZ_ASSERT(is_uint6(scale));
+    VIXL_ASSERT(is_uint6(scale));
     return scale << FPScale_offset;
   }
 
@@ -1922,7 +1919,7 @@ class Assembler : public MozBaseAssembler {
 
  private:
   inline void CheckBufferSpace() {
-    MOZ_ASSERT(!armbuffer_.oom());
+    VIXL_ASSERT(!armbuffer_.oom());
   }
 
  protected:

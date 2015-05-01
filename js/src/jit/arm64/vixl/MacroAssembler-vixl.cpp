@@ -1,6 +1,3 @@
-// -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
-// vim: set ts=8 sts=4 et sw=4 tw=99:
-//
 // Copyright 2013, ARM Limited
 // All rights reserved.
 //
@@ -35,8 +32,8 @@ namespace vixl {
 
 
 void MacroAssembler::B(Label* label, BranchType type, Register reg, int bit) {
-  MOZ_ASSERT((reg.Is(NoReg) || (type >= kBranchTypeFirstUsingReg)));
-  MOZ_ASSERT((bit == -1) || (type >= kBranchTypeFirstUsingBit));
+  VIXL_ASSERT((reg.Is(NoReg) || (type >= kBranchTypeFirstUsingReg)));
+  VIXL_ASSERT((bit == -1) || (type >= kBranchTypeFirstUsingBit));
 
   if (kBranchTypeFirstCondition <= type && type <= kBranchTypeLastCondition) {
     B(static_cast<Condition>(type), label);
@@ -128,12 +125,12 @@ void MacroAssembler::LogicalMacro(const Register& rd, const Register& rn,
     // Ignore the top 32 bits of an immediate if we're moving to a W register.
     if (rd.Is32Bits()) {
       // Check that the top 32 bits are consistent.
-      MOZ_ASSERT(((immediate >> kWRegSize) == 0) ||
+      VIXL_ASSERT(((immediate >> kWRegSize) == 0) ||
                  ((immediate >> kWRegSize) == -1));
       immediate &= kWRegMask;
     }
 
-    MOZ_ASSERT(rd.Is64Bits() || is_uint32(immediate));
+    VIXL_ASSERT(rd.Is64Bits() || is_uint32(immediate));
 
     // Special cases for all set or all clear immediates.
     if (immediate == 0) {
@@ -181,8 +178,8 @@ void MacroAssembler::LogicalMacro(const Register& rd, const Register& rn,
       Operand imm_operand = MoveImmediateForShiftedOp(temp, immediate);
 
       // VIXL can acquire temp registers. Assert that the caller is aware.
-      MOZ_ASSERT(!temp.Is(rd) && !temp.Is(rn));
-      MOZ_ASSERT(!temp.Is(operand.maybeReg()));
+      VIXL_ASSERT(!temp.Is(rd) && !temp.Is(rn));
+      VIXL_ASSERT(!temp.Is(operand.maybeReg()));
 
       if (rd.Is(sp)) {
         // If rd is the stack pointer we cannot use it as the destination
@@ -195,26 +192,26 @@ void MacroAssembler::LogicalMacro(const Register& rd, const Register& rn,
     }
 
   } else if (operand.IsExtendedRegister()) {
-    MOZ_ASSERT(operand.reg().size() <= rd.size());
+    VIXL_ASSERT(operand.reg().size() <= rd.size());
     // Add/sub extended supports shift <= 4. We want to support exactly the
     // same modes here.
-    MOZ_ASSERT(operand.shift_amount() <= 4);
-    MOZ_ASSERT(operand.reg().Is64Bits() ||
+    VIXL_ASSERT(operand.shift_amount() <= 4);
+    VIXL_ASSERT(operand.reg().Is64Bits() ||
                ((operand.extend() != UXTX) && (operand.extend() != SXTX)));
 
     temps.Exclude(operand.reg());
     Register temp = temps.AcquireSameSizeAs(rn);
 
     // VIXL can acquire temp registers. Assert that the caller is aware.
-    MOZ_ASSERT(!temp.Is(rd) && !temp.Is(rn));
-    MOZ_ASSERT(!temp.Is(operand.maybeReg()));
+    VIXL_ASSERT(!temp.Is(rd) && !temp.Is(rn));
+    VIXL_ASSERT(!temp.Is(operand.maybeReg()));
 
     EmitExtendShift(temp, operand.reg(), operand.extend(),
                     operand.shift_amount());
     Logical(rd, rn, Operand(temp), op);
   } else {
     // The operand can be encoded in the instruction.
-    MOZ_ASSERT(operand.IsShiftedRegister());
+    VIXL_ASSERT(operand.IsShiftedRegister());
     Logical(rd, rn, operand, op);
   }
 }
@@ -262,7 +259,7 @@ void MacroAssembler::Mvn(const Register& rd, const Operand& operand) {
     Register temp = temps.AcquireSameSizeAs(rd);
 
     // VIXL can acquire temp registers. Assert that the caller is aware.
-    MOZ_ASSERT(!temp.Is(rd) && !temp.Is(operand.maybeReg()));
+    VIXL_ASSERT(!temp.Is(rd) && !temp.Is(operand.maybeReg()));
 
     EmitExtendShift(temp, operand.reg(), operand.extend(), operand.shift_amount());
     mvn(rd, Operand(temp));
@@ -275,7 +272,7 @@ void MacroAssembler::Mvn(const Register& rd, const Operand& operand) {
 
 
 void MacroAssembler::Mov(const Register& rd, uint64_t imm) {
-  MOZ_ASSERT(is_uint32(imm) || is_int32(imm) || rd.Is64Bits());
+  VIXL_ASSERT(is_uint32(imm) || is_int32(imm) || rd.Is64Bits());
 
   // Immediates on Aarch64 can be produced using an initial value, and zero to
   // three move keep operations.
@@ -319,7 +316,7 @@ void MacroAssembler::Mov(const Register& rd, uint64_t imm) {
 
     // Iterate through the halfwords. Use movn/movz for the first non-ignored
     // halfword, and movk for subsequent halfwords.
-    MOZ_ASSERT((reg_size % 16) == 0);
+    VIXL_ASSERT((reg_size % 16) == 0);
     bool first_mov_done = false;
     for (unsigned i = 0; i < (temp.size() / 16); i++) {
       uint64_t imm16 = (imm >> (16 * i)) & 0xffff;
@@ -337,7 +334,7 @@ void MacroAssembler::Mov(const Register& rd, uint64_t imm) {
       }
     }
 
-    MOZ_ASSERT(first_mov_done);
+    VIXL_ASSERT(first_mov_done);
 
     // Move the temporary if the original destination register was the stack
     // pointer.
@@ -348,7 +345,7 @@ void MacroAssembler::Mov(const Register& rd, uint64_t imm) {
 
 
 unsigned MacroAssembler::CountClearHalfWords(uint64_t imm, unsigned reg_size) {
-  MOZ_ASSERT((reg_size % 8) == 0);
+  VIXL_ASSERT((reg_size % 8) == 0);
   int count = 0;
   for (unsigned i = 0; i < (reg_size / 16); i++) {
     if ((imm & 0xffff) == 0)
@@ -362,7 +359,7 @@ unsigned MacroAssembler::CountClearHalfWords(uint64_t imm, unsigned reg_size) {
 // The movz instruction can generate immediates containing an arbitrary 16-bit
 // value, with remaining bits clear, eg. 0x00001234, 0x0000123400000000.
 bool MacroAssembler::IsImmMovz(uint64_t imm, unsigned reg_size) {
-  MOZ_ASSERT((reg_size == kXRegSize) || (reg_size == kWRegSize));
+  VIXL_ASSERT((reg_size == kXRegSize) || (reg_size == kWRegSize));
   return CountClearHalfWords(imm, reg_size) >= ((reg_size / 16) - 1);
 }
 
@@ -395,7 +392,7 @@ void MacroAssembler::Ccmn(const Register& rn, const Operand& operand,
 void MacroAssembler::ConditionalCompareMacro(const Register& rn, const Operand& operand,
                                              StatusFlags nzcv, Condition cond,
                                              ConditionalCompareOp op) {
-  MOZ_ASSERT((cond != al) && (cond != nv));
+  VIXL_ASSERT((cond != al) && (cond != nv));
   if ((operand.IsShiftedRegister() && (operand.shift_amount() == 0)) ||
       (operand.IsImmediate() && IsImmConditionalCompare(operand.immediate()))) {
     // The immediate can be encoded in the instruction, or the operand is an
@@ -406,7 +403,7 @@ void MacroAssembler::ConditionalCompareMacro(const Register& rn, const Operand& 
     // The operand isn't directly supported by the instruction: perform the
     // operation on a temporary register.
     Register temp = temps.AcquireSameSizeAs(rn);
-    MOZ_ASSERT(!temp.Is(rn) && !temp.Is(operand.maybeReg()));
+    VIXL_ASSERT(!temp.Is(rn) && !temp.Is(operand.maybeReg()));
 
     Mov(temp, operand);
     ConditionalCompare(rn, temp, nzcv, cond, op);
@@ -416,9 +413,9 @@ void MacroAssembler::ConditionalCompareMacro(const Register& rn, const Operand& 
 
 void MacroAssembler::Csel(const Register& rd, const Register& rn,
                           const Operand& operand, Condition cond) {
-  MOZ_ASSERT(!rd.IsZero());
-  MOZ_ASSERT(!rn.IsZero());
-  MOZ_ASSERT((cond != al) && (cond != nv));
+  VIXL_ASSERT(!rd.IsZero());
+  VIXL_ASSERT(!rn.IsZero());
+  VIXL_ASSERT((cond != al) && (cond != nv));
   if (operand.IsImmediate()) {
     // Immediate argument. Handle special cases of 0, 1 and -1 using zero
     // register.
@@ -433,8 +430,8 @@ void MacroAssembler::Csel(const Register& rd, const Register& rn,
     } else {
       UseScratchRegisterScope temps(this);
       Register temp = temps.AcquireSameSizeAs(rn);
-      MOZ_ASSERT(!temp.Is(rd) && !temp.Is(rn));
-      MOZ_ASSERT(!temp.Is(operand.maybeReg()));
+      VIXL_ASSERT(!temp.Is(rd) && !temp.Is(rn));
+      VIXL_ASSERT(!temp.Is(operand.maybeReg()));
 
       Mov(temp, operand.immediate());
       csel(rd, rn, temp, cond);
@@ -446,8 +443,8 @@ void MacroAssembler::Csel(const Register& rd, const Register& rn,
     // All other arguments.
     UseScratchRegisterScope temps(this);
     Register temp = temps.AcquireSameSizeAs(rn);
-    MOZ_ASSERT(!temp.Is(rd) && !temp.Is(rn));
-    MOZ_ASSERT(!temp.Is(operand.maybeReg()));
+    VIXL_ASSERT(!temp.Is(rd) && !temp.Is(rn));
+    VIXL_ASSERT(!temp.Is(operand.maybeReg()));
 
     Mov(temp, operand);
     csel(rd, rn, temp, cond);
@@ -501,7 +498,7 @@ void MacroAssembler::Fcmp(const FPRegister& fn, double value) {
   if (value != 0.0) {
     UseScratchRegisterScope temps(this);
     FPRegister temp = temps.AcquireSameSizeAs(fn);
-    MOZ_ASSERT(!temp.Is(fn));
+    VIXL_ASSERT(!temp.Is(fn));
 
     Fmov(temp, value);
     fcmp(fn, temp);
@@ -517,7 +514,7 @@ void MacroAssembler::Fmov(FPRegister fd, double imm) {
     return;
   }
 
-  MOZ_ASSERT(fd.Is64Bits());
+  VIXL_ASSERT(fd.Is64Bits());
   if (IsImmFP64(imm))
     fmov(fd, imm);
   else if ((imm == 0.0) && (copysign(1.0, imm) == 1.0))
@@ -533,7 +530,7 @@ void MacroAssembler::Fmov(FPRegister fd, float imm) {
     return;
   }
 
-  MOZ_ASSERT(fd.Is32Bits());
+  VIXL_ASSERT(fd.Is32Bits());
   if (IsImmFP32(imm))
     fmov(fd, imm);
   else if ((imm == 0.0) && (copysign(1.0, imm) == 1.0))
@@ -582,7 +579,7 @@ bool MacroAssembler::TryOneInstrMoveImmediate(const Register& dst, int64_t imm) 
 
   if (IsImmLogical(imm, reg_size, &n, &imm_s, &imm_r)) {
     // Immediate can be represented in a logical orr instruction.
-    MOZ_ASSERT(!dst.IsZero());
+    VIXL_ASSERT(!dst.IsZero());
     LogicalImmediate(dst, AppropriateZeroRegFor(dst), n, imm_s, imm_r, ORR);
     return true;
   }
@@ -638,8 +635,8 @@ void MacroAssembler::AddSubMacro(const Register& rd, const Register& rn,
     Register temp = temps.AcquireSameSizeAs(rn);
 
     // VIXL can acquire temp registers. Assert that the caller is aware.
-    MOZ_ASSERT(!temp.Is(rd) && !temp.Is(rn));
-    MOZ_ASSERT(!temp.Is(operand.maybeReg()));
+    VIXL_ASSERT(!temp.Is(rd) && !temp.Is(rn));
+    VIXL_ASSERT(!temp.Is(operand.maybeReg()));
 
     if (operand.IsImmediate()) {
       Operand imm_operand = MoveImmediateForShiftedOp(temp, operand.immediate());
@@ -688,41 +685,41 @@ void MacroAssembler::Ngcs(const Register& rd, const Operand& operand) {
 
 void MacroAssembler::AddSubWithCarryMacro(const Register& rd, const Register& rn,
                                           const Operand& operand, FlagsUpdate S, AddSubWithCarryOp op) {
-  MOZ_ASSERT(rd.size() == rn.size());
+  VIXL_ASSERT(rd.size() == rn.size());
   UseScratchRegisterScope temps(this);
 
   if (operand.IsImmediate() || (operand.IsShiftedRegister() && (operand.shift() == ROR))) {
     // Add/sub with carry (immediate or ROR shifted register.)
     Register temp = temps.AcquireSameSizeAs(rn);
-    MOZ_ASSERT(!temp.Is(rd) && !temp.Is(rn) && !temp.Is(operand.maybeReg()));
+    VIXL_ASSERT(!temp.Is(rd) && !temp.Is(rn) && !temp.Is(operand.maybeReg()));
 
     Mov(temp, operand);
     AddSubWithCarry(rd, rn, Operand(temp), S, op);
   } else if (operand.IsShiftedRegister() && (operand.shift_amount() != 0)) {
     // Add/sub with carry (shifted register).
-    MOZ_ASSERT(operand.reg().size() == rd.size());
-    MOZ_ASSERT(operand.shift() != ROR);
-    MOZ_ASSERT(is_uintn(rd.size() == kXRegSize ? kXRegSizeLog2 : kWRegSizeLog2,
+    VIXL_ASSERT(operand.reg().size() == rd.size());
+    VIXL_ASSERT(operand.shift() != ROR);
+    VIXL_ASSERT(is_uintn(rd.size() == kXRegSize ? kXRegSizeLog2 : kWRegSizeLog2,
                         operand.shift_amount()));
 
     temps.Exclude(operand.reg());
     Register temp = temps.AcquireSameSizeAs(rn);
-    MOZ_ASSERT(!temp.Is(rd) && !temp.Is(rn) && !temp.Is(operand.maybeReg()));
+    VIXL_ASSERT(!temp.Is(rd) && !temp.Is(rn) && !temp.Is(operand.maybeReg()));
 
     EmitShift(temp, operand.reg(), operand.shift(), operand.shift_amount());
     AddSubWithCarry(rd, rn, Operand(temp), S, op);
   } else if (operand.IsExtendedRegister()) {
     // Add/sub with carry (extended register).
-    MOZ_ASSERT(operand.reg().size() <= rd.size());
+    VIXL_ASSERT(operand.reg().size() <= rd.size());
     // Add/sub extended supports a shift <= 4. We want to support exactly the
     // same modes.
-    MOZ_ASSERT(operand.shift_amount() <= 4);
-    MOZ_ASSERT(operand.reg().Is64Bits() ||
+    VIXL_ASSERT(operand.shift_amount() <= 4);
+    VIXL_ASSERT(operand.reg().Is64Bits() ||
                ((operand.extend() != UXTX) && (operand.extend() != SXTX)));
 
     temps.Exclude(operand.reg());
     Register temp = temps.AcquireSameSizeAs(rn);
-    MOZ_ASSERT(!temp.Is(rd) && !temp.Is(rn) && !temp.Is(operand.maybeReg()));
+    VIXL_ASSERT(!temp.Is(rd) && !temp.Is(rn) && !temp.Is(operand.maybeReg()));
 
     EmitExtendShift(temp, operand.reg(), operand.extend(), operand.shift_amount());
     AddSubWithCarry(rd, rn, Operand(temp), S, op);
@@ -755,8 +752,8 @@ BufferOffset MacroAssembler::LoadStoreMacro(const CPURegister& rt, const MemOper
     // addressing modes.
     UseScratchRegisterScope temps(this);
     Register temp = temps.AcquireSameSizeAs(addr.base());
-    MOZ_ASSERT(!temp.Is(rt));
-    MOZ_ASSERT(!temp.Is(addr.base()) && !temp.Is(addr.regoffset()));
+    VIXL_ASSERT(!temp.Is(rt));
+    VIXL_ASSERT(!temp.Is(addr.base()) && !temp.Is(addr.regoffset()));
 
     Mov(temp, addr.offset());
     return LoadStore(rt, MemOperand(addr.base(), temp), op);
@@ -794,15 +791,15 @@ void MacroAssembler::PushStackPointer() {
 
 void MacroAssembler::Push(const CPURegister& src0, const CPURegister& src1,
                      const CPURegister& src2, const CPURegister& src3) {
-  MOZ_ASSERT(AreSameSizeAndType(src0, src1, src2, src3));
-  MOZ_ASSERT(src0.IsValid());
+  VIXL_ASSERT(AreSameSizeAndType(src0, src1, src2, src3));
+  VIXL_ASSERT(src0.IsValid());
 
   int count = 1 + src1.IsValid() + src2.IsValid() + src3.IsValid();
   int size = src0.SizeInBytes();
 
   if (src0.Is(GetStackPointer64())) {
-    MOZ_ASSERT(count == 1);
-    MOZ_ASSERT(size == 8);
+    VIXL_ASSERT(count == 1);
+    VIXL_ASSERT(size == 8);
     PushStackPointer();
     return;
   }
@@ -816,9 +813,9 @@ void MacroAssembler::Pop(const CPURegister& dst0, const CPURegister& dst1,
                          const CPURegister& dst2, const CPURegister& dst3) {
   // It is not valid to pop into the same register more than once in one
   // instruction, not even into the zero register.
-  MOZ_ASSERT(!AreAliased(dst0, dst1, dst2, dst3));
-  MOZ_ASSERT(AreSameSizeAndType(dst0, dst1, dst2, dst3));
-  MOZ_ASSERT(dst0.IsValid());
+  VIXL_ASSERT(!AreAliased(dst0, dst1, dst2, dst3));
+  VIXL_ASSERT(AreSameSizeAndType(dst0, dst1, dst2, dst3));
+  VIXL_ASSERT(dst0.IsValid());
 
   int count = 1 + dst1.IsValid() + dst2.IsValid() + dst3.IsValid();
   int size = dst0.SizeInBytes();
@@ -885,7 +882,7 @@ void MacroAssembler::PushMultipleTimes(int count, Register src) {
     PushHelper(1, size, src, NoReg, NoReg, NoReg);
     count -= 1;
   }
-  MOZ_ASSERT(count == 0);
+  VIXL_ASSERT(count == 0);
 }
 
 
@@ -895,32 +892,32 @@ void MacroAssembler::PushHelper(int count, int size, const CPURegister& src0,
   // Ensure that we don't unintentionally modify scratch or debug registers.
   InstructionAccurateScope scope(this);
 
-  MOZ_ASSERT(AreSameSizeAndType(src0, src1, src2, src3));
-  MOZ_ASSERT(size == src0.SizeInBytes());
+  VIXL_ASSERT(AreSameSizeAndType(src0, src1, src2, src3));
+  VIXL_ASSERT(size == src0.SizeInBytes());
 
   // Pushing the stack pointer has unexpected behavior. See PushStackPointer().
-  MOZ_ASSERT(!src0.Is(GetStackPointer64()) && !src0.Is(sp));
-  MOZ_ASSERT(!src1.Is(GetStackPointer64()) && !src1.Is(sp));
-  MOZ_ASSERT(!src2.Is(GetStackPointer64()) && !src2.Is(sp));
-  MOZ_ASSERT(!src3.Is(GetStackPointer64()) && !src3.Is(sp));
+  VIXL_ASSERT(!src0.Is(GetStackPointer64()) && !src0.Is(sp));
+  VIXL_ASSERT(!src1.Is(GetStackPointer64()) && !src1.Is(sp));
+  VIXL_ASSERT(!src2.Is(GetStackPointer64()) && !src2.Is(sp));
+  VIXL_ASSERT(!src3.Is(GetStackPointer64()) && !src3.Is(sp));
 
   // The JS engine should never push 4 bytes, since we're trying to keep
   // 8-byte alignment at all times for sanity.
-  MOZ_ASSERT(size >= 8);
+  VIXL_ASSERT(size >= 8);
 
   // When pushing multiple registers, the store order is chosen such that
   // Push(a, b) is equivalent to Push(a) followed by Push(b).
   switch (count) {
   case 1:
-    MOZ_ASSERT(src1.IsNone() && src2.IsNone() && src3.IsNone());
+    VIXL_ASSERT(src1.IsNone() && src2.IsNone() && src3.IsNone());
     str(src0, MemOperand(GetStackPointer64(), -1 * size, PreIndex));
     break;
   case 2:
-    MOZ_ASSERT(src2.IsNone() && src3.IsNone());
+    VIXL_ASSERT(src2.IsNone() && src3.IsNone());
     stp(src1, src0, MemOperand(GetStackPointer64(), -2 * size, PreIndex));
     break;
   case 3:
-    MOZ_ASSERT(src3.IsNone());
+    VIXL_ASSERT(src3.IsNone());
     stp(src2, src1, MemOperand(GetStackPointer64(), -3 * size, PreIndex));
     str(src0, MemOperand(GetStackPointer64(), 2 * size));
     break;
@@ -943,22 +940,22 @@ void MacroAssembler::PopHelper(int count, int size, const CPURegister& dst0,
   // Ensure that we don't unintentionally modify scratch or debug registers.
   InstructionAccurateScope scope(this);
 
-  MOZ_ASSERT(AreSameSizeAndType(dst0, dst1, dst2, dst3));
-  MOZ_ASSERT(size == dst0.SizeInBytes());
+  VIXL_ASSERT(AreSameSizeAndType(dst0, dst1, dst2, dst3));
+  VIXL_ASSERT(size == dst0.SizeInBytes());
 
   // When popping multiple registers, the load order is chosen such that
   // Pop(a, b) is equivalent to Pop(a) followed by Pop(b).
   switch (count) {
   case 1:
-    MOZ_ASSERT(dst1.IsNone() && dst2.IsNone() && dst3.IsNone());
+    VIXL_ASSERT(dst1.IsNone() && dst2.IsNone() && dst3.IsNone());
     ldr(dst0, MemOperand(GetStackPointer64(), 1 * size, PostIndex));
     break;
   case 2:
-    MOZ_ASSERT(dst2.IsNone() && dst3.IsNone());
+    VIXL_ASSERT(dst2.IsNone() && dst3.IsNone());
     ldp(dst0, dst1, MemOperand(GetStackPointer64(), 2 * size, PostIndex));
     break;
   case 3:
-    MOZ_ASSERT(dst3.IsNone());
+    VIXL_ASSERT(dst3.IsNone());
     ldr(dst2, MemOperand(GetStackPointer64(), 2 * size));
     ldp(dst0, dst1, MemOperand(GetStackPointer64(), 3 * size, PostIndex));
     break;
@@ -981,7 +978,7 @@ void MacroAssembler::PrepareForPush(int count, int size) {
     // If the current stack pointer is sp, then it must be aligned to 16 bytes
     // on entry and the total size of the specified registers must also be a
     // multiple of 16 bytes.
-    MOZ_ASSERT((count * size) % 16 == 0);
+    VIXL_ASSERT((count * size) % 16 == 0);
   } else {
     // Even if the current stack pointer is not the system stack pointer (sp),
     // the system stack pointer will still be modified in order to comply with
@@ -996,14 +993,14 @@ void MacroAssembler::PrepareForPop(int count, int size) {
     // If the current stack pointer is sp, then it must be aligned to 16 bytes
     // on entry and the total size of the specified registers must also be a
     // multiple of 16 bytes.
-    MOZ_ASSERT((count * size) % 16 == 0);
+    VIXL_ASSERT((count * size) % 16 == 0);
   }
 }
 
 
 void MacroAssembler::Poke(const Register& src, const Operand& offset) {
   if (offset.IsImmediate())
-    MOZ_ASSERT(offset.immediate() >= 0);
+    VIXL_ASSERT(offset.immediate() >= 0);
 
   Str(src, MemOperand(GetStackPointer64(), offset));
 }
@@ -1011,7 +1008,7 @@ void MacroAssembler::Poke(const Register& src, const Operand& offset) {
 
 void MacroAssembler::Peek(const Register& dst, const Operand& offset) {
   if (offset.IsImmediate())
-    MOZ_ASSERT(offset.immediate() >= 0);
+    VIXL_ASSERT(offset.immediate() >= 0);
 
   Ldr(dst, MemOperand(GetStackPointer64(), offset));
 }
@@ -1022,9 +1019,9 @@ void MacroAssembler::Claim(const Operand& size) {
     return;
 
   if (size.IsImmediate()) {
-    MOZ_ASSERT(size.immediate() > 0);
+    VIXL_ASSERT(size.immediate() > 0);
     if (sp.Is(GetStackPointer64()))
-      MOZ_ASSERT((size.immediate() % 16) == 0);
+      VIXL_ASSERT((size.immediate() % 16) == 0);
   }
 
   if (!sp.Is(GetStackPointer64()))
@@ -1039,9 +1036,9 @@ void MacroAssembler::Drop(const Operand& size) {
     return;
 
   if (size.IsImmediate()) {
-    MOZ_ASSERT(size.immediate() > 0);
+    VIXL_ASSERT(size.immediate() > 0);
     if (sp.Is(GetStackPointer64()))
-      MOZ_ASSERT((size.immediate() % 16) == 0);
+      VIXL_ASSERT((size.immediate() % 16) == 0);
   }
 
   Add(GetStackPointer64(), GetStackPointer64(), size);
@@ -1053,7 +1050,7 @@ void MacroAssembler::PushCalleeSavedRegisters() {
   InstructionAccurateScope scope(this);
 
   // This method must not be called unless the current stack pointer is sp.
-  MOZ_ASSERT(sp.Is(GetStackPointer64()));
+  VIXL_ASSERT(sp.Is(GetStackPointer64()));
 
   MemOperand tos(sp, -2 * kXRegSizeInBytes, PreIndex);
 
@@ -1076,7 +1073,7 @@ void MacroAssembler::PopCalleeSavedRegisters() {
   InstructionAccurateScope scope(this);
 
   // This method must not be called unless the current stack pointer is sp.
-  MOZ_ASSERT(sp.Is(GetStackPointer64()));
+  VIXL_ASSERT(sp.Is(GetStackPointer64()));
 
   MemOperand tos(sp, 2 * kXRegSizeInBytes, PostIndex);
 
@@ -1095,7 +1092,7 @@ void MacroAssembler::PopCalleeSavedRegisters() {
 
 
 void MacroAssembler::BumpSystemStackPointer(const Operand& space) {
-  MOZ_ASSERT(!sp.Is(GetStackPointer64()));
+  VIXL_ASSERT(!sp.Is(GetStackPointer64()));
   // TODO: Several callers rely on this not using scratch registers, so we use
   // the assembler directly here. However, this means that large immediate
   // values of 'space' cannot be handled.
@@ -1111,7 +1108,7 @@ void MacroAssembler::PrintfNoPreserve(const char * format, const CPURegister& ar
                                       const CPURegister& arg3) {
   // We cannot handle a caller-saved stack pointer. It doesn't make much sense
   // in most cases anyway, so this restriction shouldn't be too serious.
-  MOZ_ASSERT(!kCallerSaved.IncludesAliasOf(GetStackPointer64()));
+  VIXL_ASSERT(!kCallerSaved.IncludesAliasOf(GetStackPointer64()));
 
   // The provided arguments, and their proper PCS registers.
   CPURegister args[kPrintfMaxArgCount] = {arg0, arg1, arg2, arg3};
@@ -1155,7 +1152,7 @@ void MacroAssembler::PrintfNoPreserve(const char * format, const CPURegister& ar
       // In C, floats are always cast to doubles for varargs calls.
       pcs[i] = pcs_varargs_fp.PopLowestIndex().D();
     } else {
-      MOZ_ASSERT(args[i].IsNone());
+      VIXL_ASSERT(args[i].IsNone());
       arg_count = i;
       break;
     }
@@ -1184,11 +1181,11 @@ void MacroAssembler::PrintfNoPreserve(const char * format, const CPURegister& ar
   // Do a second pass to move values into their final positions and perform any
   // conversions that may be required.
   for (int i = 0; i < arg_count; i++) {
-    MOZ_ASSERT(pcs[i].type() == args[i].type());
+    VIXL_ASSERT(pcs[i].type() == args[i].type());
     if (pcs[i].IsRegister()) {
       Mov(Register(pcs[i]), Register(args[i]), kDiscardForSameWReg);
     } else {
-      MOZ_ASSERT(pcs[i].IsFPRegister());
+      VIXL_ASSERT(pcs[i].IsFPRegister());
       if (pcs[i].size() == args[i].size())
         Fmov(FPRegister(pcs[i]), FPRegister(args[i]));
       else
@@ -1238,10 +1235,10 @@ void MacroAssembler::PrintfNoPreserve(const char * format, const CPURegister& ar
       if (pcs[i].IsRegister()) {
         arg_pattern = pcs[i].Is32Bits() ? kPrintfArgW : kPrintfArgX;
       } else {
-        MOZ_ASSERT(pcs[i].Is64Bits());
+        VIXL_ASSERT(pcs[i].Is64Bits());
         arg_pattern = kPrintfArgD;
       }
-      MOZ_ASSERT(arg_pattern < (1 << kPrintfArgPatternBits));
+      VIXL_ASSERT(arg_pattern < (1 << kPrintfArgPatternBits));
       arg_pattern_list |= (arg_pattern << (kPrintfArgPatternBits * i));
     }
     dc32(arg_pattern_list);   // kPrintfArgPatternListOffset
@@ -1258,10 +1255,10 @@ void MacroAssembler::Printf(const char * format, CPURegister arg0, CPURegister a
                             CPURegister arg2, CPURegister arg3) {
   // We can only print sp if it is the current stack pointer.
   if (!sp.Is(GetStackPointer64())) {
-    MOZ_ASSERT(!sp.Aliases(arg0));
-    MOZ_ASSERT(!sp.Aliases(arg1));
-    MOZ_ASSERT(!sp.Aliases(arg2));
-    MOZ_ASSERT(!sp.Aliases(arg3));
+    VIXL_ASSERT(!sp.Aliases(arg0));
+    VIXL_ASSERT(!sp.Aliases(arg1));
+    VIXL_ASSERT(!sp.Aliases(arg2));
+    VIXL_ASSERT(!sp.Aliases(arg3));
   }
 
   // Make sure that the macro assembler doesn't try to use any of our arguments
@@ -1334,10 +1331,10 @@ void MacroAssembler::Trace(TraceParameters parameters, TraceCommand command) {
   // arguments.
   hlt(kTraceOpcode);
 
-  //MOZ_ASSERT(SizeOfCodeGeneratedSince(&start) == kTraceParamsOffset);
+  //VIXL_ASSERT(SizeOfCodeGeneratedSince(&start) == kTraceParamsOffset);
   dc32(parameters);
 
-  //MOZ_ASSERT(SizeOfCodeGeneratedSince(&start) == kTraceCommandOffset);
+  //VIXL_ASSERT(SizeOfCodeGeneratedSince(&start) == kTraceCommandOffset);
   dc32(command);
 #else
   // Emit nothing on real hardware.
@@ -1358,7 +1355,7 @@ void MacroAssembler::Log(TraceParameters parameters) {
   // arguments.
   hlt(kLogOpcode);
 
-  //MOZ_ASSERT(SizeOfCodeGeneratedSince(&start) == kLogParamsOffset);
+  //VIXL_ASSERT(SizeOfCodeGeneratedSince(&start) == kLogParamsOffset);
   dc32(parameters);
 #else
   // Emit nothing on real hardware.
@@ -1367,25 +1364,25 @@ void MacroAssembler::Log(TraceParameters parameters) {
 
 
 void MacroAssembler::EnableInstrumentation() {
-  MOZ_ASSERT(!isprint(InstrumentStateEnable));
+  VIXL_ASSERT(!isprint(InstrumentStateEnable));
   InstructionAccurateScope scope(this, 1);
   movn(xzr, InstrumentStateEnable);
 }
 
 
 void MacroAssembler::DisableInstrumentation() {
-  MOZ_ASSERT(!isprint(InstrumentStateDisable));
+  VIXL_ASSERT(!isprint(InstrumentStateDisable));
   InstructionAccurateScope scope(this, 1);
   movn(xzr, InstrumentStateDisable);
 }
 
 
 void MacroAssembler::AnnotateInstrumentation(const char* marker_name) {
-  MOZ_ASSERT(strlen(marker_name) == 2);
+  VIXL_ASSERT(strlen(marker_name) == 2);
 
   // We allow only printable characters in the marker names. Unprintable
   // characters are reserved for controlling features of the instrumentation.
-  MOZ_ASSERT(isprint(marker_name[0]) && isprint(marker_name[1]));
+  VIXL_ASSERT(isprint(marker_name[0]) && isprint(marker_name[1]));
 
   InstructionAccurateScope scope(this, 1);
   movn(xzr, (marker_name[1] << 8) | marker_name[0]);
@@ -1406,7 +1403,7 @@ void MacroAssembler::StackCheck(int index, int value) {
   // arguments.
   hlt(kStackCheckOpcode);
 
-  //MOZ_ASSERT(SizeOfCodeGeneratedSince(&start) == kTraceParamsOffset);
+  //VIXL_ASSERT(SizeOfCodeGeneratedSince(&start) == kTraceParamsOffset);
   dc32(index);
   dc32(value);
 #else
@@ -1432,7 +1429,7 @@ void MacroAssembler::StackCheckPushPop(int index, int value, int direction) {
   js::jit::AutoForbidPools afp(this, 4);
   hlt(kStackCheckPushPopOpcode);
 
-  //MOZ_ASSERT(SizeOfCodeGeneratedSince(&start) == kTraceParamsOffset);
+  //VIXL_ASSERT(SizeOfCodeGeneratedSince(&start) == kTraceParamsOffset);
   dc32(index);
   dc32(value);
   dc32(direction);
@@ -1472,7 +1469,7 @@ void UseScratchRegisterScope::Release(const CPURegister& reg) {
   else if (reg.IsFPRegister())
     ReleaseByCode(availablefp_, reg.code());
   else
-    MOZ_ASSERT(reg.IsNone());
+    VIXL_ASSERT(reg.IsNone());
 }
 
 
@@ -1481,7 +1478,7 @@ void UseScratchRegisterScope::Include(const CPURegList& list) {
     // Make sure that neither sp nor xzr are included the list.
     IncludeByRegList(available_, list.list() & ~(xzr.Bit() | sp.Bit()));
   } else {
-    MOZ_ASSERT(list.type() == CPURegister::kFPRegister);
+    VIXL_ASSERT(list.type() == CPURegister::kFPRegister);
     IncludeByRegList(availablefp_, list.list());
   }
 }
@@ -1508,7 +1505,7 @@ void UseScratchRegisterScope::Exclude(const CPURegList& list) {
   if (list.type() == CPURegister::kRegister) {
     ExcludeByRegList(available_, list.list());
   } else {
-    MOZ_ASSERT(list.type() == CPURegister::kFPRegister);
+    VIXL_ASSERT(list.type() == CPURegister::kFPRegister);
     ExcludeByRegList(availablefp_, list.list());
   }
 }
@@ -1541,7 +1538,7 @@ void UseScratchRegisterScope::Exclude(const CPURegister& reg1, const CPURegister
     else if (regs[i].IsFPRegister())
       excludefp |= regs[i].Bit();
     else
-      MOZ_ASSERT(regs[i].IsNone());
+      VIXL_ASSERT(regs[i].IsNone());
   }
 
   ExcludeByRegList(available_, exclude);
@@ -1556,9 +1553,9 @@ void UseScratchRegisterScope::ExcludeAll() {
 
 
 CPURegister UseScratchRegisterScope::AcquireNextAvailable(CPURegList* available) {
-  MOZ_ASSERT(!available->IsEmpty());
+  VIXL_ASSERT(!available->IsEmpty());
   CPURegister result = available->PopLowestIndex();
-  MOZ_ASSERT(!AreAliased(result, xzr, sp));
+  VIXL_ASSERT(!AreAliased(result, xzr, sp));
   return result;
 }
 

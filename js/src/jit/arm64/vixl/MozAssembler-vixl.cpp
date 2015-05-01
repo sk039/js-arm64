@@ -79,7 +79,7 @@ ptrdiff_t Assembler::LinkAndGetOffsetTo(BufferOffset branch, Label* label) {
   // the branches, and update the linked list head in the label struct.
   ptrdiff_t prevHeadOffset = static_cast<ptrdiff_t>(label->offset());
   label->use(branch.getOffset());
-  MOZ_ASSERT(prevHeadOffset - branch.getOffset() != js::jit::LabelBase::INVALID_OFFSET);
+  VIXL_ASSERT(prevHeadOffset - branch.getOffset() != js::jit::LabelBase::INVALID_OFFSET);
   return prevHeadOffset - branch.getOffset();
 }
 
@@ -123,7 +123,7 @@ BufferOffset Assembler::b(Label* label) {
   // Flush the instruction buffer before calculating relative offset.
   BufferOffset branch = b(0);
   Instruction* ins = getInstructionAt(branch);
-  MOZ_ASSERT(ins->IsUncondBranchImm());
+  VIXL_ASSERT(ins->IsUncondBranchImm());
 
   // Encode the relative offset.
   b(ins, LinkAndGetInstructionOffsetTo(branch, label));
@@ -135,7 +135,7 @@ BufferOffset Assembler::b(Label* label, Condition cond) {
   // Flush the instruction buffer before calculating relative offset.
   BufferOffset branch = b(0, Always);
   Instruction* ins = getInstructionAt(branch);
-  MOZ_ASSERT(ins->IsCondBranchImm());
+  VIXL_ASSERT(ins->IsCondBranchImm());
 
   // Encode the relative offset.
   b(ins, LinkAndGetInstructionOffsetTo(branch, label), cond);
@@ -204,13 +204,13 @@ void Assembler::cbnz(const Register& rt, Label* label) {
 
 
 void Assembler::tbz(const Register& rt, unsigned bit_pos, int imm14) {
-  MOZ_ASSERT(rt.Is64Bits() || (rt.Is32Bits() && (bit_pos < kWRegSize)));
+  VIXL_ASSERT(rt.Is64Bits() || (rt.Is32Bits() && (bit_pos < kWRegSize)));
   EmitBranch(TBZ | ImmTestBranchBit(bit_pos) | ImmTestBranch(imm14) | Rt(rt));
 }
 
 
 void Assembler::tbz(Instruction* at, const Register& rt, unsigned bit_pos, int imm14) {
-  MOZ_ASSERT(rt.Is64Bits() || (rt.Is32Bits() && (bit_pos < kWRegSize)));
+  VIXL_ASSERT(rt.Is64Bits() || (rt.Is32Bits() && (bit_pos < kWRegSize)));
   EmitBranch(at, TBZ | ImmTestBranchBit(bit_pos) | ImmTestBranch(imm14) | Rt(rt));
 }
 
@@ -226,13 +226,13 @@ void Assembler::tbz(const Register& rt, unsigned bit_pos, Label* label) {
 
 
 void Assembler::tbnz(const Register& rt, unsigned bit_pos, int imm14) {
-  MOZ_ASSERT(rt.Is64Bits() || (rt.Is32Bits() && (bit_pos < kWRegSize)));
+  VIXL_ASSERT(rt.Is64Bits() || (rt.Is32Bits() && (bit_pos < kWRegSize)));
   EmitBranch(TBNZ | ImmTestBranchBit(bit_pos) | ImmTestBranch(imm14) | Rt(rt));
 }
 
 
 void Assembler::tbnz(Instruction* at, const Register& rt, unsigned bit_pos, int imm14) {
-  MOZ_ASSERT(rt.Is64Bits() || (rt.Is32Bits() && (bit_pos < kWRegSize)));
+  VIXL_ASSERT(rt.Is64Bits() || (rt.Is32Bits() && (bit_pos < kWRegSize)));
   EmitBranch(at, TBNZ | ImmTestBranchBit(bit_pos) | ImmTestBranch(imm14) | Rt(rt));
 }
 
@@ -248,13 +248,13 @@ void Assembler::tbnz(const Register& rt, unsigned bit_pos, Label* label) {
 
 
 void Assembler::adr(const Register& rd, int imm21) {
-  MOZ_ASSERT(rd.Is64Bits());
+  VIXL_ASSERT(rd.Is64Bits());
   EmitBranch(ADR | ImmPCRelAddress(imm21) | Rd(rd));
 }
 
 
 void Assembler::adr(Instruction* at, const Register& rd, int imm21) {
-  MOZ_ASSERT(rd.Is64Bits());
+  VIXL_ASSERT(rd.Is64Bits());
   EmitBranch(at, ADR | ImmPCRelAddress(imm21) | Rd(rd));
 }
 
@@ -271,19 +271,19 @@ void Assembler::adr(const Register& rd, Label* label) {
 
 
 void Assembler::adrp(const Register& rd, int imm21) {
-  MOZ_ASSERT(rd.Is64Bits());
+  VIXL_ASSERT(rd.Is64Bits());
   EmitBranch(ADRP | ImmPCRelAddress(imm21) | Rd(rd));
 }
 
 
 void Assembler::adrp(Instruction* at, const Register& rd, int imm21) {
-  MOZ_ASSERT(rd.Is64Bits());
+  VIXL_ASSERT(rd.Is64Bits());
   EmitBranch(at, ADRP | ImmPCRelAddress(imm21) | Rd(rd));
 }
 
 
 void Assembler::adrp(const Register& rd, Label* label) {
-  MOZ_ASSERT(AllowPageOffsetDependentCode());
+  VIXL_ASSERT(AllowPageOffsetDependentCode());
 
   BufferOffset offset = Emit(0);
   Instruction* ins = getInstructionAt(offset);
@@ -320,7 +320,7 @@ void Assembler::hint(Instruction* at, SystemHint code) {
 
 
 void Assembler::svc(Instruction* at, int code) {
-  MOZ_ASSERT(is_uint16(code));
+  VIXL_ASSERT(is_uint16(code));
   Emit(at, SVC | ImmException(code));
 }
 
@@ -333,14 +333,14 @@ void Assembler::nop(Instruction* at) {
 BufferOffset Assembler::Logical(const Register& rd, const Register& rn,
                                 const Operand& operand, LogicalOp op)
 {
-  MOZ_ASSERT(rd.size() == rn.size());
+  VIXL_ASSERT(rd.size() == rn.size());
   if (operand.IsImmediate()) {
     int64_t immediate = operand.immediate();
     unsigned reg_size = rd.size();
 
-    MOZ_ASSERT(immediate != 0);
-    MOZ_ASSERT(immediate != -1);
-    MOZ_ASSERT(rd.Is64Bits() || is_uint32(immediate));
+    VIXL_ASSERT(immediate != 0);
+    VIXL_ASSERT(immediate != -1);
+    VIXL_ASSERT(rd.Is64Bits() || is_uint32(immediate));
 
     // If the operation is NOT, invert the operation and immediate.
     if ((op & NOT) == NOT) {
@@ -357,8 +357,8 @@ BufferOffset Assembler::Logical(const Register& rd, const Register& rn,
       VIXL_UNREACHABLE();
     }
   } else {
-    MOZ_ASSERT(operand.IsShiftedRegister());
-    MOZ_ASSERT(operand.reg().size() == rd.size());
+    VIXL_ASSERT(operand.IsShiftedRegister());
+    VIXL_ASSERT(operand.reg().size() == rd.size());
     Instr dp_op = static_cast<Instr>(op | LogicalShiftedFixed);
     return DataProcShiftedRegister(rd, rn, operand, LeaveFlags, dp_op);
   }
@@ -378,8 +378,8 @@ BufferOffset Assembler::LogicalImmediate(const Register& rd, const Register& rn,
 BufferOffset Assembler::DataProcShiftedRegister(const Register& rd, const Register& rn,
                                                 const Operand& operand, FlagsUpdate S, Instr op)
 {
-  MOZ_ASSERT(operand.IsShiftedRegister());
-  MOZ_ASSERT(rn.Is64Bits() || (rn.Is32Bits() && is_uint5(operand.shift_amount())));
+  VIXL_ASSERT(operand.IsShiftedRegister());
+  VIXL_ASSERT(rn.Is64Bits() || (rn.Is32Bits() && is_uint5(operand.shift_amount())));
   return Emit(SF(rd) | op | Flags(S) |
               ShiftDP(operand.shift()) | ImmDPShift(operand.shift_amount()) |
               Rm(operand.reg()) | Rn(rn) | Rd(rd));
@@ -440,7 +440,7 @@ struct PoolHeader {
       : data(data)
     {
       JS_STATIC_ASSERT(sizeof(Header) == sizeof(uint32_t));
-      MOZ_ASSERT(ONES == 0xffff);
+      VIXL_ASSERT(ONES == 0xffff);
     }
 
     uint32_t raw() const {
@@ -472,9 +472,9 @@ void MozBaseAssembler::WritePoolHeader(uint8_t* start, js::jit::Pool* p, bool is
   uint8_t* pool = start + sizeof(PoolHeader) + p->getPoolSize();
 
   uintptr_t size = pool - start;
-  MOZ_ASSERT((size & 3) == 0);
+  VIXL_ASSERT((size & 3) == 0);
   size = size >> 2;
-  MOZ_ASSERT(size < (1 << 15));
+  VIXL_ASSERT(size < (1 << 15));
 
   PoolHeader header(size, isNatural);
   *(PoolHeader*)start = header;
@@ -488,7 +488,7 @@ void MozBaseAssembler::WritePoolFooter(uint8_t* start, js::jit::Pool* p, bool is
 
 void MozBaseAssembler::WritePoolGuard(BufferOffset branch, Instruction* inst, BufferOffset dest) {
   int byteOffset = dest.getOffset() - branch.getOffset();
-  MOZ_ASSERT(byteOffset % kInstructionSize == 0);
+  VIXL_ASSERT(byteOffset % kInstructionSize == 0);
 
   int instOffset = byteOffset >> kInstructionSizeLog2;
   Assembler::b(inst, instOffset);
@@ -515,7 +515,7 @@ ptrdiff_t MozBaseAssembler::GetBranchOffset(const Instruction* ins) {
 
 void MozBaseAssembler::RetargetNearBranch(Instruction* i, int offset, Condition cond, bool final) {
   if (i->IsCondBranchImm()) {
-    MOZ_ASSERT(i->IsCondB());
+    VIXL_ASSERT(i->IsCondB());
     Assembler::b(i, offset, cond);
     return;
   }
@@ -528,8 +528,8 @@ void MozBaseAssembler::RetargetNearBranch(Instruction* i, int byteOffset, bool f
 
   // The only valid conditional instruction is B.
   if (i->IsCondBranchImm()) {
-    MOZ_ASSERT(byteOffset % kInstructionSize == 0);
-    MOZ_ASSERT(i->IsCondB());
+    VIXL_ASSERT(byteOffset % kInstructionSize == 0);
+    VIXL_ASSERT(i->IsCondB());
     Condition cond = static_cast<Condition>(i->ConditionBranch());
     Assembler::b(i, instOffset, cond);
     return;
@@ -537,41 +537,41 @@ void MozBaseAssembler::RetargetNearBranch(Instruction* i, int byteOffset, bool f
 
   // Valid unconditional branches are B and BL.
   if (i->IsUncondBranchImm()) {
-    MOZ_ASSERT(byteOffset % kInstructionSize == 0);
+    VIXL_ASSERT(byteOffset % kInstructionSize == 0);
     if (i->IsUncondB()) {
       Assembler::b(i, instOffset);
     } else {
-      MOZ_ASSERT(i->IsBL());
+      VIXL_ASSERT(i->IsBL());
       Assembler::bl(i, instOffset);
     }
 
-    MOZ_ASSERT(i->ImmUncondBranch() == instOffset);
+    VIXL_ASSERT(i->ImmUncondBranch() == instOffset);
     return;
   }
 
   // Valid compare branches are CBZ and CBNZ.
   if (i->IsCompareBranch()) {
-    MOZ_ASSERT(byteOffset % kInstructionSize == 0);
+    VIXL_ASSERT(byteOffset % kInstructionSize == 0);
     Register rt = i->SixtyFourBits() ? Register::XRegFromCode(i->Rt())
                                      : Register::WRegFromCode(i->Rt());
 
     if (i->IsCBZ()) {
       Assembler::cbz(i, rt, instOffset);
     } else {
-      MOZ_ASSERT(i->IsCBNZ());
+      VIXL_ASSERT(i->IsCBNZ());
       Assembler::cbnz(i, rt, instOffset);
     }
 
-    MOZ_ASSERT(i->ImmCmpBranch() == instOffset);
+    VIXL_ASSERT(i->ImmCmpBranch() == instOffset);
     return;
   }
 
   // Valid test branches are TBZ and TBNZ.
   if (i->IsTestBranch()) {
-    MOZ_ASSERT(byteOffset % kInstructionSize == 0);
+    VIXL_ASSERT(byteOffset % kInstructionSize == 0);
     // Opposite of ImmTestBranchBit(): MSB in bit 5, 0:5 at bit 40.
     unsigned bit_pos = (i->ImmTestBranchBit5() << 5) | (i->ImmTestBranchBit40());
-    MOZ_ASSERT(is_uint6(bit_pos));
+    VIXL_ASSERT(is_uint6(bit_pos));
 
     // Register size doesn't matter for the encoding.
     Register rt = Register::XRegFromCode(i->Rt());
@@ -579,11 +579,11 @@ void MozBaseAssembler::RetargetNearBranch(Instruction* i, int byteOffset, bool f
     if (i->IsTBZ()) {
       Assembler::tbz(i, rt, bit_pos, instOffset);
     } else {
-      MOZ_ASSERT(i->IsTBNZ());
+      VIXL_ASSERT(i->IsTBNZ());
       Assembler::tbnz(i, rt, bit_pos, instOffset);
     }
 
-    MOZ_ASSERT(i->ImmTestBranch() == instOffset);
+    VIXL_ASSERT(i->ImmTestBranch() == instOffset);
     return;
   }
 

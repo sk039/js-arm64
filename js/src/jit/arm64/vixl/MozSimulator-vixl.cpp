@@ -217,7 +217,7 @@ int64_t Simulator::call(uint8_t* entry, int argument_count, ...) {
   va_start(parameters, argument_count);
 
   // First eight arguments passed in registers.
-  MOZ_ASSERT(argument_count <= 8);
+  VIXL_ASSERT(argument_count <= 8);
   // This code should use the type of the called function
   // (with templates, like the callVM machinery), but since the
   // number of called functions is miniscule, their types have been
@@ -254,13 +254,13 @@ int64_t Simulator::call(uint8_t* entry, int argument_count, ...) {
   va_end(parameters);
 
   // Call must transition back to native code on exit.
-  MOZ_ASSERT(xreg(30) == int64_t(kEndOfSimAddress));
+  VIXL_ASSERT(xreg(30) == int64_t(kEndOfSimAddress));
 
   // Execute the simulation.
   DebugOnly<int64_t> entryStack = xreg(31, Reg31IsStackPointer);
   RunFrom((Instruction*)entry);
   DebugOnly<int64_t> exitStack = xreg(31, Reg31IsStackPointer);
-  MOZ_ASSERT(entryStack == exitStack);
+  VIXL_ASSERT(entryStack == exitStack);
 
   int64_t result = xreg(0);
   if (getenv("USE_DEBUGGER"))
@@ -329,12 +329,12 @@ class Redirection
     AutoLockSimulatorCache alsr(sim);
 
     // TODO: Store srt_ in the simulator for this assertion.
-    // MOZ_ASSERT_IF(pt->simulator(), pt->simulator()->srt_ == srt);
+    // VIXL_ASSERT_IF(pt->simulator(), pt->simulator()->srt_ == srt);
 
     Redirection* current = sim->redirection();
     for (; current != nullptr; current = current->next_) {
       if (current->nativeFunction_ == nativeFunction) {
-        MOZ_ASSERT(current->type() == type);
+        VIXL_ASSERT(current->type() == type);
         return current;
       }
     }
@@ -418,7 +418,7 @@ void Simulator::VisitException(const Instruction* instr) {
         case kCheckStackPointer: {
           int64_t current = xreg(31, Reg31IsStackPointer);
           int64_t expected = spStack_.popCopy();
-          MOZ_ASSERT(current == expected);
+          VIXL_ASSERT(current == expected);
           return;
         }
         default:
@@ -485,15 +485,15 @@ typedef double (*Prototype_Double_DoubleDoubleDoubleDouble)(double arg0, double 
 void
 Simulator::VisitCallRedirection(const Instruction* instr)
 {
-  MOZ_ASSERT(instr->Mask(ExceptionMask) == SVC);
-  MOZ_ASSERT(instr->ImmException() == kCallRtRedirected);
+  VIXL_ASSERT(instr->Mask(ExceptionMask) == SVC);
+  VIXL_ASSERT(instr->ImmException() == kCallRtRedirected);
 
   const Redirection* redir = Redirection::FromSvcInstruction(instr);
   uintptr_t nativeFn = reinterpret_cast<uintptr_t>(redir->nativeFunction());
 
   // Stack must be aligned prior to the call.
   // FIXME: It's actually our job to perform the alignment...
-  //MOZ_ASSERT((xreg(31, Reg31IsStackPointer) & (StackAlignment - 1)) == 0);
+  //VIXL_ASSERT((xreg(31, Reg31IsStackPointer) & (StackAlignment - 1)) == 0);
 
   // Used to assert that callee-saved registers are preserved.
   DebugOnly<int64_t> x19 = xreg(19);
@@ -649,20 +649,20 @@ Simulator::VisitCallRedirection(const Instruction* instr)
   // TODO: Nuke the volatile registers.
 
   // Assert that callee-saved registers are unchanged.
-  MOZ_ASSERT(xreg(19) == x19);
-  MOZ_ASSERT(xreg(20) == x20);
-  MOZ_ASSERT(xreg(21) == x21);
-  MOZ_ASSERT(xreg(22) == x22);
-  MOZ_ASSERT(xreg(23) == x23);
-  MOZ_ASSERT(xreg(24) == x24);
-  MOZ_ASSERT(xreg(25) == x25);
-  MOZ_ASSERT(xreg(26) == x26);
-  MOZ_ASSERT(xreg(27) == x27);
-  MOZ_ASSERT(xreg(28) == x28);
-  MOZ_ASSERT(xreg(29) == x29);
+  VIXL_ASSERT(xreg(19) == x19);
+  VIXL_ASSERT(xreg(20) == x20);
+  VIXL_ASSERT(xreg(21) == x21);
+  VIXL_ASSERT(xreg(22) == x22);
+  VIXL_ASSERT(xreg(23) == x23);
+  VIXL_ASSERT(xreg(24) == x24);
+  VIXL_ASSERT(xreg(25) == x25);
+  VIXL_ASSERT(xreg(26) == x26);
+  VIXL_ASSERT(xreg(27) == x27);
+  VIXL_ASSERT(xreg(28) == x28);
+  VIXL_ASSERT(xreg(29) == x29);
 
   // Assert that the stack is unchanged.
-  MOZ_ASSERT(savedSP == xreg(31, Reg31IsStackPointer));
+  VIXL_ASSERT(savedSP == xreg(31, Reg31IsStackPointer));
 
   // Simulate a return.
   set_lr(savedLR);
