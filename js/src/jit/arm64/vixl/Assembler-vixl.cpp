@@ -29,6 +29,7 @@
 #include <cmath>
 
 #include "jsutil.h"
+
 #include "jit/Label.h"
 
 namespace vixl {

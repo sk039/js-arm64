@@ -49,6 +49,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "js-config.h"
+
 #include "jit/arm64/vixl/Platform-vixl.h"
 #include "js/Utility.h"
 
@@ -59,7 +61,7 @@ const int KBytes = 1024;
 const int MBytes = 1024 * KBytes;
 
 #define VIXL_ABORT() printf("in %s, line %i", __FILE__, __LINE__); abort()
-#ifdef VIXL_DEBUG
+#ifdef DEBUG
   #define VIXL_ASSERT(condition) MOZ_ASSERT(condition)
   #define VIXL_CHECK(condition) VIXL_ASSERT(condition)
   #define VIXL_UNIMPLEMENTED() printf("UNIMPLEMENTED\t"); VIXL_ABORT()
