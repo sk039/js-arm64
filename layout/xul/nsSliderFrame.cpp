@@ -607,10 +607,10 @@ nsSliderFrame::HandleEvent(nsPresContext* aPresContext,
 #endif
 
   // XXX hack until handle release is actually called in nsframe.
-//  if (aEvent->message == NS_MOUSE_EXIT_SYNTH || aEvent->message == NS_MOUSE_RIGHT_BUTTON_UP || aEvent->message == NS_MOUSE_LEFT_BUTTON_UP)
+//  if (aEvent->message == NS_MOUSE_OUT || aEvent->message == NS_MOUSE_RIGHT_BUTTON_UP || aEvent->message == NS_MOUSE_LEFT_BUTTON_UP)
   //   HandleRelease(aPresContext, aEvent, aEventStatus);
 
-  if (aEvent->message == NS_MOUSE_EXIT_SYNTH && mChange)
+  if (aEvent->message == NS_MOUSE_OUT && mChange)
      HandleRelease(aPresContext, aEvent, aEventStatus);
 
   return nsFrame::HandleEvent(aPresContext, aEvent, aEventStatus);
@@ -1317,7 +1317,9 @@ float
 nsSliderFrame::GetThumbRatio() const
 {
   // mRatio is in thumb app units per scrolled css pixels. Convert it to a
-  // a true unitless ratio.
+  // ratio of the thumb's CSS pixels per scrolled CSS pixels. (Note the thumb
+  // is in the scrollframe's parent's space whereas the scrolled CSS pixels
+  // are in the scrollframe's space).
   return mRatio / mozilla::AppUnitsPerCSSPixel();
 }
 

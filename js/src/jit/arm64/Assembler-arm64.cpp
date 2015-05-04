@@ -556,8 +556,8 @@ TraceDataRelocations(JSTracer* trc, uint8_t* buffer, CompactBufferReader& reader
         }
 
         // No barriers needed since the pointers are constants.
-        gc::TraceManuallyBarrieredGenericPointerEdge(trc, reinterpret_cast<gc::Cell**>(literalAddr),
-                                                     "ion-masm-ptr");
+        TraceManuallyBarrieredGenericPointerEdge(trc, reinterpret_cast<gc::Cell**>(literalAddr),
+                                                 "ion-masm-ptr");
     }
 }
 

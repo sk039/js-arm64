@@ -27,6 +27,7 @@ Cu.import("chrome://marionette/content/elements.js");
 Cu.import("chrome://marionette/content/emulator.js");
 Cu.import("chrome://marionette/content/error.js");
 Cu.import("chrome://marionette/content/modal.js");
+Cu.import("chrome://marionette/content/proxy.js");
 Cu.import("chrome://marionette/content/simpletest.js");
 
 loader.loadSubScript("chrome://marionette/content/common.js");
@@ -84,155 +85,9 @@ this.Context.fromString = function(s) {
 };
 
 /**
- * Creates a transparent interface between the chrome- and content
- * processes.
- *
- * Calls to this object will  be proxied via the message manager to the active
- * browsing context (content) and responses will be provided back as
- * promises.
- *
- * The argument sequence is serialised and passed as an array, unless it
- * consists of a single object type that isn't null, in which case it's
- * passed literally.  The latter specialisation is temporary to achieve
- * backwards compatibility with listener.js.
- *
- * @param {function(): (nsIMessageSender|nsIMessageBroadcaster)} mmFn
- *     Function returning the current message manager.
- * @param {function(string, Object, number)} sendAsyncFn
- *     Callback for sending async messages to the current listener.
- * @param {function(): BrowserObj} curBrowserFn
- *     Function that returns the current browser.
- */
-let ListenerProxy = function(mmFn, sendAsyncFn, curBrowserFn) {
-  let sender = new ContentSender(mmFn, sendAsyncFn, curBrowserFn);
-  let handler = {
-    set: (obj, prop, val) => { obj[prop] = val; return true; },
-    get: (obj, prop) => (...args) => obj.send(prop, args),
-  };
-  return new Proxy(sender, handler);
-};
-
-/**
- * The ContentSender allows one to make synchronous calls to the
- * message listener of the content frame of the current browsing context.
- *
- * Presumptions about the responses from content space are made so we
- * can provide a nicer API on top of the message listener primitives that
- * make calls from chrome- to content space seem synchronous by leveraging
- * promises.
- *
- * The promise is guaranteed not to resolve until the execution of the
- * command in content space is complete.
- *
- * @param {function(): (nsIMessageSender|nsIMessageBroadcaster)} mmFn
- *     Function returning the current message manager.
- * @param {function(string, Object, number)} sendAsyncFn
- *     Callback for sending async messages to the current listener.
- * @param {function(): BrowserObj} curBrowserFn
- *     Function that returns the current browser.
- */
-let ContentSender = function(mmFn, sendAsyncFn, curBrowserFn) {
-  this.curCmdId = null;
-  this.sendAsync = sendAsyncFn;
-
-  this.mmFn_ = mmFn;
-  this.curBrowserFn_ = curBrowserFn;
-};
-
-Object.defineProperty(ContentSender.prototype, "mm", {
-  get: function() { return this.mmFn_(); }
-});
-
-Object.defineProperty(ContentSender.prototype, "curBrowser", {
-  get: function() { return this.curBrowserFn_(); }
-});
-
-/**
- * Call registered function in the frame script environment of the
- * current browsing context's content frame.
- *
- * @param {string} name
- *     Function to call in the listener, e.g. for "Marionette:foo8",
- *     use "foo".
- * @param {Array} args
- *     Argument list to pass the function.  If args has a single entry
- *     that is an object, we assume it's an old style dispatch, and
- *     the object will passed literally.
- *
- * @return {Promise}
- *     A promise that resolves to the result of the command.
- */
-ContentSender.prototype.send = function(name, args) {
-  const ok = "Marionette:ok";
-  const val = "Marionette:done";
-  const err = "Marionette:error";
-
-  let proxy = new Promise((resolve, reject) => {
-    let removeListeners = (name, fn) => {
-      let rmFn = msg => {
-        if (this.isOutOfSync(msg.json.command_id)) {
-          logger.warn("Skipping out-of-sync response from listener: " +
-              msg.name + msg.json.toSource());
-          return;
-        }
-
-        listeners.remove();
-        modal.removeHandler(handleDialog);
-
-        fn(msg);
-        this.curCmdId = null;
-      };
-
-      listeners.push([name, rmFn]);
-      return rmFn;
-    };
-
-    let listeners = [];
-    listeners.add = () => {
-      this.mm.addMessageListener(ok, removeListeners(ok, okListener));
-      this.mm.addMessageListener(val, removeListeners(val, valListener));
-      this.mm.addMessageListener(err, removeListeners(err, errListener));
-    };
-    listeners.remove = () =>
-        listeners.map(l => this.mm.removeMessageListener(l[0], l[1]));
-
-    let okListener = () => resolve();
-    let valListener = msg => resolve(msg.json.value);
-    let errListener = msg => reject(msg.objects.error);
-
-    let handleDialog = function(subject, topic) {
-      listeners.remove();
-      modal.removeHandler(handleDialog);
-      this.sendAsync("cancelRequest");
-      resolve();
-    }.bind(this);
-
-    // start content process listeners, and install observers for global-
-    // and tab modal dialogues
-    listeners.add();
-    modal.addHandler(handleDialog);
-
-    // new style dispatches are arrays of arguments, old style dispatches
-    // are key-value objects
-    let msg = args;
-    if (args.length == 1 && typeof args[0] == "object") {
-      msg = args[0];
-    }
-
-    this.sendAsync(name, msg, this.curCmdId);
-  });
-
-  return proxy;
-};
-
-ContentSender.prototype.isOutOfSync = function(id) {
-  return this.curCmdId !== id;
-};
-
-/**
  * Implements (parts of) the W3C WebDriver protocol.  GeckoDriver lives
- * in the chrome context and mediates content calls to the listener via
- * ListenerProxy.
+ * in chrome space and mediates calls to the message listener of the current
+ * browsing context's content frame message listener via ListenerProxy.
  *
  * Throughout this prototype, functions with the argument {@code cmd}'s
  * documentation refers to the contents of the {@code cmd.parameters}
@@ -310,10 +165,7 @@ this.GeckoDriver = function(appName, device, emulator) {
   };
 
   this.mm = globalMessageManager;
-  this.listener = ListenerProxy(
-      () => this.mm,
-      this.sendAsync.bind(this),
-      () => this.curBrowser);
+  this.listener = proxy.toListener(() => this.mm, this.sendAsync.bind(this));
 
   this.dialog = null;
   let handleDialog = (subject, topic) => {
@@ -364,7 +216,7 @@ GeckoDriver.prototype.switchToGlobalMessageManager = function() {
  */
 GeckoDriver.prototype.sendAsync = function(name, msg, cmdId) {
   let curRemoteFrame = this.curBrowser.frameManager.currentRemoteFrame;
-  name = `Marionette:${name}`;
+  name = "Marionette:" + name;
 
   if (cmdId) {
     msg.command_id = cmdId;
@@ -1036,7 +888,7 @@ GeckoDriver.prototype.execute = function(cmd, resp, directInject) {
     };
 
     if (!directInject) {
-      script = `let func = function() { ${script} }; func.apply(null, __marionetteParams);`;
+      script = "let func = function() { " + script + " }; func.apply(null, __marionetteParams);";
     }
     this.executeScriptInSandbox(
         resp,
@@ -1289,27 +1141,24 @@ GeckoDriver.prototype.executeWithCallback = function(cmd, resp, directInject) {
 };
 
 /**
- * Navigate to to given URL.
+ * Navigate to given URL.
  *
- * This will follow redirects issued by the server.  When the method
- * returns is based on the page load strategy that the user has
- * selected.
+ * Navigates the current browsing context to the given URL and waits for
+ * the document to load or the session's page timeout duration to elapse
+ * before returning.
  *
- * Documents that contain a META tag with the "http-equiv" attribute
- * set to "refresh" will return if the timeout is greater than 1
- * second and the other criteria for determining whether a page is
- * loaded are met.  When the refresh period is 1 second or less and
- * the page load strategy is "normal" or "conservative", it will
- * wait for the page to complete loading before returning.
+ * The command will return with a failure if there is an error loading
+ * the document or the URL is blocked.  This can occur if it fails to
+ * reach host, the URL is malformed, or if there is a certificate issue
+ * to name some examples.
  *
- * If any modal dialog box, such as those opened on
- * window.onbeforeunload or window.alert, is opened at any point in
- * the page load, it will return immediately.
+ * The document is considered successfully loaded when the
+ * DOMContentLoaded event on the frame element associated with the
+ * current window triggers and document.readyState is "complete".
  *
- * If a 401 response is seen by the browser, it will return
- * immediately.  That is, if BASIC, DIGEST, NTLM or similar
- * authentication is required, the page load is assumed to be
- * complete.  This does not include FORM-based authentication.
+ * In chrome context it will change the current window's location to
+ * the supplied URL and wait until document.readyState equals "complete"
+ * or the page timeout duration has elapsed.
  *
  * @param {string} url
  *     URL to navigate to.
@@ -1319,16 +1168,20 @@ GeckoDriver.prototype.get = function(cmd, resp) {
 
   switch (this.context) {
     case Context.CONTENT:
+      let get = this.listener.get({url: url, pageTimeout: this.pageTimeout});
+      let id = this.listener.curId;
+
       // If a remoteness update interrupts our page load, this will never return
       // We need to re-issue this request to correctly poll for readyState and
       // send errors.
       this.curBrowser.pendingCommands.push(() => {
-        cmd.parameters.command_id = cmd.id;
+        cmd.parameters.command_id = id;
         this.mm.broadcastAsyncMessage(
             "Marionette:pollForReadyState" + this.curBrowser.curFrameId,
             cmd.parameters);
       });
-      yield this.listener.get({url: url, pageTimeout: this.pageTimeout});
+
+      yield get;
       break;
 
     case Context.CHROME:
@@ -2232,25 +2085,6 @@ GeckoDriver.prototype.getElementValueOfCssProperty = function(cmd, resp) {
 };
 
 /**
- * Submit a form on a content page by either using form or element in
- * a form.
- *
- * @param {string} id
- *     Reference to the elemen that will be checked.
- */
-GeckoDriver.prototype.submitElement = function(cmd, resp) {
-  switch (this.context) {
-    case Context.CHROME:
-      throw new WebDriverError(
-          "Command 'submitElement' is not available in chrome context");
-
-    case Context.CONTENT:
-      yield this.listener.submitElement({id: cmd.parameters.id});
-      break;
-  }
-};
-
-/**
  * Check if element is enabled.
  *
  * @param {string} id
@@ -3096,7 +2930,6 @@ GeckoDriver.prototype.commands = {
   "getElementTagName": GeckoDriver.prototype.getElementTagName,
   "isElementDisplayed": GeckoDriver.prototype.isElementDisplayed,
   "getElementValueOfCssProperty": GeckoDriver.prototype.getElementValueOfCssProperty,
-  "submitElement": GeckoDriver.prototype.submitElement,
   "getElementSize": GeckoDriver.prototype.getElementSize,  //deprecated
   "getElementRect": GeckoDriver.prototype.getElementRect,
   "isElementEnabled": GeckoDriver.prototype.isElementEnabled,
