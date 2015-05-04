@@ -216,6 +216,10 @@ class Register : public CPURegister {
     return IsValidRegister();
   }
 
+  js::jit::Register asUnsized() const {
+    return js::jit::Register::FromCode((js::jit::Register::Code)code_);
+  }
+
   static const Register& WRegFromCode(unsigned code);
   static const Register& XRegFromCode(unsigned code);
 

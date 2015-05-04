@@ -100,30 +100,23 @@ class MacroAssemblerCompat : public vixl::MacroAssembler
         return MemOperand(ARMRegister(a.base, 64), a.offset);
     }
     void doBaseIndex(const CPURegister& rt, const BaseIndex& addr, LoadStoreOp op) {
-        // Can use ONLY an indexed-reg load
-        if (addr.offset == 0) {
-            if (addr.scale == 0 || addr.scale == static_cast<unsigned>(CalcLSDataSize(op))) {
-                LoadStoreMacro(rt, MemOperand(ARMRegister(addr.base, 64),
-                                              ARMRegister(addr.index, 64),
-                                              vixl::LSL, unsigned(addr.scale)), op);
-                return;
-            } else {
-                add(ScratchReg64, ARMRegister(addr.base, 64), Operand(ARMRegister(addr.index, 64), vixl::LSL, unsigned(addr.scale)));
-                LoadStoreMacro(rt, MemOperand(ScratchReg64), op);
-            }
+        const ARMRegister base = ARMRegister(addr.base, 64);
+        const ARMRegister index = ARMRegister(addr.index, 64);
+        const unsigned scale = addr.scale;
+
+        if (!addr.offset && (!scale || scale == static_cast<unsigned>(CalcLSDataSize(op)))) {
+            LoadStoreMacro(rt, MemOperand(base, index, vixl::LSL, scale), op);
+            return;
         }
 
-        // Store operations should not clobber.
-        MOZ_ASSERT(!rt.Is(ScratchReg32));
-        MOZ_ASSERT(!rt.Is(ScratchReg64));
+        vixl::UseScratchRegisterScope temps(this);
+        ARMRegister scratch = temps.AcquireX();
+        MOZ_ASSERT(!scratch.Is(rt));
+        MOZ_ASSERT(!scratch.Is(base));
+        MOZ_ASSERT(!scratch.Is(index));
 
-        // TODO: should only add here when we can fit it into a single operand.
-        Add(ScratchReg64,
-            ARMRegister(addr.base, 64),
-            Operand(ARMRegister(addr.index, 64),
-                    vixl::LSL,
-                    unsigned(addr.scale)));
-        LoadStoreMacro(rt, MemOperand(ScratchReg64, addr.offset), op);
+        Add(scratch, base, Operand(index, vixl::LSL, scale));
+        LoadStoreMacro(rt, MemOperand(scratch, addr.offset), op);
     }
     void Push(ARMRegister reg) {
         push(reg);
