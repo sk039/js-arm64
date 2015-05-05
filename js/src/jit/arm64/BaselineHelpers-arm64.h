@@ -89,8 +89,14 @@ EmitTailCallVM(JitCode* target, MacroAssembler& masm, uint32_t argSize)
     masm.Add(w0, w0, Operand(BaselineFrame::FramePointerOffset));
 
     // Store frame size without VMFunction arguments for GC marking.
-    masm.Sub(ScratchReg2_32, w0, Operand(argSize));
-    masm.store32(ScratchReg2, Address(BaselineFrameReg, BaselineFrame::reverseOffsetOfFrameSize()));
+    {
+        vixl::UseScratchRegisterScope temps(&masm.asVIXL());
+        const ARMRegister scratch32 = temps.AcquireW();
+
+        masm.Sub(scratch32, w0, Operand(argSize));
+        masm.store32(scratch32.asUnsized(),
+                     Address(BaselineFrameReg, BaselineFrame::reverseOffsetOfFrameSize()));
+    }
 
     // Push frame descriptor (minus the return address) and perform the tail call.
     MOZ_ASSERT(BaselineTailCallReg == lr);
@@ -163,14 +169,17 @@ EmitEnterStubFrame(MacroAssembler& masm, Register scratch)
 inline void
 EmitLeaveStubFrame(MacroAssembler& masm, bool calledIntoIon = false)
 {
+    vixl::UseScratchRegisterScope temps(&masm.asVIXL());
+    const ARMRegister scratch64 = temps.AcquireX();
+
     // Ion frames do not save and restore the frame pointer. If we called
     // into Ion, we have to restore the stack pointer from the frame descriptor.
     // If we performed a VM call, the descriptor has been popped already so
     // in that case we use the frame pointer.
     if (calledIntoIon) {
-        masm.pop(ScratchReg);
-        masm.Lsr(ScratchReg64, ScratchReg64, FRAMESIZE_SHIFT);
-        masm.Add(masm.GetStackPointer64(), masm.GetStackPointer64(), ScratchReg64);
+        masm.pop(scratch64.asUnsized());
+        masm.Lsr(scratch64, scratch64, FRAMESIZE_SHIFT);
+        masm.Add(masm.GetStackPointer64(), masm.GetStackPointer64(), scratch64);
     } else {
         masm.Add(masm.GetStackPointer64(), ARMRegister(BaselineFrameReg, 64), Operand(0));
     }
@@ -179,7 +188,7 @@ EmitLeaveStubFrame(MacroAssembler& masm, bool calledIntoIon = false)
     masm.asVIXL().Pop(ARMRegister(BaselineFrameReg, 64),
                       ARMRegister(BaselineStubReg, 64),
                       ARMRegister(BaselineTailCallReg, 64),
-                      ScratchReg64);
+                      scratch64); // Discard.
 
     // Stack should remain 16-byte aligned.
     masm.checkStackAlignment();

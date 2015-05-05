@@ -459,11 +459,14 @@ CodeGeneratorARM64::visitDivI(LDivI* ins)
     if (mir->canTruncateRemainder()) {
         masm.Sdiv(output, lhs, rhs);
     } else {
-        masm.Sdiv(ScratchReg2_32, lhs, rhs);
-        masm.Mul(temp, ScratchReg2_32, rhs);
+        vixl::UseScratchRegisterScope temps(&masm.asVIXL());
+        const ARMRegister scratch32 = temps.AcquireW();
+
+        masm.Sdiv(scratch32, lhs, rhs);
+        masm.Mul(temp, scratch32, rhs);
         masm.Cmp(lhs, temp);
         bailoutIf(Assembler::NotEqual, ins->snapshot());
-        masm.Mov(output, ScratchReg2_32);
+        masm.Mov(output, scratch32);
     }
     masm.bind(&done);
 
@@ -755,9 +758,15 @@ CodeGeneratorARM64::emitTableSwitchDispatch(MTableSwitch* mir, Register index_, 
 
     AutoForbidPools afp(&masm, 1 + 1 + 1 + cases*2);
     Label table;
-    masm.Adr(ScratchReg2_64, &table);
-    masm.Ldr(ScratchReg2_64, MemOperand(ScratchReg2_64, index, vixl::LSL, 3));
-    masm.Blr(ScratchReg2_64);
+
+    {
+        vixl::UseScratchRegisterScope temps(&masm.asVIXL());
+        const ARMRegister scratch64 = temps.AcquireX();
+        masm.Adr(scratch64, &table);
+        masm.Ldr(scratch64, MemOperand(scratch64, index, vixl::LSL, 3));
+        masm.Blr(scratch64);
+    }
+
     // To fill in the CodeLabels for the case entries, we need to first generate
     // the case entries (we don't yet know their offsets in the instruction
     // stream).
@@ -1144,16 +1153,19 @@ CodeGeneratorARM64::visitCompareB(LCompareB* lir)
     const LAllocation* rhs = lir->rhs();
     const Register output = ToRegister(lir->output());
 
+    vixl::UseScratchRegisterScope temps(&masm.asVIXL());
+    const Register scratch = temps.AcquireX().asUnsized();
+
     MOZ_ASSERT(mir->jsop() == JSOP_STRICTEQ || mir->jsop() == JSOP_STRICTNE);
 
-    // Load boxed boolean in ScratchReg.
+    // Load boxed boolean.
     if (rhs->isConstant())
-        masm.moveValue(*rhs->toConstant(), ScratchReg2);
+        masm.moveValue(*rhs->toConstant(), scratch);
     else
-        masm.boxValue(JSVAL_TYPE_BOOLEAN, ToRegister(rhs), ScratchReg2);
+        masm.boxValue(JSVAL_TYPE_BOOLEAN, ToRegister(rhs), scratch);
 
     // Perform the comparison.
-    masm.cmpPtr(lhs.valueReg(), ScratchReg2);
+    masm.cmpPtr(lhs.valueReg(), scratch);
     masm.emitSet(JSOpToCondition(mir->compareType(), mir->jsop()), output);
 }
 
@@ -1165,16 +1177,19 @@ CodeGeneratorARM64::visitCompareBAndBranch(LCompareBAndBranch* lir)
     const ValueOperand lhs = ToValue(lir, LCompareBAndBranch::Lhs);
     const LAllocation* rhs = lir->rhs();
 
+    vixl::UseScratchRegisterScope temps(&masm.asVIXL());
+    const Register scratch = temps.AcquireX().asUnsized();
+
     MOZ_ASSERT(mir->jsop() == JSOP_STRICTEQ || mir->jsop() == JSOP_STRICTNE);
 
-    // Load boxed boolean in ScratchReg.
+    // Load boxed boolean.
     if (rhs->isConstant())
-        masm.moveValue(*rhs->toConstant(), ScratchReg);
+        masm.moveValue(*rhs->toConstant(), scratch);
     else
-        masm.boxValue(JSVAL_TYPE_BOOLEAN, ToRegister(rhs), ScratchReg);
+        masm.boxValue(JSVAL_TYPE_BOOLEAN, ToRegister(rhs), scratch);
 
     // Perform the comparison.
-    masm.cmpPtr(lhs.valueReg(), ScratchReg);
+    masm.cmpPtr(lhs.valueReg(), scratch);
     emitBranch(JSOpToCondition(mir->compareType(), mir->jsop()), lir->ifTrue(), lir->ifFalse());
 
 }
@@ -1495,13 +1510,16 @@ CodeGeneratorARM64::visitAsmJSPassStackArg(LAsmJSPassStackArg* ins)
 {
     const MAsmJSPassStackArg* mir = ins->mir();
     MemOperand dst(masm.GetStackPointer64(), mir->spOffset());
+
     if (ins->arg()->isConstant()) {
-        ARMRegister tmp = ScratchReg2_32;
-        if (ToInt32(ins->arg()) == 0)
-            tmp = wzr;
-        else
-            masm.Mov(tmp, Operand(ToInt32(ins->arg())));
-        masm.Str(tmp, dst);
+        if (ToInt32(ins->arg()) == 0) {
+            masm.Str(wzr, dst);
+        } else {
+            vixl::UseScratchRegisterScope temps(&masm.asVIXL());
+            const ARMRegister scratch32 = temps.AcquireW();
+            masm.Mov(scratch32, Operand(ToInt32(ins->arg())));
+            masm.Str(scratch32, dst);
+        }
     } else {
         if (ins->arg()->isGeneralReg())
             masm.Str(toWRegister(ins->arg()), dst);
@@ -1535,9 +1553,11 @@ CodeGeneratorARM64::visitUDiv(LUDiv* ins)
 
     masm.Udiv(output, lhs, rhs);
     if (!ins->mir()->toDiv()->canTruncateRemainder()) {
+        vixl::UseScratchRegisterScope temps(&masm.asVIXL());
+        const ARMRegister scratch32 = temps.AcquireW();
         Label bail;
-        masm.Msub(ScratchReg2_32, output, rhs, lhs);
-        masm.Cbnz(ScratchReg2_32, &bail);
+        masm.Msub(scratch32, output, rhs, lhs);
+        masm.Cbnz(scratch32, &bail);
         bailoutFrom(&bail, ins->snapshot());
     }
     if (!ins->mir()->isTruncated()) {
