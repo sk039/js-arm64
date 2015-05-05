@@ -166,9 +166,16 @@ MacroAssembler::clampDoubleToUint8(FloatRegister input, Register output)
 {
     ARMRegister dest(output, 32);
     fcvtns(dest, ARMFPRegister(input));
-    Mov(ScratchReg2_32, Operand(255));
-    Cmp(dest, ScratchReg2_32);
-    csel(dest, dest, ScratchReg2_32, LessThan);
+
+    {
+        vixl::UseScratchRegisterScope temps(this);
+        const ARMRegister scratch32 = temps.AcquireW();
+
+        Mov(scratch32, Operand(255));
+        Cmp(dest, scratch32);
+        csel(dest, dest, scratch32, LessThan);
+    }
+
     Cmp(dest, Operand(0));
     csel(dest, wzr, dest, LessThan);
 }
@@ -677,8 +684,14 @@ MacroAssemblerCompat::callAndPushReturnAddress(Label* label)
     // this instruction required, but probably forgot about it.
     // Instead of implementing this function, we should make it unnecessary.
     Label ret;
-    Adr(ScratchReg2_64, &ret);
-    asMasm().Push(ScratchReg2);
+    {
+        vixl::UseScratchRegisterScope temps(this);
+        const ARMRegister scratch64 = temps.AcquireX();
+
+        Adr(scratch64, &ret);
+        asMasm().Push(scratch64.asUnsized());
+    }
+
     Bl(label);
     bind(&ret);
 }
