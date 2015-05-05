@@ -217,6 +217,8 @@ class Register : public CPURegister {
   }
 
   js::jit::Register asUnsized() const {
+    if (code_ == kSPRegInternalCode)
+      return js::jit::Register::FromCode((js::jit::Register::Code)kZeroRegCode);
     return js::jit::Register::FromCode((js::jit::Register::Code)code_);
   }
 
