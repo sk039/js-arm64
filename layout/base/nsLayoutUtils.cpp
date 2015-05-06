@@ -481,18 +481,16 @@ GetScaleForValue(const StyleAnimationValue& aValue, nsIFrame* aFrame)
 }
 
 static float
-GetSuitableScale(float aMaxScale, float aMinScale)
+GetSuitableScale(float aMaxScale, float aMinScale,
+                 nscoord aVisibleDimension, nscoord aDisplayDimension)
 {
-  // If the minimum scale >= 1.0f, use it; if the maximum <= 1.0f, use it;
-  // otherwise use 1.0f.
-  if (aMinScale >= 1.0f) {
-    return aMinScale;
-  }
-  else if (aMaxScale <= 1.0f) {
-    return aMaxScale;
-  }
-
-  return 1.0f;
+  float displayVisibleRatio = float(aDisplayDimension) /
+                              float(aVisibleDimension);
+  // We want to rasterize based on the largest scale used during the
+  // transform animation, unless that would make us rasterize something
+  // larger than the screen.  But we never want to go smaller than the
+  // minimum scale over the animation.
+  return std::max(std::min(aMaxScale, displayVisibleRatio), aMinScale);
 }
 
 static void
@@ -531,7 +529,9 @@ GetMinAndMaxScaleForAnimationProperty(nsIContent* aContent,
 }
 
 gfxSize
-nsLayoutUtils::ComputeSuitableScaleForAnimation(nsIContent* aContent)
+nsLayoutUtils::ComputeSuitableScaleForAnimation(nsIContent* aContent,
+                                                const nsSize& aVisibleSize,
+                                                const nsSize& aDisplaySize)
 {
   gfxSize maxScale(std::numeric_limits<gfxFloat>::min(),
                    std::numeric_limits<gfxFloat>::min());
@@ -556,11 +556,13 @@ nsLayoutUtils::ComputeSuitableScaleForAnimation(nsIContent* aContent)
 
   if (maxScale.width == std::numeric_limits<gfxFloat>::min()) {
     // We didn't encounter a transform
-    maxScale = minScale = gfxSize(1.0, 1.0);
+    return gfxSize(1.0, 1.0);
   }
 
-  return gfxSize(GetSuitableScale(maxScale.width, minScale.width),
-                 GetSuitableScale(maxScale.height, minScale.height));
+  return gfxSize(GetSuitableScale(maxScale.width, minScale.width,
+                                  aVisibleSize.width, aDisplaySize.width),
+                 GetSuitableScale(maxScale.height, minScale.height,
+                                  aVisibleSize.height, aDisplaySize.height));
 }
 
 bool
@@ -3116,10 +3118,12 @@ nsLayoutUtils::PaintFrame(nsRenderingContext* aRenderingContext, nsIFrame* aFram
       }
     }
 #if !defined(MOZ_WIDGET_ANDROID) || defined(MOZ_ANDROID_APZ)
-    else if (presShell->GetDocument() && presShell->GetDocument()->IsRootDisplayDocument()) {
+    else if (presShell->GetDocument() && presShell->GetDocument()->IsRootDisplayDocument()
+        && !presShell->GetRootScrollFrame()) {
       // In cases where the root document is a XUL document, we want to take
       // the ViewID from the root element, as that will be the ViewID of the
-      // root APZC in the tree.
+      // root APZC in the tree. Skip doing this in cases where we know
+      // nsGfxScrollFrame::BuilDisplayList will do it instead.
       if (dom::Element* element = presShell->GetDocument()->GetDocumentElement()) {
         id = nsLayoutUtils::FindOrCreateIDFor(element);
       }
@@ -8184,6 +8188,10 @@ nsLayoutUtils::ComputeFrameMetrics(nsIFrame* aForFrame,
     }
   }
 
+  // If we have the scrollparent being the same as the scroll id, the
+  // compositor-side code could get into an infinite loop while building the
+  // overscroll handoff chain.
+  MOZ_ASSERT(aScrollParentId == FrameMetrics::NULL_SCROLL_ID || scrollId != aScrollParentId);
   metrics.SetScrollId(scrollId);
   metrics.SetIsRoot(aIsRoot);
   metrics.SetScrollParentId(aScrollParentId);
