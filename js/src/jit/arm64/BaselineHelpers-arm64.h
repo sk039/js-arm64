@@ -205,8 +205,7 @@ EmitStowICValues(MacroAssembler& masm, int values)
         break;
       case 2:
         // Stow R0 and R1.
-        masm.pushValue(R0);
-        masm.pushValue(R1); // TODO: Use vixl::MacroAssembler::Push().
+        masm.asVIXL().Push(ARMRegister(R0.valueReg(), 64), ARMRegister(R1.valueReg(), 64));
         break;
     }
 }
@@ -225,12 +224,10 @@ EmitUnstowICValues(MacroAssembler& masm, int values, bool discard = false)
         break;
       case 2:
         // Unstow R0 and R1.
-        if (discard) {
+        if (discard)
             masm.addPtr(Imm32(sizeof(Value) * 2), BaselineStackReg);
-        } else {
-            masm.popValue(R1);
-            masm.popValue(R0); // TODO: Use vixl::MacroAssembler::Pop().
-        }
+        else
+            masm.asVIXL().Pop(ARMRegister(R1.valueReg(), 64), ARMRegister(R0.valueReg(), 64));
     }
 }
 
