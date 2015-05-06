@@ -754,7 +754,7 @@ static const uint32_t AsmJSFrameBytesAfterReturnAddress = sizeof(void*);
 static const unsigned AsmJSActivationGlobalDataOffset = 0;
 static const unsigned AsmJSHeapGlobalDataOffset = sizeof(void*);
 #if defined(JS_CODEGEN_X64) || defined(JS_CODEGEN_ARM64)
-static const unsigned AsmJSNaN64GlobalDataOffset = 3*sizeof(void*);
+static const unsigned AsmJSNaN64GlobalDataOffset = 3 * sizeof(void*);
 static const unsigned AsmJSNaN32GlobalDataOffset = 3 * sizeof(void*) + sizeof(double);
 #else
 static const unsigned AsmJSNaN64GlobalDataOffset = 4 * sizeof(void*);

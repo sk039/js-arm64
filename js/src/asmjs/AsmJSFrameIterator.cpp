@@ -161,8 +161,9 @@ PushRetAddr(MacroAssembler& masm)
     // The x86/x64 call instruction pushes the return address.
 #endif
 }
+
 static void
-popReturn(MacroAssembler &masm)
+PopReturn(MacroAssembler &masm)
 {
 #if defined(JS_CODEGEN_ARM) || defined(JS_CODEGEN_ARM64)
     masm.popReturn();
@@ -271,7 +272,7 @@ GenerateProfilingEpilogue(MacroAssembler& masm, unsigned framePushed, AsmJSExit:
 #endif
 
         masm.bind(profilingReturn);
-        popReturn(masm);
+        PopReturn(masm);
     }
 }
 
@@ -363,7 +364,7 @@ js::GenerateAsmJSFunctionEpilogue(MacroAssembler& masm, unsigned framePushed,
 
     // Normal epilogue:
     masm.addToStackPtr(Imm32(framePushed + AsmJSFrameBytesAfterReturnAddress));
-    popReturn(masm);
+    PopReturn(masm);
     masm.setFramePushed(0);
 
     // Profiling epilogue:
