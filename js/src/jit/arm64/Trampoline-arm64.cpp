@@ -286,22 +286,31 @@ JitRuntime::generateInvalidator(JSContext* cx)
 {
     // FIXME: Actually implement.
     MacroAssembler masm;
+
     masm.asVIXL().Push(x0, x1, x2, x3);
+
     masm.PushRegsInMask(AllRegs);
     masm.Mov(x0, masm.GetStackPointer64());
+
     masm.Sub(masm.GetStackPointer64(), masm.GetStackPointer64(), Operand(sizeof(size_t)));
     masm.Mov(x1, masm.GetStackPointer64());
+
     masm.Sub(masm.GetStackPointer64(), masm.GetStackPointer64(), Operand(sizeof(void*)));
     masm.Mov(x2, masm.GetStackPointer64());
+
     masm.setupUnalignedABICall(3, r10);
     masm.passABIArg(r0);
     masm.passABIArg(r1);
     masm.passABIArg(r2);
+
     masm.callWithABI(JS_FUNC_TO_DATA_PTR(void*, InvalidationBailout));
+
     masm.pop(r2);
     masm.pop(r1);
+
     masm.Add(masm.GetStackPointer64(), masm.GetStackPointer64(), Operand(sizeof(InvalidationBailoutStack)));
     masm.Add(masm.GetStackPointer64(), masm.GetStackPointer64(), x1);
+
     JitCode* bailoutTail = cx->runtime()->jitRuntime()->getBailoutTail();
     masm.branch(bailoutTail);
 
@@ -456,8 +465,7 @@ GenerateBailoutThunk(JSContext* cx, MacroAssembler& masm, uint32_t frameClass)
     masm.reserveStack(sizeOfBailoutInfo);
     masm.mov(x1, masm.GetStackPointer64());
     masm.adr(xzr, 0x1337);
-    //    masm.breakpoint(e);
-        
+
     masm.setupUnalignedABICall(2, r2);
     masm.passABIArg(r0);
     masm.passABIArg(r1);
@@ -471,10 +479,10 @@ GenerateBailoutThunk(JSContext* cx, MacroAssembler& masm, uint32_t frameClass)
         masm.Ldr(ScratchReg2_64, MemOperand(masm.GetStackPointer64(), sizeof(uintptr_t)));
         masm.Add(masm.GetStackPointer64(), masm.GetStackPointer64(), Operand(BailoutDataSize + 32));
         masm.add(masm.GetStackPointer64(), masm.GetStackPointer64(), Operand(ScratchReg2_64));
-        //masm.breakpoint();
     } else {
         uint32_t frameSize = FrameSizeClass::FromClass(frameClass).frameSize();
-        masm.Add(masm.GetStackPointer64(), masm.GetStackPointer64(), Operand(frameSize + BailoutDataSize + sizeof(void*)));
+        masm.Add(masm.GetStackPointer64(), masm.GetStackPointer64(),
+                 Operand(frameSize + BailoutDataSize + sizeof(void*)));
     }
     // Jump to shared bailout tail. The BailoutInfo pointer has to be in r9.
     JitCode* bailoutTail = cx->runtime()->jitRuntime()->getBailoutTail();
