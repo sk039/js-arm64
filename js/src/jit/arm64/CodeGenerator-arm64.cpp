@@ -229,8 +229,7 @@ CodeGeneratorARM64::bailout(LSnapshot* snapshot)
 void
 CodeGeneratorARM64::visitOutOfLineBailout(OutOfLineBailout* ool)
 {
-    masm.Mov(ScratchReg2_32, Operand(ool->snapshot()->snapshotOffset()));
-    masm.asVIXL().Push(ScratchReg64, ScratchReg2_64); // BailoutStack::snapshotOffset_
+    masm.push(Imm32(ool->snapshot()->snapshotOffset()));
     masm.b(&deoptLabel_);
 }
 

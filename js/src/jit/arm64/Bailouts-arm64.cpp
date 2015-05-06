@@ -18,14 +18,10 @@ namespace jit {
 
 class BailoutStack
 {
-    uintptr_t frameClassId_;
-    uintptr_t frameSize_;
-
-    
     RegisterDump::FPUArray fpregs_;
     RegisterDump::GPRArray regs_;
+    uintptr_t frameSize_;
     uintptr_t snapshotOffset_;
-    uintptr_t padding_;
 
   public:
     MachineState machineState() {
