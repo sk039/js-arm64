@@ -3140,7 +3140,7 @@ elif test -n "$JS_ARM_SIMULATOR"; then
     JS_CODEGEN_ARM=1
 elif test -n "$JS_ARM64_SIMULATOR"; then
     if test "$CPU_ARCH" != "x86_64"; then
-        AC_MSG_ERROR([The ARM64 simuator only works on x86_64.])
+        AC_MSG_ERROR([The ARM64 simulator only works on x86_64.])
     fi
     AC_DEFINE(JS_ARM64_SIMULATOR)
     AC_DEFINE(JS_CODEGEN_ARM64)
