@@ -1380,12 +1380,12 @@ CodeGeneratorShared::visitOutOfLineTruncateSlow(OutOfLineTruncateSlow* ool)
     Register dest = ool->dest();
 
     saveVolatile(dest);
+
 #if defined(JS_CODEGEN_ARM) || defined(JS_CODEGEN_ARM64)
     if (ool->needFloat32Conversion()) {
         masm.convertFloat32ToDouble(src, ScratchDoubleReg);
         src = ScratchDoubleReg;
     }
-
 #else
     FloatRegister srcSingle = src.asSingle();
     if (ool->needFloat32Conversion()) {
@@ -1395,6 +1395,7 @@ CodeGeneratorShared::visitOutOfLineTruncateSlow(OutOfLineTruncateSlow* ool)
         src = src.asDouble();
     }
 #endif
+
     masm.setupUnalignedABICall(1, dest);
     masm.passABIArg(src, MoveOp::DOUBLE);
     if (gen->compilingAsmJS())
@@ -1403,12 +1404,12 @@ CodeGeneratorShared::visitOutOfLineTruncateSlow(OutOfLineTruncateSlow* ool)
         masm.callWithABI(BitwiseCast<void*, int32_t(*)(double)>(JS::ToInt32));
     masm.storeCallResult(dest);
 
-#if !defined(JS_CODEGEN_ARM) &&  !defined(JS_CODEGEN_ARM64)
+#if !defined(JS_CODEGEN_ARM) && !defined(JS_CODEGEN_ARM64)
     if (ool->needFloat32Conversion())
         masm.pop(srcSingle);
 #endif
-    restoreVolatile(dest);
 
+    restoreVolatile(dest);
     masm.jump(ool->rejoin());
 }
 

@@ -9064,16 +9064,14 @@ GenerateExceptionLabelExit(ModuleCompiler& m, Label* throwLabel, Label* exit, As
 }
 
 // TODO: the stack pointer is kind of determined at runtime on arm64,
-#ifndef JS_CODEGEN_ARM64
+#ifdef JS_CODEGEN_ARM64
 static const LiveRegisterSet AllRegsExceptSP(
-    GeneralRegisterSet(Registers::AllMask &
-                                   ~(uint32_t(1) << Registers::StackPointer)),
-                FloatRegisterSet(FloatRegisters::AllMask));
+    GeneralRegisterSet(Registers::AllMask & ~(uint32_t(1) << Registers::StackPointer | uint32_t(1) << 28)),
+    FloatRegisterSet(FloatRegisters::AllMask));
 #else
 static const LiveRegisterSet AllRegsExceptSP(
-    GeneralRegisterSet(Registers::AllMask &
-                                   ~(uint32_t(1) << Registers::StackPointer | uint32_t(1) << 28)),
-                FloatRegisterSet(FloatRegisters::AllMask));
+    GeneralRegisterSet(Registers::AllMask & ~(uint32_t(1) << Registers::StackPointer)),
+    FloatRegisterSet(FloatRegisters::AllMask));
 #endif
 
 // The async interrupt-callback exit is called from arbitrarily-interrupted asm.js

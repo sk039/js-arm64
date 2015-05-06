@@ -239,12 +239,10 @@ class MacroAssembler : public MacroAssemblerSpecific
 
         moveResolver_.setAllocator(*jcx->temp);
 
-#ifdef JS_CODEGEN_ARM
+#if defined(JS_CODEGEN_ARM)
         initWithAllocator();
         m_buffer.id = jcx->getNextAssemblerId();
-#endif
-
-#ifdef JS_CODEGEN_ARM64
+#elif defined(JS_CODEGEN_ARM64)
         initWithAllocator();
         armbuffer_.id = jcx->getNextAssemblerId();
 #endif
@@ -260,12 +258,10 @@ class MacroAssembler : public MacroAssemblerSpecific
         jitContext_.emplace(cx, (js::jit::TempAllocator*)nullptr);
         alloc_.emplace(cx);
         moveResolver_.setAllocator(*jitContext_->temp);
-#ifdef JS_CODEGEN_ARM
+#if defined(JS_CODEGEN_ARM)
         initWithAllocator();
         m_buffer.id = GetJitContext()->getNextAssemblerId();
-#endif
-
-#ifdef JS_CODEGEN_ARM64
+#elif defined(JS_CODEGEN_ARM64)
         initWithAllocator();
         armbuffer_.id = GetJitContext()->getNextAssemblerId();
 #endif
@@ -282,12 +278,10 @@ class MacroAssembler : public MacroAssemblerSpecific
     explicit MacroAssembler(AsmJSToken)
       : emitProfilingInstrumentation_(false)
     {
-#ifdef JS_CODEGEN_ARM
+#if defined(JS_CODEGEN_ARM)
         initWithAllocator();
         m_buffer.id = 0;
-#endif
-
-#ifdef JS_CODEGEN_ARM64
+#elif defined(JS_CODEGEN_ARM64)
         initWithAllocator();
         armbuffer_.id = 0;
 #endif
