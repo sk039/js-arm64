@@ -131,6 +131,7 @@ class Registers {
     static const Code Invalid = invalid_reg;
 
     static const uint32_t Total = 32;
+    static const uint32_t TotalPhys = 32;
     static const uint32_t Allocatable = 27; // No named special-function registers.
 
     static const uint32_t AllMask = 0xFFFFFFFF;

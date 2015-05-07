@@ -412,21 +412,20 @@ PushBailoutFrame(MacroAssembler& masm, uint32_t frameClass, Register spArg)
 
     // We don't have to push everything, but this is likely easier.
     // Setting regs_.
-    masm.Sub(masm.GetStackPointer64(), masm.GetStackPointer64(), Operand(Registers::Total * sizeof(void*)));
-    for (uint32_t i = 0; i < Registers::Total; i+=2)
+    masm.subFromStackPtr(Imm32(Registers::TotalPhys * sizeof(void*)));
+    for (uint32_t i = 0; i < Registers::TotalPhys; i += 2)
         masm.Stp(ARMRegister::XRegFromCode(i),
-                 ARMRegister::XRegFromCode(i+1),
+                 ARMRegister::XRegFromCode(i + 1),
                  MemOperand(masm.GetStackPointer64(), i * sizeof(void*)));
 
 
     // Since our datastructures for stack inspection are compile-time fixed,
     // if there are only 16 double registers, then we need to reserve
     // space on the stack for the missing 16.
-    masm.Sub(masm.GetStackPointer64(), masm.GetStackPointer64(),
-             Operand(FloatRegisters::TotalPhys * sizeof(double)));
-    for (uint32_t i = 0; i < FloatRegisters::TotalPhys; i+=2)
+    masm.subFromStackPtr(Imm32(FloatRegisters::TotalPhys * sizeof(double)));
+    for (uint32_t i = 0; i < FloatRegisters::TotalPhys; i += 2)
         masm.Stp(ARMFPRegister::DRegFromCode(i),
-                 ARMFPRegister::DRegFromCode(i+1),
+                 ARMFPRegister::DRegFromCode(i + 1),
                  MemOperand(masm.GetStackPointer64(), i * sizeof(void*)));
 
 
@@ -439,12 +438,13 @@ PushBailoutFrame(MacroAssembler& masm, uint32_t frameClass, Register spArg)
 
     // Now place the frameClass onto the stack, via a register.
     masm.Mov(x9, frameClass);
+
     // And onto the stack. Since the stack is full, we need to put this one past
     // the end of the current stack. Sadly, the ABI says that we need to always
     // point to the lowest place that has been written. The OS is free to do
     // whatever it wants below sp.
-    masm.asVIXL().Push(x30, x9);
-    masm.Mov(ARMRegister(spArg, 64), masm.GetStackPointer64());
+    masm.push(r30, r9);
+    masm.moveStackPtrTo(spArg);
 }
 
 static void
@@ -455,33 +455,37 @@ GenerateBailoutThunk(JSContext* cx, MacroAssembler& masm, uint32_t frameClass)
     // SP % 8 == 4
     // STEP 1c: Call the bailout function, giving a pointer to the
     //          structure we just blitted onto the stack.
-    const int sizeOfBailoutInfo = sizeof(void*)*2;
+    // Make space for the BaselineBailoutInfo* outparam.
+    const int sizeOfBailoutInfo = sizeof(void*) * 2;
     masm.reserveStack(sizeOfBailoutInfo);
-    masm.mov(x1, masm.GetStackPointer64());
-    masm.adr(xzr, 0x1337);
+    masm.moveStackPtrTo(r1);
 
     masm.setupUnalignedABICall(2, r2);
     masm.passABIArg(r0);
     masm.passABIArg(r1);
     masm.callWithABI(JS_FUNC_TO_DATA_PTR(void*, Bailout));
+
     masm.Ldr(x2, MemOperand(masm.GetStackPointer64(), 0));
-    masm.Add(masm.GetStackPointer64(), masm.GetStackPointer64(), Operand(sizeOfBailoutInfo));
+    masm.addToStackPtr(Imm32(sizeOfBailoutInfo));
 
     static const uint32_t BailoutDataSize = sizeof(void*) * Registers::Total +
                                             sizeof(double) * FloatRegisters::TotalPhys;
+
     if (frameClass == NO_FRAME_SIZE_CLASS_ID) {
-        masm.Ldr(ScratchReg2_64, MemOperand(masm.GetStackPointer64(), sizeof(uintptr_t)));
-        masm.Add(masm.GetStackPointer64(), masm.GetStackPointer64(), Operand(BailoutDataSize + 32));
-        masm.add(masm.GetStackPointer64(), masm.GetStackPointer64(), Operand(ScratchReg2_64));
+        vixl::UseScratchRegisterScope temps(&masm.asVIXL());
+        const ARMRegister scratch64 = temps.AcquireX();
+
+        masm.Ldr(scratch64, MemOperand(masm.GetStackPointer64(), sizeof(uintptr_t)));
+        masm.addToStackPtr(Imm32(BailoutDataSize + 32)); // FIXME: Marty: What's 32?
+        masm.addToStackPtr(scratch64.asUnsized());
     } else {
         uint32_t frameSize = FrameSizeClass::FromClass(frameClass).frameSize();
-        masm.Add(masm.GetStackPointer64(), masm.GetStackPointer64(),
-                 Operand(frameSize + BailoutDataSize + sizeof(void*)));
+        masm.addToStackPtr(Imm32(frameSize + BailoutDataSize + sizeof(void*)));
     }
+
     // Jump to shared bailout tail. The BailoutInfo pointer has to be in r9.
     JitCode* bailoutTail = cx->runtime()->jitRuntime()->getBailoutTail();
     masm.branch(bailoutTail);
-
 }
 
 JitCode*
@@ -564,32 +568,32 @@ JitRuntime::generateVMWrapper(JSContext* cx, const VMFunction& f)
       case Type_Value:
         outReg = regs.takeAny();
         masm.reserveStack(sizeof(Value));
-        masm.Add(ARMRegister(outReg, 64), masm.GetStackPointer64(), Operand(0));
+        masm.moveStackPtrTo(outReg);
         break;
 
       case Type_Handle:
         outReg = regs.takeAny();
         masm.PushEmptyRooted(f.outParamRootType);
-        masm.Add(ARMRegister(outReg, 64), masm.GetStackPointer64(), Operand(0));
+        masm.moveStackPtrTo(outReg);
         break;
 
       case Type_Int32:
       case Type_Bool:
         outReg = regs.takeAny();
         masm.reserveStack(sizeof(int64_t));
-        masm.Add(ARMRegister(outReg, 64), masm.GetStackPointer64(), Operand(0));
+        masm.moveStackPtrTo(outReg);
         break;
 
       case Type_Double:
         outReg = regs.takeAny();
         masm.reserveStack(sizeof(double));
-        masm.Add(ARMRegister(outReg, 64), masm.GetStackPointer64(), Operand(0));
+        masm.moveStackPtrTo(outReg);
         break;
 
       case Type_Pointer:
         outReg = regs.takeAny();
         masm.reserveStack(sizeof(uintptr_t));
-        masm.Add(ARMRegister(outReg, 64), masm.GetStackPointer64(), Operand(0));
+        masm.moveStackPtrTo(outReg);
         break;
 
       default:
@@ -634,7 +638,7 @@ JitRuntime::generateVMWrapper(JSContext* cx, const VMFunction& f)
     masm.callWithABI(f.wrapped);
 
     // SP is used to transfer stack across call boundaries.
-    masm.Add(masm.GetStackPointer64(), sp, Operand(0));
+    masm.Mov(masm.GetStackPointer64(), vixl::sp);
 
     // Test for failure.
     switch (f.failType()) {
@@ -898,9 +902,8 @@ JitRuntime::generateProfilerExitFrameTailStub(JSContext* cx)
         masm.loadPtr(lastProfilingFrame, scratch1);
         Label checkOk;
         masm.branchPtr(Assembler::Equal, scratch1, ImmWord(0), &checkOk);
-        masm.branchPtr(Assembler::Equal, masm.getStackPointer(), scratch1, &checkOk);
-        masm.assumeUnreachable(
-            "Mismatch between stored lastProfilingFrame and current stack pointer.");
+        masm.branchStackPtr(Assembler::Equal, scratch1, &checkOk);
+        masm.assumeUnreachable("Mismatch between stored lastProfilingFrame and current stack pointer.");
         masm.bind(&checkOk);
     }
 #endif
@@ -957,6 +960,7 @@ JitRuntime::generateProfilerExitFrameTailStub(JSContext* cx)
         // Store return frame in lastProfilingFrame.
         // scratch2 := masm.getStackPointer() + Descriptor.size*1 + JitFrameLayout::Size();
         masm.addPtr(masm.getStackPointer(), scratch1, scratch2);
+        masm.syncStackPtr();
         masm.addPtr(Imm32(JitFrameLayout::Size()), scratch2, scratch2);
         masm.storePtr(scratch2, lastProfilingFrame);
         masm.popReturn();
@@ -991,6 +995,7 @@ JitRuntime::generateProfilerExitFrameTailStub(JSContext* cx)
     masm.bind(&handle_BaselineStub);
     {
         masm.addPtr(masm.getStackPointer(), scratch1, scratch3);
+        masm.syncStackPtr();
         Address stubFrameReturnAddr(scratch3,
                                     JitFrameLayout::Size() +
                                     BaselineStubFrameLayout::offsetOfReturnAddress());
@@ -1048,6 +1053,7 @@ JitRuntime::generateProfilerExitFrameTailStub(JSContext* cx)
     {
         // scratch2 := StackPointer + Descriptor.size*1 + JitFrameLayout::Size();
         masm.addPtr(masm.getStackPointer(), scratch1, scratch2);
+        masm.syncStackPtr();
         masm.add32(Imm32(JitFrameLayout::Size()), scratch2);
         masm.loadPtr(Address(scratch2, RectifierFrameLayout::offsetOfDescriptor()), scratch3);
         masm.rshiftPtr(Imm32(FRAMESIZE_SHIFT), scratch3, scratch1);
@@ -1116,6 +1122,7 @@ JitRuntime::generateProfilerExitFrameTailStub(JSContext* cx)
     {
         // scratch2 := StackPointer + Descriptor.size + JitFrameLayout::Size()
         masm.addPtr(masm.getStackPointer(), scratch1, scratch2);
+        masm.syncStackPtr();
         masm.addPtr(Imm32(JitFrameLayout::Size()), scratch2);
 
         // scratch3 := AccFrame-Descriptor.Size
