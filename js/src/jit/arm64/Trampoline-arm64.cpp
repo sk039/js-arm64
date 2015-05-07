@@ -49,25 +49,25 @@ JitRuntime::generateEnterJIT(JSContext* cx, EnterJitType type)
     masm.SetStackPointer64(sp);
 
     // Save old frame pointer and return address; set new frame pointer.
-    masm.asVIXL().Push(x29, x30);
-    masm.Add(x29, masm.GetStackPointer64(), Operand(0));
+    masm.push(r29, r30);
+    masm.moveStackPtrTo(r29);
 
     // Save callee-save integer registers.
     // Also save x7 (reg_vp) and x30 (lr), for use later.
-    masm.asVIXL().Push(x19, x20, x21, x22);
-    masm.asVIXL().Push(x23, x24, x25, x26);
-    masm.asVIXL().Push(x27, x28, x7,  x30);
+    masm.push(r19, r20, r21, r22);
+    masm.push(r23, r24, r25, r26);
+    masm.push(r27, r28, r7,  r30);
 
     // Save callee-save floating-point registers.
     // AArch64 ABI specifies that only the lower 64 bits must be saved.
-    masm.asVIXL().Push(d8,  d9,  d10, d11);
-    masm.asVIXL().Push(d12, d13, d14, d15);
+    masm.push(d8,  d9,  d10, d11);
+    masm.push(d12, d13, d14, d15);
 
 #ifdef DEBUG
     // Emit stack canaries.
     masm.movePtr(ImmWord(0xdeadd00d), r23);
     masm.movePtr(ImmWord(0xdeadd11d), r24);
-    masm.asVIXL().Push(x23, x24);
+    masm.push(r23, r24);
 #endif
 
     // Common code below attempts to push single registers at a time,
@@ -78,21 +78,16 @@ JitRuntime::generateEnterJIT(JSContext* cx, EnterJitType type)
     // use the PseudoStackPointer: since the amount of data pushed is precalculated,
     // we can just allocate the whole frame header at once and index off sp.
     // This will save a significant number of instructions where Push() updates sp.
-    masm.Add(PseudoStackPointer64, sp, Operand((int64_t)0));
+    masm.Mov(PseudoStackPointer64, sp);
     masm.SetStackPointer64(PseudoStackPointer64);
 
     // Push the EnterJIT SPS mark.
     // masm.spsMarkJit(&cx->runtime()->spsProfiler, PseudoStackPointer, r20);
 
     // Save the stack pointer at this point for Baseline OSR.
-    masm.Mov(BaselineFrameReg64, PseudoStackPointer64);
-
+    masm.moveStackPtrTo(BaselineFrameReg);
     // Remember stack depth without padding and arguments.
-    masm.Mov(x19, PseudoStackPointer64);
-
-    // Save stack pointer for pushing in Baseline's emitPrologue().
-    if (type == EnterJitBaseline)
-        masm.movePtr(PseudoStackPointer, BaselineFrameReg); // x23
+    masm.moveStackPtrTo(r19);
 
     // JitFrameLayout is as follows (higher is higher in memory):
     //  N*8  - [ JS argument vector ] (base 16-byte aligned)
@@ -104,8 +99,11 @@ JitRuntime::generateEnterJIT(JSContext* cx, EnterJitType type)
     // Push the argument vector onto the stack.
     // WARNING: destructively modifies reg_argv
     {
-        ARMRegister tmp_argc = vixl::ip0;
-        ARMRegister tmp_sp = vixl::ip1;
+        vixl::UseScratchRegisterScope temps(&masm.asVIXL());
+
+        const ARMRegister tmp_argc = temps.AcquireX();
+        const ARMRegister tmp_sp = temps.AcquireX();
+
         Label noArguments;
         Label loopHead;
 
@@ -114,16 +112,15 @@ JitRuntime::generateEnterJIT(JSContext* cx, EnterJitType type)
         // sp -= 8
         // Since we're using PostIndex Str below, this is necessary to avoid overwriting
         // the SPS mark pushed above.
-        masm.Sub(PseudoStackPointer64, PseudoStackPointer64, Operand(8));
+        masm.subFromStackPtr(Imm32(8));
 
         // sp -= 8 * argc
         masm.Sub(PseudoStackPointer64, PseudoStackPointer64, Operand(tmp_argc, vixl::SXTX, 3));
 
         // Give sp 16-byte alignment.
-        masm.And(PseudoStackPointer64, PseudoStackPointer64, Operand(-15));
+        masm.andToStackPtr(Imm32(~0xff));
 
         // tmp_sp = sp = PseudoStackPointer.
-        masm.Sub(sp, PseudoStackPointer64, Operand(0));
         masm.Mov(tmp_sp, PseudoStackPointer64);
 
         masm.branchTestPtr(Assembler::Zero, reg_argc, reg_argc, &noArguments);
@@ -155,11 +152,11 @@ JitRuntime::generateEnterJIT(JSContext* cx, EnterJitType type)
     // The result address is used to store the actual number of arguments
     // without adding an argument to EnterJIT.
     masm.unboxInt32(Address(reg_vp, 0x0), ip0);
-    masm.asVIXL().Push(vixl::ip0, ARMRegister(reg_callee, 64));
+    masm.push(ip0, reg_callee);
     masm.checkStackAlignment();
 
     // Calculate the number of bytes pushed so far.
-    masm.Sub(x19, x19, PseudoStackPointer64);
+    masm.subStackPtrFrom(r19);
 
     // Push the frameDescriptor.
     masm.makeFrameDescriptor(r19, JitFrame_Entry);
@@ -181,8 +178,7 @@ JitRuntime::generateEnterJIT(JSContext* cx, EnterJitType type)
 
         // Reserve space for locals and stack values.
         masm.Lsl(w19, ARMRegister(reg_osrNStack, 32), 3); // w19 = num_stack_values * sizeof(Value).
-        masm.Sub(masm.GetStackPointer64(), masm.GetStackPointer64(), x19);
-        masm.Add(sp, masm.GetStackPointer64(), Operand(0));
+        masm.subFromStackPtr(r19);
 
         // Enter exit frame.
         masm.addPtr(Imm32(BaselineFrame::Size() + BaselineFrame::FramePointerOffset), r19);
@@ -200,11 +196,10 @@ JitRuntime::generateEnterJIT(JSContext* cx, EnterJitType type)
         masm.passABIArg(reg_osrNStack);
         masm.callWithABI(JS_FUNC_TO_DATA_PTR(void*, jit::InitBaselineFrameForOsr));
 
-        masm.asVIXL().Pop(x19, BaselineFrameReg64);
-
+        masm.pop(r19, BaselineFrameReg);
         MOZ_ASSERT(r19 != ReturnReg);
 
-        masm.addPtr(Imm32(ExitFrameLayout::SizeWithFooter()), PseudoStackPointer);
+        masm.addToStackPtr(Imm32(ExitFrameLayout::SizeWithFooter()));
         masm.addPtr(Imm32(BaselineFrame::Size()), BaselineFrameReg);
 
         Label error;
@@ -216,6 +211,7 @@ JitRuntime::generateEnterJIT(JSContext* cx, EnterJitType type)
         // pointer, and return.
         masm.bind(&error);
         masm.Add(masm.GetStackPointer64(), BaselineFrameReg64, Operand(2 * sizeof(uintptr_t)));
+        masm.syncStackPtr();
         masm.moveValue(MagicValue(JS_ION_ERROR), JSReturnOperand);
         masm.B(&osrReturnPoint);
 
@@ -234,13 +230,13 @@ JitRuntime::generateEnterJIT(JSContext* cx, EnterJitType type)
     masm.Pop(r19);
     masm.Add(PseudoStackPointer64, PseudoStackPointer64, Operand(x19, vixl::LSR, FRAMESIZE_SHIFT));
     // masm.spsUnmarkJit(&cx->runtime()->spsProfiler, r20);
+
+    masm.syncStackPtr();
     masm.SetStackPointer64(sp);
-    masm.Add(sp, PseudoStackPointer64, Operand(0));
 
 #ifdef DEBUG
     // Check that canaries placed on function entry are still present.
-    // TODO: Once this patch is ready, we can probably remove the canaries.
-    masm.asVIXL().Pop(x24, x23);
+    masm.pop(r24, r23);
     Label x23OK, x24OK;
 
     masm.branchPtr(Assembler::Equal, r23, ImmWord(0xdeadd00d), &x23OK);
@@ -253,20 +249,20 @@ JitRuntime::generateEnterJIT(JSContext* cx, EnterJitType type)
 #endif
     
     // Restore callee-save floating-point registers.
-    masm.asVIXL().Pop(d15, d14, d13, d12);
-    masm.asVIXL().Pop(d11, d10,  d9,  d8);
+    masm.pop(d15, d14, d13, d12);
+    masm.pop(d11, d10,  d9,  d8);
 
     // Restore callee-save integer registers.
     // Also restore x7 (reg_vp) and x30 (lr).
-    masm.asVIXL().Pop(x30, x7,  x28, x27);
-    masm.asVIXL().Pop(x26, x25, x24, x23);
-    masm.asVIXL().Pop(x22, x21, x20, x19);
+    masm.pop(r30, r7,  r28, r27);
+    masm.pop(r26, r25, r24, r23);
+    masm.pop(r22, r21, r20, r19);
 
     // Store return value (in JSReturnReg = x2 to just-popped reg_vp).
     masm.storeValue(JSReturnOperand, Address(reg_vp, 0));
 
     // Restore old frame pointer.
-    masm.asVIXL().Pop(x30, x29);
+    masm.pop(r30, r29);
 
     // Return using the value popped into x30.
     masm.ret();

@@ -187,9 +187,6 @@ class MacroAssemblerCompat : public vixl::MacroAssembler
     void push(ImmMaybeNurseryPtr imm) {
         push(noteMaybeNurseryPtr(imm));
     }
-    void push(Register reg) {
-        vixl::MacroAssembler::Push(ARMRegister(reg, 64));
-    }
     void push(ARMRegister reg) {
         vixl::MacroAssembler::Push(reg);
     }
@@ -199,6 +196,42 @@ class MacroAssemblerCompat : public vixl::MacroAssembler
         MOZ_ASSERT(a.base != scratch64.asUnsized());
         loadPtr(a, scratch64.asUnsized());
         vixl::MacroAssembler::Push(scratch64);
+    }
+
+    // Push registers.
+    void push(Register reg) {
+        vixl::MacroAssembler::Push(ARMRegister(reg, 64));
+    }
+    void push(Register r0, Register r1) {
+        vixl::MacroAssembler::Push(ARMRegister(r0, 64), ARMRegister(r1, 64));
+    }
+    void push(Register r0, Register r1, Register r2) {
+        vixl::MacroAssembler::Push(ARMRegister(r0, 64), ARMRegister(r1, 64), ARMRegister(r2, 64));
+    }
+    void push(Register r0, Register r1, Register r2, Register r3) {
+        vixl::MacroAssembler::Push(ARMRegister(r0, 64), ARMRegister(r1, 64),
+                                   ARMRegister(r2, 64), ARMRegister(r3, 64));
+    }
+    void push(ARMFPRegister r0, ARMFPRegister r1, ARMFPRegister r2, ARMFPRegister r3) {
+        vixl::MacroAssembler::Push(r0, r1, r2, r3);
+    }
+
+    // Pop registers.
+    void pop(Register reg) {
+        vixl::MacroAssembler::Pop(ARMRegister(reg, 64));
+    }
+    void pop(Register r0, Register r1) {
+        vixl::MacroAssembler::Pop(ARMRegister(r0, 64), ARMRegister(r1, 64));
+    }
+    void pop(Register r0, Register r1, Register r2) {
+        vixl::MacroAssembler::Pop(ARMRegister(r0, 64), ARMRegister(r1, 64), ARMRegister(r2, 64));
+    }
+    void pop(Register r0, Register r1, Register r2, Register r3) {
+        vixl::MacroAssembler::Pop(ARMRegister(r0, 64), ARMRegister(r1, 64),
+                                  ARMRegister(r2, 64), ARMRegister(r3, 64));
+    }
+    void pop(ARMFPRegister r0, ARMFPRegister r1, ARMFPRegister r2, ARMFPRegister r3) {
+        vixl::MacroAssembler::Pop(r0, r1, r2, r3);
     }
 
     void pushReturnAddress() {
@@ -213,9 +246,6 @@ class MacroAssemblerCompat : public vixl::MacroAssembler
     }
     void pop(const FloatRegister& f) {
         vixl::MacroAssembler::Pop(ARMRegister(f.code(), 64));
-    }
-    void pop(Register reg) {
-        vixl::MacroAssembler::Pop(ARMRegister(reg, 64));
     }
 
     void implicitPop(uint32_t args) {
