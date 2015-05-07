@@ -394,6 +394,7 @@ JitRuntime::generateArgumentsRectifier(JSContext* cx, void** returnAddrOut)
     }
     return code;
 }
+
 static void
 PushBailoutFrame(MacroAssembler& masm, uint32_t frameClass, Register spArg)
 {
