@@ -107,7 +107,7 @@ JitRuntime::generateEnterJIT(JSContext* cx, EnterJitType type)
         Label noArguments;
         Label loopHead;
 
-        masm.Mov(tmp_argc, ARMRegister(reg_argc, 64));
+        masm.movePtr(reg_argc, tmp_argc.asUnsized());
 
         // sp -= 8
         // Since we're using PostIndex Str below, this is necessary to avoid overwriting
@@ -117,11 +117,9 @@ JitRuntime::generateEnterJIT(JSContext* cx, EnterJitType type)
         // sp -= 8 * argc
         masm.Sub(PseudoStackPointer64, PseudoStackPointer64, Operand(tmp_argc, vixl::SXTX, 3));
 
-        // Give sp 16-byte alignment.
+        // Give sp 16-byte alignment and sync stack pointers.
         masm.andToStackPtr(Imm32(~0xff));
-
-        // tmp_sp = sp = PseudoStackPointer.
-        masm.Mov(tmp_sp, PseudoStackPointer64);
+        masm.moveStackPtrTo(tmp_sp.asUnsized());
 
         masm.branchTestPtr(Assembler::Zero, reg_argc, reg_argc, &noArguments);
 
@@ -170,11 +168,11 @@ JitRuntime::generateEnterJIT(JSContext* cx, EnterJitType type)
 
         // Push return address and previous frame pointer.
         masm.Adr(ScratchReg2_64, &osrReturnPoint);
-        masm.asVIXL().Push(ScratchReg2_64, BaselineFrameReg64);
+        masm.push(ScratchReg2, BaselineFrameReg);
 
         // Reserve frame.
-        masm.Sub(masm.GetStackPointer64(), masm.GetStackPointer64(), Operand(BaselineFrame::Size()));
-        masm.Mov(BaselineFrameReg64, masm.GetStackPointer64());
+        masm.subFromStackPtr(Imm32(BaselineFrame::Size()));
+        masm.moveStackPtrTo(BaselineFrameReg);
 
         // Reserve space for locals and stack values.
         masm.Lsl(w19, ARMRegister(reg_osrNStack, 32), 3); // w19 = num_stack_values * sizeof(Value).
@@ -187,7 +185,7 @@ JitRuntime::generateEnterJIT(JSContext* cx, EnterJitType type)
         // No GC things to mark: push a bare token.
         masm.enterFakeExitFrame(ExitFrameLayout::BareToken());
 
-        masm.asVIXL().Push(BaselineFrameReg64, ARMRegister(reg_code, 64));
+        masm.push(BaselineFrameReg, reg_code);
 
         // Initialize the frame, including filling in the slots.
         masm.setupUnalignedABICall(3, r19);
@@ -221,17 +219,19 @@ JitRuntime::generateEnterJIT(JSContext* cx, EnterJitType type)
 
     // Call function.
     // Since AArch64 doesn't have the pc register available, the callee must push lr.
-    masm.Blr(ARMRegister(reg_code, 64));
+    masm.call(reg_code);
 
     // Baseline OSR will return here.
     if (type == EnterJitBaseline)
         masm.bind(&osrReturnPoint);
 
     masm.Pop(r19);
-    masm.Add(PseudoStackPointer64, PseudoStackPointer64, Operand(x19, vixl::LSR, FRAMESIZE_SHIFT));
+    masm.Add(masm.GetStackPointer64(), masm.GetStackPointer64(),
+             Operand(x19, vixl::LSR, FRAMESIZE_SHIFT));
+    masm.syncStackPtr();
+
     // masm.spsUnmarkJit(&cx->runtime()->spsProfiler, r20);
 
-    masm.syncStackPtr();
     masm.SetStackPointer64(sp);
 
 #ifdef DEBUG
@@ -280,19 +280,16 @@ JitRuntime::generateEnterJIT(JSContext* cx, EnterJitType type)
 JitCode*
 JitRuntime::generateInvalidator(JSContext* cx)
 {
-    // FIXME: Actually implement.
     MacroAssembler masm;
 
-    masm.asVIXL().Push(x0, x1, x2, x3);
+    masm.push(r0, r1, r2, r3);
 
     masm.PushRegsInMask(AllRegs);
-    masm.Mov(x0, masm.GetStackPointer64());
+    masm.moveStackPtrTo(r0);
 
-    masm.Sub(masm.GetStackPointer64(), masm.GetStackPointer64(), Operand(sizeof(size_t)));
-    masm.Mov(x1, masm.GetStackPointer64());
-
-    masm.Sub(masm.GetStackPointer64(), masm.GetStackPointer64(), Operand(sizeof(void*)));
-    masm.Mov(x2, masm.GetStackPointer64());
+    masm.Sub(x1, masm.GetStackPointer64(), Operand(sizeof(size_t)));
+    masm.Sub(x2, masm.GetStackPointer64(), Operand(sizeof(size_t) + sizeof(void*)));
+    masm.moveToStackPtr(r2);
 
     masm.setupUnalignedABICall(3, r10);
     masm.passABIArg(r0);
@@ -301,11 +298,11 @@ JitRuntime::generateInvalidator(JSContext* cx)
 
     masm.callWithABI(JS_FUNC_TO_DATA_PTR(void*, InvalidationBailout));
 
-    masm.pop(r2);
-    masm.pop(r1);
+    masm.pop(r2, r1);
 
     masm.Add(masm.GetStackPointer64(), masm.GetStackPointer64(), Operand(sizeof(InvalidationBailoutStack)));
     masm.Add(masm.GetStackPointer64(), masm.GetStackPointer64(), x1);
+    masm.syncStackPtr();
 
     JitCode* bailoutTail = cx->runtime()->jitRuntime()->getBailoutTail();
     masm.branch(bailoutTail);
