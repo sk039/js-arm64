@@ -80,8 +80,10 @@ MoveEmitterARM64::emitFloat32Move(const MoveOperand& from, const MoveOperand& to
         if (to.isFloatReg()) {
             masm.Ldr(toFPReg(to, MoveOp::FLOAT32), toMemOperand(from));
         } else {
-            masm.Ldr(ScratchFloat32Reg_, toMemOperand(from));
-            masm.Str(ScratchFloat32Reg_, toMemOperand(to));
+            vixl::UseScratchRegisterScope temps(&masm.asVIXL());
+            const ARMFPRegister scratch32 = temps.AcquireS();
+            masm.Ldr(scratch32, toMemOperand(from));
+            masm.Str(scratch32, toMemOperand(to));
         }
     }
 }
@@ -100,7 +102,6 @@ MoveEmitterARM64::emitDoubleMove(const MoveOperand& from, const MoveOperand& to)
         } else {
             vixl::UseScratchRegisterScope temps(&masm.asVIXL());
             const ARMFPRegister scratch = temps.AcquireD();
-
             masm.ldr(scratch, toMemOperand(from));
             masm.Str(scratch, toMemOperand(to));
         }
@@ -119,8 +120,10 @@ MoveEmitterARM64::emitInt32Move(const MoveOperand& from, const MoveOperand& to)
         if (to.isGeneralReg()) {
             masm.Ldr(toARMReg32(to), toMemOperand(from));
         } else {
-            masm.ldr(ScratchReg2_32, toMemOperand(from));
-            masm.Str(ScratchReg2_32, toMemOperand(to));
+            vixl::UseScratchRegisterScope temps(&masm.asVIXL());
+            const ARMRegister scratch32 = temps.AcquireW();
+            masm.ldr(scratch32, toMemOperand(from));
+            masm.Str(scratch32, toMemOperand(to));
         }
     }
 }
@@ -150,19 +153,22 @@ MoveEmitterARM64::emitGeneralMove(const MoveOperand& from, const MoveOperand& to
         return;
     }
 
+    vixl::UseScratchRegisterScope temps(&masm.asVIXL());
+    const ARMRegister scratch64 = temps.AcquireX();
+
     // Memory -> Memory move.
     if (from.isMemory()) {
         MOZ_ASSERT(to.isMemory());
-        masm.Ldr(ScratchReg2_64, toMemOperand(from));
-        masm.Str(ScratchReg2_64, toMemOperand(to));
+        masm.Ldr(scratch64, toMemOperand(from));
+        masm.Str(scratch64, toMemOperand(to));
         return;
     }
 
     // EffectiveAddress -> Memory move.
     MOZ_ASSERT(from.isEffectiveAddress());
     MOZ_ASSERT(to.isMemory());
-    masm.Add(ScratchReg2_64, ARMRegister(from.base(), 64), Operand(from.disp()));
-    masm.Str(ScratchReg2_64, toMemOperand(to));
+    masm.Add(scratch64, ARMRegister(from.base(), 64), Operand(from.disp()));
+    masm.Str(scratch64, toMemOperand(to));
 }
 
 MemOperand
@@ -180,49 +186,59 @@ MoveEmitterARM64::cycleSlot()
 void
 MoveEmitterARM64::breakCycle(const MoveOperand& from, const MoveOperand& to, MoveOp::Type type)
 {
-    // TODO: Uh, pretty sure cycle resolution should just use a temp register.
-    // TODO: Stack seems pretty overkill.
     switch (type) {
       case MoveOp::FLOAT32:
         if (to.isMemory()) {
-            ARMFPRegister temp(ScratchFloat32Reg, 32);
-            masm.Ldr(temp, toMemOperand(to));
-            masm.Str(temp, cycleSlot());
+            vixl::UseScratchRegisterScope temps(&masm.asVIXL());
+            const ARMFPRegister scratch32 = temps.AcquireS();
+            masm.Ldr(scratch32, toMemOperand(to));
+            masm.Str(scratch32, cycleSlot());
         } else {
             masm.Str(toFPReg(to, type), cycleSlot());
         }
         break;
+
       case MoveOp::DOUBLE:
         if (to.isMemory()) {
-            ARMFPRegister temp(ScratchFloat32Reg, 32);
-            masm.Ldr(temp, toMemOperand(to));
-            masm.Str(temp, cycleSlot());
+            vixl::UseScratchRegisterScope temps(&masm.asVIXL());
+            const ARMFPRegister scratch64 = temps.AcquireD();
+            masm.Ldr(scratch64, toMemOperand(to));
+            masm.Str(scratch64, cycleSlot());
         } else {
             masm.Str(toFPReg(to, type), cycleSlot());
         }
         break;
+
       case MoveOp::INT32:
         if (to.isMemory()) {
-            masm.Ldr(ScratchReg32, toMemOperand(to));
-            masm.Str(ScratchReg32, cycleSlot());
+            vixl::UseScratchRegisterScope temps(&masm.asVIXL());
+            const ARMRegister scratch32 = temps.AcquireW();
+            masm.Ldr(scratch32, toMemOperand(to));
+            masm.Str(scratch32, cycleSlot());
         } else {
             masm.Str(ARMRegister(to.reg(), 32), cycleSlot());
         }
         break;
+
       case MoveOp::GENERAL:
         if (to.isMemory()) {
-            masm.Ldr(ScratchReg64, toMemOperand(to));
-            masm.Str(ScratchReg64, cycleSlot());
+            vixl::UseScratchRegisterScope temps(&masm.asVIXL());
+            const ARMRegister scratch64 = temps.AcquireX();
+            masm.Ldr(scratch64, toMemOperand(to));
+            masm.Str(scratch64, cycleSlot());
         } else {
             masm.Str(toARMReg64(to), cycleSlot());
         }
         break;
+
       case MoveOp::INT32X4: // TODO
         MOZ_CRASH("TODO");
         break;
+
       case MoveOp::FLOAT32X4: // TODO
         MOZ_CRASH("TODO");
         break;
+
       default:
         MOZ_CRASH("Unexpected move type");
     }
@@ -234,13 +250,15 @@ MoveEmitterARM64::completeCycle(const MoveOperand& from, const MoveOperand& to, 
     switch (type) {
       case MoveOp::FLOAT32:
         if (to.isMemory()) {
-            ARMFPRegister temp(ScratchFloat32Reg, 32);
-            masm.Ldr(temp, cycleSlot());
-            masm.Str(temp, toMemOperand(to));
+            vixl::UseScratchRegisterScope temps(&masm.asVIXL());
+            const ARMFPRegister scratch32 = temps.AcquireS();
+            masm.Ldr(scratch32, cycleSlot());
+            masm.Str(scratch32, toMemOperand(to));
         } else {
             masm.Ldr(ARMFPRegister(to.floatReg(), 32), cycleSlot());
         }
         break;
+
       case MoveOp::DOUBLE:
         if (to.isMemory()) {
             vixl::UseScratchRegisterScope temps(&masm.asVIXL());
@@ -251,25 +269,33 @@ MoveEmitterARM64::completeCycle(const MoveOperand& from, const MoveOperand& to, 
             masm.Ldr(ARMFPRegister(to.floatReg(), 64), cycleSlot());
         }
         break;
+
       case MoveOp::INT32:
         if (to.isMemory()) {
-            masm.Ldr(ARMRegister(ScratchReg, 32), cycleSlot());
-            masm.Str(ARMRegister(ScratchReg, 32), toMemOperand(to));
+            vixl::UseScratchRegisterScope temps(&masm.asVIXL());
+            const ARMRegister scratch32 = temps.AcquireW();
+            masm.Ldr(scratch32, cycleSlot());
+            masm.Str(scratch32, toMemOperand(to));
         } else {
             masm.Ldr(ARMRegister(to.reg(), 32), cycleSlot());
         }
         break;
+
       case MoveOp::GENERAL:
         if (to.isMemory()) {
-            masm.Ldr(ARMRegister(ScratchReg, 64), cycleSlot());
-            masm.Str(ARMRegister(ScratchReg, 64), toMemOperand(to));
+            vixl::UseScratchRegisterScope temps(&masm.asVIXL());
+            const ARMRegister scratch64 = temps.AcquireX();
+            masm.Ldr(scratch64, cycleSlot());
+            masm.Str(scratch64, toMemOperand(to));
         } else {
             masm.Ldr(ARMRegister(to.reg(), 64), cycleSlot());
         }
         break;
+
       case MoveOp::INT32X4: // TODO
         MOZ_CRASH("TODO");
         break;
+
       case MoveOp::FLOAT32X4: // TODO
         MOZ_CRASH("TODO");
         break;
