@@ -44,7 +44,6 @@ static constexpr Register InvalidReg = { Registers::invalid_reg };
 static constexpr FloatRegister InvalidFloatReg = { FloatRegisters::invalid_fpreg };
 
 // TODO: these should probably have better names....
-static constexpr ARMFPRegister ScratchDoubleReg_ = { ScratchDoubleReg, 64 };
 static constexpr ARMFPRegister ReturnDoubleReg_ = { ReturnDoubleReg, 64 };
 
 static constexpr ARMFPRegister ReturnFloat32Reg_ = { ReturnFloat32Reg, 32 };

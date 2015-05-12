@@ -98,8 +98,11 @@ MoveEmitterARM64::emitDoubleMove(const MoveOperand& from, const MoveOperand& to)
         if (to.isFloatReg()) {
             masm.Ldr(toFPReg(to, MoveOp::DOUBLE), toMemOperand(from));
         } else {
-            masm.ldr(ScratchDoubleReg_, toMemOperand(from));
-            masm.Str(ScratchDoubleReg_, toMemOperand(to));
+            vixl::UseScratchRegisterScope temps(&masm.asVIXL());
+            const ARMFPRegister scratch = temps.AcquireD();
+
+            masm.ldr(scratch, toMemOperand(from));
+            masm.Str(scratch, toMemOperand(to));
         }
     }
 }
@@ -240,9 +243,10 @@ MoveEmitterARM64::completeCycle(const MoveOperand& from, const MoveOperand& to, 
         break;
       case MoveOp::DOUBLE:
         if (to.isMemory()) {
-            ARMFPRegister temp(ScratchDoubleReg, 64);
-            masm.Ldr(temp, cycleSlot());
-            masm.Str(temp, toMemOperand(to));
+            vixl::UseScratchRegisterScope temps(&masm.asVIXL());
+            const ARMFPRegister scratch = temps.AcquireD();
+            masm.Ldr(scratch, cycleSlot());
+            masm.Str(scratch, toMemOperand(to));
         } else {
             masm.Ldr(ARMFPRegister(to.floatReg(), 64), cycleSlot());
         }
