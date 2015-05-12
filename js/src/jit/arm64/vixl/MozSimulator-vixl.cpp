@@ -157,7 +157,7 @@ Simulator* Simulator::Create() {
   sim->init(decoder, stdout);
 
   return sim;
-} 
+}
 
 
 void Simulator::Destroy(Simulator* sim) {

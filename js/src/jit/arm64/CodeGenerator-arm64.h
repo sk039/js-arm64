@@ -170,7 +170,7 @@ class CodeGeneratorARM64 : public CodeGeneratorShared
     virtual void visitRoundF(LRoundF* lir);
     virtual void visitTruncateDToInt32(LTruncateDToInt32* ins);
     virtual void visitTruncateFToInt32(LTruncateFToInt32* ins);
-    
+
     virtual void visitClzI(LClzI* lir);
     // Out of line visitors.
     void visitOutOfLineBailout(OutOfLineBailout* ool);

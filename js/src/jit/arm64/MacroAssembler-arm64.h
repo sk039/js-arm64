@@ -721,7 +721,7 @@ class MacroAssemblerCompat : public vixl::MacroAssembler
         Cbnz(o32, bail);
         bind(&fin);
     }
-    
+
     void ceil(FloatRegister input, Register output, Label* bail) {
         Label handleZero;
         Label fin;
@@ -1569,7 +1569,6 @@ class MacroAssemblerCompat : public vixl::MacroAssembler
     void branch32(Condition cond, const Operand& lhs, Register rhs, Label* label) {
         // since rhs is an operand, do the compare backwards
         Cmp(ARMRegister(rhs, 32), lhs);
-        // 
         b(label, Assembler::InvertCmpCondition(cond));
     }
     void branch32(Condition cond, const Operand& lhs, Imm32 rhs, Label* label) {

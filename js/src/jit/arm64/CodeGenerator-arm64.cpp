@@ -133,7 +133,7 @@ CodeGeneratorARM64::visitTestIAndBranch(LTestIAndBranch* test)
     }
 }
 
-void 
+void
 CodeGeneratorARM64::visitCompare(LCompare* comp)
 {
     Assembler::Condition cond = JSOpToCondition(comp->mir()->compareType(), comp->jsop());
@@ -192,7 +192,7 @@ CodeGeneratorARM64::bailoutIf(Assembler::Condition condition, LSnapshot* snapsho
 
 }
 
-void 
+void
 CodeGeneratorARM64::bailoutFrom(Label* label, LSnapshot* snapshot)
 {
     MOZ_ASSERT(label->used());
@@ -257,21 +257,21 @@ CodeGeneratorARM64::visitMinMaxF(LMinMaxF* ins)
         masm.Fmin(output, lhs, rhs);
 }
 
-void 
+void
 CodeGeneratorARM64::visitAbsD(LAbsD* ins)
 {
     ARMFPRegister input(ToFloatRegister(ins->input()), 64);
     masm.Fabs(input, input);
 }
 
-void 
+void
 CodeGeneratorARM64::visitAbsF(LAbsF* ins)
 {
     ARMFPRegister input(ToFloatRegister(ins->input()), 32);
     masm.Fabs(input, input);
 }
 
-void 
+void
 CodeGeneratorARM64::visitSqrtD(LSqrtD* ins)
 {
     ARMFPRegister input(ToFloatRegister(ins->input()), 64);
@@ -355,7 +355,7 @@ CodeGeneratorARM64::visitSubI(LSubI* ins)
     }
 }
 
-void 
+void
 CodeGeneratorARM64::visitMulI(LMulI* ins)
 {
     const LAllocation* lhs = ins->getOperand(0);
@@ -477,7 +477,7 @@ CodeGeneratorARM64::visitDivPowTwoI(LDivPowTwoI* ins)
     MOZ_CRASH("CodeGeneratorARM64::visitDivPowTwoI");
 }
 
-void 
+void
 CodeGeneratorARM64::modICommon(MMod* mir, Register lhs, Register rhs, Register output,
                                LSnapshot* snapshot, Label& done)
 {
@@ -536,7 +536,7 @@ CodeGeneratorARM64::visitModPowTwoI(LModPowTwoI* ins)
     masm.bind(&fin);
 }
 
-void 
+void
 CodeGeneratorARM64::visitModMaskI(LModMaskI* ins)
 {
     MOZ_CRASH("CodeGeneratorARM64::visitModMaskI");
@@ -574,7 +574,7 @@ CodeGeneratorARM64::visitBitOpI(LBitOpI* ins)
     }
 }
 
-void 
+void
 CodeGeneratorARM64::visitShiftI(LShiftI* ins)
 {
     ARMRegister lhs = toWRegister(ins->lhs());
@@ -1282,25 +1282,25 @@ CodeGeneratorARM64::visitNotF(LNotF* ins)
     masm.Csinc(output, output, ZeroRegister32, Assembler::NoOverflow);
 }
 
-void 
+void
 CodeGeneratorARM64::visitLoadSlotV(LLoadSlotV* load)
 {
     MOZ_CRASH("CodeGeneratorARM64::visitLoadSlotV");
 }
 
-void 
+void
 CodeGeneratorARM64::visitLoadSlotT(LLoadSlotT* load)
 {
     MOZ_CRASH("CodeGeneratorARM64::visitLoadSlotT");
 }
 
-void 
+void
 CodeGeneratorARM64::visitStoreSlotT(LStoreSlotT* store)
 {
     MOZ_CRASH("CodeGeneratorARM64::visitStoreSlotT");
 }
 
-void 
+void
 CodeGeneratorARM64::visitLoadElementT(LLoadElementT* load)
 {
     MOZ_CRASH("CodeGeneratorARM64::visitLoadElementT");
@@ -1340,19 +1340,19 @@ CodeGeneratorARM64::visitGuardObjectGroup(LGuardObjectGroup* guard)
 }
 
 
-void 
+void
 CodeGeneratorARM64::visitGuardClass(LGuardClass* guard)
 {
     MOZ_CRASH("CodeGeneratorARM64::visitGuardClass");
 }
 
-void 
+void
 CodeGeneratorARM64::visitInterruptCheck(LInterruptCheck* lir)
 {
     MOZ_CRASH("CodeGeneratorARM64::visitInterruptCheck");
 }
 
-void 
+void
 CodeGeneratorARM64::generateInvalidateEpilogue()
 {
     // Ensure that there is enough space in the buffer for the OsiPoint patching
@@ -1393,27 +1393,25 @@ getBase(U* mir)
     return InvalidReg;
 }
 
-void 
+void
 CodeGeneratorARM64::visitLoadTypedArrayElementStatic(LLoadTypedArrayElementStatic* ins)
 {
     MOZ_CRASH("CodeGeneratorARM64::visitLoadTypedArrayElementStatic");
 }
 
-void 
+void
 CodeGeneratorARM64::visitStoreTypedArrayElementStatic(LStoreTypedArrayElementStatic* ins)
 {
     MOZ_CRASH("CodeGeneratorARM64::visitStoreTypedArrayElementStatic");
 }
 
-void 
+void
 CodeGeneratorARM64::visitAsmJSCall(LAsmJSCall* ins)
 {
-
     emitAsmJSCall(ins);
-
 }
 
-void 
+void
 CodeGeneratorARM64::visitAsmJSLoadHeap(LAsmJSLoadHeap* ins)
 {
     const MAsmJSLoadHeap* mir = ins->mir();
@@ -1450,7 +1448,7 @@ CodeGeneratorARM64::visitAsmJSLoadHeap(LAsmJSLoadHeap* ins)
     }
 }
 
-void 
+void
 CodeGeneratorARM64::visitAsmJSStoreHeap(LAsmJSStoreHeap* ins)
 {
     const MAsmJSStoreHeap* mir = ins->mir();
@@ -1492,13 +1490,13 @@ CodeGeneratorARM64::visitAsmJSStoreHeap(LAsmJSStoreHeap* ins)
     }
 }
 
-void 
+void
 CodeGeneratorARM64::visitAsmJSCompareExchangeHeap(LAsmJSCompareExchangeHeap* ins)
 {
     MOZ_CRASH("visitAsmJSCompareExchangeHeap");
 }
 
-void 
+void
 CodeGeneratorARM64::visitAsmJSAtomicBinopHeap(LAsmJSAtomicBinopHeap* ins)
 {
     MOZ_CRASH("visitAsmJSAtomicBinopHeap");
@@ -1601,7 +1599,7 @@ CodeGeneratorARM64::visitUMod(LUMod* ins)
     masm.bind(&done);
 }
 
-void 
+void
 CodeGeneratorARM64::visitEffectiveAddress(LEffectiveAddress* ins)
 {
     const MEffectiveAddress* mir = ins->mir();
@@ -1612,7 +1610,7 @@ CodeGeneratorARM64::visitEffectiveAddress(LEffectiveAddress* ins)
     masm.Add(output, output, Operand(mir->displacement()));
 }
 
-void 
+void
 CodeGeneratorARM64::visitAsmJSLoadGlobalVar(LAsmJSLoadGlobalVar* ins)
 {
     ARMRegister GlobalPtr(GlobalReg, 64);
@@ -1682,7 +1680,7 @@ CodeGeneratorARM64::visitNegI(LNegI* ins)
     masm.Neg(output, input);
 }
 
-void 
+void
 CodeGeneratorARM64::visitNegD(LNegD* ins)
 {
     ARMFPRegister input(ToFloatRegister(ins->input()), 64);
@@ -1690,7 +1688,7 @@ CodeGeneratorARM64::visitNegD(LNegD* ins)
     masm.Fneg(output, input);
 }
 
-void 
+void
 CodeGeneratorARM64::visitNegF(LNegF* ins)
 {
     ARMFPRegister input(ToFloatRegister(ins->input()), 32);

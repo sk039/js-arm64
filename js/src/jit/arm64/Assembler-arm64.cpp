@@ -188,9 +188,11 @@ Assembler::immPool64(ARMRegister dest, uint64_t value, ARMBuffer::PoolEntry* pe)
 BufferOffset
 Assembler::immPool64Branch(RepatchLabel* label, ARMBuffer::PoolEntry* pe, Condition c)
 {
+    MOZ_CRASH("immPool64Branch");
+
     #if 0
     uint64_t absoff = 0xdeadbeefbad0b004;
-    
+
     BufferOffset ret = immPool(ScratchReg2_64, (uint8_t*)&absoff, vixl::LDR_x_lit, pe);
     Instruction instptr = getInstructionAt(ret);
     uint32_t offset = LabelBase::INVALID_OFFSET;
@@ -200,9 +202,9 @@ Assembler::immPool64Branch(RepatchLabel* label, ARMBuffer::PoolEntry* pe, Condit
         label->use(ret.getOffset());
     }
     b(instptr, offset, c);
-    #endif
     BufferOffset ret;
     return ret;
+    #endif
 }
 
 BufferOffset

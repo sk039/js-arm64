@@ -247,7 +247,7 @@ JitRuntime::generateEnterJIT(JSContext* cx, EnterJitType type)
     masm.breakpoint();
     masm.bind(&x24OK);
 #endif
-    
+
     // Restore callee-save floating-point registers.
     masm.pop(d15, d14, d13, d12);
     masm.pop(d11, d10,  d9,  d8);
