@@ -14,10 +14,9 @@
 namespace js {
 namespace jit {
 
+// VIXL imports.
 typedef vixl::Register ARMRegister;
 typedef vixl::FPRegister ARMFPRegister;
-
-// FIXME: These should be removed once we convert back to vixl namespace fully.
 using vixl::ARMBuffer;
 using vixl::Instruction;
 
@@ -26,13 +25,14 @@ static const uint32_t AlignmentMidPrologue = 8;
 static const Scale ScalePointer = TimesEight;
 static const uint32_t AlignmentAtAsmJSPrologue = sizeof(void*);
 
+// The MacroAssembler uses scratch registers extensively and unexpectedly.
+// For safety, scratch registers should always be acquired using
+// vixl::UseScratchRegisterScope.
 static constexpr Register ScratchReg = { Registers::ip0 };
 static constexpr ARMRegister ScratchReg64 = { ScratchReg, 64 };
-static constexpr ARMRegister ScratchReg32 = { ScratchReg, 32 };
 
 static constexpr Register ScratchReg2 = { Registers::ip1 };
 static constexpr ARMRegister ScratchReg2_64 = { ScratchReg2, 64 };
-static constexpr ARMRegister ScratchReg2_32 = { ScratchReg2, 32 };
 
 static constexpr FloatRegister ScratchDoubleReg = { FloatRegisters::d31 };
 static constexpr FloatRegister ReturnDoubleReg = { FloatRegisters::d0 };
@@ -201,8 +201,11 @@ class Assembler : public vixl::Assembler
     void bind(RepatchLabel* label);
 
     bool oom() const {
-        // FIXME: Currently not possible to OOM.
-        return false;
+        return AssemblerShared::oom() ||
+            armbuffer_.oom() ||
+            jumpRelocations_.oom() ||
+            dataRelocations_.oom() ||
+            preBarriers_.oom();
     }
 
     void copyJumpRelocationTable(uint8_t* dest) const {
@@ -271,7 +274,6 @@ class Assembler : public vixl::Assembler
     // The buffer is about to be linked. Ensure any constant pools or
     // excess bookkeeping has been flushed to the instruction stream.
     void flush() {
-        // TODO: MOZ_ASSERT(!isFinished);
         armbuffer_.flushPool();
     }
 
@@ -553,7 +555,6 @@ GetTempRegForIntArg(uint32_t usedIntArgs, uint32_t usedFloatArgs, Register* out)
 
 }
 
-// FIXME: ugh. why is this not a static member of Assembler?
 void PatchJump(CodeLocationJump& jump_, CodeLocationLabel label);
 
 static inline void

@@ -997,8 +997,9 @@ class MacroAssemblerCompat : public vixl::MacroAssembler
 
     void store32_NoSecondScratch(Imm32 imm, const Address& address) {
         vixl::UseScratchRegisterScope temps(this);
-        temps.Exclude(ScratchReg2_32); // Disallow ScratchReg2.
+        temps.Exclude(ARMRegister(ScratchReg2, 32)); // Disallow ScratchReg2.
         const ARMRegister scratch32 = temps.AcquireW();
+
         MOZ_ASSERT(scratch32.asUnsized() != address.base);
         Mov(scratch32, uint64_t(imm.value));
         Str(scratch32, MemOperand(ARMRegister(address.base, 64), address.offset));

@@ -41,6 +41,7 @@ ABIArgGenerator::next(MIRType type)
         current_ = ABIArg(Register::FromCode(intRegIndex_));
         intRegIndex_++;
         break;
+
       case MIRType_Float32:
       case MIRType_Double:
         if (floatRegIndex_ == NumFloatArgRegs) {
@@ -49,9 +50,11 @@ ABIArgGenerator::next(MIRType type)
             break;
         }
         current_ = ABIArg(FloatRegister(floatRegIndex_,
-                                        type == MIRType_Double ? FloatRegisters::Double : FloatRegisters::Single));
+                                        type == MIRType_Double ? FloatRegisters::Double
+                                                               : FloatRegisters::Single));
         floatRegIndex_++;
         break;
+
       default:
         MOZ_CRASH("Unexpected argument type");
     }
@@ -175,7 +178,7 @@ Assembler::immPool(ARMRegister dest, uint8_t* value, vixl::LoadLiteralOp op, ARM
 {
     uint32_t inst = op | Rt(dest);
     const size_t numInst = 1;
-    const unsigned numPoolEntries = 2;
+    const unsigned numPoolEntries = 2; // Each pool entry is 32 bits, so this stores 64.
     return armbuffer_.allocEntry(numInst, numPoolEntries, (uint8_t*)&inst, value, pe);
 }
 
@@ -212,7 +215,7 @@ Assembler::fImmPool(ARMFPRegister dest, uint8_t* value, vixl::LoadLiteralOp op)
 {
     uint32_t inst = op | Rt(dest);
     const size_t numInst = 1;
-    const unsigned numPoolEntries = dest.size() / 32;
+    const unsigned numPoolEntries = dest.size() / 32; // Each pool entry is 32 bits.
     return armbuffer_.allocEntry(numInst, numPoolEntries, (uint8_t*)&inst, value);
 }
 
@@ -278,7 +281,6 @@ Assembler::bind(RepatchLabel* label)
     inst->SetImmPCOffsetTarget(inst + nextOffset().getOffset() - branchOffset);
 }
 
-// FIXME: Share with ARM?
 void
 Assembler::trace(JSTracer* trc)
 {
@@ -291,7 +293,7 @@ Assembler::trace(JSTracer* trc)
         }
     }
 
-    //FIXME
+    // TODO: Trace.
 #if 0
     if (tmpDataRelocations_.length())
         ::TraceDataRelocations(trc, &armbuffer_, &tmpDataRelocations_);
@@ -334,18 +336,16 @@ Assembler::addPatchableJump(BufferOffset src, Relocation::Kind reloc)
     return extendedTableIndex;
 }
 
-// FIXME: Shouldn't this be a static method of Assembler?
 void
-PatchJump(CodeLocationJump& jump_, CodeLocationLabel label) {
+PatchJump(CodeLocationJump& jump_, CodeLocationLabel label)
+{
+    MOZ_CRASH("PatchJump -- incomplete, untested code.");
+
     // We need to determine if this jump can fit into the standard 24+2 bit
     // address or if we need a larger branch (or just need to use our pool
     // entry).
     Instruction* jump = (Instruction*)jump_.raw();
-    //printInstruction(jump-12,3);
-    //printf("*");
-    //printInstruction(jump,3);
     uint8_t** pe = jump->LiteralAddress<uint8_t**>();
-    //printf("patching %p with %p->[%p]\n", jump, label.raw(), pe);
     *pe = label.raw();
     jump += 4;
     if (jump->IsCondBranchImm()) {
@@ -553,7 +553,9 @@ TraceDataRelocations(JSTracer* trc, uint8_t* buffer, CompactBufferReader& reader
             layout.asBits = *word;
             Value v = IMPL_TO_JSVAL(layout);
             TraceManuallyBarrieredEdge(trc, &v, "ion-masm-value");
-            *word = JSVAL_TO_IMPL(v).asBits; // TODO: Need to flush caches?
+            *word = JSVAL_TO_IMPL(v).asBits;
+
+            // TODO: When we can, flush caches here.
             continue;
         }
 
@@ -623,6 +625,7 @@ Assembler::UpdateBoundsCheck(uint32_t heapSize, Instruction* inst)
     unsigned n, imm_s, imm_r;
     if (!IsImmLogical(mask, 32, &n, &imm_s, &imm_r))
         MOZ_CRASH("Could not encode immediate!?");
+
     inst->SetImmR(imm_r);
     inst->SetImmS(imm_s);
     inst->SetBitN(n);
