@@ -18,8 +18,9 @@
 namespace js {
 namespace jit {
 
-using vixl::MemOperand;
+// Import VIXL operands directly into the jit namespace for shared code.
 using vixl::Operand;
+using vixl::MemOperand;
 
 struct ImmShiftedTag : public ImmWord
 {
@@ -948,7 +949,12 @@ class MacroAssemblerCompat : public vixl::MacroAssembler
         doBaseIndex(scratch64, address, vixl::STR_x);
     }
     void storePtr(ImmGCPtr imm, const BaseIndex& address) {
-        MOZ_CRASH("storePtr"); // Careful -- doBaseIndex() may use both scratch regs!
+        vixl::UseScratchRegisterScope temps(this);
+        const Register scratch = temps.AcquireX().asUnsized();
+        MOZ_ASSERT(scratch != address.base);
+        MOZ_ASSERT(scratch != address.index);
+        movePtr(imm, scratch);
+        doBaseIndex(ARMRegister(scratch, 64), address, vixl::STR_x);
     }
     void storePtr(Register src, const BaseIndex& address) {
         doBaseIndex(ARMRegister(src, 64), address, vixl::STR_x);
