@@ -43,8 +43,6 @@ static constexpr FloatRegister ScratchFloat32Reg = { FloatRegisters::s31 , Float
 static constexpr Register InvalidReg = { Registers::invalid_reg };
 static constexpr FloatRegister InvalidFloatReg = { FloatRegisters::invalid_fpreg };
 
-static constexpr ARMFPRegister ScratchFloat32Reg_ = { ScratchFloat32Reg, 32 };
-
 static constexpr FloatRegister ReturnInt32x4Reg = InvalidFloatReg;
 static constexpr FloatRegister ReturnFloat32x4Reg = InvalidFloatReg;
 
@@ -59,8 +57,6 @@ static constexpr Register CallTempReg5 = { Registers::x14 };
 
 static constexpr Register PreBarrierReg = { Registers::x1 };
 
-
-static constexpr Register ReturnReg_ = { Registers::x0 };
 static constexpr Register ReturnReg = { Registers::x0 };
 static constexpr Register JSReturnReg = { Registers::x2 };
 static constexpr Register FramePointer = { Registers::fp };
@@ -173,8 +169,8 @@ static_assert(CodeAlignment % SimdMemoryAlignment == 0,
   "alignment for SIMD constants.");
 
 static const uint32_t AsmJSStackAlignment = SimdMemoryAlignment;
-
 static const int32_t AsmJSGlobalRegBias = 1024;
+
 class Assembler : public vixl::Assembler
 {
   public:
@@ -192,7 +188,8 @@ class Assembler : public vixl::Assembler
     BufferOffset ExtendedJumpTable_;
     void executableCopy(uint8_t* buffer);
 
-    BufferOffset immPool(ARMRegister dest, uint8_t* value, vixl::LoadLiteralOp op, ARMBuffer::PoolEntry* pe = nullptr);
+    BufferOffset immPool(ARMRegister dest, uint8_t* value, vixl::LoadLiteralOp op,
+                         ARMBuffer::PoolEntry* pe = nullptr);
     BufferOffset immPool64(ARMRegister dest, uint64_t value, ARMBuffer::PoolEntry* pe = nullptr);
     BufferOffset immPool64Branch(RepatchLabel* label, ARMBuffer::PoolEntry* pe, vixl::Condition c);
     BufferOffset fImmPool(ARMFPRegister dest, uint8_t* value, vixl::LoadLiteralOp op);
@@ -400,16 +397,43 @@ class Assembler : public vixl::Assembler
   public:
     // A Jump table entry is 2 instructions, with 8 bytes of raw data
     static const size_t SizeOfJumpTableEntry = 16;
-    struct JumpTableEntry {
+
+    struct JumpTableEntry
+    {
         uint32_t ldr;
         uint32_t br;
         void* data;
+
         Instruction* getLdr() {
             return reinterpret_cast<Instruction*>(&ldr);
         }
     };
+
     // Offset of the patchable target for the given entry.
     static const size_t OffsetOfJumpTableEntryPointer = 8;
+
+  public:
+    static void UpdateBoundsCheck(uint32_t logHeapSize, Instruction* inst);
+
+    void writeCodePointer(AbsoluteLabel* absoluteLabel) {
+        MOZ_ASSERT(!absoluteLabel->bound());
+        uintptr_t x = LabelBase::INVALID_OFFSET;
+        BufferOffset off = EmitData(&x, sizeof(uintptr_t));
+
+        // The x86/x64 makes general use of AbsoluteLabel and weaves a linked list
+        // of uses of an AbsoluteLabel through the assembly. ARM only uses labels
+        // for the case statements of switch jump tables. Thus, for simplicity, we
+        // simply treat the AbsoluteLabel as a label and bind it to the offset of
+        // the jump table entry that needs to be patched.
+        LabelBase* label = absoluteLabel;
+        label->bind(off.getOffset());
+    }
+
+    void verifyHeapAccessDisassembly(uint32_t begin, uint32_t end,
+                                     const Disassembler::HeapAccess& heapAccess)
+    {
+        MOZ_CRASH("verifyHeapAccessDisassembly");
+    }
 
   protected:
     // Because jumps may be relocated to a target inaccessible by a short jump,
@@ -456,34 +480,13 @@ class Assembler : public vixl::Assembler
     CompactBufferWriter jumpRelocations_;
     CompactBufferWriter dataRelocations_;
     CompactBufferWriter preBarriers_;
-  public:
-    static void UpdateBoundsCheck(uint32_t logHeapSize, Instruction* inst);
-    void writeCodePointer(AbsoluteLabel* absoluteLabel) {
-        MOZ_ASSERT(!absoluteLabel->bound());
-        uintptr_t x = LabelBase::INVALID_OFFSET;
-        BufferOffset off = EmitData(&x, sizeof(uintptr_t));
-
-        // The x86/x64 makes general use of AbsoluteLabel and weaves a linked list
-        // of uses of an AbsoluteLabel through the assembly. ARM only uses labels
-        // for the case statements of switch jump tables. Thus, for simplicity, we
-        // simply treat the AbsoluteLabel as a label and bind it to the offset of
-        // the jump table entry that needs to be patched.
-        LabelBase* label = absoluteLabel;
-        label->bind(off.getOffset());
-    }
-    void verifyHeapAccessDisassembly(uint32_t begin, uint32_t end,
-                                     const Disassembler::HeapAccess& heapAccess)
-    {
-        // Implement this if we implement a disassembler.
-    }
-
-
 };
+
+static const uint32_t NumIntArgRegs = 8;
+static const uint32_t NumFloatArgRegs = 8;
 
 class ABIArgGenerator
 {
-    static const int numIntArgRegs = 8;
-    static const int numFloatArgRegs = 8;
   public:
     ABIArgGenerator()
       : intRegIndex_(0),
@@ -510,18 +513,6 @@ class ABIArgGenerator
     uint32_t stackOffset_;
     ABIArg current_;
 };
-
-// FIXME: ugh. why is this not a static member of Assembler?
-void PatchJump(CodeLocationJump& jump_, CodeLocationLabel label);
-
-static inline void
-PatchBackedge(CodeLocationJump& jump_, CodeLocationLabel label, JitRuntime::BackedgeTarget target)
-{
-    PatchJump(jump_, label);
-}
-
-static const uint32_t NumIntArgRegs = 8;
-static const uint32_t NumFloatArgRegs = 8;
 
 static inline bool
 GetIntArgReg(uint32_t usedIntArgs, uint32_t usedFloatArgs, Register* out)
@@ -562,6 +553,15 @@ GetTempRegForIntArg(uint32_t usedIntArgs, uint32_t usedFloatArgs, Register* out)
 
 }
 
+// FIXME: ugh. why is this not a static member of Assembler?
+void PatchJump(CodeLocationJump& jump_, CodeLocationLabel label);
+
+static inline void
+PatchBackedge(CodeLocationJump& jump_, CodeLocationLabel label, JitRuntime::BackedgeTarget target)
+{
+    PatchJump(jump_, label);
+}
+
 // Forbids pool generation during a specified interval. Not nestable.
 class AutoForbidPools
 {
@@ -578,7 +578,6 @@ class AutoForbidPools
         asm_->leaveNoPool();
     }
 };
-
 
 } // namespace jit
 } // namespace js

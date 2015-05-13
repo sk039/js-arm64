@@ -33,7 +33,7 @@ ABIArgGenerator::next(MIRType type)
     switch (type) {
       case MIRType_Int32:
       case MIRType_Pointer:
-        if (intRegIndex_ == numIntArgRegs) {
+        if (intRegIndex_ == NumIntArgRegs) {
             current_ = ABIArg(stackOffset_);
             stackOffset_ += sizeof(uintptr_t);
             break;
