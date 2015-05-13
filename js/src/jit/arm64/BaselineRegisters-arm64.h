@@ -13,28 +13,28 @@ namespace js {
 namespace jit {
 
 // Must be a callee-saved register for preservation around generateEnterJIT().
-static MOZ_CONSTEXPR_VAR Register BaselineFrameReg = r23;
-static MOZ_CONSTEXPR_VAR ARMRegister BaselineFrameReg64 = { BaselineFrameReg, 64 };
+static constexpr Register BaselineFrameReg = r23;
+static constexpr ARMRegister BaselineFrameReg64 = { BaselineFrameReg, 64 };
 
 // The BaselineStackReg cannot be sp, because that register is treated
 // as xzr/wzr during load/store operations.
-static MOZ_CONSTEXPR_VAR Register BaselineStackReg = PseudoStackPointer;
+static constexpr Register BaselineStackReg = PseudoStackPointer;
 
 // ValueOperands R0, R1, and R2.
 // R0 == JSReturnReg, and R2 uses registers not preserved across calls.
 // R1 value should be preserved across calls.
-static MOZ_CONSTEXPR_VAR Register R0_ = r2;
-static MOZ_CONSTEXPR_VAR Register R1_ = r19;
-static MOZ_CONSTEXPR_VAR Register R2_ = r0;
+static constexpr Register R0_ = r2;
+static constexpr Register R1_ = r19;
+static constexpr Register R2_ = r0;
 
-static MOZ_CONSTEXPR_VAR ValueOperand R0(R0_);
-static MOZ_CONSTEXPR_VAR ValueOperand R1(R1_);
-static MOZ_CONSTEXPR_VAR ValueOperand R2(R2_);
+static constexpr ValueOperand R0(R0_);
+static constexpr ValueOperand R1(R1_);
+static constexpr ValueOperand R2(R2_);
 
 // BaselineTailCallReg and BaselineStubReg
 // These use registers that are not preserved across calls.
-static MOZ_CONSTEXPR_VAR Register BaselineTailCallReg = r30;
-static MOZ_CONSTEXPR_VAR Register BaselineStubReg = r9;
+static constexpr Register BaselineTailCallReg = r30;
+static constexpr Register BaselineStubReg = r9;
 
 // ExtractTemps must be callee-save registers:
 // ICSetProp_Native::Compiler::generateStubCode() stores the object
@@ -42,8 +42,8 @@ static MOZ_CONSTEXPR_VAR Register BaselineStubReg = r9;
 // caller-save registers.
 // They should also not be the scratch registers ip0 or ip1,
 // since those get clobbered all the time.
-static MOZ_CONSTEXPR_VAR Register ExtractTemp0 = r24;
-static MOZ_CONSTEXPR_VAR Register ExtractTemp1 = r25;
+static constexpr Register ExtractTemp0 = r24;
+static constexpr Register ExtractTemp1 = r25;
 
 // R7 - R9 are generally available for use within stubcode.
 
@@ -52,8 +52,8 @@ static MOZ_CONSTEXPR_VAR Register ExtractTemp1 = r25;
 // since we keep the return address for calls there.
 
 // FloatReg0 must be equal to ReturnFloatReg.
-static MOZ_CONSTEXPR_VAR FloatRegister FloatReg0 = { FloatRegisters::v0 };
-static MOZ_CONSTEXPR_VAR FloatRegister FloatReg1 = { FloatRegisters::v1 };
+static constexpr FloatRegister FloatReg0 = { FloatRegisters::v0 };
+static constexpr FloatRegister FloatReg1 = { FloatRegisters::v1 };
 
 } // namespace jit
 } // namespace js
