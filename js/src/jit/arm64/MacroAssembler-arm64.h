@@ -18,9 +18,7 @@
 namespace js {
 namespace jit {
 
-// FIXME: Remove these.
 using vixl::MemOperand;
-using vixl::Condition;
 using vixl::Operand;
 
 struct ImmShiftedTag : public ImmWord

@@ -139,7 +139,7 @@ JitRuntime::generateEnterJIT(JSContext* cx, EnterJitType type)
             masm.Subs(tmp_argc, tmp_argc, Operand(1));
 
             // Branch if arguments remain.
-            masm.B(&loopHead, Condition::ge);
+            masm.B(&loopHead, vixl::Condition::ge);
         }
 
         masm.bind(&noArguments);
