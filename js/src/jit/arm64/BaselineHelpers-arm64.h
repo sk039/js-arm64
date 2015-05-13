@@ -160,7 +160,7 @@ EmitEnterStubFrame(MacroAssembler& masm, Register scratch)
                        ARMRegister(BaselineFrameReg, 64));
 
     // Update the frame register.
-    masm.Add(ARMRegister(BaselineFrameReg, 64), masm.GetStackPointer64(), Operand(0));
+    masm.Mov(ARMRegister(BaselineFrameReg, 64), masm.GetStackPointer64());
 
     // Stack should remain 16-byte aligned.
     masm.checkStackAlignment();
@@ -269,10 +269,7 @@ EmitCallTypeUpdateIC(MacroAssembler& masm, JitCode* code, uint32_t objectOffset)
     EmitEnterStubFrame(masm, R1.scratchReg());
 
     masm.loadValue(Address(BaselineStackReg, STUB_FRAME_SIZE + objectOffset), R1);
-
-    masm.pushValue(R0);
-    masm.pushValue(R1);
-    masm.push(BaselineStubReg); // TODO: Use vixl::MacroAssembler::Push().
+    masm.push(R0.valueReg(), R1.valueReg(), BaselineStubReg);
 
     // Load previous frame pointer, push BaselineFrame*.
     masm.loadPtr(Address(BaselineFrameReg, 0), R0.scratchReg());
