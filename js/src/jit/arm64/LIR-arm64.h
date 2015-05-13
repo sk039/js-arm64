@@ -31,7 +31,6 @@ class LBox : public LInstructionHelper<1, 1, 0>
     }
 };
 
-// FIXME: Share with LIR-x64.
 class LUnboxBase : public LInstructionHelper<1, 1, 0>
 {
   public:
