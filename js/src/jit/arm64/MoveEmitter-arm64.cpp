@@ -25,7 +25,7 @@ MoveEmitterARM64::emit(const MoveResolver& moves)
 void
 MoveEmitterARM64::finish()
 {
-    MOZ_ASSERT(!inCycle_);
+    assertDone();
     masm.freeStack(masm.framePushed() - pushedAtStart_);
     MOZ_ASSERT(masm.framePushed() == pushedAtStart_);
 }
@@ -76,16 +76,18 @@ MoveEmitterARM64::emitFloat32Move(const MoveOperand& from, const MoveOperand& to
             masm.fmov(toFPReg(to, MoveOp::FLOAT32), toFPReg(from, MoveOp::FLOAT32));
         else
             masm.Str(toFPReg(from, MoveOp::FLOAT32), toMemOperand(to));
-    } else {
-        if (to.isFloatReg()) {
-            masm.Ldr(toFPReg(to, MoveOp::FLOAT32), toMemOperand(from));
-        } else {
-            vixl::UseScratchRegisterScope temps(&masm.asVIXL());
-            const ARMFPRegister scratch32 = temps.AcquireS();
-            masm.Ldr(scratch32, toMemOperand(from));
-            masm.Str(scratch32, toMemOperand(to));
-        }
+        return;
     }
+
+    if (to.isFloatReg()) {
+        masm.Ldr(toFPReg(to, MoveOp::FLOAT32), toMemOperand(from));
+        return;
+    }
+
+    vixl::UseScratchRegisterScope temps(&masm.asVIXL());
+    const ARMFPRegister scratch32 = temps.AcquireS();
+    masm.Ldr(scratch32, toMemOperand(from));
+    masm.Str(scratch32, toMemOperand(to));
 }
 
 void
@@ -96,16 +98,18 @@ MoveEmitterARM64::emitDoubleMove(const MoveOperand& from, const MoveOperand& to)
             masm.fmov(toFPReg(to, MoveOp::DOUBLE), toFPReg(from, MoveOp::DOUBLE));
         else
             masm.Str(toFPReg(from, MoveOp::DOUBLE), toMemOperand(to));
-    } else {
-        if (to.isFloatReg()) {
-            masm.Ldr(toFPReg(to, MoveOp::DOUBLE), toMemOperand(from));
-        } else {
-            vixl::UseScratchRegisterScope temps(&masm.asVIXL());
-            const ARMFPRegister scratch = temps.AcquireD();
-            masm.ldr(scratch, toMemOperand(from));
-            masm.Str(scratch, toMemOperand(to));
-        }
+        return;
     }
+
+    if (to.isFloatReg()) {
+        masm.Ldr(toFPReg(to, MoveOp::DOUBLE), toMemOperand(from));
+        return;
+    }
+
+    vixl::UseScratchRegisterScope temps(&masm.asVIXL());
+    const ARMFPRegister scratch = temps.AcquireD();
+    masm.Ldr(scratch, toMemOperand(from));
+    masm.Str(scratch, toMemOperand(to));
 }
 
 void
@@ -116,25 +120,25 @@ MoveEmitterARM64::emitInt32Move(const MoveOperand& from, const MoveOperand& to)
             masm.mov(toARMReg32(to), toARMReg32(from));
         else
             masm.Str(toARMReg32(from), toMemOperand(to));
-    } else {
-        if (to.isGeneralReg()) {
-            masm.Ldr(toARMReg32(to), toMemOperand(from));
-        } else {
-            vixl::UseScratchRegisterScope temps(&masm.asVIXL());
-            const ARMRegister scratch32 = temps.AcquireW();
-            masm.ldr(scratch32, toMemOperand(from));
-            masm.Str(scratch32, toMemOperand(to));
-        }
+        return;
     }
+
+    if (to.isGeneralReg()) {
+        masm.Ldr(toARMReg32(to), toMemOperand(from));
+        return;
+    }
+
+    vixl::UseScratchRegisterScope temps(&masm.asVIXL());
+    const ARMRegister scratch32 = temps.AcquireW();
+    masm.Ldr(scratch32, toMemOperand(from));
+    masm.Str(scratch32, toMemOperand(to));
 }
 
 void
 MoveEmitterARM64::emitGeneralMove(const MoveOperand& from, const MoveOperand& to)
 {
-
     if (from.isGeneralReg()) {
         MOZ_ASSERT(to.isGeneralReg() || to.isMemory());
-
         if (to.isGeneralReg())
             masm.mov(toARMReg64(to), toARMReg64(from));
         else
@@ -145,7 +149,6 @@ MoveEmitterARM64::emitGeneralMove(const MoveOperand& from, const MoveOperand& to
     // {Memory OR EffectiveAddress} -> Register move.
     if (to.isGeneralReg()) {
         MOZ_ASSERT(from.isMemoryOrEffectiveAddress());
-
         if (from.isMemory())
             masm.Ldr(toARMReg64(to), toMemOperand(from));
         else
@@ -231,11 +234,11 @@ MoveEmitterARM64::breakCycle(const MoveOperand& from, const MoveOperand& to, Mov
         }
         break;
 
-      case MoveOp::INT32X4: // TODO
+      case MoveOp::INT32X4:
         MOZ_CRASH("TODO");
         break;
 
-      case MoveOp::FLOAT32X4: // TODO
+      case MoveOp::FLOAT32X4:
         MOZ_CRASH("TODO");
         break;
 
@@ -292,11 +295,11 @@ MoveEmitterARM64::completeCycle(const MoveOperand& from, const MoveOperand& to, 
         }
         break;
 
-      case MoveOp::INT32X4: // TODO
+      case MoveOp::INT32X4:
         MOZ_CRASH("TODO");
         break;
 
-      case MoveOp::FLOAT32X4: // TODO
+      case MoveOp::FLOAT32X4:
         MOZ_CRASH("TODO");
         break;
     }

@@ -30,22 +30,10 @@ class MoveEmitterARM64
     int32_t pushedAtCycle_;
     int32_t pushedAtSpill_;
 
-    // These are registers that are available for temporary use. They may be
-    // assigned InvalidReg. If no corresponding spill space has been assigned,
-    // then these registers do not need to be spilled.
-    Register spilledReg_;
-    FloatRegister spilledFloatReg_;
-
     void assertDone() {
         MOZ_ASSERT(!inCycle_);
     }
 
-    Register tempReg() {
-        return ScratchReg;
-    }
-    FloatRegister tempFloatReg() {
-        return ScratchDoubleReg;
-    }
     MemOperand cycleSlot();
     MemOperand toMemOperand(const MoveOperand& operand) const {
         MOZ_ASSERT(operand.isMemory());
@@ -80,13 +68,10 @@ class MoveEmitterARM64
     MoveEmitterARM64(MacroAssemblerCompat& masm)
       : inCycle_(false),
         masm(masm),
+        pushedAtStart_(masm.framePushed()),
         pushedAtCycle_(-1),
-        pushedAtSpill_(-1),
-        spilledReg_(InvalidReg),
-        spilledFloatReg_(InvalidFloatReg)
-    {
-        pushedAtStart_ = masm.framePushed();
-    }
+        pushedAtSpill_(-1)
+    { }
 
     ~MoveEmitterARM64() {
         assertDone();
