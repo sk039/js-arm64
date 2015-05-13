@@ -17,7 +17,6 @@ MoveEmitterARM64::emit(const MoveResolver& moves)
         pushedAtCycle_ = masm.framePushed();
     }
 
-    // TODO: Optimize cycles.
     for (size_t i = 0; i < moves.numMoves(); i++)
         emitMove(moves.getMove(i));
 }
@@ -73,7 +72,7 @@ MoveEmitterARM64::emitFloat32Move(const MoveOperand& from, const MoveOperand& to
 {
     if (from.isFloatReg()) {
         if (to.isFloatReg())
-            masm.fmov(toFPReg(to, MoveOp::FLOAT32), toFPReg(from, MoveOp::FLOAT32));
+            masm.Fmov(toFPReg(to, MoveOp::FLOAT32), toFPReg(from, MoveOp::FLOAT32));
         else
             masm.Str(toFPReg(from, MoveOp::FLOAT32), toMemOperand(to));
         return;
@@ -95,7 +94,7 @@ MoveEmitterARM64::emitDoubleMove(const MoveOperand& from, const MoveOperand& to)
 {
     if (from.isFloatReg()) {
         if (to.isFloatReg())
-            masm.fmov(toFPReg(to, MoveOp::DOUBLE), toFPReg(from, MoveOp::DOUBLE));
+            masm.Fmov(toFPReg(to, MoveOp::DOUBLE), toFPReg(from, MoveOp::DOUBLE));
         else
             masm.Str(toFPReg(from, MoveOp::DOUBLE), toMemOperand(to));
         return;
@@ -117,7 +116,7 @@ MoveEmitterARM64::emitInt32Move(const MoveOperand& from, const MoveOperand& to)
 {
     if (from.isGeneralReg()) {
         if (to.isGeneralReg())
-            masm.mov(toARMReg32(to), toARMReg32(from));
+            masm.Mov(toARMReg32(to), toARMReg32(from));
         else
             masm.Str(toARMReg32(from), toMemOperand(to));
         return;
@@ -140,7 +139,7 @@ MoveEmitterARM64::emitGeneralMove(const MoveOperand& from, const MoveOperand& to
     if (from.isGeneralReg()) {
         MOZ_ASSERT(to.isGeneralReg() || to.isMemory());
         if (to.isGeneralReg())
-            masm.mov(toARMReg64(to), toARMReg64(from));
+            masm.Mov(toARMReg64(to), toARMReg64(from));
         else
             masm.Str(toARMReg64(from), toMemOperand(to));
         return;
@@ -152,7 +151,7 @@ MoveEmitterARM64::emitGeneralMove(const MoveOperand& from, const MoveOperand& to
         if (from.isMemory())
             masm.Ldr(toARMReg64(to), toMemOperand(from));
         else
-            masm.Add(toARMReg64(to), ARMRegister(from.base(), 64), Operand(from.disp()));
+            masm.Add(toARMReg64(to), toARMReg64(from), Operand(from.disp()));
         return;
     }
 
@@ -170,7 +169,7 @@ MoveEmitterARM64::emitGeneralMove(const MoveOperand& from, const MoveOperand& to
     // EffectiveAddress -> Memory move.
     MOZ_ASSERT(from.isEffectiveAddress());
     MOZ_ASSERT(to.isMemory());
-    masm.Add(scratch64, ARMRegister(from.base(), 64), Operand(from.disp()));
+    masm.Add(scratch64, toARMReg64(from), Operand(from.disp()));
     masm.Str(scratch64, toMemOperand(to));
 }
 
@@ -219,7 +218,7 @@ MoveEmitterARM64::breakCycle(const MoveOperand& from, const MoveOperand& to, Mov
             masm.Ldr(scratch32, toMemOperand(to));
             masm.Str(scratch32, cycleSlot());
         } else {
-            masm.Str(ARMRegister(to.reg(), 32), cycleSlot());
+            masm.Str(toARMReg32(to), cycleSlot());
         }
         break;
 
@@ -232,14 +231,6 @@ MoveEmitterARM64::breakCycle(const MoveOperand& from, const MoveOperand& to, Mov
         } else {
             masm.Str(toARMReg64(to), cycleSlot());
         }
-        break;
-
-      case MoveOp::INT32X4:
-        MOZ_CRASH("TODO");
-        break;
-
-      case MoveOp::FLOAT32X4:
-        MOZ_CRASH("TODO");
         break;
 
       default:
@@ -258,7 +249,7 @@ MoveEmitterARM64::completeCycle(const MoveOperand& from, const MoveOperand& to, 
             masm.Ldr(scratch32, cycleSlot());
             masm.Str(scratch32, toMemOperand(to));
         } else {
-            masm.Ldr(ARMFPRegister(to.floatReg(), 32), cycleSlot());
+            masm.Ldr(toFPReg(to, type), cycleSlot());
         }
         break;
 
@@ -269,7 +260,7 @@ MoveEmitterARM64::completeCycle(const MoveOperand& from, const MoveOperand& to, 
             masm.Ldr(scratch, cycleSlot());
             masm.Str(scratch, toMemOperand(to));
         } else {
-            masm.Ldr(ARMFPRegister(to.floatReg(), 64), cycleSlot());
+            masm.Ldr(toFPReg(to, type), cycleSlot());
         }
         break;
 
@@ -280,7 +271,7 @@ MoveEmitterARM64::completeCycle(const MoveOperand& from, const MoveOperand& to, 
             masm.Ldr(scratch32, cycleSlot());
             masm.Str(scratch32, toMemOperand(to));
         } else {
-            masm.Ldr(ARMRegister(to.reg(), 32), cycleSlot());
+            masm.Ldr(toARMReg64(to), cycleSlot());
         }
         break;
 
@@ -291,16 +282,11 @@ MoveEmitterARM64::completeCycle(const MoveOperand& from, const MoveOperand& to, 
             masm.Ldr(scratch64, cycleSlot());
             masm.Str(scratch64, toMemOperand(to));
         } else {
-            masm.Ldr(ARMRegister(to.reg(), 64), cycleSlot());
+            masm.Ldr(toARMReg64(to), cycleSlot());
         }
         break;
 
-      case MoveOp::INT32X4:
-        MOZ_CRASH("TODO");
-        break;
-
-      case MoveOp::FLOAT32X4:
-        MOZ_CRASH("TODO");
-        break;
+      default:
+        MOZ_CRASH("Unexpected move type");
     }
 }
