@@ -162,19 +162,6 @@ PushRetAddr(MacroAssembler& masm)
 #endif
 }
 
-static void
-PopReturn(MacroAssembler &masm)
-{
-#if defined(JS_CODEGEN_ARM) || defined(JS_CODEGEN_ARM64)
-    masm.popReturn();
-#elif defined(JS_CODEGEN_MIPS)
-    MOZ_CRASH("TODO: Implement");
-#else
-    masm.ret();
-    // The x86/x64 call instruction pushes the return address.
-#endif
-}
-
 // Generate a prologue that maintains AsmJSActivation::fp as the virtual frame
 // pointer so that AsmJSProfilingFrameIterator can walk the stack at any pc in
 // generated code.
@@ -272,7 +259,7 @@ GenerateProfilingEpilogue(MacroAssembler& masm, unsigned framePushed, AsmJSExit:
 #endif
 
         masm.bind(profilingReturn);
-        PopReturn(masm);
+        masm.popReturn();
     }
 }
 
@@ -364,7 +351,7 @@ js::GenerateAsmJSFunctionEpilogue(MacroAssembler& masm, unsigned framePushed,
 
     // Normal epilogue:
     masm.addToStackPtr(Imm32(framePushed + AsmJSFrameBytesAfterReturnAddress));
-    PopReturn(masm);
+    masm.popReturn();
     masm.setFramePushed(0);
 
     // Profiling epilogue:
