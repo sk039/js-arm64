@@ -35,18 +35,15 @@ MoveEmitterARM64::emitMove(const MoveOp& move)
     const MoveOperand& from = move.from();
     const MoveOperand& to = move.to();
 
-    if (move.isCycleEnd()) {
+    if (move.isCycleBegin()) {
+        MOZ_ASSERT(!inCycle_ && !move.isCycleEnd());
+        breakCycle(from, to, move.endCycleType());
+        inCycle_ = true;
+    } else if (move.isCycleEnd()) {
         MOZ_ASSERT(inCycle_);
         completeCycle(from, to, move.type());
         inCycle_ = false;
         return;
-    }
-
-    // TODO: MoveEmitterX86 has logic to attempt to avoid using the stack.
-    if (move.isCycleBegin()) {
-        MOZ_ASSERT(!inCycle_);
-        breakCycle(from, to, move.endCycleType());
-        inCycle_ = true;
     }
 
     switch (move.type()) {
