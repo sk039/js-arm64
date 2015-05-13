@@ -15,24 +15,15 @@
 namespace js {
 namespace jit {
 
-// In bytes: slots needed for potential memory->memory move spills.
-//   +8 for cycles
-//   +8 for gpr spills
-//   +8 for double spills
-static const uint32_t ION_FRAME_SLACK_SIZE = 24;
-
-// TODO: Cribbed from arm. Check if this is right.
-static const uint32_t ShadowStackSpace = 0;
-
-// AArch64 has 32 64-bit integer registers, X0 though X31.
-//  X31 is special and functions as both the stack pointer and a zero register.
-//  The bottom 32 bits of each of the X register is accessible as W0 through W31.
+// AArch64 has 32 64-bit integer registers, x0 though x31.
+//  x31 is special and functions as both the stack pointer and a zero register.
+//  The bottom 32 bits of each of the X registers is accessible as w0 through w31.
 //  The program counter is no longer accessible as a register.
 // SIMD and scalar floating-point registers share a register bank.
-//  32 bit float registers are S0 through S31.
-//  64 bit double registers are D0 through D31.
-//  128 bit SIMD registers are V0 through V31.
-// e.g., S0 is the bottom 32 bits of D0, which is the bottom 64 bits of V0.
+//  32 bit float registers are s0 through s31.
+//  64 bit double registers are d0 through d31.
+//  128 bit SIMD registers are v0 through v31.
+// e.g., s0 is the bottom 32 bits of d0, which is the bottom 64 bits of v0.
 
 // AArch64 Calling Convention:
 //  x0 - x7: arguments and return value
@@ -45,10 +36,10 @@ static const uint32_t ShadowStackSpace = 0;
 //  x30: link register
 
 // AArch64 Calling Convention for Floats:
-//  v0 - v7: arguments and return value
+//  d0 - d7: arguments and return value
 //  d8 - d15: callee-saved registers
 //   Bits 64:128 are not saved for v8-v15.
-//  v16 - v31: temporary registers
+//  d16 - d31: temporary registers
 
 // AArch64 does not have soft float.
 
@@ -136,14 +127,12 @@ class Registers {
 
     static const uint32_t AllMask = 0xFFFFFFFF;
 
-    // FIXME: Validate
     static const uint32_t ArgRegMask =
         (1 << Registers::x0) | (1 << Registers::x1) |
         (1 << Registers::x2) | (1 << Registers::x3) |
         (1 << Registers::x4) | (1 << Registers::x5) |
         (1 << Registers::x6) | (1 << Registers::x7);
 
-    // FIXME: Validate
     static const uint32_t VolatileMask =
         (1 << Registers::x0) | (1 << Registers::x1) |
         (1 << Registers::x2) | (1 << Registers::x3) |
@@ -155,7 +144,6 @@ class Registers {
         (1 << Registers::x13) | (1 << Registers::x14) |
         (1 << Registers::x14) | (1 << Registers::x15);
 
-    // FIXME: Validate
     static const uint32_t NonVolatileMask =
                                 (1 << Registers::x16) |
         (1 << Registers::x17) | (1 << Registers::x18) |
@@ -166,27 +154,22 @@ class Registers {
         (1 << Registers::x27) |
         (1 << Registers::x29) | (1 << Registers::x30);
 
-    // FIXME: Validate
     static const uint32_t SingleByteRegs = VolatileMask | NonVolatileMask;
 
-    // FIXME: Validate
     static const uint32_t NonAllocatableMask =
-        (1 << Registers::x28) | // FIXME: Keeping this?
-        (1 << Registers::ip0) | // FIXME: Make this scratch0?
-        (1 << Registers::ip1) | // FIXME: Make this scratch1?
+        (1 << Registers::x28) | // PseudoStackPointer.
+        (1 << Registers::ip0) | // First scratch register.
+        (1 << Registers::ip1) | // Second scratch register.
         (1 << Registers::tls) |
         (1 << Registers::lr) |
         (1 << Registers::sp);
 
     // Registers that can be allocated without being saved, generally.
-    // FIXME: Validate
     static const uint32_t TempMask = VolatileMask & ~NonAllocatableMask;
 
-    // FIXME: Validate
     static const uint32_t WrapperMask = VolatileMask;
 
     // Registers returned from a JS -> JS call.
-    // FIXME: Validate
     static const uint32_t JSCallMask =
         (1 << Registers::x2) |
         (1 << Registers::x3);
@@ -270,10 +253,9 @@ class FloatRegisters
     static const SetType AllMask = 0xFFFFFFFFFFFFFFFFULL;
     static const SetType AllPhysMask = 0xFFFFFFFFULL;
     static const SetType SpreadCoefficient = 0x100000001ULL;
-    // FIXME: Validate
-    static const uint32_t Allocatable = 62; // Without d31, the scratch register.
 
-    // FIXME: Validate
+    static const uint32_t Allocatable = 31; // Without d31, the scratch register.
+
     // d31 is the ScratchFloatReg.
     static const SetType NonVolatileMask =
         SetType((1 << FloatRegisters::d8) | (1 << FloatRegisters::d9) |
@@ -289,23 +271,20 @@ class FloatRegisters
                 (1 << FloatRegisters::d28) | (1 << FloatRegisters::d29) |
                 (1 << FloatRegisters::d30)) * SpreadCoefficient;
 
-    // FIXME: Validate
     static const SetType VolatileMask = AllMask & ~NonVolatileMask;
     static const SetType AllDoubleMask = AllMask;
 
-    // FIXME: Validate
     static const SetType WrapperMask = VolatileMask;
 
     // d31 is the ScratchFloatReg.
-    // FIXME: Validate
     static const SetType NonAllocatableMask = (SetType(1) << FloatRegisters::d31) * SpreadCoefficient;
 
     // Registers that can be allocated without being saved, generally.
-    // FIXME: Validate
     static const SetType TempMask = VolatileMask & ~NonAllocatableMask;
 
     static const SetType AllocatableMask = AllMask & ~NonAllocatableMask;
     union RegisterContent {
+        float f;
         double d;
     };
     enum Kind {
@@ -314,9 +293,17 @@ class FloatRegisters
     };
 };
 
+// In bytes: slots needed for potential memory->memory move spills.
+//   +8 for cycles
+//   +8 for gpr spills
+//   +8 for double spills
+static const uint32_t ION_FRAME_SLACK_SIZE = 24;
+
+static const uint32_t ShadowStackSpace = 0;
+
 static const uint32_t ABIStackAlignment = 16;
 static const uint32_t CodeAlignment = 16;
-static const bool StackKeptAligned = false; // FIXME: Verify.
+static const bool StackKeptAligned = false;
 
 // Although sp is only usable if 16-byte alignment is kept,
 // the Pseudo-StackPointer enables use of 8-byte alignment.
@@ -329,21 +316,29 @@ struct FloatRegister
     typedef Codes::Code Code;
     typedef Codes::Code Encoding;
     typedef Codes::SetType SetType;
+
     union RegisterContent {
+        float f;
         double d;
     };
-    MOZ_CONSTEXPR FloatRegister(uint32_t code, FloatRegisters::Kind k) :
-        code_(FloatRegisters::Code(code & 31)),
-        k_(k) {
-    }
-    MOZ_CONSTEXPR FloatRegister(uint32_t code) :
-            code_(FloatRegisters::Code(code & 31)),
-            k_(FloatRegisters::Kind(code >> 5)) {
-    }
-    MOZ_CONSTEXPR FloatRegister() :
-        code_(FloatRegisters::Code(-1)),
-        k_(FloatRegisters::Double) {
-    }
+
+    Code code_;
+    FloatRegisters::Kind k_;
+
+    constexpr FloatRegister(uint32_t code, FloatRegisters::Kind k)
+      : code_(FloatRegisters::Code(code & 31)),
+        k_(k)
+    { }
+
+    constexpr FloatRegister(uint32_t code)
+      : code_(FloatRegisters::Code(code & 31)),
+        k_(FloatRegisters::Kind(code >> 5))
+    { }
+
+    constexpr FloatRegister()
+      : code_(FloatRegisters::Code(-1)),
+        k_(FloatRegisters::Double)
+    { }
 
     static uint32_t SetSize(SetType x) {
         static_assert(sizeof(SetType) == 8, "SetType must be 64 bits");
@@ -352,8 +347,6 @@ struct FloatRegister
         return mozilla::CountPopulation32(x);
     }
 
-    Code code_;
-    FloatRegisters::Kind k_;
     static FloatRegister FromCode(uint32_t i) {
         MOZ_ASSERT(i < FloatRegisters::Total);
         FloatRegister r(i);
@@ -430,17 +423,20 @@ struct FloatRegister
     bool isFloat32x4() const {
         return false;
     }
+
+    static uint32_t FirstBit(SetType x) {
+        JS_STATIC_ASSERT(sizeof(SetType) == 8);
+        return mozilla::CountTrailingZeroes64(x);
+    }
+    static uint32_t LastBit(SetType x) {
+        JS_STATIC_ASSERT(sizeof(SetType) == 8);
+        return 63 - mozilla::CountLeadingZeroes64(x);
+    }
+
     static TypedRegisterSet<FloatRegister> ReduceSetForPush(const TypedRegisterSet<FloatRegister>& s);
     static uint32_t GetSizeInBytes(const TypedRegisterSet<FloatRegister>& s);
     static uint32_t GetPushSizeInBytes(const TypedRegisterSet<FloatRegister>& s);
     uint32_t getRegisterDumpOffsetInBytes();
-
-    static uint32_t FirstBit(SetType x) {
-        return mozilla::CountTrailingZeroes64(x); // TODO: 64?
-    }
-    static uint32_t LastBit(SetType x) {
-        return 63 - mozilla::CountLeadingZeroes64(x); // TODO: 64?
-    }
 };
 
 // ARM/D32 has double registers that cannot be treated as float32.

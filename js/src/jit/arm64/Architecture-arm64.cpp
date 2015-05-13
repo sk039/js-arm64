@@ -51,9 +51,8 @@ FloatRegisterSet
 FloatRegister::ReduceSetForPush(const FloatRegisterSet& s)
 {
     LiveFloatRegisterSet ret;
-    for (FloatRegisterIterator iter(s); iter.more(); ++iter) {
+    for (FloatRegisterIterator iter(s); iter.more(); ++iter)
         ret.addUnchecked(FromCode((*iter).encoding()));
-    }
     return ret.set();
 }
 
