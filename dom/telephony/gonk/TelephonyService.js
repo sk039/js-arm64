@@ -88,19 +88,13 @@ XPCOMUtils.defineLazyServiceGetter(this, "gGonkMobileConnectionService",
                                    "@mozilla.org/mobileconnection/mobileconnectionservice;1",
                                    "nsIGonkMobileConnectionService");
 
-/* global gPhoneNumberUtils */
-XPCOMUtils.defineLazyGetter(this, "gPhoneNumberUtils", function() {
-  let ns = {};
-  Cu.import("resource://gre/modules/PhoneNumberUtils.jsm", ns);
-  return ns.PhoneNumberUtils;
-});
+/* global PhoneNumberUtils */
+XPCOMUtils.defineLazyModuleGetter(this, "PhoneNumberUtils",
+                                  "resource://gre/modules/PhoneNumberUtils.jsm");
 
-/* global gDialNumberUtils */
-XPCOMUtils.defineLazyGetter(this, "gDialNumberUtils", function() {
-  let ns = {};
-  Cu.import("resource://gre/modules/DialNumberUtils.jsm", ns);
-  return ns.DialNumberUtils;
-});
+/* global DialNumberUtils */
+XPCOMUtils.defineLazyModuleGetter(this, "DialNumberUtils",
+                                  "resource://gre/modules/DialNumberUtils.jsm");
 
 function MobileCallForwardingOptions(aOptions) {
   for (let key in aOptions) {
@@ -130,13 +124,10 @@ function TelephonyCallInfo(aCall) {
   this.clientId = aCall.clientId;
   this.callIndex = aCall.callIndex;
   this.callState = aCall.state;
-  this.disconnectedReason = aCall.disconnectedReason || "";
-
   this.number = aCall.number;
   this.numberPresentation = aCall.numberPresentation;
   this.name = aCall.name;
   this.namePresentation = aCall.namePresentation;
-
   this.isOutgoing = aCall.isOutgoing;
   this.isEmergency = aCall.isEmergency;
   this.isConference = aCall.isConference;
@@ -157,13 +148,10 @@ TelephonyCallInfo.prototype = {
   clientId: 0,
   callIndex: 0,
   callState: nsITelephonyService.CALL_STATE_UNKNOWN,
-  disconnectedReason: "",
-
   number: "",
   numberPresentation: nsITelephonyService.CALL_PRESENTATION_ALLOWED,
   name: "",
   namePresentation: nsITelephonyService.CALL_PRESENTATION_ALLOWED,
-
   isOutgoing: true,
   isEmergency: false,
   isConference: false,
@@ -574,18 +562,18 @@ TelephonyService.prototype = {
     // We don't try to be too clever here, as the phone is probably in the
     // locked state. Let's just check if it's a number without normalizing
     if (!aIsDialEmergency) {
-      aNumber = gPhoneNumberUtils.normalize(aNumber);
+      aNumber = PhoneNumberUtils.normalize(aNumber);
     }
 
     // Validate the number.
     // Note: isPlainPhoneNumber also accepts USSD and SS numbers
-    if (!gPhoneNumberUtils.isPlainPhoneNumber(aNumber)) {
+    if (!PhoneNumberUtils.isPlainPhoneNumber(aNumber)) {
       if (DEBUG) debug("Error: Number '" + aNumber + "' is not viable. Drop.");
       aCallback.notifyError(DIAL_ERROR_BAD_NUMBER);
       return;
     }
 
-    let isEmergencyNumber = gDialNumberUtils.isEmergency(aNumber);
+    let isEmergencyNumber = DialNumberUtils.isEmergency(aNumber);
 
     // DialEmergency accepts only emergency number.
     if (aIsDialEmergency && !isEmergencyNumber) {
@@ -611,7 +599,7 @@ TelephonyService.prototype = {
       return;
     }
 
-    let mmi = gDialNumberUtils.parseMMI(aNumber);
+    let mmi = DialNumberUtils.parseMMI(aNumber);
     if (mmi) {
       if (this._isTemporaryCLIR(mmi)) {
         this._dialCall(aClientId, mmi.dialNumber,
@@ -689,7 +677,7 @@ TelephonyService.prototype = {
       return;
     }
 
-    let isEmergency = gDialNumberUtils.isEmergency(aNumber);
+    let isEmergency = DialNumberUtils.isEmergency(aNumber);
 
     if (!isEmergency) {
       if (!this._isRadioOn(aClientId)) {
@@ -805,7 +793,7 @@ TelephonyService.prototype = {
       childCall.state = nsITelephonyService.CALL_STATE_DIALING;
       childCall.number = aNumber;
       childCall.isOutgoing = true;
-      childCall.isEmergency = gDialNumberUtils.isEmergency(aNumber);
+      childCall.isEmergency = DialNumberUtils.isEmergency(aNumber);
       childCall.isConference = false;
       childCall.isSwitchable = false;
       childCall.isMergeable = true;
@@ -1019,7 +1007,7 @@ TelephonyService.prototype = {
     }
 
     aCall.isOutgoing = !aRilCall.isMT;
-    aCall.isEmergency = gDialNumberUtils.isEmergency(aCall.number);
+    aCall.isEmergency = DialNumberUtils.isEmergency(aCall.number);
 
     if (!aCall.started &&
         aCall.state == nsITelephonyService.CALL_STATE_CONNECTED) {
@@ -1450,6 +1438,10 @@ TelephonyService.prototype = {
    * calls being disconnected as well.
    *
    * @return Array a list of calls we need to fire callStateChange
+   *
+   * TODO: The list currently doesn't contain calls that we fire notifyError
+   * for them. However, after Bug 1147736, notifyError is replaced by
+   * callStateChanged and those calls should be included in the list.
    */
   _disconnectCalls: function(aClientId, aCalls,
                              aFailCause = RIL.GECKO_CALL_ERROR_NORMAL_CALL_CLEARING) {
@@ -1473,7 +1465,7 @@ TelephonyService.prototype = {
 
     disconnectedCalls.forEach(call => {
       call.state = nsITelephonyService.CALL_STATE_DISCONNECTED;
-      call.disconnectedReason = aFailCause;
+      call.failCause = aFailCause;
 
       if (call.parentId) {
         let parentCall = this._currentCalls[aClientId][call.parentId];
@@ -1482,7 +1474,13 @@ TelephonyService.prototype = {
 
       this._notifyCallEnded(call);
 
-      callsForStateChanged.push(call);
+      if (call.hangUpLocal || !call.failCause ||
+          call.failCause === RIL.GECKO_CALL_ERROR_NORMAL_CALL_CLEARING) {
+        callsForStateChanged.push(call);
+      } else {
+        this._notifyAllListeners("notifyError",
+                                 [aClientId, call.callIndex, call.failCause]);
+      }
 
       delete this._currentCalls[aClientId][call.callIndex];
     });
