@@ -17,7 +17,6 @@ using namespace js::jit;
 
 using mozilla::FloorLog2;
 
-// FIXME: Share with Lowering-x64.
 void
 LIRGeneratorARM64::useBox(LInstruction* lir, size_t n, MDefinition* mir,
                           LUse::Policy policy, bool useAtStart)
@@ -27,7 +26,6 @@ LIRGeneratorARM64::useBox(LInstruction* lir, size_t n, MDefinition* mir,
     lir->setOperand(n, LUse(mir->virtualRegister(), policy, useAtStart));
 }
 
-// FIXME: Share with Lowering-x64.
 void
 LIRGeneratorARM64::useBoxFixed(LInstruction* lir, size_t n, MDefinition* mir, Register reg1, Register)
 {
@@ -36,14 +34,12 @@ LIRGeneratorARM64::useBoxFixed(LInstruction* lir, size_t n, MDefinition* mir, Re
     lir->setOperand(n, LUse(reg1, mir->virtualRegister()));
 }
 
-// FIXME: Share with Lowering-arm.
 LAllocation
 LIRGeneratorARM64::useByteOpRegister(MDefinition* mir)
 {
     return useRegister(mir);
 }
 
-// FIXME: Share with Lowering-arm.
 LAllocation
 LIRGeneratorARM64::useByteOpRegisterOrNonDoubleConstant(MDefinition* mir)
 {
@@ -75,7 +71,6 @@ LIRGeneratorARM64::visitConstant(MConstant* ins)
         LIRGeneratorShared::visitConstant(ins);
 }
 
-// FIXME: Share with Lowering-x64.
 void
 LIRGeneratorARM64::visitBox(MBox* box)
 {
@@ -96,7 +91,6 @@ LIRGeneratorARM64::visitBox(MBox* box)
     define(ins, box, LDefinition(LDefinition::BOX));
 }
 
-// FIXME: Share with Lowering-x64.
 void
 LIRGeneratorARM64::visitUnbox(MUnbox* unbox)
 {
@@ -113,7 +107,6 @@ LIRGeneratorARM64::visitUnbox(MUnbox* unbox)
     define(lir, unbox);
 }
 
-// FIXME: Share with Lowering-x64.
 void
 LIRGeneratorARM64::visitReturn(MReturn* ret)
 {

@@ -15,11 +15,9 @@
 namespace js {
 namespace jit {
 
-// TODO: What on earth is simdSet?
 void
 MacroAssembler::PushRegsInMask(LiveRegisterSet set)
 {
-    // TODO: Clean up this function using helpers. Should be easy.
     for (GeneralRegisterBackwardIterator iter(set.gprs()); iter.more(); ) {
         CPURegister src0 = vixl::NoCPUReg;
         CPURegister src1 = vixl::NoCPUReg;
@@ -83,7 +81,6 @@ MacroAssembler::PushRegsInMask(LiveRegisterSet set)
     }
 }
 
-// TODO: What on earth is simdSet?
 void
 MacroAssembler::PopRegsInMaskIgnore(LiveRegisterSet set, LiveRegisterSet ignore)
 {
@@ -211,7 +208,7 @@ MacroAssemblerCompat::movePatchablePtr(ImmWord ptr, Register dest)
 {
     const size_t numInst = 1; // Inserting one load instruction.
     const unsigned numPoolEntries = 2; // Every pool entry is 4 bytes.
-    uint8_t* literalAddr = (uint8_t*)(&ptr.value); // TODO: Should be const.
+    uint8_t* literalAddr = (uint8_t*)(&ptr.value);
 
     // Scratch space for generating the load instruction.
     //
@@ -342,7 +339,7 @@ MacroAssemblerCompat::setupUnalignedABICall(uint32_t args, Register scratch)
     // Always save LR -- Baseline ICs assume that LR isn't modified.
     push(lr);
 
-    // TODO: Unhandled for sp -- needs slightly different logic.
+    // Unhandled for sp -- needs slightly different logic.
     MOZ_ASSERT(!GetStackPointer64().Is(sp));
 
     // Remember the stack address on entry.
@@ -470,7 +467,6 @@ MacroAssemblerCompat::callWithABIPost(uint32_t stackAdjust, MoveOp::Type result)
 }
 
 #if defined(DEBUG) && defined(JS_ARM64_SIMULATOR)
-// TODO: This should be shared in IonTypes.h.
 static void
 AssertValidABIFunctionType(uint32_t passedArgTypes)
 {
@@ -561,7 +557,7 @@ MacroAssemblerCompat::callWithABI(Address fun, MoveOp::Type result)
 void
 MacroAssembler::Push(Register reg)
 {
-    vixl::MacroAssembler::Push(ARMRegister(reg, 64));
+    push(reg);
     adjustFrame(sizeof(intptr_t));
 }
 
@@ -701,10 +697,7 @@ void
 MacroAssemblerCompat::breakpoint()
 {
     static int code = 0xA77;
-    // FIXME: Remove this (mjrosenb)
-    if (getenv("STOP_BREAK") && strtol(getenv("STOP_BREAK"), 0, 0) == code)
-        MOZ_CRASH("You Rang?");
-    Brk((code++)&0xffff);
+    Brk((code++) & 0xffff);
 }
 
 void
