@@ -20,11 +20,8 @@ namespace jit {
 
 // FIXME: Remove these.
 using vixl::MemOperand;
-using vixl::CPURegister;
-using vixl::LoadStoreOp;
 using vixl::Condition;
 using vixl::Operand;
-using vixl::noReg;
 
 struct ImmShiftedTag : public ImmWord
 {
@@ -93,13 +90,12 @@ class MacroAssemblerCompat : public vixl::MacroAssembler
 
   public:
     bool oom() const {
-        // FIXME: jandem is trying to knock out enoughMemory_ now... needs rebasing.
         return Assembler::oom() || !enoughMemory_;
     }
     static MemOperand toMemOperand(Address& a) {
         return MemOperand(ARMRegister(a.base, 64), a.offset);
     }
-    void doBaseIndex(const CPURegister& rt, const BaseIndex& addr, LoadStoreOp op) {
+    void doBaseIndex(const vixl::CPURegister& rt, const BaseIndex& addr, vixl::LoadStoreOp op) {
         const ARMRegister base = ARMRegister(addr.base, 64);
         const ARMRegister index = ARMRegister(addr.index, 64);
         const unsigned scale = addr.scale;
@@ -362,7 +358,7 @@ class MacroAssemblerCompat : public vixl::MacroAssembler
         doBaseIndex(ARMRegister(val.valueReg(), 64), src, vixl::LDR_x);
     }
     void tagValue(JSValueType type, Register payload, ValueOperand dest) {
-        // TODO: This could be more clever, but the first attempt had bugs.
+        // This could be cleverer, but the first attempt had bugs.
         Orr(ARMRegister(dest.valueReg(), 64), ARMRegister(payload, 64), Operand(ImmShiftedTag(type).value));
     }
     void pushValue(ValueOperand val) {
@@ -3216,7 +3212,7 @@ class MacroAssemblerCompat : public vixl::MacroAssembler
         str(scratch64, MemOperand(scratchAddr64, 0));
     }
 
-    void BoundsCheck(Register ptrReg, Label* onFail, CPURegister zeroMe = noReg) {
+    void BoundsCheck(Register ptrReg, Label* onFail, vixl::CPURegister zeroMe = vixl::noReg) {
         // use tst rather than Tst to *ensure* that a single instrution is generated.
         Cmp(ARMRegister(ptrReg, 32), ARMRegister(HeapLenReg, 32));
         if (!zeroMe.IsNone()) {

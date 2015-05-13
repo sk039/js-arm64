@@ -19,10 +19,10 @@ void
 MacroAssembler::PushRegsInMask(LiveRegisterSet set)
 {
     for (GeneralRegisterBackwardIterator iter(set.gprs()); iter.more(); ) {
-        CPURegister src0 = vixl::NoCPUReg;
-        CPURegister src1 = vixl::NoCPUReg;
-        CPURegister src2 = vixl::NoCPUReg;
-        CPURegister src3 = vixl::NoCPUReg;
+        vixl::CPURegister src0 = vixl::NoCPUReg;
+        vixl::CPURegister src1 = vixl::NoCPUReg;
+        vixl::CPURegister src2 = vixl::NoCPUReg;
+        vixl::CPURegister src3 = vixl::NoCPUReg;
 
         src0 = ARMRegister(*iter, 64);
         adjustFrame(8);
@@ -50,10 +50,10 @@ MacroAssembler::PushRegsInMask(LiveRegisterSet set)
     }
     FloatRegisterSet fset = set.fpus().reduceSetForPush();
     for (FloatRegisterBackwardIterator iter(fset); iter.more(); ) {
-        CPURegister src0 = vixl::NoCPUReg;
-        CPURegister src1 = vixl::NoCPUReg;
-        CPURegister src2 = vixl::NoCPUReg;
-        CPURegister src3 = vixl::NoCPUReg;
+        vixl::CPURegister src0 = vixl::NoCPUReg;
+        vixl::CPURegister src1 = vixl::NoCPUReg;
+        vixl::CPURegister src2 = vixl::NoCPUReg;
+        vixl::CPURegister src3 = vixl::NoCPUReg;
 
         src0 = ARMFPRegister(*iter);
         ++iter;
@@ -90,8 +90,8 @@ MacroAssembler::PopRegsInMaskIgnore(LiveRegisterSet set, LiveRegisterSet ignore)
     uint32_t nextOffset = 0;
     FloatRegisterSet fset = set.fpus().reduceSetForPush();
     for (FloatRegisterIterator iter(fset); iter.more(); offset = nextOffset) {
-        CPURegister src0 = vixl::NoCPUReg;
-        CPURegister src1 = vixl::NoCPUReg;
+        vixl::CPURegister src0 = vixl::NoCPUReg;
+        vixl::CPURegister src1 = vixl::NoCPUReg;
 
         while (iter.more() && ignore.has(*iter)) {
             ++iter;
@@ -128,8 +128,8 @@ MacroAssembler::PopRegsInMaskIgnore(LiveRegisterSet set, LiveRegisterSet ignore)
     nextOffset = set.fpus().getPushSizeInBytes();
 
     for (GeneralRegisterIterator iter(set.gprs()); iter.more(); offset = nextOffset) {
-        CPURegister src0 = vixl::NoCPUReg;
-        CPURegister src1 = vixl::NoCPUReg;
+        vixl::CPURegister src0 = vixl::NoCPUReg;
+        vixl::CPURegister src1 = vixl::NoCPUReg;
         while (iter.more() && ignore.has(*iter)) {
             ++iter;
             offset += sizeof(double);
@@ -692,7 +692,6 @@ MacroAssemblerCompat::callAndPushReturnAddress(Label* label)
     bind(&ret);
 }
 
-// FIXME: Probably just call Brk() in the header.
 void
 MacroAssemblerCompat::breakpoint()
 {

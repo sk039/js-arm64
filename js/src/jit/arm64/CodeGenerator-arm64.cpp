@@ -310,7 +310,7 @@ js::jit::Operand toWOperand(const LAllocation* a)
     return js::jit::Operand(toWRegister(a));
 }
 
-CPURegister
+vixl::CPURegister
 ToCPURegister(const LAllocation* a, Scalar::Type type)
 {
     if (a->isFloatReg() && type == Scalar::Float64)
@@ -321,7 +321,7 @@ ToCPURegister(const LAllocation* a, Scalar::Type type)
         return ARMRegister(ToRegister(a), 32);
     MOZ_CRASH("Unknown LAllocation");
 }
-CPURegister
+vixl::CPURegister
 ToCPURegister(const LDefinition* d, Scalar::Type type)
 {
     return ToCPURegister(d->output(), type);
@@ -1415,8 +1415,9 @@ void
 CodeGeneratorARM64::visitAsmJSLoadHeap(LAsmJSLoadHeap* ins)
 {
     const MAsmJSLoadHeap* mir = ins->mir();
-    LoadStoreOp op;
     const LAllocation* ptr = ins->ptr();
+
+    vixl::LoadStoreOp op;
     switch (mir->accessType()) {
       case Scalar::Int8:    op = vixl::LDRSB_w; break;
       case Scalar::Uint8:   op = vixl::LDRB_w; break;
@@ -1429,7 +1430,7 @@ CodeGeneratorARM64::visitAsmJSLoadHeap(LAsmJSLoadHeap* ins)
       default: MOZ_CRASH("unexpected array type");
     }
 
-    CPURegister rt = ToCPURegister(ins->output(), mir->accessType());
+    vixl::CPURegister rt = ToCPURegister(ins->output(), mir->accessType());
     if (ptr->isConstant()) {
         int32_t ptrImm = ptr->toConstant()->toInt32();
         MOZ_ASSERT(ptrImm >= 0);
@@ -1437,40 +1438,39 @@ CodeGeneratorARM64::visitAsmJSLoadHeap(LAsmJSLoadHeap* ins)
         //memoryBarrier(mir->barrierAfter());
         return;
     }
+
     Label oob;
     Register ptrReg = ToRegister(ptr);
-    if (mir->needsBoundsCheck()) {
+
+    if (mir->needsBoundsCheck())
         masm.BoundsCheck(ptrReg, &oob, rt);
-    }
+
     masm.LoadStoreMacro(rt, MemOperand(ARMRegister(HeapReg, 64), ARMRegister(ptrReg, 64)), op);
-    if (mir->needsBoundsCheck()) {
+
+    if (mir->needsBoundsCheck())
         masm.bind(&oob);
-    }
 }
 
 void
 CodeGeneratorARM64::visitAsmJSStoreHeap(LAsmJSStoreHeap* ins)
 {
     const MAsmJSStoreHeap* mir = ins->mir();
-    LoadStoreOp op;
     const LAllocation* ptr = ins->ptr();
-    bool isSigned = false;
+
+    vixl::LoadStoreOp op;
     switch (mir->accessType()) {
       case Scalar::Int8:
       case Scalar::Uint8:   op = vixl::STRB_w; break;
       case Scalar::Int16:
       case Scalar::Uint16:  op = vixl::STRH_w; break;
       case Scalar::Int32:
-      case Scalar::Uint32:  isSigned = true;  op = vixl::STR_w; break;
+      case Scalar::Uint32:  op = vixl::STR_w; break;
       case Scalar::Float64: op = vixl::STR_d; break;
       case Scalar::Float32: op = vixl::STR_s; break;
       default: MOZ_CRASH("unexpected array type");
     }
 
-    // TODO: What is the point of isSigned here?
-    (void) isSigned;
-
-    CPURegister rt = ToCPURegister(ins->value(), mir->accessType());
+    vixl::CPURegister rt = ToCPURegister(ins->value(), mir->accessType());
     if (ptr->isConstant()) {
         int32_t ptrImm = ptr->toConstant()->toInt32();
         MOZ_ASSERT(ptrImm >= 0);
@@ -1479,15 +1479,16 @@ CodeGeneratorARM64::visitAsmJSStoreHeap(LAsmJSStoreHeap* ins)
         //memoryBarrier(mir->barrierAfter());
         return;
     }
+
     Register ptrReg = ToRegister(ptr);
     Label noStore;
-    if (mir->needsBoundsCheck()) {
+    if (mir->needsBoundsCheck())
         masm.BoundsCheck(ptrReg, &noStore);
-    }
+
     masm.LoadStoreMacro(rt, MemOperand(ARMRegister(HeapReg, 64), ARMRegister(ptrReg, 64)), op);
-    if (mir->needsBoundsCheck()) {
+
+    if (mir->needsBoundsCheck())
         masm.bind(&noStore);
-    }
 }
 
 void
