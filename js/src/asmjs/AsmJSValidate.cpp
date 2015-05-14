@@ -9233,34 +9233,34 @@ GenerateAsyncInterruptExit(ModuleCompiler& m, Label* throwLabel)
     // we can't sacrifice a register to align sp, because *all* registers need to be saved.
 
     // reserve enough space to save everything.
-    masm.Sub(vixl::sp, vixl::sp, 8*32);
+    masm.Sub(sp, sp, 8*32);
     // Push and PushRegsInMask will attempt to sync the stack pointer
-    masm.Stp(vixl::x0,  vixl::x1,  MemOperand(vixl::x28, -16, vixl::PreIndex));
-    masm.Stp(vixl::x2,  vixl::x3,  MemOperand(vixl::x28, -16, vixl::PreIndex));
-    masm.Stp(vixl::x4,  vixl::x5,  MemOperand(vixl::x28, -16, vixl::PreIndex));
-    masm.Stp(vixl::x6,  vixl::x7,  MemOperand(vixl::x28, -16, vixl::PreIndex));
-    masm.Stp(vixl::x8,  vixl::x9,  MemOperand(vixl::x28, -16, vixl::PreIndex));
-    masm.Stp(vixl::x10, vixl::x11, MemOperand(vixl::x28, -16, vixl::PreIndex));
-    masm.Stp(vixl::x12, vixl::x13, MemOperand(vixl::x28, -16, vixl::PreIndex));
-    masm.Stp(vixl::x14, vixl::x15, MemOperand(vixl::x28, -16, vixl::PreIndex));
-    masm.Stp(vixl::x16, vixl::x17, MemOperand(vixl::x28, -16, vixl::PreIndex));
-    masm.Stp(vixl::x18, vixl::x19, MemOperand(vixl::x28, -16, vixl::PreIndex));
-    masm.Stp(vixl::x20, vixl::x21, MemOperand(vixl::x28, -16, vixl::PreIndex));
-    masm.Stp(vixl::x22, vixl::x23, MemOperand(vixl::x28, -16, vixl::PreIndex));
-    masm.Stp(vixl::x24, vixl::x25, MemOperand(vixl::x28, -16, vixl::PreIndex));
-    masm.Stp(vixl::x26, vixl::x27, MemOperand(vixl::x28, -16, vixl::PreIndex));
-    masm.Stp(vixl::x29, vixl::x30, MemOperand(vixl::x28, -16, vixl::PreIndex));
+    masm.Stp(x0,  x1,  MemOperand(x28, -16, vixl::PreIndex));
+    masm.Stp(x2,  x3,  MemOperand(x28, -16, vixl::PreIndex));
+    masm.Stp(x4,  x5,  MemOperand(x28, -16, vixl::PreIndex));
+    masm.Stp(x6,  x7,  MemOperand(x28, -16, vixl::PreIndex));
+    masm.Stp(x8,  x9,  MemOperand(x28, -16, vixl::PreIndex));
+    masm.Stp(x10, x11, MemOperand(x28, -16, vixl::PreIndex));
+    masm.Stp(x12, x13, MemOperand(x28, -16, vixl::PreIndex));
+    masm.Stp(x14, x15, MemOperand(x28, -16, vixl::PreIndex));
+    masm.Stp(x16, x17, MemOperand(x28, -16, vixl::PreIndex));
+    masm.Stp(x18, x19, MemOperand(x28, -16, vixl::PreIndex));
+    masm.Stp(x20, x21, MemOperand(x28, -16, vixl::PreIndex));
+    masm.Stp(x22, x23, MemOperand(x28, -16, vixl::PreIndex));
+    masm.Stp(x24, x25, MemOperand(x28, -16, vixl::PreIndex));
+    masm.Stp(x26, x27, MemOperand(x28, -16, vixl::PreIndex));
+    masm.Stp(x29, x30, MemOperand(x28, -16, vixl::PreIndex));
 
     // now save sp as well
-    masm.Add(vixl::x25, vixl::sp, Operand(0));
-    masm.Mrs(vixl::x26, vixl::NZCV);
+    masm.Add(x25, sp, Operand(0));
+    masm.Mrs(x26, vixl::NZCV);
     // don't need to store those two, since the registers should be preserved.
     //masm.Stp(x9, x10, MemOperand(x28, -16, PreIndex));
 
     // Align the stack, sp was previously copied to r19.
-    masm.And(vixl::sp, vixl::x25, Operand(~15));
+    masm.And(sp, x25, Operand(~15));
     ARMRegister fake_sp = masm.GetStackPointer64();
-    masm.SetStackPointer64(vixl::sp);
+    masm.SetStackPointer64(sp);
 
     // When this platform supports SIMD extensions, we'll need to push and pop
     // high lanes of SIMD registers as well.
@@ -9294,33 +9294,33 @@ GenerateAsyncInterruptExit(ModuleCompiler& m, Label* throwLabel)
     // write this into the address of the instruction.
     masm.Str(ARMRegister(IntArgReg0, 32), MemOperand(ARMRegister(IntArgReg1, 64), 0));
     // TODO: flush the icache, simulator only currently, so it doesn't matter much.
-    masm.Msr(vixl::NZCV, vixl::x26);
+    masm.Msr(vixl::NZCV, x26);
 
     // Restore the machine state to before the interrupt. this will set the pc!
     masm.PopRegsInMask(LiveRegisterSet(GeneralRegisterSet(0), FloatRegisterSet(FloatRegisters::AllDoubleMask)));   // restore all FP registers
-    masm.Mov(vixl::sp, vixl::x25);
+    masm.Mov(sp, x25);
 
     masm.SetStackPointer64(fake_sp);
 
 
     // Restore all GP registers
-    masm.Ldp(vixl::x29, vixl::x30, MemOperand(vixl::x28, 16, vixl::PostIndex));
-    masm.Ldp(vixl::x26, vixl::x27, MemOperand(vixl::x28, 16, vixl::PostIndex));
-    masm.Ldp(vixl::x24, vixl::x25, MemOperand(vixl::x28, 16, vixl::PostIndex));
-    masm.Ldp(vixl::x22, vixl::x23, MemOperand(vixl::x28, 16, vixl::PostIndex));
-    masm.Ldp(vixl::x20, vixl::x21, MemOperand(vixl::x28, 16, vixl::PostIndex));
-    masm.Ldp(vixl::x18, vixl::x19, MemOperand(vixl::x28, 16, vixl::PostIndex));
-    masm.Ldp(vixl::x16, vixl::x17, MemOperand(vixl::x28, 16, vixl::PostIndex));
-    masm.Ldp(vixl::x14, vixl::x15, MemOperand(vixl::x28, 16, vixl::PostIndex));
-    masm.Ldp(vixl::x12, vixl::x13, MemOperand(vixl::x28, 16, vixl::PostIndex));
-    masm.Ldp(vixl::x10, vixl::x11, MemOperand(vixl::x28, 16, vixl::PostIndex));
-    masm.Ldp(vixl::x8,  vixl::x9,  MemOperand(vixl::x28, 16, vixl::PostIndex));
-    masm.Ldp(vixl::x6,  vixl::x7,  MemOperand(vixl::x28, 16, vixl::PostIndex));
-    masm.Ldp(vixl::x4,  vixl::x5,  MemOperand(vixl::x28, 16, vixl::PostIndex));
-    masm.Ldp(vixl::x2,  vixl::x3,  MemOperand(vixl::x28, 16, vixl::PostIndex));
-    masm.Ldp(vixl::x0,  vixl::x1,  MemOperand(vixl::x28, 16, vixl::PostIndex));
+    masm.Ldp(x29, x30, MemOperand(x28, 16, vixl::PostIndex));
+    masm.Ldp(x26, x27, MemOperand(x28, 16, vixl::PostIndex));
+    masm.Ldp(x24, x25, MemOperand(x28, 16, vixl::PostIndex));
+    masm.Ldp(x22, x23, MemOperand(x28, 16, vixl::PostIndex));
+    masm.Ldp(x20, x21, MemOperand(x28, 16, vixl::PostIndex));
+    masm.Ldp(x18, x19, MemOperand(x28, 16, vixl::PostIndex));
+    masm.Ldp(x16, x17, MemOperand(x28, 16, vixl::PostIndex));
+    masm.Ldp(x14, x15, MemOperand(x28, 16, vixl::PostIndex));
+    masm.Ldp(x12, x13, MemOperand(x28, 16, vixl::PostIndex));
+    masm.Ldp(x10, x11, MemOperand(x28, 16, vixl::PostIndex));
+    masm.Ldp(x8,  x9,  MemOperand(x28, 16, vixl::PostIndex));
+    masm.Ldp(x6,  x7,  MemOperand(x28, 16, vixl::PostIndex));
+    masm.Ldp(x4,  x5,  MemOperand(x28, 16, vixl::PostIndex));
+    masm.Ldp(x2,  x3,  MemOperand(x28, 16, vixl::PostIndex));
+    masm.Ldp(x0,  x1,  MemOperand(x28, 16, vixl::PostIndex));
 
-    masm.Add(vixl::sp, vixl::sp, 8*32);
+    masm.Add(sp, sp, 8*32);
     masm.bind(&retInst);
     // this 'breakpoint' should get overwritten with a branch to the return address
     masm.breakpoint();
