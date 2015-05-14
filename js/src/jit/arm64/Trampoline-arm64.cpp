@@ -42,7 +42,6 @@ JitRuntime::generateEnterJIT(JSContext* cx, EnterJitType type)
     const Register reg_osrNStack = IntArgReg6; // EnterJitData::osrNumStackValues.
     const Register reg_vp        = IntArgReg7; // Address of EnterJitData::result.
 
-    // FIXME: Probably use x8 or something.
     MOZ_ASSERT(OsrFrameReg == IntArgReg3);
 
     // During the pushes below, use the normal stack pointer.
@@ -80,9 +79,6 @@ JitRuntime::generateEnterJIT(JSContext* cx, EnterJitType type)
     // This will save a significant number of instructions where Push() updates sp.
     masm.Mov(PseudoStackPointer64, sp);
     masm.SetStackPointer64(PseudoStackPointer64);
-
-    // Push the EnterJIT SPS mark.
-    // masm.spsMarkJit(&cx->runtime()->spsProfiler, PseudoStackPointer, r20);
 
     // Save the stack pointer at this point for Baseline OSR.
     masm.moveStackPtrTo(BaselineFrameReg);
@@ -124,8 +120,7 @@ JitRuntime::generateEnterJIT(JSContext* cx, EnterJitType type)
         masm.branchTestPtr(Assembler::Zero, reg_argc, reg_argc, &noArguments);
 
         // Begin argument-pushing loop.
-        // FIXME: Can we use Ldp and Stp to push multiple arguments?
-        // FIXME: Do this after the simple thing is well-tested.
+        // This could be optimized using Ldp and Stp.
         {
             masm.bind(&loopHead);
 
@@ -214,7 +209,7 @@ JitRuntime::generateEnterJIT(JSContext* cx, EnterJitType type)
         masm.B(&osrReturnPoint);
 
         masm.bind(&notOsr);
-        masm.movePtr(reg_scope, R1_); // TODO: Why?
+        masm.movePtr(reg_scope, R1_);
     }
 
     // Call function.
@@ -225,13 +220,11 @@ JitRuntime::generateEnterJIT(JSContext* cx, EnterJitType type)
     if (type == EnterJitBaseline)
         masm.bind(&osrReturnPoint);
 
+    // Return back to SP.
     masm.Pop(r19);
     masm.Add(masm.GetStackPointer64(), masm.GetStackPointer64(),
              Operand(x19, vixl::LSR, FRAMESIZE_SHIFT));
     masm.syncStackPtr();
-
-    // masm.spsUnmarkJit(&cx->runtime()->spsProfiler, r20);
-
     masm.SetStackPointer64(sp);
 
 #ifdef DEBUG
@@ -366,9 +359,9 @@ JitRuntime::generateArgumentsRectifier(JSContext* cx, void** returnAddrOut)
     // Make that into a frame descriptor.
     masm.makeFrameDescriptor(r6, JitFrame_Rectifier);
 
-    masm.push(r0); // number of actual arguments
-    masm.push(r1); // callee token
-    masm.push(r6); // frame descriptor
+    masm.push(r0,  // Number of actual arguments.
+              r1,  // Callee token.
+              r6); // Frame descriptor.
 
     // Didn't we just compute this? can't we just stick that value in one of our 30 GPR's?
     // Load the address of the code that is getting called
@@ -409,25 +402,25 @@ PushBailoutFrame(MacroAssembler& masm, uint32_t frameClass, Register spArg)
     // everything.
     // sp % 8 == 0
 
-
     // We don't have to push everything, but this is likely easier.
     // Setting regs_.
     masm.subFromStackPtr(Imm32(Registers::TotalPhys * sizeof(void*)));
-    for (uint32_t i = 0; i < Registers::TotalPhys; i += 2)
+    for (uint32_t i = 0; i < Registers::TotalPhys; i += 2) {
         masm.Stp(ARMRegister::XRegFromCode(i),
                  ARMRegister::XRegFromCode(i + 1),
                  MemOperand(masm.GetStackPointer64(), i * sizeof(void*)));
+    }
 
 
     // Since our datastructures for stack inspection are compile-time fixed,
     // if there are only 16 double registers, then we need to reserve
     // space on the stack for the missing 16.
     masm.subFromStackPtr(Imm32(FloatRegisters::TotalPhys * sizeof(double)));
-    for (uint32_t i = 0; i < FloatRegisters::TotalPhys; i += 2)
+    for (uint32_t i = 0; i < FloatRegisters::TotalPhys; i += 2) {
         masm.Stp(ARMFPRegister::DRegFromCode(i),
                  ARMFPRegister::DRegFromCode(i + 1),
                  MemOperand(masm.GetStackPointer64(), i * sizeof(void*)));
-
+    }
 
     // STEP 1b: Push both the "return address" of the function call (the address
     //          of the instruction after the call that we used to get here) as
@@ -476,7 +469,7 @@ GenerateBailoutThunk(JSContext* cx, MacroAssembler& masm, uint32_t frameClass)
         const ARMRegister scratch64 = temps.AcquireX();
 
         masm.Ldr(scratch64, MemOperand(masm.GetStackPointer64(), sizeof(uintptr_t)));
-        masm.addToStackPtr(Imm32(BailoutDataSize + 32)); // FIXME: Marty: What's 32?
+        masm.addToStackPtr(Imm32(BailoutDataSize + 32));
         masm.addToStackPtr(scratch64.asUnsized());
     } else {
         uint32_t frameSize = FrameSizeClass::FromClass(frameClass).frameSize();
@@ -491,7 +484,7 @@ GenerateBailoutThunk(JSContext* cx, MacroAssembler& masm, uint32_t frameClass)
 JitCode*
 JitRuntime::generateBailoutTable(JSContext* cx, uint32_t frameClass)
 {
-    // FIXME: Actually implement.
+    // FIXME: Implement.
     MacroAssembler masm;
     masm.breakpoint();
     Linker linker(masm);
@@ -501,7 +494,6 @@ JitRuntime::generateBailoutTable(JSContext* cx, uint32_t frameClass)
 JitCode*
 JitRuntime::generateBailoutHandler(JSContext* cx)
 {
-    // FIXME: Actually implement.
     MacroAssembler masm(cx);
     GenerateBailoutThunk(cx, masm, NO_FRAME_SIZE_CLASS_ID);
 
@@ -716,9 +708,8 @@ JitRuntime::generatePreBarrier(JSContext* cx, MIRType type)
 {
     MacroAssembler masm(cx);
 
-    LiveRegisterSet regs =
-        LiveRegisterSet(GeneralRegisterSet(Registers::VolatileMask),
-                        FloatRegisterSet(FloatRegisters::VolatileMask));
+    LiveRegisterSet regs = LiveRegisterSet(GeneralRegisterSet(Registers::VolatileMask),
+                                           FloatRegisterSet(FloatRegisters::VolatileMask));
 
     // Also preserve the return address.
     regs.add(lr);
@@ -754,8 +745,7 @@ JitRuntime::generateDebugTrapHandler(JSContext* cx)
     Register scratch2 = r1;
 
     // Load BaselineFrame pointer into scratch1.
-    masm.movePtr(BaselineFrameReg, scratch1);
-    masm.subPtr(Imm32(BaselineFrame::Size()), scratch1);
+    masm.Sub(ARMRegister(scratch1, 64), BaselineFrameReg64, Operand(BaselineFrame::Size()));
 
     // Enter a stub frame and call the HandleDebugTrap VM function. Ensure the
     // stub frame has a nullptr ICStub pointer, since this pointer is marked
@@ -778,14 +768,14 @@ JitRuntime::generateDebugTrapHandler(JSContext* cx)
     Label forcedReturn;
     masm.branchTest32(Assembler::NonZero, ReturnReg, ReturnReg, &forcedReturn);
     masm.syncStackPtr();
-    masm.Ret(vixl::lr);
+    masm.ret();
 
     masm.bind(&forcedReturn);
     masm.loadValue(Address(BaselineFrameReg, BaselineFrame::reverseOffsetOfReturnValue()),
                    JSReturnOperand);
-    masm.Add(masm.GetStackPointer64(), ARMRegister(BaselineFrameReg, 64), Operand(0));
+    masm.Mov(masm.GetStackPointer64(), BaselineFrameReg64);
 
-    masm.asVIXL().Pop(ARMRegister(BaselineFrameReg, 64), vixl::lr);
+    masm.pop(BaselineFrameReg, lr);
     masm.syncStackPtr();
     masm.Ret(vixl::lr);
 
