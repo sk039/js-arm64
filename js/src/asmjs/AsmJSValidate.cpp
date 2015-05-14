@@ -9226,14 +9226,15 @@ GenerateAsyncInterruptExit(ModuleCompiler& m, Label* throwLabel)
     masm.finishDataTransfer();
     masm.ret();
 #elif defined(JS_CODEGEN_ARM64)
-    masm.setFramePushed(0);         // set to zero so we can use masm.framePushed() below
-    // awkward situation is awkward.
+    // Zero to use masm.framePushed() below.
+    masm.setFramePushed(0);
+
     // rsp can't be used as a stack pointer, because it may not be aligned
     // r28 can't be used as a stack pointer, because it will go below rsp
     // we can't sacrifice a register to align sp, because *all* registers need to be saved.
 
     // reserve enough space to save everything.
-    masm.Sub(sp, sp, 8*32);
+    masm.Sub(sp, sp, 32 * sizeof(void*));
     // Push and PushRegsInMask will attempt to sync the stack pointer
     masm.Stp(x0,  x1,  MemOperand(x28, -16, vixl::PreIndex));
     masm.Stp(x2,  x3,  MemOperand(x28, -16, vixl::PreIndex));
@@ -9252,29 +9253,28 @@ GenerateAsyncInterruptExit(ModuleCompiler& m, Label* throwLabel)
     masm.Stp(x29, x30, MemOperand(x28, -16, vixl::PreIndex));
 
     // now save sp as well
-    masm.Add(x25, sp, Operand(0));
+    masm.Mov(x25, sp);
     masm.Mrs(x26, vixl::NZCV);
     // don't need to store those two, since the registers should be preserved.
     //masm.Stp(x9, x10, MemOperand(x28, -16, PreIndex));
 
     // Align the stack, sp was previously copied to r19.
-    masm.And(sp, x25, Operand(~15));
-    ARMRegister fake_sp = masm.GetStackPointer64();
+    MOZ_ASSERT(!masm.GetStackPointer64().Is(sp));
+    masm.And(sp, x25, Operand(~0xF));
     masm.SetStackPointer64(sp);
 
     // When this platform supports SIMD extensions, we'll need to push and pop
     // high lanes of SIMD registers as well.
     JS_STATIC_ASSERT(!SupportsSimd);
-    masm.PushRegsInMask(LiveRegisterSet(GeneralRegisterSet(0), FloatRegisterSet(FloatRegisters::AllDoubleMask)));   // save all FP registers
+
+    // Save all FP registers.
+    masm.PushRegsInMask(LiveRegisterSet(GeneralRegisterSet(0),
+                                        FloatRegisterSet(FloatRegisters::AllDoubleMask)));
 
     masm.assertStackAlignment(ABIStackAlignment);
     masm.call(AsmJSImm_HandleExecutionInterrupt);
 
     masm.branchIfFalseBool(ReturnReg, throwLabel);
-
-
-    // SWEET BABY JESUS, AsyncInterruptExit /really/ wants to function without modifing any registers
-    // trouble is: this is basically impossible, since we still need to /return/
 
     Label retInst;
 
@@ -9297,11 +9297,13 @@ GenerateAsyncInterruptExit(ModuleCompiler& m, Label* throwLabel)
     masm.Msr(vixl::NZCV, x26);
 
     // Restore the machine state to before the interrupt. this will set the pc!
-    masm.PopRegsInMask(LiveRegisterSet(GeneralRegisterSet(0), FloatRegisterSet(FloatRegisters::AllDoubleMask)));   // restore all FP registers
+
+    // Restore all FP registers.
+    masm.PopRegsInMask(LiveRegisterSet(GeneralRegisterSet(0),
+                                       FloatRegisterSet(FloatRegisters::AllDoubleMask)));
+
     masm.Mov(sp, x25);
-
-    masm.SetStackPointer64(fake_sp);
-
+    masm.SetStackPointer64(x28);
 
     // Restore all GP registers
     masm.Ldp(x29, x30, MemOperand(x28, 16, vixl::PostIndex));
@@ -9320,7 +9322,7 @@ GenerateAsyncInterruptExit(ModuleCompiler& m, Label* throwLabel)
     masm.Ldp(x2,  x3,  MemOperand(x28, 16, vixl::PostIndex));
     masm.Ldp(x0,  x1,  MemOperand(x28, 16, vixl::PostIndex));
 
-    masm.Add(sp, sp, 8*32);
+    masm.Mov(sp, x28);
     masm.bind(&retInst);
     // this 'breakpoint' should get overwritten with a branch to the return address
     masm.breakpoint();
