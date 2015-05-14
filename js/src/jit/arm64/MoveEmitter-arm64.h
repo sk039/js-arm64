@@ -47,8 +47,10 @@ class MoveEmitterARM64
         return ARMRegister(operand.reg(), 32);
     }
     ARMRegister toARMReg64(const MoveOperand& operand) const {
-        MOZ_ASSERT(operand.isGeneralReg());
-        return ARMRegister(operand.reg(), 64);
+        if (operand.isGeneralReg())
+            return ARMRegister(operand.reg(), 64);
+        else
+            return ARMRegister(operand.base(), 64);
     }
     ARMFPRegister toFPReg(const MoveOperand& operand, MoveOp::Type t) const {
         MOZ_ASSERT(operand.isFloatReg());
