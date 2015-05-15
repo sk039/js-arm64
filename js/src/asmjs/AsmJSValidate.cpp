@@ -8445,7 +8445,7 @@ GenerateEntry(ModuleCompiler& m, unsigned exportIndex)
     MOZ_ASSERT(masm.framePushed() == 0);
 
     masm.move32(Imm32(true), ReturnReg);
-    masm.popReturn();
+    masm.ret();
 
     return m.finishGeneratingEntry(exportIndex, &begin) && !masm.oom();
 }
@@ -9380,7 +9380,7 @@ GenerateThrowStub(ModuleCompiler& m, Label* throwLabel)
     MOZ_ASSERT(masm.framePushed() == 0);
 
     masm.movePtr(ImmWord(0), ReturnReg);
-    masm.popReturn();
+    masm.ret();
 
     return m.finishGeneratingInlineStub(throwLabel) && !masm.oom();
 }

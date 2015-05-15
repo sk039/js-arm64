@@ -232,10 +232,6 @@ class MacroAssemblerCompat : public vixl::MacroAssembler
     void pushReturnAddress() {
         push(lr);
     }
-    void popReturn() {
-        pop(lr);
-        ret();
-    }
     void pop(const ValueOperand& v) {
         pop(v.valueReg());
     }
@@ -1535,9 +1531,11 @@ class MacroAssemblerCompat : public vixl::MacroAssembler
         // Clear upper 32 bits.
         Mov(ARMRegister(dest, 32), ARMRegister(dest, 32));
     }
+
     void ret() {
+        pop(lr);
         syncStackPtr(); // SP is always used to transmit the stack between calls.
-        Ret(vixl::lr); // Branches to lr with a return hint.
+        abiret();
     }
 
     void retn(Imm32 n) {

@@ -449,7 +449,7 @@ BaselineCompiler::emitEpilogue()
 
     emitProfilerExitFrame();
 
-    masm.popReturn();
+    masm.ret();
     return true;
 }
 
@@ -486,7 +486,7 @@ BaselineCompiler::emitOutOfLinePostBarrierSlot()
     masm.callWithABI(JS_FUNC_TO_DATA_PTR(void*, PostWriteBarrier));
 
     masm.popValue(R0);
-    masm.popReturn();
+    masm.ret();
     return true;
 }
 

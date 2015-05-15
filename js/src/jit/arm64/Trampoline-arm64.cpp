@@ -258,7 +258,7 @@ JitRuntime::generateEnterJIT(JSContext* cx, EnterJitType type)
     masm.pop(r30, r29);
 
     // Return using the value popped into x30.
-    masm.ret();
+    masm.abiret();
 
     Linker linker(masm);
     JitCode* code = linker.newCode<NoGC>(cx, OTHER_CODE);
@@ -377,7 +377,7 @@ JitRuntime::generateArgumentsRectifier(JSContext* cx, void** returnAddrOut)
     // add that onto the stack pointer
     masm.Add(masm.GetStackPointer64(), masm.GetStackPointer64(), Operand(x4, vixl::LSR, FRAMESIZE_SHIFT));
     // Do that return thing
-    masm.popReturn();
+    masm.ret();
     Linker linker(masm);
     JitCode* code = linker.newCode<NoGC>(cx, OTHER_CODE);
     if (returnAddrOut) {
@@ -727,7 +727,7 @@ JitRuntime::generatePreBarrier(JSContext* cx, MIRType type)
     // Pop the volatile regs and restore LR.
     masm.PopRegsInMask(regs);
 
-    masm.ret();
+    masm.abiret();
 
     Linker linker(masm);
     return linker.newCode<NoGC>(cx, OTHER_CODE);
@@ -767,8 +767,7 @@ JitRuntime::generateDebugTrapHandler(JSContext* cx)
     // trap stub so that execution continues at the current pc.
     Label forcedReturn;
     masm.branchTest32(Assembler::NonZero, ReturnReg, ReturnReg, &forcedReturn);
-    masm.syncStackPtr();
-    masm.ret();
+    masm.abiret();
 
     masm.bind(&forcedReturn);
     masm.loadValue(Address(BaselineFrameReg, BaselineFrame::reverseOffsetOfReturnValue()),
@@ -953,7 +952,7 @@ JitRuntime::generateProfilerExitFrameTailStub(JSContext* cx)
         masm.syncStackPtr();
         masm.addPtr(Imm32(JitFrameLayout::Size()), scratch2, scratch2);
         masm.storePtr(scratch2, lastProfilingFrame);
-        masm.popReturn();
+        masm.ret();
     }
 
     //
@@ -997,7 +996,7 @@ JitRuntime::generateProfilerExitFrameTailStub(JSContext* cx)
         masm.loadPtr(stubFrameSavedFramePtr, scratch2);
         masm.addPtr(Imm32(sizeof(void*)), scratch2); // Skip past BL-PrevFramePtr
         masm.storePtr(scratch2, lastProfilingFrame);
-        masm.popReturn();
+        masm.ret();
     }
 
 
@@ -1067,7 +1066,7 @@ JitRuntime::generateProfilerExitFrameTailStub(JSContext* cx)
         masm.addPtr(scratch2, scratch1, scratch3);
         masm.add32(Imm32(RectifierFrameLayout::Size()), scratch3);
         masm.storePtr(scratch3, lastProfilingFrame);
-        masm.popReturn();
+        masm.ret();
 
         // Handle Rectifier <- BaselineStub <- BaselineJS
         masm.bind(&handle_Rectifier_BaselineStub);
@@ -1090,7 +1089,7 @@ JitRuntime::generateProfilerExitFrameTailStub(JSContext* cx)
         masm.loadPtr(stubFrameSavedFramePtr, scratch2);
         masm.addPtr(Imm32(sizeof(void*)), scratch2);
         masm.storePtr(scratch2, lastProfilingFrame);
-        masm.popReturn();
+        masm.ret();
     }
 
     // JitFrame_IonAccessorIC
@@ -1139,7 +1138,7 @@ JitRuntime::generateProfilerExitFrameTailStub(JSContext* cx)
         masm.addPtr(scratch2, scratch3, scratch1);
         masm.addPtr(Imm32(IonAccessorICFrameLayout::Size()), scratch1);
         masm.storePtr(scratch1, lastProfilingFrame);
-        masm.popReturn();
+        masm.ret();
     }
 
     //
@@ -1152,7 +1151,7 @@ JitRuntime::generateProfilerExitFrameTailStub(JSContext* cx)
         masm.movePtr(ImmPtr(nullptr), scratch1);
         masm.storePtr(scratch1, lastProfilingCallSite);
         masm.storePtr(scratch1, lastProfilingFrame);
-        masm.popReturn();
+        masm.ret();
     }
 
     Linker linker(masm);

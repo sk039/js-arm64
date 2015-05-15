@@ -1430,18 +1430,18 @@ JitCompartment::generateRegExpExecStub(JSContext* cx)
     // All done!
     masm.tagValue(JSVAL_TYPE_OBJECT, object, result);
     //masm.adr(xzr, 0x54320);
-    masm.popReturn();
+    masm.ret();
 
     masm.bind(&notFound);
     masm.moveValue(NullValue(), result);
     //masm.adr(xzr, 0x54321);
-    masm.popReturn();
+    masm.ret();
 
     // Use an undefined value to signal to the caller that the OOL stub needs to be called.
     masm.bind(&oolEntry);
     masm.moveValue(UndefinedValue(), result);
     //masm.adr(xzr, 0x54322);
-    masm.popReturn();
+    masm.ret();
 
     Linker linker(masm);
     AutoFlushICache afc("RegExpExecStub");
@@ -1572,7 +1572,7 @@ JitCompartment::generateRegExpTestStub(JSContext* cx)
 
     masm.bind(&done);
     masm.freeStack(sizeof(irregexp::InputOutputData));
-    masm.popReturn();
+    masm.ret();
 
     Linker linker(masm);
     AutoFlushICache afc("RegExpTestStub");
@@ -5886,7 +5886,7 @@ ConcatInlineString(MacroAssembler& masm, Register lhs, Register rhs, Register ou
             masm.store8(Imm32(0), Address(temp2, 0));
     }
 
-    masm.popReturn();
+    masm.ret();
 }
 
 typedef JSString* (*SubstringKernelFn)(JSContext* cx, HandleString str, int32_t begin, int32_t len);
@@ -6074,15 +6074,15 @@ JitCompartment::generateStringConcatStub(JSContext* cx)
     // Store left and right nodes.
     masm.storePtr(lhs, Address(output, JSRope::offsetOfLeft()));
     masm.storePtr(rhs, Address(output, JSRope::offsetOfRight()));
-    masm.popReturn();
+    masm.ret();
 
     masm.bind(&leftEmpty);
     masm.movePtr(rhs, output);
-    masm.popReturn();
+    masm.ret();
 
     masm.bind(&rightEmpty);
     masm.movePtr(lhs, output);
-    masm.popReturn();
+    masm.ret();
 
     masm.bind(&isFatInlineTwoByte);
     ConcatInlineString(masm, lhs, rhs, output, temp1, temp2, temp3,
@@ -6098,7 +6098,7 @@ JitCompartment::generateStringConcatStub(JSContext* cx)
 
     masm.bind(&failure);
     masm.movePtr(ImmPtr(nullptr), output);
-    masm.popReturn();
+    masm.ret();
 
     Linker linker(masm);
     AutoFlushICache afc("StringConcatStub");

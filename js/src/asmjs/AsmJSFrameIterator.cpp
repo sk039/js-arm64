@@ -259,7 +259,7 @@ GenerateProfilingEpilogue(MacroAssembler& masm, unsigned framePushed, AsmJSExit:
 #endif
 
         masm.bind(profilingReturn);
-        masm.popReturn();
+        masm.ret();
     }
 }
 
@@ -351,7 +351,7 @@ js::GenerateAsmJSFunctionEpilogue(MacroAssembler& masm, unsigned framePushed,
 
     // Normal epilogue:
     masm.addToStackPtr(Imm32(framePushed + AsmJSFrameBytesAfterReturnAddress));
-    masm.popReturn();
+    masm.ret();
     masm.setFramePushed(0);
 
     // Profiling epilogue:

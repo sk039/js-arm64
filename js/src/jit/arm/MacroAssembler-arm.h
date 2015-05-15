@@ -1930,9 +1930,6 @@ class MacroAssemblerARMCompat : public MacroAssemblerARM
     void pushReturnAddress() {
         push(lr);
     }
-    void popReturn() {
-        pop(pc);
-    }
 
     // Instrumentation for entering and leaving the profiler.
     void profilerEnterFrame(Register framePtr, Register scratch);
