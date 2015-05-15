@@ -85,7 +85,7 @@ EmitTailCallVM(JitCode* target, MacroAssembler& masm, uint32_t argSize)
     MOZ_ASSERT(R2 == ValueOperand(r0));
 
     // Compute frame size into w0. Used below in makeFrameDescriptor().
-    masm.Sub(x0, ARMRegister(BaselineFrameReg, 64), masm.GetStackPointer64());
+    masm.Sub(x0, BaselineFrameReg64, masm.GetStackPointer64());
     masm.Add(w0, w0, Operand(BaselineFrame::FramePointerOffset));
 
     // Store frame size without VMFunction arguments for GC marking.
@@ -101,7 +101,7 @@ EmitTailCallVM(JitCode* target, MacroAssembler& masm, uint32_t argSize)
     // Push frame descriptor (minus the return address) and perform the tail call.
     MOZ_ASSERT(BaselineTailCallReg == lr);
     masm.makeFrameDescriptor(r0, JitFrame_BaselineJS);
-    masm.asVIXL().Push(x0);
+    masm.push(r0);
 
     // The return address will be pushed by the VM wrapper, for compatibility
     // with direct calls. Refer to the top of generateVMWrapper().
@@ -116,10 +116,9 @@ EmitCreateStubFrameDescriptor(MacroAssembler& masm, Register reg)
 {
     ARMRegister reg64(reg, 64);
 
-    // Compute stub frame size. We have to add two pointers: the stub reg and previous
-    // frame pointer pushed by EmitEnterStubFrame.
-    masm.Add(reg64, ARMRegister(BaselineFrameReg, 64), Operand(sizeof(void*) * 2));
-    masm.Sub(reg64, reg64, masm.GetStackPointer64());
+    // Compute stub frame size.
+    masm.Sub(reg64, masm.GetStackPointer64(), Operand(sizeof(void*) * 2));
+    masm.Sub(reg64, BaselineFrameReg64, reg64);
 
     masm.makeFrameDescriptor(reg, JitFrame_BaselineStub);
 }
@@ -142,25 +141,20 @@ EmitEnterStubFrame(MacroAssembler& masm, Register scratch)
     MOZ_ASSERT(scratch != BaselineTailCallReg);
 
     // Compute frame size.
-    masm.movePtr(BaselineFrameReg, scratch);
-    masm.addPtr(Imm32(BaselineFrame::FramePointerOffset), scratch);
+    masm.Add(ARMRegister(scratch, 64), BaselineFrameReg64, Operand(BaselineFrame::FramePointerOffset));
     masm.Sub(ARMRegister(scratch, 64), ARMRegister(scratch, 64), masm.GetStackPointer64());
 
     masm.store32(scratch, Address(BaselineFrameReg, BaselineFrame::reverseOffsetOfFrameSize()));
 
-    // Note: when making changes here, don't forget to update STUB_FRAME_SIZE
-    // if needed.
+    // Note: when making changes here, don't forget to update STUB_FRAME_SIZE.
 
     // Push frame descriptor and return address.
     // Save old frame pointer, stack pointer, and stub reg.
     masm.makeFrameDescriptor(scratch, JitFrame_BaselineJS);
-    masm.asVIXL().Push(ARMRegister(scratch, 64),
-                       ARMRegister(BaselineTailCallReg, 64),
-                       ARMRegister(BaselineStubReg, 64),
-                       ARMRegister(BaselineFrameReg, 64));
+    masm.push(scratch, BaselineTailCallReg, BaselineStubReg, BaselineFrameReg);
 
     // Update the frame register.
-    masm.Mov(ARMRegister(BaselineFrameReg, 64), masm.GetStackPointer64());
+    masm.Mov(BaselineFrameReg64, masm.GetStackPointer64());
 
     // Stack should remain 16-byte aligned.
     masm.checkStackAlignment();
@@ -181,14 +175,11 @@ EmitLeaveStubFrame(MacroAssembler& masm, bool calledIntoIon = false)
         masm.Lsr(scratch64, scratch64, FRAMESIZE_SHIFT);
         masm.Add(masm.GetStackPointer64(), masm.GetStackPointer64(), scratch64);
     } else {
-        masm.Add(masm.GetStackPointer64(), ARMRegister(BaselineFrameReg, 64), Operand(0));
+        masm.Mov(masm.GetStackPointer64(), BaselineFrameReg64);
     }
 
     // Pop values, discarding the frame descriptor.
-    masm.asVIXL().Pop(ARMRegister(BaselineFrameReg, 64),
-                      ARMRegister(BaselineStubReg, 64),
-                      ARMRegister(BaselineTailCallReg, 64),
-                      scratch64); // Discard.
+    masm.pop(BaselineFrameReg, BaselineStubReg, BaselineTailCallReg, scratch64.asUnsized());
 
     // Stack should remain 16-byte aligned.
     masm.checkStackAlignment();
@@ -197,7 +188,6 @@ EmitLeaveStubFrame(MacroAssembler& masm, bool calledIntoIon = false)
 inline void
 EmitStowICValues(MacroAssembler& masm, int values)
 {
-    MOZ_ASSERT(values >= 0 && values <= 2);
     switch (values) {
       case 1:
         // Stow R0.
@@ -205,8 +195,10 @@ EmitStowICValues(MacroAssembler& masm, int values)
         break;
       case 2:
         // Stow R0 and R1.
-        masm.asVIXL().Push(ARMRegister(R0.valueReg(), 64), ARMRegister(R1.valueReg(), 64));
+        masm.push(R0.valueReg(), R1.valueReg());
         break;
+      default:
+        MOZ_MAKE_COMPILER_ASSUME_IS_UNREACHABLE("Expected 1 or 2 values");
     }
 }
 
@@ -218,16 +210,18 @@ EmitUnstowICValues(MacroAssembler& masm, int values, bool discard = false)
       case 1:
         // Unstow R0.
         if (discard)
-            masm.addPtr(Imm32(sizeof(Value)), BaselineStackReg);
+            masm.Drop(Operand(sizeof(Value)));
         else
             masm.popValue(R0);
         break;
       case 2:
         // Unstow R0 and R1.
         if (discard)
-            masm.addPtr(Imm32(sizeof(Value) * 2), BaselineStackReg);
+            masm.Drop(Operand(sizeof(Value) * 2));
         else
-            masm.asVIXL().Pop(ARMRegister(R1.valueReg(), 64), ARMRegister(R0.valueReg(), 64));
+            masm.pop(R1.valueReg(), R0.valueReg());
+      default:
+        MOZ_MAKE_COMPILER_ASSUME_IS_UNREACHABLE("Expected 1 or 2 values");
     }
 }
 
@@ -241,8 +235,7 @@ EmitCallTypeUpdateIC(MacroAssembler& masm, JitCode* code, uint32_t objectOffset)
 
     // Save the current BaselineStubReg to stack, as well as the TailCallReg,
     // since on AArch64, the LR is live.
-    masm.asVIXL().Push(ARMRegister(BaselineStubReg, 64),
-                       ARMRegister(BaselineTailCallReg, 64));
+    masm.push(BaselineStubReg, BaselineTailCallReg);
 
     // This is expected to be called from within an IC, when BaselineStubReg
     // is properly initialized to point to the stub.
@@ -256,8 +249,7 @@ EmitCallTypeUpdateIC(MacroAssembler& masm, JitCode* code, uint32_t objectOffset)
     masm.Blr(ARMRegister(BaselineTailCallReg, 64));
 
     // Restore the old stub reg and tailcall reg.
-    masm.asVIXL().Pop(ARMRegister(BaselineTailCallReg, 64),
-                      ARMRegister(BaselineStubReg, 64));
+    masm.pop(BaselineTailCallReg, BaselineStubReg);
 
     // The update IC will store 0 or 1 in R1.scratchReg() reflecting if the
     // value in R0 type-checked properly or not.
