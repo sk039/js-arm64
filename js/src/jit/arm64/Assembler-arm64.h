@@ -238,7 +238,7 @@ class Assembler : public vixl::Assembler
             preBarrierTableBytes();
     }
 
-    BufferOffset nextOffset() {
+    BufferOffset nextOffset() const {
         return armbuffer_.nextOffset();
     }
 

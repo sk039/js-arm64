@@ -220,6 +220,7 @@ EmitUnstowICValues(MacroAssembler& masm, int values, bool discard = false)
             masm.Drop(Operand(sizeof(Value) * 2));
         else
             masm.pop(R1.valueReg(), R0.valueReg());
+        break;
       default:
         MOZ_MAKE_COMPILER_ASSUME_IS_UNREACHABLE("Expected 1 or 2 values");
     }

@@ -339,13 +339,10 @@ BaselineCompiler::emitPrologue()
 
     masm.push(BaselineFrameReg);
     masm.moveStackPtrTo(BaselineFrameReg);
-
-    // TODO: subStackPtr()?
     masm.subFromStackPtr(Imm32(BaselineFrame::Size()));
 
     // Initialize BaselineFrame. For eval scripts, the scope chain
-    // is passed in R1, so we have to be careful not to clobber
-    // it.
+    // is passed in R1, so we have to be careful not to clobber it.
 
     // Initialize BaselineFrame::flags.
     uint32_t flags = 0;
@@ -790,13 +787,9 @@ BaselineCompiler::emitDebugTrap()
     PCMappingEntry& entry = pcMappingEntries_.back();
     MOZ_ASSERT((&offset)->offset() == entry.nativeOffset);
 #endif
-#ifdef JS_CODEGEN_ARM64
-    uint32_t curOff = masm.nop().getOffset();
-#else
-    uint32_t curOff = masm.currentOffset();
-#endif
+
     // Add an IC entry for the return offset -> pc mapping.
-    return appendICEntry(ICEntry::Kind_DebugTrap, curOff);
+    return appendICEntry(ICEntry::Kind_DebugTrap, masm.currentOffset());
 }
 
 #ifdef JS_TRACE_LOGGING

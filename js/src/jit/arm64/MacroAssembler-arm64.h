@@ -3271,10 +3271,10 @@ class MacroAssemblerCompat : public vixl::MacroAssembler
 
     // FIXME: Should be in Assembler?
     // FIXME: Should be const?
-    uint32_t currentOffset() {
-        uint32_t offset = nextOffset().getOffset();
-        return offset;
+    uint32_t currentOffset() const {
+        return nextOffset().getOffset();
     }
+
     void simPushFrame() {
         if (getenv("USE_DEBUGGER") && getenv("CHECK_STACK"))
             StackCheckPushPop(0, framePushed(), 1);
