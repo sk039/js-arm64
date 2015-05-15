@@ -99,29 +99,28 @@ ICBinaryArith_Int32::Compiler::generateStubCode(MacroAssembler& masm)
     Label maybeNegZero, revertRegister;
     switch(op_) {
       case JSOP_ADD:
-
         masm.Adds(WTemp, W0, Operand(W1));
 
         // Just jump to failure on overflow. R0 and R1 are preserved, so we can
         // just jump to the next stub.
         masm.j(Assembler::Overflow, &failure);
 
-        // Box the result and return. We know R0. already contains the
-        // integer tag, so we just need to move the result value into place.
-        masm.monoTagMove(X0, XTemp);
+        // Box the result and return. We know R0 already contains the
+        // integer tag, so we just need to move the payload into place.
+        masm.movePayload(ExtractTemp0, R0_);
         break;
+
       case JSOP_SUB:
         masm.Subs(WTemp, W0, Operand(W1));
         masm.j(Assembler::Overflow, &failure);
-        masm.monoTagMove(X0, XTemp);
+        masm.movePayload(ExtractTemp0, R0_);
         break;
-      case JSOP_MUL: {
-          masm.mul32(R0.valueReg(), R1.valueReg(), Rscratch,
-                     &failure, &maybeNegZero);
-          masm.monoTagMove(X0, Xscratch);
 
+      case JSOP_MUL:
+        masm.mul32(R0.valueReg(), R1.valueReg(), Rscratch, &failure, &maybeNegZero);
+        masm.movePayload(Rscratch, R0_);
         break;
-      }
+
       case JSOP_DIV:
       case JSOP_MOD: {
 
@@ -150,7 +149,7 @@ ICBinaryArith_Int32::Compiler::generateStubCode(MacroAssembler& masm)
             // Result is a double if the remainder != 0, which happens
             // when (x/y)*y != x.
             masm.branch32(Assembler::NotEqual, R0.valueReg(), ExtractTemp0, &revertRegister);
-            masm.monoTagMove(X0, Xscratch);
+            masm.movePayload(Rscratch, R0_);
         } else {
             // Calculate the actual mod. Set the condition code, so we can see if it is non-zero.
             masm.Subs(WTemp, W0, WTemp);
@@ -158,7 +157,7 @@ ICBinaryArith_Int32::Compiler::generateStubCode(MacroAssembler& masm)
             // If X % Y == 0 and X < 0, the result is -0.
             masm.Ccmp(W0, Operand(0), vixl::NoFlag, Assembler::Equal);
             masm.branch(Assembler::LessThan, &revertRegister);
-            masm.monoTagMove(X0, XTemp);
+            masm.movePayload(ExtractTemp0, R0_);
         }
         break;
       }
@@ -177,11 +176,11 @@ ICBinaryArith_Int32::Compiler::generateStubCode(MacroAssembler& masm)
       case JSOP_LSH:
         // ARM will happily try to shift by more than 0x1f.
         masm.Lsl(Wscratch, W0, W1);
-        masm.monoTagMove(R0.valueReg(), Rscratch);
+        masm.movePayload(Rscratch, R0.valueReg());
         break;
       case JSOP_RSH:
         masm.Asr(Wscratch, W0, W1);
-        masm.monoTagMove(R0.valueReg(), Rscratch);
+        masm.movePayload(Rscratch, R0.valueReg());
         break;
       case JSOP_URSH:
         masm.Lsr(Wscratch, W0, W1);
@@ -190,7 +189,7 @@ ICBinaryArith_Int32::Compiler::generateStubCode(MacroAssembler& masm)
             // Testing for negative is equivalent to testing bit 31
             masm.Tbnz(Wscratch, 31, &toUint);
             // Move result and box for return.
-            masm.monoTagMove(X0, Xscratch);
+            masm.movePayload(Rscratch, R0_);
             EmitReturnFromIC(masm);
 
             masm.bind(&toUint);
@@ -200,7 +199,7 @@ ICBinaryArith_Int32::Compiler::generateStubCode(MacroAssembler& masm)
             // Testing for negative is equivalent to testing bit 31
             masm.Tbnz(Wscratch, 31, &failure);
             // Move result for return.
-            masm.monoTagMove(X0, Xscratch);
+            masm.movePayload(Rscratch, R0_);
         }
         break;
       default:
@@ -217,8 +216,8 @@ ICBinaryArith_Int32::Compiler::generateStubCode(MacroAssembler& masm)
         masm.Cmn(W0, W1);
         masm.j(Assembler::Signed, &failure);
 
-        // Result is +0.
-        masm.monoTagMove(X0, ARMRegister(r31, 64));
+        // Result is +0, so use the zero register.
+        masm.movePayload(rzr, R0_);
         EmitReturnFromIC(masm);
         break;
       case JSOP_DIV:
@@ -245,7 +244,7 @@ ICUnaryArith_Int32::Compiler::generateStubCode(MacroAssembler& masm)
     switch (op) {
       case JSOP_BITNOT:
         masm.Mvn(ARMRegister(R1.valueReg(), 32), ARMRegister(R0.valueReg(), 32));
-        masm.monoTagMove(ARMRegister(R0.valueReg(), 64), ARMRegister(R1.valueReg(), 64));
+        masm.movePayload(R1.valueReg(), R0.valueReg());
         break;
       case JSOP_NEG:
         // Guard against 0 and MIN_INT, both result in a double.
@@ -253,7 +252,7 @@ ICUnaryArith_Int32::Compiler::generateStubCode(MacroAssembler& masm)
 
         // Compile -x as 0 - x.
         masm.Sub(ARMRegister(R1.valueReg(), 32), wzr, ARMRegister(R0.valueReg(), 32));
-        masm.monoTagMove(ARMRegister(R0.valueReg(), 64), ARMRegister(R1.valueReg(), 64));
+        masm.movePayload(R1.valueReg(), R0.valueReg());
         break;
       default:
         MOZ_CRASH("Unexpected op");

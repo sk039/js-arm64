@@ -104,6 +104,7 @@ static constexpr Register ip0 = { Registers::x16 };
 static constexpr Register ip1 = { Registers::x16 };
 static constexpr Register fp  = { Registers::x30 };
 static constexpr Register lr  = { Registers::x30 };
+static constexpr Register rzr = { Registers::xzr };
 
 // Import VIXL registers into the js::jit namespace.
 #define IMPORT_VIXL_REGISTERS(N)  \

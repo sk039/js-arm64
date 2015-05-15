@@ -3263,19 +3263,12 @@ class MacroAssemblerCompat : public vixl::MacroAssembler
         loadPtr(Address(GlobalReg, AsmJSHeapGlobalDataOffset - AsmJSGlobalRegBias), HeapReg);
         loadPtr(Address(GlobalReg, AsmJSHeapGlobalDataOffset - AsmJSGlobalRegBias + 8), HeapLenReg);
     }
-    // This moves an un-tagged value from src into a
-    // dest that already has the correct tag, and /anything/ in the lower bits
-    void monoTagMove(Register dest, Register src) {
-        Bfi(ARMRegister(dest, 64), ARMRegister(src, 64), 0, JSVAL_TAG_SHIFT);
+
+    // Overwrites the payload bits of a dest register containing a Value.
+    void movePayload(Register src, Register dest) {
+        Bfxil(ARMRegister(dest, 64), ARMRegister(src, 64), 0, JSVAL_TAG_SHIFT);
     }
-    void monoTagMove(ARMRegister dest, ARMRegister src) {
-        const ARMRegister csrc = src;
-        if (csrc.code() != 31) {
-            Bfi(dest, src, 0, JSVAL_TAG_SHIFT);
-        } else {
-            And(dest, src, Operand((int64_t(1) << JSVAL_TAG_SHIFT) - int64_t(1)));
-        }
-    }
+
     // FIXME: Should be in Assembler?
     // FIXME: Should be const?
     uint32_t currentOffset() {
