@@ -470,7 +470,7 @@ BaselineCompiler::emitOutOfLinePostBarrierSlot()
     regs.take(objReg);
     regs.take(BaselineFrameReg);
     Register scratch = regs.takeAny();
-#if defined(JS_CODEGEN_ARM) || defined (JS_CODEGEN_ARM64)
+#if defined(JS_CODEGEN_ARM) || defined(JS_CODEGEN_ARM64)
     // On ARM, save the link register before calling.  It contains the return
     // address.  The |masm.ret()| later will pop this into |pc| to return.
     masm.push(lr);
@@ -3756,8 +3756,8 @@ BaselineCompiler::emit_JSOP_RESUME()
         // matter what we push here, frame iterators will use the frame pc
         // set in jit::GeneratorThrowOrClose).
         masm.push(scratch1);
-        // there is no return address to push, the called function will
-        // push the "real" return address
+
+        // On ARM64, the callee will push the return address.
 #ifndef JS_CODEGEN_ARM64
         masm.push(ImmWord(0));
 #endif

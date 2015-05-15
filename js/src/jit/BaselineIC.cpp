@@ -11337,9 +11337,6 @@ ICCall_Native::Compiler::generateStubCode(MacroAssembler& masm)
         masm.storeValue(MagicValue(JS_IS_CONSTRUCTING), Address(BaselineStackReg, sizeof(Value)));
     }
 
-    // TODO: Check alignment here?
-    // Maybe alignment should actually be 8, given that we never use sp.
-    //masm.checkStackAlignment();
 
     // Native functions have the signature:
     //
