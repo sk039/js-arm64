@@ -226,8 +226,7 @@ class FloatRegisters
         s31 = 31, d31 = 31, v31 = 31, // Scratch register.
         invalid_fpreg
     };
-    typedef FPRegisterID Code;
-
+    typedef uint8_t Code;
     typedef uint64_t SetType;
 
     static const char* GetName(Code code) {
