@@ -1551,7 +1551,7 @@ ICTypeUpdate_PrimitiveSet::Compiler::generateStubCode(MacroAssembler& masm)
 
     // Type matches, load true into R1.scratchReg() and return.
     masm.bind(&success);
-    masm.movePtr(ImmWord(1), R1.scratchReg());
+    masm.mov(ImmWord(1), R1.scratchReg());
     EmitReturnFromIC(masm);
 
     return true;
@@ -1569,7 +1569,7 @@ ICTypeUpdate_SingleObject::Compiler::generateStubCode(MacroAssembler& masm)
     masm.branchPtr(Assembler::NotEqual, expectedObject, obj, &failure);
 
     // Identity matches, load true into R1.scratchReg() and return.
-    masm.movePtr(ImmWord(1), R1.scratchReg());
+    masm.mov(ImmWord(1), R1.scratchReg());
     EmitReturnFromIC(masm);
 
     masm.bind(&failure);
@@ -1590,9 +1590,8 @@ ICTypeUpdate_ObjectGroup::Compiler::generateStubCode(MacroAssembler& masm)
     Address expectedGroup(BaselineStubReg, ICTypeUpdate_ObjectGroup::offsetOfGroup());
     masm.branchPtr(Assembler::NotEqual, expectedGroup, R1.scratchReg(), &failure);
 
-
-    // Type matches, load true into R1.scratchReg() and return.
-    masm.movePtr(ImmWord(1), R1.scratchReg());
+    // Group matches, load true into R1.scratchReg() and return.
+    masm.mov(ImmWord(1), R1.scratchReg());
     EmitReturnFromIC(masm);
 
     masm.bind(&failure);

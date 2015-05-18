@@ -784,6 +784,7 @@ class MacroAssemblerCompat : public vixl::MacroAssembler
 
     void haltingAlign(int alignment) {
         // TODO: Implement a proper halting align.
+        // ARM doesn't have one either.
         armbuffer_.align(alignment);
     }
 
@@ -807,6 +808,11 @@ class MacroAssemblerCompat : public vixl::MacroAssembler
     void movePtr(ImmMaybeNurseryPtr imm, Register dest) {
         movePtr(noteMaybeNurseryPtr(imm), dest);
     }
+
+    void mov(ImmWord imm, Register dest) {
+        movePtr(imm, dest);
+    }
+
     void move32(Imm32 imm, Register dest) {
         Mov(ARMRegister(dest, 32), (int64_t)imm.value);
     }
