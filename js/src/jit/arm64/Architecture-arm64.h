@@ -125,15 +125,15 @@ class Registers {
     static const uint32_t TotalPhys = 32;
     static const uint32_t Allocatable = 27; // No named special-function registers.
 
-    static const uint32_t AllMask = 0xFFFFFFFF;
+    static const SetType AllMask = 0xFFFFFFFF;
 
-    static const uint32_t ArgRegMask =
+    static const SetType ArgRegMask =
         (1 << Registers::x0) | (1 << Registers::x1) |
         (1 << Registers::x2) | (1 << Registers::x3) |
         (1 << Registers::x4) | (1 << Registers::x5) |
         (1 << Registers::x6) | (1 << Registers::x7);
 
-    static const uint32_t VolatileMask =
+    static const SetType VolatileMask =
         (1 << Registers::x0) | (1 << Registers::x1) |
         (1 << Registers::x2) | (1 << Registers::x3) |
         (1 << Registers::x4) | (1 << Registers::x5) |
@@ -144,7 +144,7 @@ class Registers {
         (1 << Registers::x13) | (1 << Registers::x14) |
         (1 << Registers::x14) | (1 << Registers::x15);
 
-    static const uint32_t NonVolatileMask =
+    static const SetType NonVolatileMask =
                                 (1 << Registers::x16) |
         (1 << Registers::x17) | (1 << Registers::x18) |
         (1 << Registers::x19) | (1 << Registers::x20) |
@@ -154,9 +154,9 @@ class Registers {
         (1 << Registers::x27) |
         (1 << Registers::x29) | (1 << Registers::x30);
 
-    static const uint32_t SingleByteRegs = VolatileMask | NonVolatileMask;
+    static const SetType SingleByteRegs = VolatileMask | NonVolatileMask;
 
-    static const uint32_t NonAllocatableMask =
+    static const SetType NonAllocatableMask =
         (1 << Registers::x28) | // PseudoStackPointer.
         (1 << Registers::ip0) | // First scratch register.
         (1 << Registers::ip1) | // Second scratch register.
@@ -165,21 +165,21 @@ class Registers {
         (1 << Registers::sp);
 
     // Registers that can be allocated without being saved, generally.
-    static const uint32_t TempMask = VolatileMask & ~NonAllocatableMask;
+    static const SetType TempMask = VolatileMask & ~NonAllocatableMask;
 
-    static const uint32_t WrapperMask = VolatileMask;
+    static const SetType WrapperMask = VolatileMask;
 
     // Registers returned from a JS -> JS call.
-    static const uint32_t JSCallMask =
+    static const SetType JSCallMask =
         (1 << Registers::x2) |
         (1 << Registers::x3);
 
     // Registers returned from a JS -> C call.
-    static const uint32_t CallMask =
+    static const SetType CallMask =
         (1 << Registers::x0) |
         (1 << Registers::x1); // Used for double-sized returns.
 
-    static const uint32_t AllocatableMask = AllMask & ~NonAllocatableMask;
+    static const SetType AllocatableMask = AllMask & ~NonAllocatableMask;
 };
 
 // Smallest integer type that can hold a register bitmask.
