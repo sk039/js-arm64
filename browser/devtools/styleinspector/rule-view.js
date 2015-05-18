@@ -1135,6 +1135,7 @@ function CssRuleView(aInspector, aDoc, aStore, aPageStyle) {
   this._onFilterTextboxContextMenu = this._onFilterTextboxContextMenu.bind(this);
 
   this.element = this.doc.getElementById("ruleview-container");
+  this.addRuleButton = this.doc.getElementById("ruleview-add-rule-button");
   this.searchField = this.doc.getElementById("ruleview-searchbox");
   this.searchClearButton = this.doc.getElementById("ruleview-searchinput-clear");
 
@@ -1142,6 +1143,7 @@ function CssRuleView(aInspector, aDoc, aStore, aPageStyle) {
 
   this.element.addEventListener("copy", this._onCopy);
   this.element.addEventListener("contextmenu", this._onContextMenu);
+  this.addRuleButton.addEventListener("click", this._onAddRule);
   this.searchField.addEventListener("input", this._onFilterStyles);
   this.searchField.addEventListener("keypress", this._onFilterKeyPress);
   this.searchField.addEventListener("contextmenu", this._onFilterTextboxContextMenu);
@@ -1197,8 +1199,8 @@ CssRuleView.prototype = {
     this._contextmenu.id = "rule-view-context-menu";
 
     this.menuitemAddRule = createMenuItem(this._contextmenu, {
-      label: "ruleView.contextmenu.addRule",
-      accesskey: "ruleView.contextmenu.addRule.accessKey",
+      label: "ruleView.contextmenu.addNewRule",
+      accesskey: "ruleView.contextmenu.addNewRule.accessKey",
       command: this._onAddRule
     });
     this.menuitemSelectAll = createMenuItem(this._contextmenu, {
@@ -1749,6 +1751,7 @@ CssRuleView.prototype = {
     // Remove bound listeners
     this.element.removeEventListener("copy", this._onCopy);
     this.element.removeEventListener("contextmenu", this._onContextMenu);
+    this.addRuleButton.removeEventListener("click", this._onAddRule);
     this.searchField.removeEventListener("input", this._onFilterStyles);
     this.searchField.removeEventListener("keypress", this._onFilterKeyPress);
     this.searchField.removeEventListener("contextmenu",
@@ -2796,7 +2799,7 @@ TextPropertyEditor.prototype = {
         done: this._onValueDone,
         destroy: this.update,
         validate: this._onValidate,
-        advanceChars: ';',
+        advanceChars: advanceValidate,
         contentType: InplaceEditor.CONTENT_TYPES.CSS_VALUE,
         property: this.prop,
         popup: this.popup
@@ -3524,6 +3527,48 @@ function getPropertyNameAndValue(node) {
     node = node.parentNode;
   }
 }
+
+/**
+ * Called when a character is typed in a value editor.  This decides
+ * whether to advance or not, first by checking to see if ";" was
+ * typed, and then by lexing the input and seeing whether the ";"
+ * would be a terminator at this point.
+ *
+ * @param {number} aKeyCode Key code to be checked.
+ * @param {String} aValue   Current text editor value.
+ * @param {number} aInsertionPoint The index of the insertion point.
+ * @return {Boolean} True if the focus should advance; false if
+ *        the character should be inserted.
+ */
+function advanceValidate(aKeyCode, aValue, aInsertionPoint) {
+  // Only ";" has special handling here.
+  if (aKeyCode !== Ci.nsIDOMKeyEvent.DOM_VK_SEMICOLON) {
+    return false;
+  }
+
+  // Insert the character provisionally and see what happens.  If we
+  // end up with a ";" symbol token, then the semicolon terminates the
+  // value.  Otherwise it's been inserted in some spot where it has a
+  // valid meaning, like a comment or string.
+  aValue = aValue.slice(0, aInsertionPoint) + ';' + aValue.slice(aInsertionPoint);
+  let lexer = domUtils.getCSSLexer(aValue);
+  while (true) {
+    let token = lexer.nextToken();
+    if (token.endOffset > aInsertionPoint) {
+      if (token.tokenType === "symbol" && token.text === ";") {
+        // The ";" is a terminator.
+        return true;
+      } else {
+        // The ";" is not a terminator in this context.
+        break;
+      }
+    }
+  }
+  return false;
+}
+
+// We're exporting _advanceValidate for unit tests.
+exports._advanceValidate = advanceValidate;
 
 XPCOMUtils.defineLazyGetter(this, "clipboardHelper", function() {
   return Cc["@mozilla.org/widget/clipboardhelper;1"].

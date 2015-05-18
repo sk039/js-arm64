@@ -397,7 +397,10 @@
                 key="manBookmarkKb"/>
       <menuseparator id="organizeBookmarksSeparator"/>
       <menuitem id="menu_pocket" label="&pocketMenuitem.label;"
-                oncommand="openUILink(Pocket.listURL, event);"/>
+#ifndef XP_MACOSX
+                class="menuitem-iconic"
+#endif
+                oncommand="window.pktUI.openTabWithUrl(Pocket.listURL);"/>
       <menuseparator id="menu_pocketSeparator"/>
       <menuitem id="menu_bookmarkThisPage"
                 command="Browser:AddBookmarkAs"
