@@ -227,6 +227,7 @@ class FloatRegisters
         invalid_fpreg
     };
     typedef uint8_t Code;
+    typedef FPRegisterID Encoding;
     typedef uint64_t SetType;
 
     static const char* GetName(Code code) {
@@ -239,7 +240,7 @@ class FloatRegisters
     }
 
     static const char* GetName(uint32_t i) {
-        MOZ_ASSERT(i < Total);
+        MOZ_ASSERT(i < TotalPhys);
         return GetName(Code(i));
     }
 
@@ -283,7 +284,7 @@ class FloatRegisters
 
     static const SetType AllocatableMask = AllMask & ~NonAllocatableMask;
     union RegisterContent {
-        float f;
+        float s;
         double d;
     };
     enum Kind {
@@ -313,16 +314,13 @@ struct FloatRegister
 {
     typedef FloatRegisters Codes;
     typedef Codes::Code Code;
-    typedef Codes::Code Encoding;
+    typedef Codes::Encoding Encoding;
     typedef Codes::SetType SetType;
 
     union RegisterContent {
-        float f;
+        float s;
         double d;
     };
-
-    Code code_;
-    FloatRegisters::Kind k_;
 
     constexpr FloatRegister(uint32_t code, FloatRegisters::Kind k)
       : code_(FloatRegisters::Code(code & 31)),
@@ -356,7 +354,7 @@ struct FloatRegister
         return Code(code_ | (k_ << 5));
     }
     Encoding encoding() const {
-        return code_;
+        return Encoding(code_);
     }
 
     const char* name() const {
@@ -365,11 +363,11 @@ struct FloatRegister
     bool volatile_() const {
         return !!((SetType(1) << code()) & FloatRegisters::VolatileMask);
     }
-    bool operator !=(FloatRegister other) const {
-        return other.code_ != code_;
+    bool operator!=(FloatRegister other) const {
+        return other.code_ != code_ || other.k_ != k_;
     }
-    bool operator ==(FloatRegister other) const {
-        return other.code_ == code_;
+    bool operator==(FloatRegister other) const {
+        return other.code_ == code_ && other.k_ == k_;
     }
     bool aliases(FloatRegister other) const {
         return other.code_ == code_;
@@ -394,17 +392,17 @@ struct FloatRegister
     // Since all floating point registers on x86 and x64 are equivalent, it is
     // reasonable for this function to do the same.
     bool equiv(FloatRegister other) const {
-        return true;
+        return k_ == other.k_;
     }
     MOZ_CONSTEXPR uint32_t size() const {
         return k_ == FloatRegisters::Double ? sizeof(double) : sizeof(float);
     }
     uint32_t numAlignedAliased() {
-        return 1;
+        return numAliased();
     }
     void alignedAliased(uint32_t aliasIdx, FloatRegister* ret) {
         MOZ_ASSERT(aliasIdx == 0);
-        *ret = *this;
+        aliased(aliasIdx, ret);
     }
     SetType alignedOrDominatedAliasedSet() const {
         return Codes::SpreadCoefficient << code_;
@@ -436,6 +434,10 @@ struct FloatRegister
     static uint32_t GetSizeInBytes(const TypedRegisterSet<FloatRegister>& s);
     static uint32_t GetPushSizeInBytes(const TypedRegisterSet<FloatRegister>& s);
     uint32_t getRegisterDumpOffsetInBytes();
+
+  public:
+    Code code_ : 8;
+    FloatRegisters::Kind k_ : 1;
 };
 
 // ARM/D32 has double registers that cannot be treated as float32.
