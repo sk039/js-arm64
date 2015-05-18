@@ -151,7 +151,7 @@ class Registers {
         (1 << Registers::x21) | (1 << Registers::x22) |
         (1 << Registers::x23) | (1 << Registers::x24) |
         (1 << Registers::x25) | (1 << Registers::x26) |
-        (1 << Registers::x27) |
+        (1 << Registers::x27) | (1 << Registers::x28) |
         (1 << Registers::x29) | (1 << Registers::x30);
 
     static const SetType SingleByteRegs = VolatileMask | NonVolatileMask;
