@@ -3270,7 +3270,11 @@ class MacroAssemblerCompat : public vixl::MacroAssembler
 
     // Overwrites the payload bits of a dest register containing a Value.
     void movePayload(Register src, Register dest) {
-        Bfxil(ARMRegister(dest, 64), ARMRegister(src, 64), 0, JSVAL_TAG_SHIFT);
+        // Bfxil cannot be used with the zero register as a source.
+        if (src == rzr)
+            And(ARMRegister(dest, 64), ARMRegister(dest, 64), Operand(~int64_t(JSVAL_PAYLOAD_MASK)));
+        else
+            Bfxil(ARMRegister(dest, 64), ARMRegister(src, 64), 0, JSVAL_TAG_SHIFT);
     }
 
     // FIXME: Should be in Assembler?
