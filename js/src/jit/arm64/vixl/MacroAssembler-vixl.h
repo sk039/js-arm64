@@ -1055,8 +1055,7 @@ class MacroAssembler : public js::jit::Assembler {
   // The name is a two character string that will be attached to the marker in
   // the output data.
   void AnnotateInstrumentation(const char* marker_name);
-  void StackCheck(int index, int value);
-  void StackCheckPushPop(int index, int value, int direction);
+
  private:
   // The actual Push and Pop implementations. These don't generate any code
   // other than that required for the push or pop. This allows
@@ -1096,6 +1095,7 @@ class MacroAssembler : public js::jit::Assembler {
 // instructions. This scope prevents the MacroAssembler from being called and
 // literal pools from being emitted. It also asserts the number of instructions
 // emitted is what you specified when creating the scope.
+// FIXME: Because of the disabled calls below, this class asserts nothing.
 class InstructionAccurateScope {
  public:
 #ifdef DEBUG

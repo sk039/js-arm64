@@ -1506,4 +1506,4 @@ bool InvalidCommand::Run(Debugger* debugger) {
 
 }  // namespace vixl
 
-#endif  // USE_SIMULATOR
+#endif  // JS_ARM64_SIMULATOR

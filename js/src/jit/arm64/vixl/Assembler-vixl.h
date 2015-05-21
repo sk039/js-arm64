@@ -66,11 +66,11 @@ class CPURegister {
     kNoRegister
   };
 
-  MOZ_CONSTEXPR CPURegister()
+  constexpr CPURegister()
     : code_(0), size_(0), type_(kNoRegister) {
   }
 
-  MOZ_CONSTEXPR CPURegister(unsigned code, unsigned size, RegisterType type)
+  constexpr CPURegister(unsigned code, unsigned size, RegisterType type)
     : code_(code), size_(size), type_(type) {
   }
 
@@ -192,7 +192,6 @@ class CPURegister {
     return IsValid() || IsNone();
   }
 };
-static const CPURegister noReg;
 
 class Register : public CPURegister {
  public:
@@ -203,11 +202,11 @@ class Register : public CPURegister {
     VIXL_ASSERT(IsValidRegister());
   }
 
-  MOZ_CONSTEXPR Register(unsigned code, unsigned size)
+  constexpr Register(unsigned code, unsigned size)
     : CPURegister(code, size, kRegister) {
   }
 
-  MOZ_CONSTEXPR Register(js::jit::Register r, unsigned size)
+  constexpr Register(js::jit::Register r, unsigned size)
     : CPURegister(r.code(), size, kRegister) {
   }
 
@@ -242,13 +241,13 @@ class FPRegister : public CPURegister {
     : CPURegister(other.code(), other.size(), other.type()) {
     VIXL_ASSERT(IsValidFPRegister());
   }
-  MOZ_CONSTEXPR inline FPRegister(js::jit::FloatRegister r, unsigned size)
+  constexpr inline FPRegister(js::jit::FloatRegister r, unsigned size)
     : CPURegister(r.code_, size, kFPRegister) {
   }
-  MOZ_CONSTEXPR inline FPRegister(js::jit::FloatRegister r)
+  constexpr inline FPRegister(js::jit::FloatRegister r)
     : CPURegister(r.code_, r.size() * 8, kFPRegister) {
   }
-  MOZ_CONSTEXPR inline FPRegister(unsigned code, unsigned size)
+  constexpr inline FPRegister(unsigned code, unsigned size)
     : CPURegister(code, size, kFPRegister) {
   }
 
@@ -570,7 +569,6 @@ class MemOperand {
   explicit MemOperand(Register base,
                       const Operand& offset,
                       AddrMode addrmode = Offset);
-  explicit MemOperand(ptrdiff_t PCoffset);
 
   // Adapter constructors using C++11 delegating.
   explicit MemOperand(js::jit::Address addr)
@@ -701,6 +699,9 @@ class Assembler : public MozBaseAssembler {
   COPYENUM_(LessThanOrEqual);
   COPYENUM(Always);
   COPYENUM(Never);
+#undef COPYENUM
+#undef COPYENUM_
+
   // Bit set when a DoubleCondition does not map to a single ARM condition.
   // The MacroAssembler must special-case these conditions, or else
   // ConditionFromDoubleCondition will complain.

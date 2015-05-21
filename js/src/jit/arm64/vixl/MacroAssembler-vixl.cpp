@@ -776,11 +776,12 @@ BufferOffset MacroAssembler::LoadStoreMacro(const CPURegister& rt, const MemOper
 void MacroAssembler::PushStackPointer() {
   PrepareForPush(1, 8);
 
-  // Pushing the current stack pointer leads to implementation-defined
+  // Pushing a stack pointer leads to implementation-defined
   // behavior, which may be surprising. In particular,
-  //   str sp, [sp, #-8]!
+  //   str x28, [x28, #-8]!
   // pre-decrements the stack pointer, storing the decremented value.
-  // Instead, we must use a scratch register.
+  // Additionally, sp is read as xzr in this context, so it cannot be pushed.
+  // So we must use a scratch register.
   UseScratchRegisterScope temps(this);
   Register scratch = temps.AcquireX();
 
@@ -901,8 +902,7 @@ void MacroAssembler::PushHelper(int count, int size, const CPURegister& src0,
   VIXL_ASSERT(!src2.Is(GetStackPointer64()) && !src2.Is(sp));
   VIXL_ASSERT(!src3.Is(GetStackPointer64()) && !src3.Is(sp));
 
-  // The JS engine should never push 4 bytes, since we're trying to keep
-  // 8-byte alignment at all times for sanity.
+  // The JS engine should never push 4 bytes.
   VIXL_ASSERT(size >= 8);
 
   // When pushing multiple registers, the store order is chosen such that
@@ -1386,57 +1386,6 @@ void MacroAssembler::AnnotateInstrumentation(const char* marker_name) {
 
   InstructionAccurateScope scope(this, 1);
   movn(xzr, (marker_name[1] << 8) | marker_name[0]);
-}
-
-
-void MacroAssembler::StackCheck(int index, int value) {
-#if 0
-#ifdef JS_ARM64_SIMULATOR
-  // The arguments to the trace pseudo instruction need to be contiguous in
-  // memory, so make sure we don't try to emit a literal pool.
-  InstructionAccurateScope scope(this, kTraceLength / kInstructionSize);
-
-  Label start;
-  bind(&start);
-  js::jit::AutoForbidPools afp(this, 3);
-  // Refer to instructions-a64.h for a description of the marker and its
-  // arguments.
-  hlt(kStackCheckOpcode);
-
-  //VIXL_ASSERT(SizeOfCodeGeneratedSince(&start) == kTraceParamsOffset);
-  dc32(index);
-  dc32(value);
-#else
-  // Emit nothing on real hardware.
-#endif
-#endif
-}
-
-
-
-void MacroAssembler::StackCheckPushPop(int index, int value, int direction) {
-#if 0
-#ifdef JS_ARM64_SIMULATOR
-  // The arguments to the trace pseudo instruction need to be contiguous in
-  // memory, so make sure we don't try to emit a literal pool.
-  InstructionAccurateScope scope(this, kTraceLength / kInstructionSize);
-
-  Label start;
-  bind(&start);
-
-  // Refer to instructions-a64.h for a description of the marker and its
-  // arguments.
-  js::jit::AutoForbidPools afp(this, 4);
-  hlt(kStackCheckPushPopOpcode);
-
-  //VIXL_ASSERT(SizeOfCodeGeneratedSince(&start) == kTraceParamsOffset);
-  dc32(index);
-  dc32(value);
-  dc32(direction);
-#else
-  // Emit nothing on real hardware.
-#endif
-#endif
 }
 
 

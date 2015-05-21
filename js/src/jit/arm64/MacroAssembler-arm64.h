@@ -3220,7 +3220,7 @@ class MacroAssemblerCompat : public vixl::MacroAssembler
         str(scratch64, MemOperand(scratchAddr64, 0));
     }
 
-    void BoundsCheck(Register ptrReg, Label* onFail, vixl::CPURegister zeroMe = vixl::noReg) {
+    void BoundsCheck(Register ptrReg, Label* onFail, vixl::CPURegister zeroMe = vixl::NoReg) {
         // use tst rather than Tst to *ensure* that a single instrution is generated.
         Cmp(ARMRegister(ptrReg, 32), ARMRegister(HeapLenReg, 32));
         if (!zeroMe.IsNone()) {
@@ -3279,30 +3279,14 @@ class MacroAssemblerCompat : public vixl::MacroAssembler
         return nextOffset().getOffset();
     }
 
-    void simPushFrame() {
-        if (getenv("USE_DEBUGGER") && getenv("CHECK_STACK"))
-            StackCheckPushPop(0, framePushed(), 1);
-    }
-    void simPopFrame() {
-        if (getenv("USE_DEBUGGER") && getenv("CHECK_STACK"))
-            StackCheckPushPop(0, framePushed(), -1);
-    }
-    void simReplaceFrame() {
-        if (getenv("USE_DEBUGGER") && getenv("CHECK_STACK"))
-            StackCheckPushPop(0, framePushed(), 0);
-    }
-    void simCheckFrame() {
-        if (getenv("USE_DEBUGGER") && getenv("CHECK_STACK"))
-            StackCheck(0, framePushed());
-    }
   protected:
     bool buildOOLFakeExitFrame(void* fakeReturnAddr) {
-    uint32_t descriptor = MakeFrameDescriptor(framePushed(), JitFrame_IonJS);
+        uint32_t descriptor = MakeFrameDescriptor(framePushed(), JitFrame_IonJS);
 
-    Push(Imm32(descriptor)); // descriptor_
-    Push(ImmPtr(fakeReturnAddr));
+        Push(Imm32(descriptor)); // descriptor_
+        Push(ImmPtr(fakeReturnAddr));
 
-    return true;
+        return true;
     }
 };
 
