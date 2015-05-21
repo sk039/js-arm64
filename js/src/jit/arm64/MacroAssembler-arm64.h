@@ -479,9 +479,16 @@ class MacroAssemblerCompat : public vixl::MacroAssembler
     // Else, branch to failure.
     void ensureDouble(const ValueOperand& source, FloatRegister dest, Label* failure) {
         Label isDouble, done;
+
+        // TODO: splitTagForTest really should not leak a scratch register.
         Register tag = splitTagForTest(source);
-        branchTestDouble(Assembler::Equal, tag, &isDouble);
-        branchTestInt32(Assembler::NotEqual, tag, failure);
+        {
+            vixl::UseScratchRegisterScope temps(this);
+            temps.Exclude(ARMRegister(tag, 64));
+
+            branchTestDouble(Assembler::Equal, tag, &isDouble);
+            branchTestInt32(Assembler::NotEqual, tag, failure);
+        }
 
         convertInt32ToDouble(source.valueReg(), dest);
         jump(&done);
