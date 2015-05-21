@@ -392,6 +392,13 @@ class MacroAssemblerCompat : public vixl::MacroAssembler
     template <typename T>
     void storeUnboxedPayload(ValueOperand value, T address, size_t nbytes) {
         switch (nbytes) {
+          case 8: {
+            vixl::UseScratchRegisterScope temps(this);
+            const Register scratch = temps.AcquireX().asUnsized();
+            unboxNonDouble(value, scratch);
+            storePtr(scratch, address);
+            return;
+          }
           case 4:
             storePtr(value.valueReg(), address);
             return;
