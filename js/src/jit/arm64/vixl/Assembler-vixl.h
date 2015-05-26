@@ -571,8 +571,10 @@ class MemOperand {
                       AddrMode addrmode = Offset);
 
   // Adapter constructors using C++11 delegating.
+  // TODO: If sp == kSPRegInternalCode, the xzr check isn't necessary.
   explicit MemOperand(js::jit::Address addr)
-    : MemOperand(Register(addr.base, 64), (ptrdiff_t)addr.offset) {
+    : MemOperand(addr.base.code() == 31 ? sp : Register(addr.base, 64),
+		 (ptrdiff_t)addr.offset) {
   }
 
   const Register& base() const {
