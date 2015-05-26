@@ -109,9 +109,6 @@ function runTests() {
 
   is(getData(1), null, "directory link still pushed out by pinned history link");
 
-  ok(getContentDocument().getElementById("newtab-intro-what"),
-     "'What is this page?' link exists");
-
   yield unpinCell(0);
 
 
@@ -159,6 +156,7 @@ function runTests() {
   suggestedLink.adgroup_name = "Technology";
   Services.prefs.setCharPref(PREF_NEWTAB_DIRECTORYSOURCE,
     "data:application/json," + JSON.stringify({"suggested": [suggestedLink]}));
+  yield watchLinksChangeOnce().then(TestRunner.next);
 
   yield addNewTabPageTab();
   ({type, enhanced, title, suggested} = getData(0));
@@ -170,6 +168,7 @@ function runTests() {
   suggestedLink.explanation = "Suggested for %1$S enthusiasts who visit sites like %2$S";
   Services.prefs.setCharPref(PREF_NEWTAB_DIRECTORYSOURCE,
     "data:application/json," + encodeURIComponent(JSON.stringify({"suggested": [suggestedLink]})));
+  yield watchLinksChangeOnce().then(TestRunner.next);
 
   yield addNewTabPageTab();
   ({type, enhanced, title, suggested} = getData(0));
@@ -181,6 +180,7 @@ function runTests() {
   delete suggestedLink.adgroup_name;
   Services.prefs.setCharPref(PREF_NEWTAB_DIRECTORYSOURCE,
     "data:application/json," + encodeURIComponent(JSON.stringify({"suggested": [suggestedLink]})));
+  yield watchLinksChangeOnce().then(TestRunner.next);
 
   yield addNewTabPageTab();
   ({type, enhanced, title, suggested} = getData(0));

@@ -1376,12 +1376,6 @@ CodeGeneratorARM64::generateInvalidateEpilogue()
     masm.assumeUnreachable("Should have returned directly to its caller instead of here.");
 }
 
-void
-DispatchIonCache::initializeAddCacheState(LInstruction* ins, AddCacheState* addState)
-{
-    MOZ_CRASH("CodeGeneratorARM64::initializeAddCacheState");
-}
-
 template <class U>
 Register
 getBase(U* mir)
