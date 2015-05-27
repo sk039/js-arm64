@@ -112,15 +112,15 @@ Assembler::emitExtendedJumpTable()
     BufferOffset tableOffset = armbuffer_.nextOffset();
 
     for (size_t i = 0; i < pendingJumps_.length(); i++) {
-        // Each jump entry is of the form:
+        // Each JumpTableEntry is of the form:
         //   LDR ip0 [PC, 8]
         //   BR ip0
         //   [Patchable 8-byte constant low bits]
         //   [Patchable 8-byte constant high bits]
         DebugOnly<size_t> preOffset = size_t(armbuffer_.nextOffset().getOffset());
 
-        ldr(vixl::ip0, ptrdiff_t(2));
-        br(vixl::ip0);
+        ldr(x16, ptrdiff_t(8 / vixl::kInstructionSize));
+        br(x16);
 
         DebugOnly<size_t> prePointer = size_t(armbuffer_.nextOffset().getOffset());
         MOZ_ASSERT(prePointer - preOffset == OffsetOfJumpTableEntryPointer);
@@ -178,7 +178,8 @@ Assembler::immPool(ARMRegister dest, uint8_t* value, vixl::LoadLiteralOp op, ARM
 {
     uint32_t inst = op | Rt(dest);
     const size_t numInst = 1;
-    const unsigned numPoolEntries = 2; // Each pool entry is 32 bits, so this stores 64.
+    const unsigned sizeOfPoolEntryInBytes = 4;
+    const unsigned numPoolEntries = sizeof(value) / sizeOfPoolEntryInBytes;
     return armbuffer_.allocEntry(numInst, numPoolEntries, (uint8_t*)&inst, value, pe);
 }
 
@@ -192,22 +193,6 @@ BufferOffset
 Assembler::immPool64Branch(RepatchLabel* label, ARMBuffer::PoolEntry* pe, Condition c)
 {
     MOZ_CRASH("immPool64Branch");
-
-    #if 0
-    uint64_t absoff = 0xdeadbeefbad0b004;
-
-    BufferOffset ret = immPool(ScratchReg2_64, (uint8_t*)&absoff, vixl::LDR_x_lit, pe);
-    Instruction instptr = getInstructionAt(ret);
-    uint32_t offset = LabelBase::INVALID_OFFSET;
-    if (label->bound()) {
-        offset = label->getOffset() - ret.getOffset();
-    } else {
-        label->use(ret.getOffset());
-    }
-    b(instptr, offset, c);
-    BufferOffset ret;
-    return ret;
-    #endif
 }
 
 BufferOffset
@@ -215,7 +200,8 @@ Assembler::fImmPool(ARMFPRegister dest, uint8_t* value, vixl::LoadLiteralOp op)
 {
     uint32_t inst = op | Rt(dest);
     const size_t numInst = 1;
-    const unsigned numPoolEntries = dest.size() / 32; // Each pool entry is 32 bits.
+    const unsigned sizeOfPoolEntryInBits = 32;
+    const unsigned numPoolEntries = dest.size() / sizeOfPoolEntryInBits;
     return armbuffer_.allocEntry(numInst, numPoolEntries, (uint8_t*)&inst, value);
 }
 
@@ -339,37 +325,7 @@ Assembler::addPatchableJump(BufferOffset src, Relocation::Kind reloc)
 void
 PatchJump(CodeLocationJump& jump_, CodeLocationLabel label)
 {
-    MOZ_CRASH("PatchJump -- incomplete, untested code.");
-
-    // We need to determine if this jump can fit into the standard 24+2 bit
-    // address or if we need a larger branch (or just need to use our pool
-    // entry).
-    Instruction* jump = (Instruction*)jump_.raw();
-    uint8_t** pe = jump->LiteralAddress<uint8_t**>();
-    *pe = label.raw();
-    jump += 4;
-    if (jump->IsCondBranchImm()) {
-        jump += 4;
-    }
-    vixl::Assembler::br(jump, ScratchReg2_64);
-    // jumpWithPatch() returns the offset of the jump and never a pool or nop.
-#if 0
-    Assembler::Condition c;
-    jump->extractCond(&c);
-    MOZ_ASSERT(jump->is<InstBranchImm>() || jump->is<InstLDR>());
-
-    int jumpOffset = label.raw() - jump_.raw();
-    if (BOffImm::IsInRange(jumpOffset)) {
-        // This instruction started off as a branch, and will remain one.
-        Assembler::RetargetNearBranch(jump, jumpOffset, c);
-    } else {
-        // This instruction started off as a branch, but now needs to be demoted
-        // to an ldr.
-        uint8_t** slot = reinterpret_cast<uint8_t**>(jump_.jumpTableEntry());
-        Assembler::RetargetFarBranch(jump, slot, label.raw(), c);
-    }
-#endif
-
+    MOZ_CRASH("PatchJump");
 }
 
 void
