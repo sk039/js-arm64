@@ -23,10 +23,6 @@ Registers::FromName(const char* name)
         return ip1;
     if (strcmp(name, "fp") == 0)
         return fp;
-    if (strcmp(name, "x30") == 0) // Default name "lr"
-        return x30;
-    if (strcmp(name, "x31") == 0) // Default name "sp"
-        return sp;
 
     for (uint32_t i = 0; i < Total; i++) {
         if (strcmp(GetName(Code(i)), name) == 0)

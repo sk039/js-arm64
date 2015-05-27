@@ -62,8 +62,8 @@ class Registers {
         w13 = 13, x13 = 13,
         w14 = 14, x14 = 14,
         w15 = 15, x15 = 15,
-        w16 = 16, x16 = 16, ip0 = 16,
-        w17 = 17, x17 = 17, ip1 = 17,
+        w16 = 16, x16 = 16, ip0 = 16, // MacroAssembler scratch register 1.
+        w17 = 17, x17 = 17, ip1 = 17, // MacroAssembler scratch register 2.
         w18 = 18, x18 = 18, tls = 18, // Platform-specific use (TLS).
         w19 = 19, x19 = 19,
         w20 = 20, x20 = 20,
@@ -131,7 +131,8 @@ class Registers {
         (1 << Registers::x0) | (1 << Registers::x1) |
         (1 << Registers::x2) | (1 << Registers::x3) |
         (1 << Registers::x4) | (1 << Registers::x5) |
-        (1 << Registers::x6) | (1 << Registers::x7);
+        (1 << Registers::x6) | (1 << Registers::x7) |
+        (1 << Registers::x8);
 
     static const SetType VolatileMask =
         (1 << Registers::x0) | (1 << Registers::x1) |
@@ -142,11 +143,11 @@ class Registers {
         (1 << Registers::x10) | (1 << Registers::x11) |
         (1 << Registers::x11) | (1 << Registers::x12) |
         (1 << Registers::x13) | (1 << Registers::x14) |
-        (1 << Registers::x14) | (1 << Registers::x15);
+        (1 << Registers::x14) | (1 << Registers::x15) |
+        (1 << Registers::x16) | (1 << Registers::x17) |
+        (1 << Registers::x18);
 
     static const SetType NonVolatileMask =
-                                (1 << Registers::x16) |
-        (1 << Registers::x17) | (1 << Registers::x18) |
         (1 << Registers::x19) | (1 << Registers::x20) |
         (1 << Registers::x21) | (1 << Registers::x22) |
         (1 << Registers::x23) | (1 << Registers::x24) |
@@ -170,14 +171,10 @@ class Registers {
     static const SetType WrapperMask = VolatileMask;
 
     // Registers returned from a JS -> JS call.
-    static const SetType JSCallMask =
-        (1 << Registers::x2) |
-        (1 << Registers::x3);
+    static const SetType JSCallMask = (1 << Registers::x2);
 
     // Registers returned from a JS -> C call.
-    static const SetType CallMask =
-        (1 << Registers::x0) |
-        (1 << Registers::x1); // Used for double-sized returns.
+    static const SetType CallMask = (1 << Registers::x0);
 
     static const SetType AllocatableMask = AllMask & ~NonAllocatableMask;
 };
