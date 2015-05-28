@@ -164,6 +164,7 @@ class LIRGenerator : public LIRGeneratorSpecific
     void visitStringReplace(MStringReplace* ins);
     void visitLambda(MLambda* ins);
     void visitLambdaArrow(MLambdaArrow* ins);
+    void visitKeepAliveObject(MKeepAliveObject* ins);
     void visitSlots(MSlots* ins);
     void visitElements(MElements* ins);
     void visitConstantElements(MConstantElements* ins);
