@@ -1363,7 +1363,7 @@ struct JSRuntime : public JS::shadow::Runtime,
     // Cache for jit::GetPcScript().
     js::jit::PcScriptCache* ionPcScriptCache;
 
-    js::DefaultJSContextCallback defaultJSContextCallback;
+    js::ScriptEnvironmentPreparer* scriptEnvironmentPreparer;
 
     js::CTypesActivityCallback  ctypesActivityCallback;
 

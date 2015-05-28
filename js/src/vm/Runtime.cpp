@@ -220,7 +220,7 @@ JSRuntime::JSRuntime(JSRuntime* parentRuntime)
     jitSupportsFloatingPoint(false),
     jitSupportsSimd(false),
     ionPcScriptCache(nullptr),
-    defaultJSContextCallback(nullptr),
+    scriptEnvironmentPreparer(nullptr),
     ctypesActivityCallback(nullptr),
     offthreadIonCompilationEnabled_(true),
     parallelParsingEnabled_(true),
