@@ -462,7 +462,7 @@ typedef enum  {
   * fp is the file for the dump output.
   */
 extern JS_FRIEND_API(void)
-DumpHeapComplete(JSRuntime* rt, FILE* fp, DumpHeapNurseryBehaviour nurseryBehaviour);
+DumpHeap(JSRuntime* rt, FILE* fp, DumpHeapNurseryBehaviour nurseryBehaviour);
 
 #ifdef JS_OLD_GETTER_SETTER_METHODS
 JS_FRIEND_API(bool) obj_defineGetter(JSContext* cx, unsigned argc, JS::Value* vp);
@@ -477,6 +477,9 @@ IsSystemZone(JS::Zone* zone);
 
 extern JS_FRIEND_API(bool)
 IsAtomsCompartment(JSCompartment* comp);
+
+extern JS_FRIEND_API(bool)
+IsAtomsZone(JS::Zone* zone);
 
 /*
  * Returns whether we're in a non-strict property set (in that we're in a
@@ -1324,10 +1327,10 @@ class MOZ_STACK_CLASS AutoStableStringChars
     {}
     ~AutoStableStringChars();
 
-    bool init(JSContext* cx, JSString* s);
+    bool init(JSContext* cx, JSString* s) MOZ_WARN_UNUSED_RESULT;
 
     /* Like init(), but Latin1 chars are inflated to TwoByte. */
-    bool initTwoByte(JSContext* cx, JSString* s);
+    bool initTwoByte(JSContext* cx, JSString* s) MOZ_WARN_UNUSED_RESULT;
 
     bool isLatin1() const { return state_ == Latin1; }
     bool isTwoByte() const { return state_ == TwoByte; }
