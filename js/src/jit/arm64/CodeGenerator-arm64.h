@@ -228,6 +228,9 @@ class CodeGeneratorARM64 : public CodeGeneratorShared
     void visitAsmJSPassStackArg(LAsmJSPassStackArg* ins);
 
     void generateInvalidateEpilogue();
+
+    void visitRandom(LRandom* ins);
+
   protected:
     void postAsmJSCall(LAsmJSCall* lir) {
         MOZ_CRASH("postAsmJSCall");

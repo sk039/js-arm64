@@ -178,9 +178,7 @@ pref("app.update.badge", true);
 #else
 pref("app.update.badge", false);
 #endif
-// Give the user x seconds to reboot before showing a badge on the hamburger
-// button. default=4 days
-pref("app.update.badgeWaitTime", 345600);
+// app.update.badgeWaitTime is in branding section
 
 // If set to true, the Update Service will apply updates in the background
 // when it finishes downloading them.
@@ -1842,10 +1840,10 @@ pref("ui.key.menuAccessKeyFocuses", true);
 // Encrypted media extensions.
 pref("media.eme.enabled", true);
 pref("media.eme.apiVisible", true);
-
-#ifdef XP_WIN
-pref("media.gmp-eme-adobe.enabled", true);
 pref("browser.eme.ui.enabled", true);
+
+#ifdef MOZ_ADOBE_EME
+pref("media.gmp-eme-adobe.enabled", true);
 #endif
 
 // Play with different values of the decay time and get telemetry,

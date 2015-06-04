@@ -132,7 +132,6 @@ class LIRGenerator : public LIRGeneratorSpecific
     void visitAtan2(MAtan2* ins);
     void visitHypot(MHypot* ins);
     void visitPow(MPow* ins);
-    void visitRandom(MRandom* ins);
     void visitMathFunction(MMathFunction* ins);
     void visitAdd(MAdd* ins);
     void visitSub(MSub* ins);
@@ -299,6 +298,8 @@ class LIRGenerator : public LIRGeneratorSpecific
     void visitThrowUninitializedLexical(MThrowUninitializedLexical* ins);
     void visitDebugger(MDebugger* ins);
     void visitNurseryObject(MNurseryObject* ins);
+    void visitNewTarget(MNewTarget* ins);
+    void visitArrowNewTarget(MArrowNewTarget* ins);
 };
 
 } // namespace jit

@@ -816,18 +816,14 @@ class HasChildTracer : public JS::CallbackTracer
     RootedValue child_;
     bool found_;
 
-    void onEdge(void** thingp, JS::TraceKind kind) {
+    void trace(void** thingp, JS::TraceKind kind) {
         if (*thingp == child_.toGCThing())
             found_ = true;
     }
 
-    static void trampoline(JS::CallbackTracer* trc, void** thingp, JS::TraceKind kind) {
-        static_cast<HasChildTracer*>(trc)->onEdge(thingp, kind);
-    }
-
   public:
     HasChildTracer(JSRuntime* rt, HandleValue child)
-      : JS::CallbackTracer(rt, trampoline, TraceWeakMapKeysValues), child_(rt, child), found_(false)
+      : JS::CallbackTracer(rt, TraceWeakMapKeysValues), child_(rt, child), found_(false)
     {}
 
     bool found() const { return found_; }
@@ -850,10 +846,6 @@ HasChild(JSContext* cx, unsigned argc, jsval* vp)
     args.rval().setBoolean(trc.found());
     return true;
 }
-
-// Stolen from jsmath.cpp
-static const uint64_t RNG_MULTIPLIER = 0x5DEECE66DLL;
-static const uint64_t RNG_MASK = (1LL << 48) - 1;
 
 static bool
 SetSavedStacksRNGState(JSContext* cx, unsigned argc, jsval* vp)

@@ -506,3 +506,10 @@ LIRGeneratorARM64::visitSubstr(MSubstr* ins)
     define(lir, ins);
     assignSafepoint(lir, ins);
 }
+
+void
+LIRGeneratorARM64::visitRandom(MRandom* ins)
+{
+    LRandom* lir = new(alloc()) LRandom(tempFixed(CallTempReg0), tempFixed(CallTempReg1));
+    defineReturn(lir, ins);
+}

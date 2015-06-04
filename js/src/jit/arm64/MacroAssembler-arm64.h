@@ -1199,6 +1199,9 @@ class MacroAssemblerCompat : public vixl::MacroAssembler
         Cmp(scratch32, Operand(ARMRegister(rhs, 32)));
     }
 
+    void cmpPtr(Register lhs, Imm32 rhs) {
+        Cmp(ARMRegister(lhs, 64), Operand(rhs.value));
+    }
     void cmpPtr(Register lhs, ImmWord rhs) {
         Cmp(ARMRegister(lhs, 64), Operand(rhs.value));
     }
@@ -1759,6 +1762,10 @@ class MacroAssemblerCompat : public vixl::MacroAssembler
         MOZ_ASSERT(scratch != ptr);
         loadPtr(lhs, scratch);
         branchPtr(cond, scratch, ptr, label);
+    }
+    void branchPtr(Condition cond, Register lhs, Imm32 imm, Label* label) {
+        cmpPtr(lhs, imm);
+        B(label, cond);
     }
     void branchPtr(Condition cond, Register lhs, ImmWord ptr, Label* label) {
         cmpPtr(lhs, ptr);
