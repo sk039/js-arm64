@@ -2698,12 +2698,12 @@ MacroAssembler::freeStack(uint32_t amount)
 {
     MOZ_ASSERT(amount <= framePushed_);
     if (amount)
-        addPtr(Imm32(amount), StackPointer);
+        addToStackPtr(Imm32(amount));
     framePushed_ -= amount;
 }
 
 void
 MacroAssembler::freeStack(Register amount)
 {
-    addPtr(amount, StackPointer);
+    addToStackPtr(amount);
 }

@@ -269,16 +269,6 @@ class MacroAssemblerCompat : public vixl::MacroAssembler
         framePushed_ = framePushed;
     }
 
-    void reserveStack(uint32_t amount) {
-        // TODO: This bumps |sp| every time we reserve using a second register.
-        // It would save some instructions if we had a fixed, maximum frame size.
-        vixl::MacroAssembler::Claim(Operand(amount));
-        adjustFrame(amount);
-    }
-    void freeStack(uint32_t amount) {
-        vixl::MacroAssembler::Drop(Operand(amount));
-        adjustFrame(-((int32_t)amount));
-    }
     void freeStack(Register amount) {
         vixl::MacroAssembler::Drop(Operand(ARMRegister(amount, 64)));
     }
@@ -286,11 +276,11 @@ class MacroAssemblerCompat : public vixl::MacroAssembler
     // Update sp with the value of the current active stack pointer, if necessary.
     void syncStackPtr() {
         if (!GetStackPointer64().Is(vixl::sp))
-            Add(vixl::sp, GetStackPointer64(), Operand(0));
+            Mov(vixl::sp, GetStackPointer64());
     }
     void initStackPtr() {
         if (!GetStackPointer64().Is(vixl::sp))
-            Add(GetStackPointer64(), vixl::sp, Operand(0));
+            Mov(GetStackPointer64(), vixl::sp);
     }
     void storeValue(ValueOperand val, const Address& dest) {
         storePtr(val.valueReg(), dest);

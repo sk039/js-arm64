@@ -19,7 +19,7 @@ class CodeGenerator;
 class MoveEmitterARM64
 {
     bool inCycle_;
-    MacroAssemblerCompat& masm;
+    MacroAssembler& masm;
 
     // Original stack push value.
     uint32_t pushedAtStart_;
@@ -67,7 +67,7 @@ class MoveEmitterARM64
     void completeCycle(const MoveOperand& from, const MoveOperand& to, MoveOp::Type type);
 
   public:
-    MoveEmitterARM64(MacroAssemblerCompat& masm)
+    MoveEmitterARM64(MacroAssembler& masm)
       : inCycle_(false),
         masm(masm),
         pushedAtStart_(masm.framePushed()),

@@ -429,10 +429,10 @@ MacroAssemblerCompat::callWithABIPre(uint32_t* stackAdjust)
     // ARM64 /really/ wants the stack to always be aligned.  Since we're already tracking it
     // getting it aligned for an abi call is pretty easy.
     *stackAdjust += ComputeByteAlignment(*stackAdjust, StackAlignment);
-    reserveStack(*stackAdjust);
+    asMasm().reserveStack(*stackAdjust);
     {
         moveResolver_.resolve();
-        MoveEmitter emitter(*this);
+        MoveEmitter emitter(asMasm());
         emitter.emit(moveResolver_);
         emitter.finish();
     }
@@ -449,7 +449,7 @@ MacroAssemblerCompat::callWithABIPost(uint32_t stackAdjust, MoveOp::Type result)
         Add(GetStackPointer64(), sp, Operand(0));
 
     inCall_ = false;
-    freeStack(stackAdjust);
+    asMasm().freeStack(stackAdjust);
 
     // Restore the stack pointer from entry.
     if (dynamicAlignment_)
@@ -733,6 +733,15 @@ const vixl::MacroAssembler&
 MacroAssemblerCompat::asVIXL() const
 {
     return *static_cast<const vixl::MacroAssembler*>(this);
+}
+
+void
+MacroAssembler::reserveStack(uint32_t amount)
+{
+    // TODO: This bumps |sp| every time we reserve using a second register.
+    // It would save some instructions if we had a fixed frame size.
+    vixl::MacroAssembler::Claim(Operand(amount));
+    adjustFrame(amount);
 }
 
 } // namespace jit
