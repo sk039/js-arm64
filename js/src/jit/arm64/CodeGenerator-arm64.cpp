@@ -321,6 +321,7 @@ ToCPURegister(const LAllocation* a, Scalar::Type type)
         return ARMRegister(ToRegister(a), 32);
     MOZ_CRASH("Unknown LAllocation");
 }
+
 vixl::CPURegister
 ToCPURegister(const LDefinition* d, Scalar::Type type)
 {
