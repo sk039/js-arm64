@@ -1747,13 +1747,9 @@ pref("loop.contextInConversations.enabled", true);
 
 pref("social.sidebar.unload_timeout_ms", 10000);
 
-// activation from inside of share panel is possible if activationPanelEnabled
+// Activation from inside of share panel is possible if activationPanelEnabled
 // is true. Pref'd off for release while usage testing is done through beta.
-#ifdef EARLY_BETA_OR_EARLIER
 pref("social.share.activationPanelEnabled", true);
-#else
-pref("social.share.activationPanelEnabled", false);
-#endif
 pref("social.shareDirectory", "https://activations.cdn.mozilla.net/sharePanel.html");
 
 pref("dom.identity.enabled", false);
@@ -1840,9 +1836,9 @@ pref("ui.key.menuAccessKeyFocuses", true);
 // Encrypted media extensions.
 pref("media.eme.enabled", true);
 pref("media.eme.apiVisible", true);
-pref("browser.eme.ui.enabled", true);
 
 #ifdef MOZ_ADOBE_EME
+pref("browser.eme.ui.enabled", true);
 pref("media.gmp-eme-adobe.enabled", true);
 #endif
 
@@ -1855,6 +1851,8 @@ pref("browser.translation.detectLanguage", false);
 pref("browser.translation.neverForLanguages", "");
 // Show the translation UI bits, like the info bar, notification icon and preferences.
 pref("browser.translation.ui.show", false);
+// Allows to define the translation engine. Bing is default, Yandex may optionally switched on.
+pref("browser.translation.engine", "bing");
 
 // Telemetry settings.
 // Determines if Telemetry pings can be archived locally.
