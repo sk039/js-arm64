@@ -551,66 +551,25 @@ void
 MacroAssembler::PushRegsInMask(LiveRegisterSet set)
 {
     for (GeneralRegisterBackwardIterator iter(set.gprs()); iter.more(); ) {
-        vixl::CPURegister src0 = vixl::NoCPUReg;
-        vixl::CPURegister src1 = vixl::NoCPUReg;
-        vixl::CPURegister src2 = vixl::NoCPUReg;
-        vixl::CPURegister src3 = vixl::NoCPUReg;
+        vixl::CPURegister src[4] = { vixl::NoCPUReg, vixl::NoCPUReg, vixl::NoCPUReg, vixl::NoCPUReg };
 
-        src0 = ARMRegister(*iter, 64);
-        ++iter;
-        adjustFrame(8);
-
-        if (iter.more()) {
-            src1 = ARMRegister(*iter, 64);
+        for (size_t i = 0; i < 4 && iter.more(); i++) {
+            src[i] = ARMRegister(*iter, 64);
             ++iter;
             adjustFrame(8);
         }
-
-        if (iter.more()) {
-            src2 = ARMRegister(*iter, 64);
-            ++iter;
-            adjustFrame(8);
-        }
-
-        if (iter.more()) {
-            src3 = ARMRegister(*iter, 64);
-            ++iter;
-            adjustFrame(8);
-        }
-
-        vixl::MacroAssembler::Push(src0, src1, src2, src3);
+        vixl::MacroAssembler::Push(src[0], src[1], src[2], src[3]);
     }
 
-    FloatRegisterSet fset = set.fpus().reduceSetForPush();
-    for (FloatRegisterBackwardIterator iter(fset); iter.more(); ) {
-        vixl::CPURegister src0 = vixl::NoCPUReg;
-        vixl::CPURegister src1 = vixl::NoCPUReg;
-        vixl::CPURegister src2 = vixl::NoCPUReg;
-        vixl::CPURegister src3 = vixl::NoCPUReg;
+    for (FloatRegisterBackwardIterator iter(set.fpus().reduceSetForPush()); iter.more(); ) {
+        vixl::CPURegister src[4] = { vixl::NoCPUReg, vixl::NoCPUReg, vixl::NoCPUReg, vixl::NoCPUReg };
 
-        src0 = ARMFPRegister(*iter);
-        ++iter;
-        adjustFrame(8);
-
-        if (iter.more()) {
-            src1 = ARMFPRegister(*iter);
+        for (size_t i = 0; i < 4 && iter.more(); i++) {
+            src[i] = ARMFPRegister(*iter, 64);
             ++iter;
             adjustFrame(8);
         }
-
-        if (iter.more()) {
-            src2 = ARMFPRegister(*iter);
-            ++iter;
-            adjustFrame(8);
-        }
-
-        if (iter.more()) {
-            src3 = ARMFPRegister(*iter);
-            ++iter;
-            adjustFrame(8);
-        }
-
-        vixl::MacroAssembler::Push(src0, src1, src2, src3);
+        vixl::MacroAssembler::Push(src[0], src[1], src[2], src[3]);
     }
 }
 
