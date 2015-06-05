@@ -119,8 +119,8 @@ Assembler::emitExtendedJumpTable()
         //   [Patchable 8-byte constant high bits]
         DebugOnly<size_t> preOffset = size_t(armbuffer_.nextOffset().getOffset());
 
-        ldr(x16, ptrdiff_t(8 / vixl::kInstructionSize));
-        br(x16);
+        ldr(vixl::ip0, ptrdiff_t(8 / vixl::kInstructionSize));
+        br(vixl::ip0);
 
         DebugOnly<size_t> prePointer = size_t(armbuffer_.nextOffset().getOffset());
         MOZ_ASSERT(prePointer - preOffset == OffsetOfJumpTableEntryPointer);
