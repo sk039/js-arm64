@@ -600,6 +600,8 @@ MacroAssembler::PopRegsInMaskIgnore(LiveRegisterSet set, LiveRegisterSet ignore)
         offset = nextOffset;
     }
 
+    MOZ_ASSERT(offset == set.fpus().getPushSizeInBytes());
+
     for (GeneralRegisterIterator iter(set.gprs()); iter.more(); ) {
         vixl::CPURegister dest[2] = { vixl::NoCPUReg, vixl::NoCPUReg };
         uint32_t nextOffset = offset;
