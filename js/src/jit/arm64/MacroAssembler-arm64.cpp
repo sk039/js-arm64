@@ -576,79 +576,54 @@ MacroAssembler::PushRegsInMask(LiveRegisterSet set)
 void
 MacroAssembler::PopRegsInMaskIgnore(LiveRegisterSet set, LiveRegisterSet ignore)
 {
-    // The offset that we'll be loading from
+    // The offset of the data from the stack pointer.
     uint32_t offset = 0;
-    // The offset that offset will be updated to after the current load.
-    uint32_t nextOffset = 0;
 
-    FloatRegisterSet fset = set.fpus().reduceSetForPush();
-    for (FloatRegisterIterator iter(fset); iter.more(); offset = nextOffset) {
-        vixl::CPURegister dst0 = vixl::NoCPUReg;
-        vixl::CPURegister dst1 = vixl::NoCPUReg;
+    for (FloatRegisterIterator iter(set.fpus().reduceSetForPush()); iter.more(); ) {
+        vixl::CPURegister dest[2] = { vixl::NoCPUReg, vixl::NoCPUReg };
+        uint32_t nextOffset = offset;
 
-        while (iter.more() && ignore.has(*iter)) {
+        for (size_t i = 0; i < 2 && iter.more(); i++) {
+            if (!ignore.has(*iter))
+                dest[i] = ARMFPRegister(*iter, 64);
             ++iter;
-            offset += sizeof(double);
+            nextOffset += sizeof(double);
         }
 
-        nextOffset = offset;
+        if (!dest[0].IsNone() && !dest[1].IsNone())
+            Ldp(dest[0], dest[1], MemOperand(GetStackPointer64(), offset));
+        else if (!dest[0].IsNone())
+            Ldr(dest[0], MemOperand(GetStackPointer64(), offset));
+        else if (!dest[1].IsNone())
+            Ldr(dest[1], MemOperand(GetStackPointer64(), offset + sizeof(double)));
 
-        if (!iter.more())
-            break;
-
-        dst0 = ARMFPRegister(*iter);
-        ++iter;
-        nextOffset += sizeof(double);
-
-        if (!iter.more() || ignore.has(*iter)) {
-            // There is no 'next' that can be loaded, and there is already one
-            // element in the queue, just deal with that element.
-            Ldr(dst0, MemOperand(GetStackPointer64(), offset));
-            continue;
-        }
-
-        // There is both more, and it isn't being ignored.
-        dst1 = ARMFPRegister(*iter);
-        nextOffset += sizeof(double);
-        ++iter;
-
-        MOZ_ASSERT(!dst0.Is(dst1));
-        Ldp(dst0, dst1, MemOperand(GetStackPointer64(), offset));
+        offset = nextOffset;
     }
 
-    FloatRegisterSet frs = set.fpus();
-    MOZ_ASSERT(nextOffset <= frs.getPushSizeInBytes());
-    nextOffset = set.fpus().getPushSizeInBytes();
+    for (GeneralRegisterIterator iter(set.gprs()); iter.more(); ) {
+        vixl::CPURegister dest[2] = { vixl::NoCPUReg, vixl::NoCPUReg };
+        uint32_t nextOffset = offset;
 
-    for (GeneralRegisterIterator iter(set.gprs()); iter.more(); offset = nextOffset) {
-        vixl::CPURegister dst0 = vixl::NoCPUReg;
-        vixl::CPURegister dst1 = vixl::NoCPUReg;
-        while (iter.more() && ignore.has(*iter)) {
+        for (size_t i = 0; i < 2 && iter.more(); i++) {
+            if (!ignore.has(*iter))
+                dest[i] = ARMRegister(*iter, 64);
             ++iter;
-            offset += sizeof(double);
+            nextOffset += sizeof(uint64_t);
         }
 
-        nextOffset = offset;
+        if (!dest[0].IsNone() && !dest[1].IsNone())
+            Ldp(dest[0], dest[1], MemOperand(GetStackPointer64(), offset));
+        else if (!dest[0].IsNone())
+            Ldr(dest[0], MemOperand(GetStackPointer64(), offset));
+        else if (!dest[1].IsNone())
+            Ldr(dest[1], MemOperand(GetStackPointer64(), offset + sizeof(uint64_t)));
 
-        if (!iter.more())
-            break;
-
-        dst0 = ARMRegister(*iter, 64);
-        nextOffset += sizeof(double);
-        ++iter;
-        if (!iter.more() || ignore.has(*iter)) {
-            // There is no 'next' that can be loaded, and there is already one
-            // element in the queue, just deal with that element.
-            Ldr(dst0, MemOperand(GetStackPointer64(), offset));
-            continue;
-        }
-        // There is both more, and it isn't being ignored.
-        dst1 = ARMRegister(*iter, 64);
-        ++iter;
-        nextOffset += sizeof(double);
-        Ldp(dst0, dst1, MemOperand(GetStackPointer64(), offset));
+        offset = nextOffset;
     }
-    freeStack(set.gprs().size() * sizeof(int*) + set.fpus().getPushSizeInBytes());
+
+    size_t bytesPushed = set.gprs().size() * sizeof(void*) + set.fpus().getPushSizeInBytes();
+    MOZ_ASSERT(offset == bytesPushed);
+    freeStack(bytesPushed);
 }
 
 void
