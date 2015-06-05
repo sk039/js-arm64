@@ -498,26 +498,27 @@ TraceDataRelocations(JSTracer* trc, uint8_t* buffer, CompactBufferReader& reader
         // Refer to movePatchablePtr() for generation.
         MOZ_ASSERT(load->Mask(vixl::LoadLiteralMask) == vixl::LDR_x_lit);
 
-        uint32_t pcOffset = load->ImmLLiteral();
-        uint8_t* literalAddr = ((uint8_t*)load) + (pcOffset << vixl::kLiteralEntrySizeLog2);
+        uintptr_t* literalAddr = load->LiteralAddress<uintptr_t*>();
+        uintptr_t literal = *literalAddr;
 
         // All pointers on AArch64 will have the top bits cleared.
         // If those bits are not cleared, this must be a Value.
-        uintptr_t* word = reinterpret_cast<uintptr_t*>(literalAddr);
-        if (*word >> JSVAL_TAG_SHIFT) {
+        if (literal >> JSVAL_TAG_SHIFT) {
             jsval_layout layout;
-            layout.asBits = *word;
+            layout.asBits = literal;
             Value v = IMPL_TO_JSVAL(layout);
             TraceManuallyBarrieredEdge(trc, &v, "ion-masm-value");
-            *word = JSVAL_TO_IMPL(v).asBits;
+            *literalAddr = JSVAL_TO_IMPL(v).asBits;
 
-            // TODO: When we can, flush caches here.
+            // TODO: When we can, flush caches here if a pointer was moved.
             continue;
         }
 
         // No barriers needed since the pointers are constants.
         TraceManuallyBarrieredGenericPointerEdge(trc, reinterpret_cast<gc::Cell**>(literalAddr),
                                                  "ion-masm-ptr");
+
+        // TODO: Flush caches at end?
     }
 }
 
@@ -539,23 +540,26 @@ Assembler::FixupNurseryObjects(JSContext* cx, JitCode* code, CompactBufferReader
 
     while (reader.more()) {
         size_t offset = reader.readUnsigned();
-        Instruction* ins = (Instruction*)(buffer + offset);
-        uintptr_t* word_ptr = ins->LiteralAddress<uintptr_t*>();
-        if (*word_ptr >> JSVAL_TAG_SHIFT)
-            continue;
-        if (!(*word_ptr & 0x1))
-            continue;
-        uint32_t index = *word_ptr >> 1;
-        JSObject* obj = nurseryObjects[index];
-        *word_ptr = uintptr_t(obj);
+        Instruction* ins = (Instruction*)&buffer[offset];
 
-                // Either all objects are still in the nursery, or all objects are
-        // tenured.
+        uintptr_t* literalAddr = ins->LiteralAddress<uintptr_t*>();
+        uintptr_t literal = *literalAddr;
+
+        if (literal >> JSVAL_TAG_SHIFT)
+            continue; // This is a Value.
+
+        if (!(literal & 0x1))
+            continue;
+
+        uint32_t index = literal >> 1;
+        JSObject* obj = nurseryObjects[index];
+        *literalAddr = uintptr_t(obj);
+
+        // Either all objects are still in the nursery, or all objects are tenured.
         MOZ_ASSERT_IF(hasNurseryPointers, IsInsideNursery(obj));
 
         if (!hasNurseryPointers && IsInsideNursery(obj))
             hasNurseryPointers = true;
-
     }
 
     if (hasNurseryPointers)

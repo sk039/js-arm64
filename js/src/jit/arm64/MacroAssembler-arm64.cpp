@@ -16,149 +16,6 @@ namespace js {
 namespace jit {
 
 void
-MacroAssembler::PushRegsInMask(LiveRegisterSet set)
-{
-    for (GeneralRegisterBackwardIterator iter(set.gprs()); iter.more(); ) {
-        vixl::CPURegister src0 = vixl::NoCPUReg;
-        vixl::CPURegister src1 = vixl::NoCPUReg;
-        vixl::CPURegister src2 = vixl::NoCPUReg;
-        vixl::CPURegister src3 = vixl::NoCPUReg;
-
-        src0 = ARMRegister(*iter, 64);
-        adjustFrame(8);
-        ++iter;
-
-        if (iter.more()) {
-            src1 = ARMRegister(*iter, 64);
-            ++iter;
-            adjustFrame(8);
-        }
-
-        if (iter.more()) {
-            src2 = ARMRegister(*iter, 64);
-            ++iter;
-            adjustFrame(8);
-        }
-
-        if (iter.more()) {
-            src3 = ARMRegister(*iter, 64);
-            ++iter;
-            adjustFrame(8);
-        }
-
-        vixl::MacroAssembler::Push(src0, src1, src2, src3);
-    }
-    FloatRegisterSet fset = set.fpus().reduceSetForPush();
-    for (FloatRegisterBackwardIterator iter(fset); iter.more(); ) {
-        vixl::CPURegister src0 = vixl::NoCPUReg;
-        vixl::CPURegister src1 = vixl::NoCPUReg;
-        vixl::CPURegister src2 = vixl::NoCPUReg;
-        vixl::CPURegister src3 = vixl::NoCPUReg;
-
-        src0 = ARMFPRegister(*iter);
-        ++iter;
-        adjustFrame(8);
-
-        if (iter.more()) {
-            src1 = ARMFPRegister(*iter);
-            ++iter;
-            adjustFrame(8);
-        }
-
-        if (iter.more()) {
-            src2 = ARMFPRegister(*iter);
-            ++iter;
-            adjustFrame(8);
-        }
-
-        if (iter.more()) {
-            src3 = ARMFPRegister(*iter);
-            ++iter;
-            adjustFrame(8);
-        }
-
-        vixl::MacroAssembler::Push(src0, src1, src2, src3);
-    }
-}
-
-void
-MacroAssembler::PopRegsInMaskIgnore(LiveRegisterSet set, LiveRegisterSet ignore)
-{
-    // The offset that we'll be loading from
-    uint32_t offset = 0;
-    // The offset that offset will be updated to after the current load.
-    uint32_t nextOffset = 0;
-    FloatRegisterSet fset = set.fpus().reduceSetForPush();
-    for (FloatRegisterIterator iter(fset); iter.more(); offset = nextOffset) {
-        vixl::CPURegister src0 = vixl::NoCPUReg;
-        vixl::CPURegister src1 = vixl::NoCPUReg;
-
-        while (iter.more() && ignore.has(*iter)) {
-            ++iter;
-            offset += sizeof(double);
-        }
-
-        nextOffset = offset;
-
-        if (!iter.more())
-            break;
-
-        src0 = ARMFPRegister(*iter);
-        nextOffset += sizeof(double);
-        ++iter;
-
-        if (!iter.more() || ignore.has(*iter)) {
-            // There is no 'next' that can be loaded, and there is already one
-            // element in the queue, just deal with that element.
-            Ldr(src0, MemOperand(GetStackPointer64(), offset));
-            continue;
-        }
-
-        // There is both more, and it isn't being ignored.
-        src1 = ARMFPRegister(*iter);
-        nextOffset += sizeof(double);
-        ++iter;
-
-        MOZ_ASSERT(!src0.Is(src1));
-        ldp(src0, src1, MemOperand(GetStackPointer64(), offset));
-    }
-
-    FloatRegisterSet frs = set.fpus();
-    MOZ_ASSERT(nextOffset <= frs.getPushSizeInBytes());
-    nextOffset = set.fpus().getPushSizeInBytes();
-
-    for (GeneralRegisterIterator iter(set.gprs()); iter.more(); offset = nextOffset) {
-        vixl::CPURegister src0 = vixl::NoCPUReg;
-        vixl::CPURegister src1 = vixl::NoCPUReg;
-        while (iter.more() && ignore.has(*iter)) {
-            ++iter;
-            offset += sizeof(double);
-        }
-
-        nextOffset = offset;
-
-        if (!iter.more())
-            break;
-
-        src0 = ARMRegister(*iter, 64);
-        nextOffset += sizeof(double);
-        ++iter;
-        if (!iter.more() || ignore.has(*iter)) {
-            // There is no 'next' that can be loaded, and there is already one
-            // element in the queue, just deal with that element.
-            Ldr(src0, MemOperand(GetStackPointer64(), offset));
-            continue;
-        }
-        // There is both more, and it isn't being ignored.
-        src1 = ARMRegister(*iter, 64);
-        ++iter;
-        nextOffset += sizeof(double);
-        ldp(src0, src1, MemOperand(GetStackPointer64(), offset));
-    }
-    freeStack(set.gprs().size() * sizeof(int*) + set.fpus().getPushSizeInBytes());
-}
-
-void
 MacroAssembler::clampDoubleToUint8(FloatRegister input, Register output)
 {
     ARMRegister dest(output, 32);
@@ -175,6 +32,71 @@ MacroAssembler::clampDoubleToUint8(FloatRegister input, Register output)
 
     Cmp(dest, Operand(0));
     csel(dest, wzr, dest, LessThan);
+}
+
+void
+MacroAssemblerCompat::buildFakeExitFrame(Register scratch, uint32_t* offset)
+{
+    mozilla::DebugOnly<uint32_t> initialDepth = framePushed();
+    uint32_t descriptor = MakeFrameDescriptor(framePushed(), JitFrame_IonJS);
+
+    asMasm().Push(Imm32(descriptor)); // descriptor_
+
+    enterNoPool(3);
+    Label fakeCallsite;
+    Adr(ARMRegister(scratch, 64), &fakeCallsite);
+    asMasm().Push(scratch);
+    bind(&fakeCallsite);
+    uint32_t pseudoReturnOffset = currentOffset();
+    leaveNoPool();
+
+    MOZ_ASSERT(framePushed() == initialDepth + ExitFrameLayout::Size());
+
+    *offset = pseudoReturnOffset;
+}
+
+void
+MacroAssemblerCompat::callWithExitFrame(JitCode* target)
+{
+    uint32_t descriptor = MakeFrameDescriptor(framePushed(), JitFrame_IonJS);
+    asMasm().Push(Imm32(descriptor));
+    call(target);
+}
+
+void
+MacroAssembler::alignFrameForICArguments(MacroAssembler::AfterICSaveLive& aic)
+{
+    // Exists for MIPS compatibility.
+}
+
+void
+MacroAssembler::restoreFrameAlignmentForICArguments(MacroAssembler::AfterICSaveLive& aic)
+{
+    // Exists for MIPS compatibility.
+}
+
+js::jit::MacroAssembler&
+MacroAssemblerCompat::asMasm()
+{
+    return *static_cast<js::jit::MacroAssembler*>(this);
+}
+
+const js::jit::MacroAssembler&
+MacroAssemblerCompat::asMasm() const
+{
+    return *static_cast<const js::jit::MacroAssembler*>(this);
+}
+
+vixl::MacroAssembler&
+MacroAssemblerCompat::asVIXL()
+{
+    return *static_cast<vixl::MacroAssembler*>(this);
+}
+
+const vixl::MacroAssembler&
+MacroAssemblerCompat::asVIXL() const
+{
+    return *static_cast<const vixl::MacroAssembler*>(this);
 }
 
 BufferOffset
@@ -555,6 +477,222 @@ MacroAssemblerCompat::callWithABI(Address fun, MoveOp::Type result)
 }
 
 void
+MacroAssemblerCompat::branchPtrInNurseryRange(Condition cond, Register ptr, Register temp,
+                                              Label* label)
+{
+    MOZ_ASSERT(cond == Assembler::Equal || cond == Assembler::NotEqual);
+    MOZ_ASSERT(ptr != temp);
+    MOZ_ASSERT(ptr != ScratchReg && ptr != ScratchReg2); // Both may be used internally.
+    MOZ_ASSERT(temp != ScratchReg && temp != ScratchReg2);
+
+    const Nursery& nursery = GetJitContext()->runtime->gcNursery();
+    movePtr(ImmWord(-ptrdiff_t(nursery.start())), temp);
+    addPtr(ptr, temp);
+    branchPtr(cond == Assembler::Equal ? Assembler::Below : Assembler::AboveOrEqual,
+              temp, ImmWord(nursery.nurserySize()), label);
+}
+
+void
+MacroAssemblerCompat::branchValueIsNurseryObject(Condition cond, ValueOperand value, Register temp,
+                                                 Label* label)
+{
+    MOZ_ASSERT(cond == Assembler::Equal || cond == Assembler::NotEqual);
+    MOZ_ASSERT(temp != ScratchReg && temp != ScratchReg2); // Both may be used internally.
+
+    // 'Value' representing the start of the nursery tagged as a JSObject
+    const Nursery& nursery = GetJitContext()->runtime->gcNursery();
+    Value start = ObjectValue(*reinterpret_cast<JSObject*>(nursery.start()));
+
+    movePtr(ImmWord(-ptrdiff_t(start.asRawBits())), temp);
+    addPtr(value.valueReg(), temp);
+    branchPtr(cond == Assembler::Equal ? Assembler::Below : Assembler::AboveOrEqual,
+              temp, ImmWord(nursery.nurserySize()), label);
+}
+
+void
+MacroAssemblerCompat::callAndPushReturnAddress(Label* label)
+{
+    // FIXME: Jandem said he would refactor the code to avoid making
+    // this instruction required, but probably forgot about it.
+    // Instead of implementing this function, we should make it unnecessary.
+    Label ret;
+    {
+        vixl::UseScratchRegisterScope temps(this);
+        const ARMRegister scratch64 = temps.AcquireX();
+
+        Adr(scratch64, &ret);
+        asMasm().Push(scratch64.asUnsized());
+    }
+
+    Bl(label);
+    bind(&ret);
+}
+
+void
+MacroAssemblerCompat::breakpoint()
+{
+    static int code = 0xA77;
+    Brk((code++) & 0xffff);
+}
+
+// ===============================================================
+// Stack manipulation functions.
+
+void
+MacroAssembler::reserveStack(uint32_t amount)
+{
+    // TODO: This bumps |sp| every time we reserve using a second register.
+    // It would save some instructions if we had a fixed frame size.
+    vixl::MacroAssembler::Claim(Operand(amount));
+    adjustFrame(amount);
+}
+
+void
+MacroAssembler::PushRegsInMask(LiveRegisterSet set)
+{
+    for (GeneralRegisterBackwardIterator iter(set.gprs()); iter.more(); ) {
+        vixl::CPURegister src0 = vixl::NoCPUReg;
+        vixl::CPURegister src1 = vixl::NoCPUReg;
+        vixl::CPURegister src2 = vixl::NoCPUReg;
+        vixl::CPURegister src3 = vixl::NoCPUReg;
+
+        src0 = ARMRegister(*iter, 64);
+        ++iter;
+        adjustFrame(8);
+
+        if (iter.more()) {
+            src1 = ARMRegister(*iter, 64);
+            ++iter;
+            adjustFrame(8);
+        }
+
+        if (iter.more()) {
+            src2 = ARMRegister(*iter, 64);
+            ++iter;
+            adjustFrame(8);
+        }
+
+        if (iter.more()) {
+            src3 = ARMRegister(*iter, 64);
+            ++iter;
+            adjustFrame(8);
+        }
+
+        vixl::MacroAssembler::Push(src0, src1, src2, src3);
+    }
+
+    FloatRegisterSet fset = set.fpus().reduceSetForPush();
+    for (FloatRegisterBackwardIterator iter(fset); iter.more(); ) {
+        vixl::CPURegister src0 = vixl::NoCPUReg;
+        vixl::CPURegister src1 = vixl::NoCPUReg;
+        vixl::CPURegister src2 = vixl::NoCPUReg;
+        vixl::CPURegister src3 = vixl::NoCPUReg;
+
+        src0 = ARMFPRegister(*iter);
+        ++iter;
+        adjustFrame(8);
+
+        if (iter.more()) {
+            src1 = ARMFPRegister(*iter);
+            ++iter;
+            adjustFrame(8);
+        }
+
+        if (iter.more()) {
+            src2 = ARMFPRegister(*iter);
+            ++iter;
+            adjustFrame(8);
+        }
+
+        if (iter.more()) {
+            src3 = ARMFPRegister(*iter);
+            ++iter;
+            adjustFrame(8);
+        }
+
+        vixl::MacroAssembler::Push(src0, src1, src2, src3);
+    }
+}
+
+void
+MacroAssembler::PopRegsInMaskIgnore(LiveRegisterSet set, LiveRegisterSet ignore)
+{
+    // The offset that we'll be loading from
+    uint32_t offset = 0;
+    // The offset that offset will be updated to after the current load.
+    uint32_t nextOffset = 0;
+
+    FloatRegisterSet fset = set.fpus().reduceSetForPush();
+    for (FloatRegisterIterator iter(fset); iter.more(); offset = nextOffset) {
+        vixl::CPURegister dst0 = vixl::NoCPUReg;
+        vixl::CPURegister dst1 = vixl::NoCPUReg;
+
+        while (iter.more() && ignore.has(*iter)) {
+            ++iter;
+            offset += sizeof(double);
+        }
+
+        nextOffset = offset;
+
+        if (!iter.more())
+            break;
+
+        dst0 = ARMFPRegister(*iter);
+        ++iter;
+        nextOffset += sizeof(double);
+
+        if (!iter.more() || ignore.has(*iter)) {
+            // There is no 'next' that can be loaded, and there is already one
+            // element in the queue, just deal with that element.
+            Ldr(dst0, MemOperand(GetStackPointer64(), offset));
+            continue;
+        }
+
+        // There is both more, and it isn't being ignored.
+        dst1 = ARMFPRegister(*iter);
+        nextOffset += sizeof(double);
+        ++iter;
+
+        MOZ_ASSERT(!dst0.Is(dst1));
+        Ldp(dst0, dst1, MemOperand(GetStackPointer64(), offset));
+    }
+
+    FloatRegisterSet frs = set.fpus();
+    MOZ_ASSERT(nextOffset <= frs.getPushSizeInBytes());
+    nextOffset = set.fpus().getPushSizeInBytes();
+
+    for (GeneralRegisterIterator iter(set.gprs()); iter.more(); offset = nextOffset) {
+        vixl::CPURegister dst0 = vixl::NoCPUReg;
+        vixl::CPURegister dst1 = vixl::NoCPUReg;
+        while (iter.more() && ignore.has(*iter)) {
+            ++iter;
+            offset += sizeof(double);
+        }
+
+        nextOffset = offset;
+
+        if (!iter.more())
+            break;
+
+        dst0 = ARMRegister(*iter, 64);
+        nextOffset += sizeof(double);
+        ++iter;
+        if (!iter.more() || ignore.has(*iter)) {
+            // There is no 'next' that can be loaded, and there is already one
+            // element in the queue, just deal with that element.
+            Ldr(dst0, MemOperand(GetStackPointer64(), offset));
+            continue;
+        }
+        // There is both more, and it isn't being ignored.
+        dst1 = ARMRegister(*iter, 64);
+        ++iter;
+        nextOffset += sizeof(double);
+        Ldp(dst0, dst1, MemOperand(GetStackPointer64(), offset));
+    }
+    freeStack(set.gprs().size() * sizeof(int*) + set.fpus().getPushSizeInBytes());
+}
+
+void
 MacroAssembler::Push(Register reg)
 {
     push(reg);
@@ -608,140 +746,6 @@ MacroAssembler::Pop(const ValueOperand& val)
 {
     pop(val);
     adjustFrame(-1 * int64_t(sizeof(int64_t)));
-}
-
-
-void
-MacroAssemblerCompat::branchPtrInNurseryRange(Condition cond, Register ptr, Register temp,
-                                              Label* label)
-{
-    MOZ_ASSERT(cond == Assembler::Equal || cond == Assembler::NotEqual);
-    MOZ_ASSERT(ptr != temp);
-    MOZ_ASSERT(ptr != ScratchReg && ptr != ScratchReg2); // Both may be used internally.
-    MOZ_ASSERT(temp != ScratchReg && temp != ScratchReg2);
-
-    const Nursery& nursery = GetJitContext()->runtime->gcNursery();
-    movePtr(ImmWord(-ptrdiff_t(nursery.start())), temp);
-    addPtr(ptr, temp);
-    branchPtr(cond == Assembler::Equal ? Assembler::Below : Assembler::AboveOrEqual,
-              temp, ImmWord(nursery.nurserySize()), label);
-}
-
-void
-MacroAssemblerCompat::branchValueIsNurseryObject(Condition cond, ValueOperand value, Register temp,
-                                                 Label* label)
-{
-    MOZ_ASSERT(cond == Assembler::Equal || cond == Assembler::NotEqual);
-    MOZ_ASSERT(temp != ScratchReg && temp != ScratchReg2); // Both may be used internally.
-
-    // 'Value' representing the start of the nursery tagged as a JSObject
-    const Nursery& nursery = GetJitContext()->runtime->gcNursery();
-    Value start = ObjectValue(*reinterpret_cast<JSObject*>(nursery.start()));
-
-    movePtr(ImmWord(-ptrdiff_t(start.asRawBits())), temp);
-    addPtr(value.valueReg(), temp);
-    branchPtr(cond == Assembler::Equal ? Assembler::Below : Assembler::AboveOrEqual,
-              temp, ImmWord(nursery.nurserySize()), label);
-}
-
-void
-MacroAssemblerCompat::buildFakeExitFrame(Register scratch, uint32_t* offset)
-{
-    mozilla::DebugOnly<uint32_t> initialDepth = framePushed();
-    uint32_t descriptor = MakeFrameDescriptor(framePushed(), JitFrame_IonJS);
-
-    asMasm().Push(Imm32(descriptor)); // descriptor_
-
-    enterNoPool(3);
-    Label fakeCallsite;
-    Adr(ARMRegister(scratch, 64), &fakeCallsite);
-    asMasm().Push(scratch);
-    bind(&fakeCallsite);
-    uint32_t pseudoReturnOffset = currentOffset();
-    leaveNoPool();
-
-    MOZ_ASSERT(framePushed() == initialDepth + ExitFrameLayout::Size());
-
-    *offset = pseudoReturnOffset;
-}
-
-void
-MacroAssemblerCompat::callWithExitFrame(JitCode* target)
-{
-    uint32_t descriptor = MakeFrameDescriptor(framePushed(), JitFrame_IonJS);
-    asMasm().Push(Imm32(descriptor));
-    call(target);
-}
-
-void
-MacroAssemblerCompat::callAndPushReturnAddress(Label* label)
-{
-    // FIXME: Jandem said he would refactor the code to avoid making
-    // this instruction required, but probably forgot about it.
-    // Instead of implementing this function, we should make it unnecessary.
-    Label ret;
-    {
-        vixl::UseScratchRegisterScope temps(this);
-        const ARMRegister scratch64 = temps.AcquireX();
-
-        Adr(scratch64, &ret);
-        asMasm().Push(scratch64.asUnsized());
-    }
-
-    Bl(label);
-    bind(&ret);
-}
-
-void
-MacroAssemblerCompat::breakpoint()
-{
-    static int code = 0xA77;
-    Brk((code++) & 0xffff);
-}
-
-void
-MacroAssembler::alignFrameForICArguments(MacroAssembler::AfterICSaveLive& aic)
-{
-    // Exists for MIPS compatibility.
-}
-
-void
-MacroAssembler::restoreFrameAlignmentForICArguments(MacroAssembler::AfterICSaveLive& aic)
-{
-    // Exists for MIPS compatibility.
-}
-
-js::jit::MacroAssembler&
-MacroAssemblerCompat::asMasm()
-{
-    return *static_cast<js::jit::MacroAssembler*>(this);
-}
-
-const js::jit::MacroAssembler&
-MacroAssemblerCompat::asMasm() const
-{
-    return *static_cast<const js::jit::MacroAssembler*>(this);
-}
-
-vixl::MacroAssembler&
-MacroAssemblerCompat::asVIXL()
-{
-    return *static_cast<vixl::MacroAssembler*>(this);
-}
-
-const vixl::MacroAssembler&
-MacroAssemblerCompat::asVIXL() const
-{
-    return *static_cast<const vixl::MacroAssembler*>(this);
-}
-
-void
-MacroAssembler::reserveStack(uint32_t amount)
-{
-    // TODO: This bumps |sp| every time we reserve using a second register.
-    // It would save some instructions if we had a fixed frame size.
-    vixl::MacroAssembler::Claim(Operand(amount));
-    adjustFrame(amount);
 }
 
 } // namespace jit
