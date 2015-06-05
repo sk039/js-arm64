@@ -621,7 +621,7 @@ MacroAssembler::PopRegsInMaskIgnore(LiveRegisterSet set, LiveRegisterSet ignore)
         offset = nextOffset;
     }
 
-    size_t bytesPushed = set.gprs().size() * sizeof(void*) + set.fpus().getPushSizeInBytes();
+    size_t bytesPushed = set.gprs().size() * sizeof(uint64_t) + set.fpus().getPushSizeInBytes();
     MOZ_ASSERT(offset == bytesPushed);
     freeStack(bytesPushed);
 }
