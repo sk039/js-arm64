@@ -796,10 +796,10 @@ class MacroAssemblerCompat : public vixl::MacroAssembler
         Mov(ARMRegister(dest, 64), ARMRegister(src, 64));
     }
     void movePtr(ImmWord imm, Register dest) {
-        Mov(ARMRegister(dest, 64), (int64_t)imm.value);
+        Mov(ARMRegister(dest, 64), int64_t(imm.value));
     }
     void movePtr(ImmPtr imm, Register dest) {
-        Mov(ARMRegister(dest, 64), (int64_t)imm.value);
+        Mov(ARMRegister(dest, 64), int64_t(imm.value));
     }
     void movePtr(AsmJSImmPtr imm, Register dest) {
         BufferOffset off = movePatchablePtr(ImmWord(0xffffffffffffffffULL), dest);
@@ -1547,7 +1547,6 @@ class MacroAssemblerCompat : public vixl::MacroAssembler
 
     void ret() {
         pop(lr);
-        syncStackPtr(); // SP is always used to transmit the stack between calls.
         abiret();
     }
 
@@ -2285,23 +2284,22 @@ class MacroAssemblerCompat : public vixl::MacroAssembler
             MOZ_ASSERT(!temps.IsAvailable(ScratchReg2_64));
             temps.Exclude(ScratchReg64);
 
-            if (cond == Equal || cond == NotEqual) {
-                // In the event that the tag is not encodable in a single cmp / teq instruction,
-                // perform the xor that teq would use, this will leave the tag bits being
-                // zero, or non-zero, which can be tested with either and or shift.
-                unsigned int n, imm_r, imm_s;
-                uint64_t immediate = uint64_t(ImmTag(JSVAL_TAG_INT32).value) << JSVAL_TAG_SHIFT;
-                if (IsImmLogical(immediate, 64, &n, &imm_s, &imm_r)) {
-                    eor(ScratchReg64, ScratchReg2_64, Operand(immediate));
-                } else {
-                    Mov(ScratchReg64, immediate);
-                    eor(ScratchReg64, ScratchReg2_64, ScratchReg64);
-                }
-                tst(ScratchReg64, Operand(-1ll << JSVAL_TAG_SHIFT));
-                return cond;
-            }
+            if (cond != Equal && cond != NotEqual)
+                MOZ_CRASH("NYI: non-equality comparisons");
 
-            MOZ_CRASH("NYI: non-equality comparisons");
+            // In the event that the tag is not encodable in a single cmp / teq instruction,
+            // perform the xor that teq would use, this will leave the tag bits being
+            // zero, or non-zero, which can be tested with either and or shift.
+            unsigned int n, imm_r, imm_s;
+            uint64_t immediate = uint64_t(ImmTag(JSVAL_TAG_INT32).value) << JSVAL_TAG_SHIFT;
+            if (IsImmLogical(immediate, 64, &n, &imm_s, &imm_r)) {
+                Eor(ScratchReg64, ScratchReg2_64, Operand(immediate));
+            } else {
+                Mov(ScratchReg64, immediate);
+                Eor(ScratchReg64, ScratchReg2_64, ScratchReg64);
+            }
+            Tst(ScratchReg64, Operand(-1ll << JSVAL_TAG_SHIFT));
+            return cond;
         }
 
         const Register scratch = temps.AcquireX().asUnsized();
@@ -3094,27 +3092,32 @@ class MacroAssemblerCompat : public vixl::MacroAssembler
     // Emit a BLR or NOP instruction. ToggleCall can be used to patch
     // this instruction.
     CodeOffsetLabel toggledCall(JitCode* target, bool enabled) {
-        BufferOffset offset = nextOffset();
-        BufferOffset loadOffset;
-        syncStackPtr();
-
         // TODO: Random pool insertion between instructions below is terrible.
         // Unfortunately, we can't forbid pool prevention, because we're trying
         // to add an entry to a pool. So as a temporary fix, just flush the pool
         // now, so that it won't add later. If you're changing this, also
         // check ToggleCall(), which will probably break.
         armbuffer_.flushPool();
+
+        syncStackPtr();
+
+        BufferOffset offset = nextOffset();
+        BufferOffset loadOffset;
         {
             vixl::UseScratchRegisterScope temps(this);
-            const ARMRegister scratch64 = temps.AcquireX();
 
-            if (enabled) {
-                loadOffset = immPool64(scratch64, uint64_t(target->raw()));
-                blr(scratch64);
-            } else {
-                loadOffset = immPool64(scratch64, uint64_t(target->raw()));
+            // The register used for the load is hardcoded, so that ToggleCall
+            // can patch in the branch instruction easily. This could be changed,
+            // but then ToggleCall must read the target register from the load.
+            MOZ_ASSERT(temps.IsAvailable(ScratchReg2_64));
+            temps.Exclude(ScratchReg2_64);
+
+            loadOffset = immPool64(ScratchReg2_64, uint64_t(target->raw()));
+
+            if (enabled)
+                blr(ScratchReg2_64);
+            else
                 nop();
-            }
         }
 
         addPendingJump(loadOffset, ImmPtr(target->raw()), Relocation::JITCODE);
@@ -3123,18 +3126,21 @@ class MacroAssemblerCompat : public vixl::MacroAssembler
     }
 
     static size_t ToggledCallSize(uint8_t* code) {
+        static const uint32_t syncStackInstruction = 0x9100039f; // mov sp, r28
+
         // start it off as an 8 byte sequence
         int ret = 8;
         Instruction* cur = (Instruction*)code;
         uint32_t* curw = (uint32_t*)code;
-        // oh god, this is bad, just hard-code the stack sync instruction
-        if (*curw == 0x9100039f) {
+
+        if (*curw == syncStackInstruction) {
             ret += 4;
             cur += 4;
         }
-        if (cur->IsUncondB()) {
+
+        if (cur->IsUncondB())
             ret += cur->ImmPCRawOffset() << vixl::kInstructionSizeLog2;
-        }
+
         return ret;
     }
 
@@ -3164,7 +3170,7 @@ class MacroAssemblerCompat : public vixl::MacroAssembler
     }
 
     void abiret() {
-        syncStackPtr();
+        syncStackPtr(); // SP is always used to transmit the stack between calls.
         vixl::MacroAssembler::Ret(vixl::lr);
     }
 
@@ -3226,9 +3232,9 @@ class MacroAssemblerCompat : public vixl::MacroAssembler
         const ARMRegister scratch64 = temps.AcquireX();
 
         Mov(scratchAddr64, uint64_t(dest.addr));
-        ldr(scratch64, MemOperand(scratchAddr64, 0));
-        add(scratch64, scratch64, Operand(1));
-        str(scratch64, MemOperand(scratchAddr64, 0));
+        Ldr(scratch64, MemOperand(scratchAddr64, 0));
+        Add(scratch64, scratch64, Operand(1));
+        Str(scratch64, MemOperand(scratchAddr64, 0));
     }
 
     void BoundsCheck(Register ptrReg, Label* onFail, vixl::CPURegister zeroMe = vixl::NoReg) {
@@ -3297,10 +3303,8 @@ class MacroAssemblerCompat : public vixl::MacroAssembler
   protected:
     bool buildOOLFakeExitFrame(void* fakeReturnAddr) {
         uint32_t descriptor = MakeFrameDescriptor(framePushed(), JitFrame_IonJS);
-
-        Push(Imm32(descriptor)); // descriptor_
+        Push(Imm32(descriptor));
         Push(ImmPtr(fakeReturnAddr));
-
         return true;
     }
 };

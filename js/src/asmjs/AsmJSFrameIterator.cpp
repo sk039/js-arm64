@@ -242,7 +242,7 @@ GenerateProfilingEpilogue(MacroAssembler& masm, unsigned framePushed, AsmJSExit:
 #if defined(JS_CODEGEN_ARM)
         AutoForbidPools afp(&masm, /* number of instructions in scope = */ 4);
 #elif defined(JS_CODEGEN_ARM64)
-        AutoForbidPools afp(&masm, /* number of instructions in scope = */ 6);
+        AutoForbidPools afp(&masm, /* number of instructions in scope = */ 8);
 #endif
 
         // sp protects the stack from clobber via asynchronous signal handlers
@@ -253,7 +253,7 @@ GenerateProfilingEpilogue(MacroAssembler& masm, unsigned framePushed, AsmJSExit:
         masm.loadPtr(Address(masm.getStackPointer(), 0), scratch2);
         masm.storePtr(scratch2, Address(scratch, AsmJSActivation::offsetOfFP()));
         DebugOnly<uint32_t> prePop = masm.currentOffset();
-        masm.add32(Imm32(4), masm.getStackPointer());
+        masm.addToStackPtr(Imm32(4));
         MOZ_ASSERT(PostStorePrePopFP == masm.currentOffset() - prePop);
 #else
         masm.pop(Address(scratch, AsmJSActivation::offsetOfFP()));

@@ -158,9 +158,9 @@ MacroAssemblerCompat::handleFailureWithHandlerTail(void* handler)
     int64_t size = (sizeof(ResumeFromException) + 7) & ~7;
     Sub(GetStackPointer64(), GetStackPointer64(), Operand(size));
     if (!GetStackPointer64().Is(sp))
-        Add(sp, GetStackPointer64(), Operand(0));
+        Mov(sp, GetStackPointer64());
 
-    Add(x0, GetStackPointer64(), Operand(0));
+    Mov(x0, GetStackPointer64());
 
     // Call the handler.
     setupUnalignedABICall(1, r1);
@@ -265,7 +265,7 @@ MacroAssemblerCompat::setupUnalignedABICall(uint32_t args, Register scratch)
     MOZ_ASSERT(!GetStackPointer64().Is(sp));
 
     // Remember the stack address on entry.
-    Add(scratch64, GetStackPointer64(), Operand(0));
+    Mov(scratch64, GetStackPointer64());
 
     // Make alignment, including the effective push of the previous sp.
     Sub(GetStackPointer64(), GetStackPointer64(), Operand(8));
@@ -368,7 +368,7 @@ MacroAssemblerCompat::callWithABIPost(uint32_t stackAdjust, MoveOp::Type result)
 {
     // Call boundaries communicate stack via sp.
     if (!GetStackPointer64().Is(sp))
-        Add(GetStackPointer64(), sp, Operand(0));
+        Mov(GetStackPointer64(), sp);
 
     inCall_ = false;
     asMasm().freeStack(stackAdjust);
