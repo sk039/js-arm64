@@ -109,6 +109,7 @@ EXPORTS += [
 EXPORTS.mozilla += [
     'BasicEvents.h',
     'CommandList.h',
+    'ContentCache.h',
     'ContentEvents.h',
     'EventClassList.h',
     'EventForwards.h',
@@ -131,6 +132,7 @@ EXPORTS.mozilla.widget += [
 ]
 
 UNIFIED_SOURCES += [
+    'ContentCache.cpp',
     'ContentHelper.cpp',
     'GfxDriverInfo.cpp',
     'GfxInfoBase.cpp',
@@ -207,6 +209,10 @@ if toolkit in ('qt', 'gtk2', 'gtk3', 'cocoa', 'windows',
 if toolkit in ('qt', 'gtk2', 'gtk3', 'windows', 'cocoa'):
     UNIFIED_SOURCES += [
         'nsNativeTheme.cpp',
+    ]
+if toolkit == 'gtk3':
+    XPIDL_SOURCES += [
+        'nsIApplicationChooser.idl',
     ]
 
 if not CONFIG['MOZ_B2G']:

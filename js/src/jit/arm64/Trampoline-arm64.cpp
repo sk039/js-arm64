@@ -11,7 +11,7 @@
 #ifdef JS_ION_PERF
 # include "jit/PerfSpewer.h"
 #endif
-#include "jit/arm64/BaselineHelpers-arm64.h"
+#include "jit/arm64/SharedICHelpers-arm64.h"
 #include "jit/VMFunctions.h"
 
 using namespace js;
@@ -750,7 +750,7 @@ JitRuntime::generateDebugTrapHandler(JSContext* cx)
     // Enter a stub frame and call the HandleDebugTrap VM function. Ensure the
     // stub frame has a nullptr ICStub pointer, since this pointer is marked
     // during GC.
-    masm.movePtr(ImmPtr(nullptr), BaselineStubReg);
+    masm.movePtr(ImmPtr(nullptr), ICStubReg);
     EmitEnterStubFrame(masm, scratch2);
 
     JitCode* code = cx->runtime()->jitRuntime()->getVMWrapper(HandleDebugTrapInfo);

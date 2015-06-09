@@ -42,6 +42,7 @@
 
 using namespace android;
 using namespace mozilla::layers;
+using namespace mozilla::media;
 
 namespace mozilla {
 
@@ -458,6 +459,8 @@ MediaCodecReader::DecodeAudioDataTask()
     }
   } else if (AudioQueue().AtEndOfStream()) {
     mAudioTrack.mAudioPromise.Reject(END_OF_STREAM, __func__);
+  } else if (AudioQueue().GetSize() == 0) {
+    DispatchAudioTask();
   }
 }
 
@@ -466,6 +469,9 @@ MediaCodecReader::DecodeVideoFrameTask(int64_t aTimeThreshold)
 {
   DecodeVideoFrameSync(aTimeThreshold);
   MonitorAutoLock al(mVideoTrack.mTrackMonitor);
+  if (mVideoTrack.mVideoPromise.IsEmpty()) {
+    return;
+  }
   if (VideoQueue().GetSize() > 0) {
     nsRefPtr<VideoData> v = VideoQueue().PopFront();
     if (v) {
@@ -477,6 +483,8 @@ MediaCodecReader::DecodeVideoFrameTask(int64_t aTimeThreshold)
     }
   } else if (VideoQueue().AtEndOfStream()) {
     mVideoTrack.mVideoPromise.Reject(END_OF_STREAM, __func__);
+  } else if (VideoQueue().GetSize() == 0) {
+    DispatchVideoTask(aTimeThreshold);
   }
 }
 
@@ -705,8 +713,7 @@ MediaCodecReader::HandleResourceAllocated()
   }
   int64_t duration = audioDuration > videoDuration ? audioDuration : videoDuration;
   if (duration >= INT64_C(0)) {
-    ReentrantMonitorAutoEnter mon(mDecoder->GetReentrantMonitor());
-    mDecoder->SetMediaDuration(duration);
+    mInfo.mMetadataDuration = Some(TimeUnit::FromMicroseconds(duration));
   }
 
   // Video track's frame sizes will not overflow. Activate the video track.
@@ -1830,7 +1837,7 @@ MediaCodecReader::GetCodecOutputData(Track& aTrack,
 
     if (status == OK) {
       // Notify mDecoder that we have parsed a video frame.
-      if (&aTrack == &mVideoTrack) {
+      if (aTrack.mType == Track::kVideo) {
         mDecoder->NotifyDecodedFrames(1, 0, 0);
       }
       if (!IsValidTimestampUs(aThreshold) || info.mTimeUs >= aThreshold) {
@@ -1905,6 +1912,7 @@ MediaCodecReader::EnsureCodecFormatParsed(Track& aTrack)
     }
     FillCodecInputData(aTrack);
   }
+  aTrack.mCodec->releaseOutputBuffer(index);
   return aTrack.mCodec->getOutputFormat(&format) == OK;
 }
 

@@ -14,6 +14,7 @@ Cu.import("resource://gre/modules/Services.jsm");
 Cu.import("resource://gre/modules/XPCOMUtils.jsm", this);
 Cu.import("resource://gre/modules/TelemetryController.jsm", this);
 Cu.import("resource://gre/modules/TelemetryStorage.jsm", this);
+Cu.import("resource://gre/modules/TelemetrySend.jsm", this);
 Cu.import("resource://gre/modules/TelemetryArchive.jsm", this);
 Cu.import("resource://gre/modules/Task.jsm", this);
 Cu.import("resource://gre/modules/Promise.jsm", this);
@@ -42,9 +43,9 @@ let gClientID = null;
 
 function sendPing(aSendClientId, aSendEnvironment) {
   if (gServerStarted) {
-    TelemetryController.setServer("http://localhost:" + gHttpServer.identity.primaryPort);
+    TelemetrySend.setServer("http://localhost:" + gHttpServer.identity.primaryPort);
   } else {
-    TelemetryController.setServer("http://doesnotexist");
+    TelemetrySend.setServer("http://doesnotexist");
   }
 
   let options = {
@@ -282,19 +283,18 @@ add_task(function* test_midnightPingSendFuzzing() {
   gRequestIterator = Iterator(new Request());
   yield TelemetryController.reset();
 
-  // A ping submitted shortly before midnight should not get sent yet.
-  now = new Date(2030, 5, 1, 23, 55, 0);
+  // A ping after midnight within the fuzzing delay should not get sent.
+  now = new Date(2030, 5, 2, 0, 40, 0);
   fakeNow(now);
   registerPingHandler((req, res) => {
     Assert.ok(false, "No ping should be received yet.");
   });
   yield sendPing(true, true);
-
   Assert.ok(!!pingSendTimerCallback);
   Assert.deepEqual(futureDate(now, pingSendTimeout), new Date(2030, 5, 2, 1, 0, 0));
 
-  // A ping after midnight within the fuzzing delay should also not get sent.
-  now = new Date(2030, 5, 2, 0, 40, 0);
+  // A ping just before the end of the fuzzing delay should not get sent.
+  now = new Date(2030, 5, 2, 0, 59, 59);
   fakeNow(now);
   pingSendTimeout = null;
   yield sendPing(true, true);
@@ -321,6 +321,13 @@ add_task(function* test_midnightPingSendFuzzing() {
   yield sendPing(true, true);
   let request = yield gRequestIterator.next();
   let ping = decodeRequestPayload(request);
+  checkPingFormat(ping, TEST_PING_TYPE, true, true);
+
+  // Check that pings shortly before midnight are immediately sent.
+  now = fakeNow(2030, 5, 3, 23, 59, 0);
+  yield sendPing(true, true);
+  request = yield gRequestIterator.next();
+  ping = decodeRequestPayload(request);
   checkPingFormat(ping, TEST_PING_TYPE, true, true);
 
   // Clean-up.
