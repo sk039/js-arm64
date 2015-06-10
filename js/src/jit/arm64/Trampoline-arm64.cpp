@@ -85,6 +85,17 @@ JitRuntime::generateEnterJIT(JSContext* cx, EnterJitType type)
     // Remember stack depth without padding and arguments.
     masm.moveStackPtrTo(r19);
 
+    // If constructing, include newTarget.
+    // TODO: ARM64 support must be written.
+    //  Refer to git commit 7180509ff, Bug 1141865 Part 2.
+    {
+        Label noNewTarget;
+        Imm32 constructingToken(CalleeToken_FunctionConstructing);
+        masm.branchTest32(Assembler::Zero, reg_callee, constructingToken, &noNewTarget);
+        masm.breakpoint(); // TODO: include newTarget in the vector accounting.
+        masm.bind(&noNewTarget);
+    }
+
     // JitFrameLayout is as follows (higher is higher in memory):
     //  N*8  - [ JS argument vector ] (base 16-byte aligned)
     //  8    - numActualArgs
