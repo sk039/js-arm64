@@ -11,8 +11,6 @@ component_intl   = ('Core', 'JavaScript: Internationalization API')
 component_jit    = ('Core', 'JavaScript Engine: JIT')
 component_stl    = ('Core', 'JavaScript: Standard Library')
 
-#FILES_PER_UNIFIED_FILE = 1
-
 with Files('../public/**'):
     BUG_COMPONENT = component_engine
 with Files('*'):
@@ -444,7 +442,7 @@ elif CONFIG['JS_CODEGEN_ARM64']:
     if CONFIG['JS_ARM64_SIMULATOR']:
         UNIFIED_SOURCES += [
             'jit/arm64/vixl/Debugger-vixl.cpp',
-	    'jit/arm64/vixl/MozSimulator-vixl.cpp',
+            'jit/arm64/vixl/MozSimulator-vixl.cpp',
             'jit/arm64/vixl/Simulator-vixl.cpp'
         ]
 elif CONFIG['JS_CODEGEN_MIPS']:
