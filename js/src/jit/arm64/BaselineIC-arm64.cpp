@@ -4,8 +4,8 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#include "jit/SharedICHelpers.h"
 #include "jit/SharedIC.h"
+#include "jit/SharedICHelpers.h"
 
 #ifdef JS_ARM64_SIMULATOR
 #include "jit/arm64/Assembler-arm64.h"

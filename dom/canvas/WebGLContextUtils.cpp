@@ -75,6 +75,18 @@ TexImageTargetToTexTarget(TexImageTarget texImageTarget)
     }
 }
 
+JS::Value
+StringValue(JSContext* cx, const char* chars, ErrorResult& rv)
+{
+    JSString* str = JS_NewStringCopyZ(cx, chars);
+    if (!str) {
+        rv.Throw(NS_ERROR_OUT_OF_MEMORY);
+        return JS::NullValue();
+    }
+
+    return JS::StringValue(str);
+}
+
 GLComponents::GLComponents(TexInternalFormat internalformat)
 {
     TexInternalFormat unsizedformat = UnsizedInternalFormatFromInternalFormat(internalformat);
@@ -1198,12 +1210,11 @@ WebGLContext::AssertCachedState()
     //   supported by the GL implementation.
     const int maxStencilBits = 8;
     const GLuint maxStencilBitsMask = (1 << maxStencilBits) - 1;
-
     AssertMaskedUintParamCorrect(gl, LOCAL_GL_STENCIL_VALUE_MASK,      maxStencilBitsMask, mStencilValueMaskFront);
     AssertMaskedUintParamCorrect(gl, LOCAL_GL_STENCIL_BACK_VALUE_MASK, maxStencilBitsMask, mStencilValueMaskBack);
 
-    AssertUintParamCorrect(gl, LOCAL_GL_STENCIL_WRITEMASK,      mStencilWriteMaskFront);
-    AssertUintParamCorrect(gl, LOCAL_GL_STENCIL_BACK_WRITEMASK, mStencilWriteMaskBack);
+    AssertMaskedUintParamCorrect(gl, LOCAL_GL_STENCIL_WRITEMASK,       maxStencilBitsMask, mStencilWriteMaskFront);
+    AssertMaskedUintParamCorrect(gl, LOCAL_GL_STENCIL_BACK_WRITEMASK,  maxStencilBitsMask, mStencilWriteMaskBack);
 
     // Viewport
     GLint int4[4] = {0, 0, 0, 0};

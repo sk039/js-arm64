@@ -791,6 +791,8 @@ pref("toolkit.identity.debug", false);
 
 // AsyncShutdown delay before crashing in case of shutdown freeze
 pref("toolkit.asyncshutdown.timeout.crash", 60000);
+// Extra logging for AsyncShutdown barriers and phases
+pref("toolkit.asyncshutdown.log", false);
 
 // Enable deprecation warnings.
 pref("devtools.errorconsole.deprecation_warnings", true);
@@ -1074,6 +1076,11 @@ pref("javascript.options.ion",              true);
 pref("javascript.options.asmjs",            true);
 pref("javascript.options.native_regexp",    true);
 pref("javascript.options.parallel_parsing", true);
+#if !defined(RELEASE_BUILD) && !defined(ANDROID) && !defined(MOZ_B2G) && !defined(XP_IOS)
+pref("javascript.options.asyncstack",       true);
+#else
+pref("javascript.options.asyncstack",       false);
+#endif
 pref("javascript.options.ion.offthread_compilation", true);
 // This preference instructs the JS engine to discard the
 // source of any privileged JS after compilation. This saves
@@ -1189,7 +1196,7 @@ pref("network.warnOnAboutNetworking", true);
 // pref("network.protocol-handler.expose.imap", true);
 
 // Whether IOService.connectivity and NS_IsOffline depends on connectivity status
-pref("network.manage-offline-status", false);
+pref("network.manage-offline-status", true);
 // If set to true, IOService.offline depends on IOService.connectivity
 pref("network.offline-mirrors-connectivity", true);
 

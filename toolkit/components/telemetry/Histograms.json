@@ -275,6 +275,22 @@
     "n_buckets": 50,
     "description": "Time spent running JS GC (ms)"
   },
+  "GC_BUDGET_MS": {
+    "alert_emails": ["dev-telemetry-gc-alerts@mozilla.org"],
+    "expires_in_version": "never",
+    "kind": "linear",
+    "high": "100",
+    "n_buckets": 10,
+    "description": "Requested GC slice budget (ms)"
+  },
+  "GC_ANIMATION_MS": {
+    "alert_emails": ["dev-telemetry-gc-alerts@mozilla.org"],
+    "expires_in_version": "never",
+    "kind": "exponential",
+    "high": "10000",
+    "n_buckets": 50,
+    "description": "Time spent running JS GC when animating (ms)"
+  },
   "GC_MAX_PAUSE_MS": {
     "alert_emails": ["dev-telemetry-gc-alerts@mozilla.org"],
     "expires_in_version": "never",
@@ -7204,6 +7220,12 @@
     "kind": "flag",
     "description": "a testing histogram; not meant to be touched"
   },
+  "TLS_ERROR_REPORT_UI": {
+    "expires_in_version": "never",
+    "kind": "enumerated",
+    "n_values": 15,
+    "description": "User interaction with the TLS Error Reporter in about:neterror (0=Error seen, 1='auto' checked, 2='auto' unchecked, 3=Sent manually, 4=Sent automatically, 5=Send success, 6=Send failure, 7=Report section expanded)"
+  },
   "CERT_OCSP_ENABLED": {
     "expires_in_version": "never",
     "kind": "boolean",
@@ -7624,6 +7646,20 @@
     "kind": "count",
     "keyed": true,
     "description": "Counts of plugin and content process crashes which are reported with a crash dump."
+  },
+  "PROCESS_CRASH_SUBMIT_ATTEMPT": {
+    "expires_in_version": "never",
+    "kind": "count",
+    "keyed": true,
+    "releaseChannelCollection": "opt-out",
+    "description": "An attempt to submit a crash. Keyed on the CrashManager Crash.type."
+  },
+  "PROCESS_CRASH_SUBMIT_SUCCESS": {
+    "expires_in_version": "never",
+    "kind": "boolean",
+    "keyed": true,
+    "releaseChannelCollection": "opt-out",
+    "description": "The submission status when main/plugin/content crashes are submitted. 1 is success, 0 is failure. Keyed on the CrashManager Crash.type."
   },
   "STUMBLER_TIME_BETWEEN_UPLOADS_SEC": {
     "expires_in_version": "45",

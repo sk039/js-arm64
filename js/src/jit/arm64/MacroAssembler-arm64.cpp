@@ -19,19 +19,19 @@ void
 MacroAssembler::clampDoubleToUint8(FloatRegister input, Register output)
 {
     ARMRegister dest(output, 32);
-    fcvtns(dest, ARMFPRegister(input));
+    Fcvtns(dest, ARMFPRegister(input, 64));
 
     {
         vixl::UseScratchRegisterScope temps(this);
         const ARMRegister scratch32 = temps.AcquireW();
 
-        Mov(scratch32, Operand(255));
+        Mov(scratch32, Operand(0xff));
         Cmp(dest, scratch32);
-        csel(dest, dest, scratch32, LessThan);
+        Csel(dest, dest, scratch32, LessThan);
     }
 
     Cmp(dest, Operand(0));
-    csel(dest, wzr, dest, LessThan);
+    Csel(dest, wzr, dest, LessThan);
 }
 
 void

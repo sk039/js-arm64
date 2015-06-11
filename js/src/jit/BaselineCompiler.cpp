@@ -3874,8 +3874,7 @@ BaselineCompiler::emit_JSOP_RESUME()
     // After the generator returns, we restore the stack pointer, push the
     // return value and we're done.
     masm.bind(&returnTarget);
-    masm.computeEffectiveAddress(frame.addressOfStackValue(frame.peek(-1)), BaselineStackReg);
-    masm.syncStackPtr();
+    masm.computeEffectiveAddress(frame.addressOfStackValue(frame.peek(-1)), masm.getStackPointer());
     frame.popn(2);
     frame.push(R0);
     return true;
