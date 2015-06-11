@@ -655,7 +655,8 @@ JitRuntime::generateVMWrapper(JSContext* cx, const VMFunction& f)
     masm.callWithABI(f.wrapped);
 
     // SP is used to transfer stack across call boundaries.
-    masm.Mov(masm.GetStackPointer64(), vixl::sp);
+    if (!masm.GetStackPointer64().Is(vixl::sp))
+        masm.Mov(masm.GetStackPointer64(), vixl::sp);
 
     // Test for failure.
     switch (f.failType()) {
@@ -801,7 +802,7 @@ JitRuntime::generateDebugTrapHandler(JSContext* cx)
 
     masm.pop(BaselineFrameReg, lr);
     masm.syncStackPtr();
-    masm.Ret(vixl::lr);
+    masm.abiret();
 
     Linker linker(masm);
     JitCode* codeDbg = linker.newCode<NoGC>(cx, OTHER_CODE);
@@ -968,7 +969,8 @@ JitRuntime::generateProfilerExitFrameTailStub(JSContext* cx)
 
         // returning directly to an IonJS frame.  Store return addr to frame
         // in lastProfilingCallSite.
-        masm.loadPtr(Address(masm.getStackPointer(), JitFrameLayout::offsetOfReturnAddress()), scratch2);
+        masm.loadPtr(Address(masm.getStackPointer(), JitFrameLayout::offsetOfReturnAddress()),
+                     scratch2);
         masm.storePtr(scratch2, lastProfilingCallSite);
 
         // Store return frame in lastProfilingFrame.
@@ -1019,7 +1021,7 @@ JitRuntime::generateProfilerExitFrameTailStub(JSContext* cx)
         Address stubFrameSavedFramePtr(scratch3,
                                        JitFrameLayout::Size() - (2 * sizeof(void*)));
         masm.loadPtr(stubFrameSavedFramePtr, scratch2);
-        masm.addPtr(Imm32(sizeof(void*)), scratch2); // Skip past BL-PrevFramePtr
+        masm.addPtr(Imm32(sizeof(void*)), scratch2); // Skip past BL-PrevFramePtr.
         masm.storePtr(scratch2, lastProfilingFrame);
         masm.ret();
     }
