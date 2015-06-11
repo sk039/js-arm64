@@ -68,13 +68,7 @@ struct DtoaState;
 #ifdef JS_ARM64_SIMULATOR
 namespace vixl {
 class Simulator;
-} // namespace vixl
-#elif defined(JS_ARM_SIMULATOR) || defined(JS_MIPS_SIMULATOR)
-namespace js {
-namespace jit {
-class Simulator;
-} // namespace jit
-} // namespace js
+}
 #endif
 
 namespace js {
@@ -102,9 +96,9 @@ struct AutoFlushICache;
 class CompileRuntime;
 
 #ifdef JS_ARM64_SIMULATOR
-typedef vixl::Simulator SimulatorType;
+typedef vixl::Simulator Simulator;
 #elif defined(JS_ARM_SIMULATOR) || defined(JS_MIPS_SIMULATOR)
-typedef js::jit::Simulator SimulatorType;
+class Simulator;
 #endif
 }
 
@@ -523,7 +517,7 @@ class PerThreadData : public PerThreadDataFriendFields
     js::jit::AutoFlushICache* autoFlushICache_;
 
 #if defined(JS_ARM_SIMULATOR) || defined(JS_ARM64_SIMULATOR) || defined(JS_MIPS_SIMULATOR)
-    js::jit::SimulatorType* simulator_;
+    js::jit::Simulator* simulator_;
     uintptr_t simulatorStackLimit_;
 #endif
   public:
@@ -602,7 +596,7 @@ class PerThreadData : public PerThreadDataFriendFields
     void setAutoFlushICache(js::jit::AutoFlushICache* afc);
 
 #if defined(JS_ARM_SIMULATOR) || defined(JS_ARM64_SIMULATOR) || defined(JS_MIPS_SIMULATOR)
-    js::jit::SimulatorType* simulator() const;
+    js::jit::Simulator* simulator() const;
 #endif
 };
 
@@ -1056,12 +1050,12 @@ struct JSRuntime : public JS::shadow::Runtime,
     }
 
 #if defined(JS_ARM_SIMULATOR) || defined(JS_ARM64_SIMULATOR) || defined(JS_MIPS_SIMULATOR)
-    js::jit::SimulatorType* simulator_;
+    js::jit::Simulator* simulator_;
 #endif
 
   public:
 #if defined(JS_ARM_SIMULATOR) || defined(JS_ARM64_SIMULATOR) || defined(JS_MIPS_SIMULATOR)
-    js::jit::SimulatorType* simulator() const;
+    js::jit::Simulator* simulator() const;
     uintptr_t* addressOfSimulatorStackLimit();
 #endif
 

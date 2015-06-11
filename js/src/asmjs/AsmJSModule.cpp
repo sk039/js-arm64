@@ -663,7 +663,7 @@ static void*
 RedirectCall(void* fun, ABIFunctionType type)
 {
 #if defined(JS_ARM_SIMULATOR) || defined(JS_ARM64_SIMULATOR) || defined(JS_MIPS_SIMULATOR)
-    fun = SimulatorType::RedirectNativeFunction(fun, type);
+    fun = Simulator::RedirectNativeFunction(fun, type);
 #endif
     return fun;
 }
