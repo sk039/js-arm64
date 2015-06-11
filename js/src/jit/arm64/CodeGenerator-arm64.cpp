@@ -218,7 +218,7 @@ CodeGeneratorARM64::bailoutFrom(Label* label, LSnapshot* snapshot)
 
 }
 
-void 
+void
 CodeGeneratorARM64::bailout(LSnapshot* snapshot)
 {
     Label label;
@@ -279,7 +279,7 @@ CodeGeneratorARM64::visitSqrtD(LSqrtD* ins)
     masm.Fsqrt(output, input);
 }
 
-void 
+void
 CodeGeneratorARM64::visitSqrtF(LSqrtF* ins)
 {
     ARMFPRegister input(ToFloatRegister(ins->input()), 32);
@@ -342,7 +342,7 @@ CodeGeneratorARM64::visitAddI(LAddI* ins)
     }
 }
 
-void 
+void
 CodeGeneratorARM64::visitSubI(LSubI* ins)
 {
     const LAllocation* lhs = ins->getOperand(0);
@@ -474,7 +474,7 @@ CodeGeneratorARM64::visitDivI(LDivI* ins)
 
 }
 
-void 
+void
 CodeGeneratorARM64::visitDivPowTwoI(LDivPowTwoI* ins)
 {
     MOZ_CRASH("CodeGeneratorARM64::visitDivPowTwoI");
@@ -549,7 +549,7 @@ CodeGeneratorARM64::visitModMaskI(LModMaskI* ins)
     MOZ_CRASH("CodeGeneratorARM64::visitModMaskI");
 }
 
-void 
+void
 CodeGeneratorARM64::visitBitNotI(LBitNotI* ins)
 {
     const LAllocation* input = ins->getOperand(0);
@@ -557,7 +557,7 @@ CodeGeneratorARM64::visitBitNotI(LBitNotI* ins)
     masm.Mvn(toWRegister(output), toWOperand(input));
 }
 
-void 
+void
 CodeGeneratorARM64::visitBitOpI(LBitOpI* ins)
 {
     const LAllocation* lhs = ins->getOperand(0);
@@ -788,7 +788,7 @@ CodeGeneratorARM64::emitTableSwitchDispatch(MTableSwitch* mir, Register index_, 
     addOutOfLineCode(ool, mir);
 }
 
-void 
+void
 CodeGeneratorARM64::visitMathD(LMathD* math)
 {
     const ARMFPRegister src1(ToFloatRegister(math->getOperand(0)), 64);
@@ -1059,14 +1059,14 @@ CodeGeneratorARM64::visitUnbox(LUnbox* unbox)
     }
 }
 
-void 
+void
 CodeGeneratorARM64::visitDouble(LDouble* ins)
 {
     const LDefinition* out = ins->getDef(0);
     masm.Fmov(ARMFPRegister(ToFloatRegister(out), 64), ins->getDouble());
 }
 
-void 
+void
 CodeGeneratorARM64::visitFloat32(LFloat32* ins)
 {
     const LDefinition* out = ins->getDef(0);
@@ -1590,7 +1590,7 @@ CodeGeneratorARM64::visitUDiv(LUDiv* ins)
     masm.bind(&done);
 }
 
-void 
+void
 CodeGeneratorARM64::visitUMod(LUMod* ins)
 {
     ARMRegister lhs = toWRegister(ins->lhs());
