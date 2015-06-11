@@ -23,7 +23,7 @@ static const LiveRegisterSet AllRegs =
     LiveRegisterSet(GeneralRegisterSet(Registers::AllMask & ~(1 << 31 | 1 << 30 | 1 << 29| 1 << 28)),
                 FloatRegisterSet(FloatRegisters::AllMask));
 
-/* This method generates a trampoline on x64 for a c++ function with
+/* This method generates a trampoline on ARM64 for a c++ function with
  * the following signature:
  *   bool blah(void* code, int argc, Value* argv, JSObject* scopeChain, Value* vp)
  *   ...using standard AArch64 calling convention
@@ -304,8 +304,9 @@ JitRuntime::generateInvalidator(JSContext* cx)
 
     masm.pop(r2, r1);
 
-    masm.Add(masm.GetStackPointer64(), masm.GetStackPointer64(), Operand(sizeof(InvalidationBailoutStack)));
     masm.Add(masm.GetStackPointer64(), masm.GetStackPointer64(), x1);
+    masm.Add(masm.GetStackPointer64(), masm.GetStackPointer64(),
+             Operand(sizeof(InvalidationBailoutStack)));
     masm.syncStackPtr();
 
     JitCode* bailoutTail = cx->runtime()->jitRuntime()->getBailoutTail();
@@ -320,33 +321,38 @@ JitRuntime::generateArgumentsRectifier(JSContext* cx, void** returnAddrOut)
 {
     MacroAssembler masm;
 
-    // Save the return address for later
+    // Save the return address for later.
     masm.push(lr);
-    // Load the information that the rectifier needs from the stack
+
+    // Load the information that the rectifier needs from the stack.
     masm.Ldr(w0, MemOperand(masm.GetStackPointer64(), RectifierFrameLayout::offsetOfNumActualArgs()));
     masm.Ldr(x1, MemOperand(masm.GetStackPointer64(), RectifierFrameLayout::offsetOfCalleeToken()));
-    // Extract a JSFunction pointer from the callee token
+
+    // Extract a JSFunction pointer from the callee token.
     masm.And(x6, x1, Operand(CalleeTokenMask));
-    // Get the arguments from the function object
+
+    // Get the arguments from the function object.
     masm.Ldrh(x6, MemOperand(x6, JSFunction::offsetOfNargs()));
-    Label noPadding;
     masm.Mov(x7, x6);
 
-    // Calculate the position that our arguments are at before sp gets modified
+    // Calculate the position that our arguments are at before sp gets modified.
     masm.Add(x3, masm.GetStackPointer64(), Operand(x8, vixl::LSL, 3));
     masm.Add(x3, x3, Operand(sizeof(RectifierFrameLayout)));
 
-    // pad to a multiple of 16 bytes
+    // Pad to a multiple of 16 bytes.
+    Label noPadding;
     masm.Tbnz(x6, 0, &noPadding);
-    masm.Push(r31);
+    masm.asVIXL().Push(xzr);
     masm.Add(x7, x7, Operand(1));
     masm.bind(&noPadding);
-    // Calculate the number of undefineds that need to be pushed
+
+    // Calculate the number of undefineds that need to be pushed.
     masm.Sub(w2, w6, w8);
-    // Put an undefined in a register so it can be pushed
+
+    // Put an undefined in a register so it can be pushed.
     masm.moveValue(UndefinedValue(), r4);
 
-    // Push undefined N times
+    // Push undefined N times.
     {
         Label undefLoopTop;
         masm.bind(&undefLoopTop);
@@ -355,6 +361,7 @@ JitRuntime::generateArgumentsRectifier(JSContext* cx, void** returnAddrOut)
         masm.B(&undefLoopTop, Assembler::NonZero);
     }
 
+    // Arguments copy loop.
     {
         Label copyLoopTop;
         masm.bind(&copyLoopTop);
@@ -363,7 +370,8 @@ JitRuntime::generateArgumentsRectifier(JSContext* cx, void** returnAddrOut)
         masm.Subs(x8, x8, Operand(1));
         masm.B(&copyLoopTop, Assembler::NotSigned);
     }
-    // Fix up the size of the stack frame
+
+    // Fix up the size of the stack frame.
     masm.Add(x6, x7, Operand(1));
     masm.Lsl(x6, x6, 3);
 
@@ -374,28 +382,35 @@ JitRuntime::generateArgumentsRectifier(JSContext* cx, void** returnAddrOut)
               r1,  // Callee token.
               r6); // Frame descriptor.
 
-    // Didn't we just compute this? can't we just stick that value in one of our 30 GPR's?
-    // Load the address of the code that is getting called
+    // Didn't we just compute this? Can't we just stick that value in one of our 30 GPR's?
+    // Load the address of the code that is getting called.
     masm.And(x1, x1, Operand(CalleeTokenMask));
     masm.Ldr(x3, MemOperand(x1, JSFunction::offsetOfNativeOrScript()));
     masm.loadBaselineOrIonRaw(r3, r3, nullptr);
     masm.call(r3);
     uint32_t returnOffset = masm.currentOffset();
+
     // Clean up!
-    // Get the size of the stack frame, and clean up the later fixed frame
+    // Get the size of the stack frame, and clean up the later fixed frame.
     masm.Ldr(x4, MemOperand(masm.GetStackPointer64(), 24, vixl::PostIndex));
+
     // Now that the size of the stack frame sans the fixed frame has been loaded,
-    // add that onto the stack pointer
-    masm.Add(masm.GetStackPointer64(), masm.GetStackPointer64(), Operand(x4, vixl::LSR, FRAMESIZE_SHIFT));
-    // Do that return thing
+    // add that onto the stack pointer.
+    masm.Add(masm.GetStackPointer64(), masm.GetStackPointer64(),
+             Operand(x4, vixl::LSR, FRAMESIZE_SHIFT));
+
+    // Pop the return address from earlier and branch.
     masm.ret();
+
     Linker linker(masm);
     JitCode* code = linker.newCode<NoGC>(cx, OTHER_CODE);
+
     if (returnAddrOut) {
         CodeOffsetLabel returnLabel(returnOffset);
         returnLabel.fixup(&masm);
         *returnAddrOut = (void*) (code->raw() + returnLabel.offset());
     }
+
     return code;
 }
 
@@ -421,7 +436,6 @@ PushBailoutFrame(MacroAssembler& masm, uint32_t frameClass, Register spArg)
                  ARMRegister::XRegFromCode(i + 1),
                  MemOperand(masm.GetStackPointer64(), i * sizeof(void*)));
     }
-
 
     // Since our datastructures for stack inspection are compile-time fixed,
     // if there are only 16 double registers, then we need to reserve
