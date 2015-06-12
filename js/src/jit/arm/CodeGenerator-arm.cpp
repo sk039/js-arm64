@@ -46,14 +46,13 @@ CodeGeneratorARM::generatePrologue()
 {
     MOZ_ASSERT(masm.framePushed() == 0);
     MOZ_ASSERT(!gen->compilingAsmJS());
-
 #ifdef JS_USE_LINK_REGISTER
     masm.pushReturnAddress();
 #endif
 
     // If profiling, save the current frame pointer to a per-thread global field.
     if (isProfilerInstrumentationEnabled())
-        masm.profilerEnterFrame(masm.getStackPointer(), CallTempReg0);
+        masm.profilerEnterFrame(StackPointer, CallTempReg0);
 
     // Ensure that the Ion frames is properly aligned.
     masm.assertStackAlignment(JitStackAlignment, 0);

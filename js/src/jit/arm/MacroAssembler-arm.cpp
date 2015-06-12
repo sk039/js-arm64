@@ -3681,7 +3681,7 @@ void
 MacroAssemblerARM::ma_callJitHalfPush(const Register r)
 {
     // The stack is unaligned by 4 bytes. We push the pc to the stack to align
-    // the stack before the call, when we return the pc is popped and the stack
+    // the stack before the call, when we return the pc is poped and the stack
     // is restored to its unaligned state.
     as_blx(r);
 }
