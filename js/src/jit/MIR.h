@@ -4371,7 +4371,7 @@ class MBox
 // Note: the op may have been inverted during lowering (to put constants in a
 // position where they can be immediates), so it is important to use the
 // lir->jsop() instead of the mir->jsop() when it is present.
-static inline MacroAssembler::Condition
+static inline Assembler::Condition
 JSOpToCondition(MCompare::CompareType compareType, JSOp op)
 {
     bool isSigned = (compareType != MCompare::Compare_UInt32);
