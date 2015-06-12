@@ -9,7 +9,7 @@
 #include "jsprf.h"
 
 #include "jit/BitSet.h"
-#include "jit/JitSpewer.h"
+
 using namespace js;
 using namespace js::jit;
 
