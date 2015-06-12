@@ -29,16 +29,11 @@ class CodeGeneratorARM64 : public CodeGeneratorShared
     // Label for the common return path.
     NonAssertingLabel returnLabel_;
     NonAssertingLabel deoptLabel_;
-    // ugh.  this is not going to be pretty to move over.
-    // stack slotted variables are not useful on arm.
-    // it looks like this will need to return one of two types.
+
+    // FIXME: VIXL Operand does not match the platform-agnostic Operand,
+    // which is just a union of possible arguments.
     inline Operand ToOperand(const LAllocation& a) {
-        switch(a.kind()) {
-          case LAllocation::GPR:
-            return Operand(ARMRegister(a.toGeneralReg()->reg(), 32));
-          default:
-            MOZ_CRASH("ToOperand");
-        }
+        MOZ_CRASH("ToOperand");
     }
     inline Operand ToOperand(const LAllocation* a) {
         return ToOperand(*a);

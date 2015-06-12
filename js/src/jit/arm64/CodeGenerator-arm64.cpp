@@ -146,7 +146,6 @@ CodeGeneratorARM64::visitCompare(LCompare* comp)
     else
         masm.cmp32(ToRegister(left), ToRegister(right));
     masm.emitSet(cond, ToRegister(def));
-
 }
 
 void
@@ -189,7 +188,6 @@ CodeGeneratorARM64::bailoutIf(Assembler::Condition condition, LSnapshot* snapsho
     addOutOfLineCode(ool, new(alloc()) BytecodeSite(tree, tree->script()->code()));
 
     masm.B(ool->entry(), condition);
-
 }
 
 void
@@ -215,7 +213,6 @@ CodeGeneratorARM64::bailoutFrom(Label* label, LSnapshot* snapshot)
     addOutOfLineCode(ool, new(alloc()) BytecodeSite(tree, tree->script()->code()));
 
     masm.retarget(label, ool->entry());
-
 }
 
 void
@@ -303,7 +300,8 @@ toXRegister(const T* a)
     return ARMRegister(ToRegister(a), 64);
 }
 
-js::jit::Operand toWOperand(const LAllocation* a)
+js::jit::Operand
+toWOperand(const LAllocation* a)
 {
     if (a->isConstant())
         return js::jit::Operand(ToInt32(a));
@@ -471,7 +469,6 @@ CodeGeneratorARM64::visitDivI(LDivI* ins)
         masm.Mov(output, scratch32);
     }
     masm.bind(&done);
-
 }
 
 void

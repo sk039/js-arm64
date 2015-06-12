@@ -1103,7 +1103,8 @@ class Operand
 };
 
 void
-PatchJump(CodeLocationJump& jump_, CodeLocationLabel label);
+PatchJump(CodeLocationJump& jump_, CodeLocationLabel label,
+          ReprotectCode reprotect = DontReprotect);
 
 static inline void
 PatchBackedge(CodeLocationJump& jump_, CodeLocationLabel label, JitRuntime::BackedgeTarget target)

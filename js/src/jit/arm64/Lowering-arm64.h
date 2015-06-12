@@ -26,8 +26,6 @@ class LIRGeneratorARM64 : public LIRGeneratorShared
                 LUse::Policy policy = LUse::REGISTER, bool useAtStart = false);
     void useBoxFixed(LInstruction* lir, size_t n, MDefinition* mir, Register reg1, Register reg2);
 
-    // x86 has constraints on what registers can be formatted for 1-byte
-    // stores and loads; on ARM all registers are okay.
     LAllocation useByteOpRegister(MDefinition* mir);
     LAllocation useByteOpRegisterOrNonDoubleConstant(MDefinition* mir);
 
@@ -37,7 +35,7 @@ class LIRGeneratorARM64 : public LIRGeneratorShared
 
     bool needTempForPostBarrier() { return true; }
 
-    // x64 has a scratch register, so no need for another temp for dispatch ICs.
+    // ARM64 has a scratch register, so no need for another temp for dispatch ICs.
     LDefinition tempForDispatchCache(MIRType outputType = MIRType_None) {
         return LDefinition::BogusTemp();
     }
@@ -63,6 +61,7 @@ class LIRGeneratorARM64 : public LIRGeneratorShared
     {
         return lowerForFPU(ins, mir, lhs, rhs);
     }
+
     void lowerForCompFx4(LSimdBinaryCompFx4* ins, MSimdBinaryComp* mir,
                          MDefinition* lhs, MDefinition* rhs)
     {
@@ -83,9 +82,10 @@ class LIRGeneratorARM64 : public LIRGeneratorShared
     void visitPowHalf(MPowHalf* ins);
     void visitAsmJSNeg(MAsmJSNeg* ins);
 
-    LTableSwitch* newLTableSwitch(const LAllocation& in, const LDefinition& inputCopy,
-                                  MTableSwitch* ins);
     LTableSwitchV* newLTableSwitchV(MTableSwitch* ins);
+    LTableSwitch* newLTableSwitch(const LAllocation& in,
+                                  const LDefinition& inputCopy,
+                                  MTableSwitch* ins);
 
   public:
     void visitConstant(MConstant* ins);

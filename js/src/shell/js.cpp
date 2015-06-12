@@ -1246,9 +1246,13 @@ Evaluate(JSContext* cx, unsigned argc, jsval* vp)
             if (saveLength != loadLength) {
                 JS_ReportErrorNumber(cx, my_GetErrorMessage, nullptr, JSSMSG_CACHE_EQ_SIZE_FAILED,
                                      loadLength, saveLength);
-            } else if (!PodEqual(loadBuffer, saveBuffer.get(), loadLength)) {
+                return false;
+            }
+
+            if (!PodEqual(loadBuffer, saveBuffer.get(), loadLength)) {
                 JS_ReportErrorNumber(cx, my_GetErrorMessage, nullptr,
                                      JSSMSG_CACHE_EQ_CONTENT_FAILED);
+                return false;
             }
         }
 
@@ -6300,6 +6304,7 @@ main(int argc, char** argv, char** envp)
         || !op.addIntOption('\0', "baseline-warmup-threshold", "COUNT",
                             "Wait for COUNT calls or iterations before baseline-compiling "
                             "(default: 10)", -1)
+        || !op.addBoolOption('\0', "non-writable-jitcode", "Allocate JIT code as non-writable memory.")
         || !op.addBoolOption('\0', "no-fpu", "Pretend CPU does not support floating-point operations "
                              "to test JIT codegen (no-op on platforms other than x86).")
         || !op.addBoolOption('\0', "no-sse3", "Pretend CPU does not support SSE3 instructions and above "
@@ -6379,6 +6384,11 @@ main(int argc, char** argv, char** envp)
      */
     OOM_printAllocationCount = op.getBoolOption('O');
 #endif
+
+    if (op.getBoolOption("non-writable-jitcode")) {
+        js::jit::ExecutableAllocator::nonWritableJitCode = true;
+        PropagateFlagToNestedShells("--non-writable-jitcode");
+    }
 
 #ifdef JS_CODEGEN_X86
     if (op.getBoolOption("no-fpu"))

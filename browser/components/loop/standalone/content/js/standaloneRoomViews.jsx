@@ -220,10 +220,10 @@ loop.standaloneRoomViews = (function(mozL10n) {
 
     render: function() {
       return (
-        <footer>
+        <footer className="rooms-footer">
+          <div className="footer-logo" />
           <p dangerouslySetInnerHTML={{__html: this._getContent()}}
              onClick={this.recordClick}></p>
-          <div className="footer-logo" />
         </footer>
       );
     }
@@ -262,7 +262,7 @@ loop.standaloneRoomViews = (function(mozL10n) {
 
       return (
         <div className={classes}>
-            <img src={this.props.roomContextUrl.thumbnail} />
+          <img src={this.props.roomContextUrl.thumbnail || "shared/img/icons-16x16.svg#globe"} />
           <div className="standalone-context-url-description-wrapper">
             {this.props.roomContextUrl.description}
             <br /><a href={locationInfo.location}
