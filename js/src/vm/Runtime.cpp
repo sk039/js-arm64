@@ -29,12 +29,14 @@
 #include "jswatchpoint.h"
 #include "jswin.h"
 #include "jswrapper.h"
+
 #include "asmjs/AsmJSSignalHandlers.h"
 #include "jit/arm/Simulator-arm.h"
 #ifdef JS_CODEGEN_ARM64
 #include "jit/arm64/vixl/Simulator-vixl.h"
 #endif
 #include "jit/JitCompartment.h"
+#include "jit/mips/Simulator-mips.h"
 #include "jit/PcScriptCache.h"
 #include "js/MemoryMetrics.h"
 #include "js/SliceBudget.h"
@@ -78,12 +80,6 @@ PerThreadData::PerThreadData(JSRuntime* runtime)
     traceLogger(nullptr),
 #endif
     autoFlushICache_(nullptr),
-#if 0
-#if defined(JS_ARM_SIMULATOR) || defined(JS_ARM64_SIMULATOR) || defined(JS_MIPS_SIMULATOR)
-    simulator_(nullptr),
-    simulatorStackLimit_(0),
-#endif
-#endif
     dtoaState(nullptr),
     suppressGC(0),
 #ifdef DEBUG
@@ -97,11 +93,6 @@ PerThreadData::~PerThreadData()
 {
     if (dtoaState)
         DestroyDtoaState(dtoaState);
-#if 0
-#if defined(JS_ARM_SIMULATOR) || defined(JS_ARM64_SIMULATOR) || defined(JS_MIPS_SIMULATOR)
-    js_delete(simulator_);
-#endif
-#endif
 }
 
 bool
@@ -330,7 +321,6 @@ JSRuntime::init(uint32_t maxbytes, uint32_t maxNurseryBytes)
         return false;
 
     dateTimeInfo.updateTimeZoneAdjustment();
-
 
 #if defined(JS_ARM_SIMULATOR) || defined(JS_ARM64_SIMULATOR) || defined(JS_MIPS_SIMULATOR)
     simulator_ = js::jit::Simulator::Create();
