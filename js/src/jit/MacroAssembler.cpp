@@ -1572,9 +1572,7 @@ MacroAssembler::generateBailoutTail(Register scratch, Register bailoutInfo)
         regs.take(bailoutInfo);
 
         // Reset SP to the point where clobbering starts.
-        loadPtr(Address(bailoutInfo, offsetof(BaselineBailoutInfo, incomingStack)),
-                BaselineStackReg);
-        syncStackPtr();
+        loadStackPtr(Address(bailoutInfo, offsetof(BaselineBailoutInfo, incomingStack)));
 
         Register copyCur = regs.takeAny();
         Register copyEnd = regs.takeAny();
@@ -2387,17 +2385,8 @@ MacroAssembler::profilerPreCallImpl()
 void
 MacroAssembler::profilerPreCallImpl(Register reg, Register reg2)
 {
-
-#if 0
-    Label spsNotEnabled;
-    uint32_t *enabledAddr = p->addressOfEnabled();
-    load32(AbsoluteAddress(enabledAddr), temp);
-    push(temp); // +4: Did we push an sps frame.
-    branchTest32(Assembler::Zero, temp, temp, &spsNotEnabled);
-#endif
     JitContext *icx = GetJitContext();
     AbsoluteAddress profilingActivation(icx->runtime->addressOfProfilingActivation());
-
 
     CodeOffsetLabel label = movWithPatch(ImmWord(uintptr_t(-1)), reg);
     loadPtr(profilingActivation, reg2);
