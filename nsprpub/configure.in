@@ -201,6 +201,7 @@ case "$target" in
 
     if test -z "$android_platform" ; then
         AC_MSG_CHECKING([for android platform directory])
+
         case "$target_cpu" in
         arm)
             target_name=arm
