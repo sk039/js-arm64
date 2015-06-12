@@ -61,7 +61,6 @@ static MOZ_CONSTEXPR_VAR Register JSReturnReg_Type = { Registers::invalid_reg };
 static MOZ_CONSTEXPR_VAR Register JSReturnReg_Data = { Registers::invalid_reg };
 static MOZ_CONSTEXPR_VAR Register JSReturnReg = { Registers::invalid_reg };
 
-
 #if defined(JS_NUNBOX32)
 static MOZ_CONSTEXPR_VAR ValueOperand JSReturnOperand(InvalidReg, InvalidReg);
 #elif defined(JS_PUNBOX64)

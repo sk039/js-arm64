@@ -8201,7 +8201,10 @@ GenerateEntry(ModuleCompiler& m, unsigned exportIndex)
     PropertyName* funcName = m.module().exportedFunction(exportIndex).name();
     const ModuleCompiler::Func& func = *m.lookupFunction(funcName);
     masm.reserveStack(AlignBytes(StackArgBytes(func.sig().args()), AsmJSStackAlignment));
+#ifdef JS_CODEGEN_ARM64
     masm.syncStackPtr();
+#endif
+
     // Copy parameters out of argv and into the registers/stack-slots specified by
     // the system ABI.
     for (ABIArgTypeIter iter(func.sig().args()); !iter.done(); iter++) {

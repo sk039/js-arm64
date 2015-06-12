@@ -105,8 +105,6 @@ static MOZ_CONSTEXPR_VAR FloatRegister ScratchSimdReg = InvalidFloatReg;
 static MOZ_CONSTEXPR_VAR FloatRegister ScratchUIntReg = { FloatRegisters::d15, VFPRegister::UInt };
 static MOZ_CONSTEXPR_VAR FloatRegister ScratchIntReg = { FloatRegisters::d15, VFPRegister::Int };
 
-static MOZ_CONSTEXPR_VAR Register RegExpStackPointer = sp;
-
 // A bias applied to the GlobalReg to allow the use of instructions with small
 // negative immediate offsets which doubles the range of global data that can be
 // accessed with a single instruction.
@@ -1804,7 +1802,6 @@ class Assembler : public AssemblerShared
     void flushBuffer();
     void enterNoPool(size_t maxInst);
     void leaveNoPool();
-
     // This should return a BOffImm, but we didn't want to require everyplace
     // that used the AssemblerBuffer to make that class.
     static ptrdiff_t GetBranchOffset(const Instruction* i);
@@ -1852,6 +1849,7 @@ class Assembler : public AssemblerShared
     bool bailed() {
         return m_buffer.bail();
     }
+
     void verifyHeapAccessDisassembly(uint32_t begin, uint32_t end,
                                      const Disassembler::HeapAccess& heapAccess)
     {

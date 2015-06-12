@@ -57,7 +57,7 @@ using namespace js::jit;
  *     Points to byte after last character in the input.
  * - backtrack_stack_pointer :
  *     Points to tip of the heap allocated backtrack stack
- * - RegExpStackPointer :
+ * - StackPointer :
  *     Points to tip of the native stack, used to access arguments, local
  *     variables and RegExp registers.
  *
@@ -122,8 +122,8 @@ NativeRegExpMacroAssembler::GenerateCode(JSContext* cx, bool match_only)
 
 #ifdef JS_CODEGEN_ARM64
     // ARM64 communicates stack address via sp, but uses a pseudo-sp for addressing.
-    MOZ_ASSERT(RegExpStackPointer == PseudoStackPointer);
-    masm.Mov(PseudoStackPointer64, vixl::sp);
+    MOZ_ASSERT(!masm.GetStackPointer64().Is(sp));
+    masm.moveStackPtrTo(masm.getStackPointer());
 #endif
 
     // Push non-volatile registers which might be modified by jitcode.
@@ -385,7 +385,7 @@ NativeRegExpMacroAssembler::GenerateCode(JSContext* cx, bool match_only)
     // Backtrack stack overflow code.
     if (stack_overflow_label_.used()) {
         // Reached if the backtrack-stack limit has been hit. temp2 holds the
-        // RegExpStackPointer to use for accessing FrameData.
+        // StackPointer to use for accessing FrameData.
         masm.bind(&stack_overflow_label_);
 
         Label grow_failed;
