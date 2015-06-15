@@ -1427,18 +1427,15 @@ JitCompartment::generateRegExpExecStub(JSContext* cx)
 
     // All done!
     masm.tagValue(JSVAL_TYPE_OBJECT, object, result);
-    //masm.adr(xzr, 0x54320);
     masm.ret();
 
     masm.bind(&notFound);
     masm.moveValue(NullValue(), result);
-    //masm.adr(xzr, 0x54321);
     masm.ret();
 
     // Use an undefined value to signal to the caller that the OOL stub needs to be called.
     masm.bind(&oolEntry);
     masm.moveValue(UndefinedValue(), result);
-    //masm.adr(xzr, 0x54322);
     masm.ret();
 
     Linker linker(masm);
@@ -3286,7 +3283,6 @@ CodeGenerator::emitPushArguments(LApplyArgsGeneric* apply, Register extraStackSp
         Label loop;
         masm.bind(&loop);
 
-
         // As argvIndex is off by 1, and we use the decBranchPtr instruction
         // to loop back, we have to substract the size of the word which are
         // copied.
@@ -3854,7 +3850,7 @@ CodeGenerator::emitAssertObjectOrStringResult(Register input, MIRType type, cons
     regs.take(input);
 
     Register temp = regs.takeAny();
-    masm.Push(temp);
+    masm.push(temp);
 
     // Don't check if the script has been invalidated. In that case invalid
     // types are expected (until we reach the OsiPoint and bailout).
@@ -3911,7 +3907,7 @@ CodeGenerator::emitAssertObjectOrStringResult(Register input, MIRType type, cons
     restoreVolatile();
 
     masm.bind(&done);
-    masm.Pop(temp);
+    masm.pop(temp);
 }
 
 void
@@ -4109,6 +4105,7 @@ CodeGenerator::generateBody()
             // Track the end native offset of optimizations.
             if (iter->mirRaw() && iter->mirRaw()->trackedOptimizations())
                 extendTrackedOptimizationsEntry(iter->mirRaw()->trackedOptimizations());
+
 #ifdef DEBUG
             if (!counts)
                 emitDebugResultChecks(*iter);
@@ -4121,6 +4118,7 @@ CodeGenerator::generateBody()
         perfSpewer->endBasicBlock(masm);
 #endif
     }
+
     return true;
 }
 
