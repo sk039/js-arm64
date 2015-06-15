@@ -179,9 +179,6 @@ class MacroAssemblerCompat : public vixl::MacroAssembler
             vixl::MacroAssembler::Push(scratch64);
         }
     }
-    void push(ImmMaybeNurseryPtr imm) {
-        push(noteMaybeNurseryPtr(imm));
-    }
     void push(ARMRegister reg) {
         vixl::MacroAssembler::Push(reg);
     }
@@ -809,9 +806,6 @@ class MacroAssemblerCompat : public vixl::MacroAssembler
         BufferOffset load = movePatchablePtr(ImmPtr(imm.value), dest);
         writeDataRelocation(imm, load);
     }
-    void movePtr(ImmMaybeNurseryPtr imm, Register dest) {
-        movePtr(noteMaybeNurseryPtr(imm), dest);
-    }
 
     void mov(ImmWord imm, Register dest) {
         movePtr(imm, dest);
@@ -1217,9 +1211,6 @@ class MacroAssemblerCompat : public vixl::MacroAssembler
         MOZ_ASSERT(scratch != lhs);
         movePtr(rhs, scratch);
         cmpPtr(lhs, scratch);
-    }
-    void cmpPtr(Register lhs, ImmMaybeNurseryPtr rhs) {
-        cmpPtr(lhs, noteMaybeNurseryPtr(rhs));
     }
 
     void cmpPtr(const Address& lhs, Register rhs) {
@@ -1793,9 +1784,6 @@ class MacroAssemblerCompat : public vixl::MacroAssembler
         cmp(scratch2_64, scratch1_64);
         B(cond, label);
 
-    }
-    void branchPtr(Condition cond, Address lhs, ImmMaybeNurseryPtr ptr, Label* label) {
-        branchPtr(cond, lhs, noteMaybeNurseryPtr(ptr), label);
     }
     void branchPtr(Condition cond, Register lhs, Register rhs, Label* label) {
         Cmp(ARMRegister(lhs, 64), ARMRegister(rhs, 64));
