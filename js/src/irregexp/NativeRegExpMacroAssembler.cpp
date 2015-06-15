@@ -259,7 +259,6 @@ NativeRegExpMacroAssembler::GenerateCode(JSContext* cx, bool match_only)
     }
 
     // Initialize backtrack stack pointer.
-
     masm.loadPtr(AbsoluteAddress(runtime->regexpStack.addressOfBase()), backtrack_stack_pointer);
     masm.storePtr(backtrack_stack_pointer,
                   Address(masm.getStackPointer(), offsetof(FrameData, backtrackStackBase)));
