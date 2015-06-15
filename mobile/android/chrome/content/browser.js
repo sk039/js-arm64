@@ -148,7 +148,7 @@ let lazilyLoadedObserverScripts = [
   ["MemoryObserver", ["memory-pressure", "Memory:Dump"], "chrome://browser/content/MemoryObserver.js"],
   ["ConsoleAPI", ["console-api-log-event"], "chrome://browser/content/ConsoleAPI.js"],
   ["FindHelper", ["FindInPage:Opened", "FindInPage:Closed", "Tab:Selected"], "chrome://browser/content/FindHelper.js"],
-  ["PermissionsHelper", ["Permissions:Get", "Permissions:Clear"], "chrome://browser/content/PermissionsHelper.js"],
+  ["PermissionsHelper", ["Permissions:Check", "Permissions:Get", "Permissions:Clear"], "chrome://browser/content/PermissionsHelper.js"],
   ["FeedHandler", ["Feeds:Subscribe"], "chrome://browser/content/FeedHandler.js"],
   ["Feedback", ["Feedback:Show"], "chrome://browser/content/Feedback.js"],
   ["SelectionHandler", ["TextSelection:Get"], "chrome://browser/content/SelectionHandler.js"],
@@ -250,6 +250,65 @@ if (AppConstants.MOZ_WEBRTC) {
   XPCOMUtils.defineLazyServiceGetter(this, "MediaManagerService",
     "@mozilla.org/mediaManagerService;1", "nsIMediaManagerService");
 }
+
+XPCOMUtils.defineLazyModuleGetter(
+  this,
+  "DOMApplicationRegistry",
+  "resource://gre/modules/Webapps.jsm",
+  null,
+  function() {
+    XPCOMUtils.defineLazyServiceGetter(this, "ppmm",
+                                   "@mozilla.org/parentprocessmessagemanager;1",
+                                   "nsIMessageBroadcaster");
+
+    // Keep the messages in sync with the initialization in Webapps.jsm (bug 1171013).
+    this.messages = ["Webapps:Install",
+                     "Webapps:Uninstall",
+                     "Webapps:GetSelf",
+                     "Webapps:CheckInstalled",
+                     "Webapps:GetInstalled",
+                     "Webapps:GetNotInstalled",
+                     "Webapps:Launch",
+                     "Webapps:LocationChange",
+                     "Webapps:InstallPackage",
+                     "Webapps:GetList",
+                     "Webapps:RegisterForMessages",
+                     "Webapps:UnregisterForMessages",
+                     "Webapps:CancelDownload",
+                     "Webapps:CheckForUpdate",
+                     "Webapps:Download",
+                     "Webapps:ApplyDownload",
+                     "Webapps:Install:Return:Ack",
+                     "Webapps:AddReceipt",
+                     "Webapps:RemoveReceipt",
+                     "Webapps:ReplaceReceipt",
+                     "Webapps:RegisterBEP",
+                     "Webapps:Export",
+                     "Webapps:Import",
+                     "Webapps:GetIcon",
+                     "Webapps:ExtractManifest",
+                     "Webapps:SetEnabled",
+                     "child-process-shutdown"];
+
+    this.messages.forEach(msgName => {
+      this.ppmm.addMessageListener(msgName, this);
+    });
+  },
+  function() {
+    this.messages.forEach(msgName => {
+      this.ppmm.removeMessageListener(msgName, this);
+    });
+  },
+  {
+    receiveMessage: function() {
+      // This is called only once when we receive a message for the first time.
+      // With this, we trigger the import of Webapps.jsm and forward the message
+      // to the real registry.
+      return DOMApplicationRegistry.receiveMessage.apply(
+          DOMApplicationRegistry, arguments);
+    }
+  }
+);
 
 const kStateActive = 0x00000001; // :active pseudoclass for elements
 
@@ -455,9 +514,6 @@ var BrowserApp = {
     XPInstallObserver.init();
     CharacterEncoding.init();
     ActivityObserver.init();
-    // TODO: replace with Android implementation of WebappOSUtils.isLaunchable.
-    Cu.import("resource://gre/modules/Webapps.jsm");
-    DOMApplicationRegistry.allAppsLaunchable = true;
     RemoteDebugger.init();
     UserAgentOverrides.init();
     DesktopUserAgent.init();
@@ -6189,19 +6245,21 @@ let HealthReportStatusListener = {
 };
 
 var XPInstallObserver = {
-  init: function xpi_init() {
-    Services.obs.addObserver(XPInstallObserver, "addon-install-blocked", false);
-    Services.obs.addObserver(XPInstallObserver, "addon-install-started", false);
+  init: function() {
+    Services.obs.addObserver(this, "addon-install-blocked", false);
+    Services.obs.addObserver(this, "addon-install-started", false);
+    Services.obs.addObserver(this, "xpi-signature-changed", false);
+    Services.obs.addObserver(this, "browser-delayed-startup-finished", false);
 
-    AddonManager.addInstallListener(XPInstallObserver);
+    AddonManager.addInstallListener(this);
   },
 
-  observe: function xpi_observer(aSubject, aTopic, aData) {
+  observe: function(aSubject, aTopic, aData) {
     switch (aTopic) {
       case "addon-install-started":
         NativeWindow.toast.show(Strings.browser.GetStringFromName("alertAddonsDownloading"), "short");
         break;
-      case "addon-install-blocked":
+      case "addon-install-blocked": {
         let installInfo = aSubject.QueryInterface(Ci.amIWebInstallInfo);
         let tab = BrowserApp.getTabForBrowser(installInfo.browser);
         if (!tab)
@@ -6268,7 +6326,41 @@ var XPInstallObserver = {
         }
         NativeWindow.doorhanger.show(message, aTopic, buttons, tab.id);
         break;
+      }
+      case "xpi-signature-changed": {
+        if (JSON.parse(aData).disabled.length) {
+          this._notifyUnsignedAddonsDisabled();
+        }
+        break;
+      }
+      case "browser-delayed-startup-finished": {
+        let disabledAddons = AddonManager.getStartupChanges(AddonManager.STARTUP_CHANGE_DISABLED);
+        for (let id of disabledAddons) {
+          if (AddonManager.getAddonByID(id).signedState <= AddonManager.SIGNEDSTATE_MISSING) {
+            this._notifyUnsignedAddonsDisabled();
+            break;
+          }
+        }
+        break;
+      }
     }
+  },
+
+  _notifyUnsignedAddonsDisabled: function() {
+    new Prompt({
+      window: window,
+      title: Strings.browser.GetStringFromName("unsignedAddonsDisabled.title"),
+      message: Strings.browser.GetStringFromName("unsignedAddonsDisabled.message"),
+      buttons: [
+        Strings.browser.GetStringFromName("unsignedAddonsDisabled.viewAddons"),
+        Strings.browser.GetStringFromName("unsignedAddonsDisabled.dismiss")
+      ]
+    }).show((data) => {
+      if (data.button === 0) {
+        // TODO: Open about:addons to show only unsigned add-ons?
+        BrowserApp.addTab("about:addons", { parentId: BrowserApp.selectedTab.id });
+      }
+    });
   },
 
   onInstallEnded: function(aInstall, aAddon) {
@@ -7028,6 +7120,7 @@ var IdentityHandler = {
       locationObj.host = location.host;
       locationObj.hostname = location.hostname;
       locationObj.port = location.port;
+      locationObj.origin = location.origin;
     } catch (ex) {
       // Can sometimes throw if the URL being visited has no host/hostname,
       // e.g. about:blank. The _state for these pages means we won't need these
@@ -7039,6 +7132,7 @@ var IdentityHandler = {
     let mixedMode = this.getMixedMode(aState);
     let trackingMode = this.getTrackingMode(aState);
     let result = {
+      origin: locationObj.origin,
       mode: {
         identity: identityMode,
         mixed: mixedMode,
@@ -7052,8 +7146,7 @@ var IdentityHandler = {
       return result;
     }
 
-    // Ideally we'd just make this a Java string
-    result.encrypted = Strings.browser.GetStringFromName("identity.encrypted2");
+    result.encrypted = true;
     result.host = this.getEffectiveHost();
 
     let iData = this.getIdentityData();

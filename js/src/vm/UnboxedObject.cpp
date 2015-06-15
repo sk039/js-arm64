@@ -1888,6 +1888,9 @@ js::TryConvertToUnboxedLayout(ExclusiveContext* cx, Shape* templateShape,
         if (!obj)
             continue;
 
+        if (obj->isSingleton() || obj->group() != group)
+            return true;
+
         objectCount++;
 
         if (isArray) {
@@ -2006,10 +2009,11 @@ js::TryConvertToUnboxedLayout(ExclusiveContext* cx, Shape* templateShape,
 }
 
 DefineBoxedOrUnboxedFunctor6(SetOrExtendBoxedOrUnboxedDenseElements,
-                             JSContext*, JSObject*, uint32_t, const Value*, uint32_t, ShouldUpdateTypes);
+                             ExclusiveContext*, JSObject*, uint32_t, const Value*, uint32_t,
+                             ShouldUpdateTypes);
 
 DenseElementResult
-js::SetOrExtendAnyBoxedOrUnboxedDenseElements(JSContext* cx, JSObject* obj,
+js::SetOrExtendAnyBoxedOrUnboxedDenseElements(ExclusiveContext* cx, JSObject* obj,
                                               uint32_t start, const Value* vp, uint32_t count,
                                               ShouldUpdateTypes updateTypes)
 {

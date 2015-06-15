@@ -90,6 +90,7 @@
 #include "nsPIWindowRoot.h"
 #include "gfxDrawable.h"
 #include "ImageOps.h"
+#include "UnitTransforms.h"
 #include <algorithm>
 
 using namespace mozilla::dom;
@@ -333,8 +334,26 @@ TabParent::SetOwnerElement(Element* aElement)
   // If we held previous content then unregister for its events.
   RemoveWindowListeners();
 
+  // If we change top-level documents then we need to change our
+  // registration with them.
+  nsRefPtr<nsPIWindowRoot> curTopLevelWin, newTopLevelWin;
+  if (mFrameElement) {
+    curTopLevelWin = nsContentUtils::GetWindowRoot(mFrameElement->OwnerDoc());
+  }
+  if (aElement) {
+    newTopLevelWin = nsContentUtils::GetWindowRoot(aElement->OwnerDoc());
+  }
+  bool isSameTopLevelWin = curTopLevelWin == newTopLevelWin;
+  if (curTopLevelWin && !isSameTopLevelWin) {
+    curTopLevelWin->RemoveBrowser(this);
+  }
+
   // Update to the new content, and register to listen for events from it.
   mFrameElement = aElement;
+
+  if (newTopLevelWin && !isSameTopLevelWin) {
+    newTopLevelWin->AddBrowser(this);
+  }
 
   AddWindowListeners();
   TryCacheDPIAndScale();
@@ -951,11 +970,13 @@ TabParent::UpdateDimensions(const nsIntRect& rect, const ScreenIntSize& size)
   LayoutDeviceIntPoint chromeOffset = -GetChildProcessOffset();
 
   nsCOMPtr<nsIWidget> widget = GetWidget();
-  nsIntRect contentRect = rect;
-  if (widget) {
-    contentRect.x += widget->GetClientOffset().x;
-    contentRect.y += widget->GetClientOffset().y;
+  if (!widget) {
+    NS_WARNING("No widget found in TabParent::UpdateDimensions");
+    return;
   }
+  nsIntRect contentRect = rect;
+  contentRect.x += widget->GetClientOffset().x;
+  contentRect.y += widget->GetClientOffset().y;
 
   if (!mUpdatedDimensions || mOrientation != orientation ||
       mDimensions != size || !mRect.IsEqualEdges(contentRect) ||
@@ -967,7 +988,18 @@ TabParent::UpdateDimensions(const nsIntRect& rect, const ScreenIntSize& size)
     mOrientation = orientation;
     mChromeOffset = chromeOffset;
 
-    unused << SendUpdateDimensions(mRect, mDimensions, mOrientation, mChromeOffset);
+    CSSToLayoutDeviceScale widgetScale = widget->GetDefaultScale();
+
+    LayoutDeviceIntRect devicePixelRect =
+      ViewAs<LayoutDevicePixel>(mRect,
+                                PixelCastJustification::LayoutDeviceIsScreenForTabDims);
+    LayoutDeviceIntSize devicePixelSize =
+      ViewAs<LayoutDevicePixel>(mDimensions.ToUnknownSize(),
+                                PixelCastJustification::LayoutDeviceIsScreenForTabDims);
+
+    CSSRect unscaledRect = devicePixelRect / widgetScale;
+    CSSSize unscaledSize = devicePixelSize / widgetScale;
+    unused << SendUpdateDimensions(unscaledRect, unscaledSize, orientation, chromeOffset);
   }
 }
 
@@ -986,6 +1018,7 @@ TabParent::UIResolutionChanged()
     // TryCacheDPIAndScale()'s cache is keyed off of
     // mDPI being greater than 0, so this invalidates it.
     mDPI = -1;
+    TryCacheDPIAndScale();
     unused << SendUIResolutionChanged();
   }
 }
@@ -2669,6 +2702,13 @@ TabParent::ApzAwareEventRoutingToChild(ScrollableLayerGuid* aOutTargetGuid,
     // Let the widget know that the event will be sent to the child process,
     // which will (hopefully) send a confirmation notice back to APZ.
     InputAPZContext::SetRoutedToChildProcess();
+  } else {
+    if (aOutInputBlockId) {
+      *aOutInputBlockId = 0;
+    }
+    if (aOutApzResponse) {
+      *aOutApzResponse = nsEventStatus_eIgnore;
+    }
   }
 }
 

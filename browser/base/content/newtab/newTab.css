@@ -207,27 +207,40 @@ input[type=button] {
 }
 
 .newtab-sponsored {
-  border: 1px solid #dcdcdc;
-  border-radius: 2px;
+  background-color: #FFFFFF;
+  border: 1px solid #E2E2E2;
+  border-radius: 3px;
+  color: #4A4A4A;
   cursor: pointer;
   display: none;
   font-family: Arial;
-  font-size: 10px;
+  font-size: 9px;
   height: 17px;
-  line-height: 17px;
-  margin: 5px;
-  padding: 0 4px;
+  left: 0;
+  line-height: 6px;
+  padding: 4px;
+  right: auto;
+  top: -15px;
 }
 
-.newtab-sponsored:-moz-any(:hover, [active]) {
-  background-color: #3a72b1;
+.newtab-site[suggested=true] > .newtab-sponsored {
+  background-color: #E2E2E2;
+  border: none;
+}
+
+.newtab-site > .newtab-sponsored:-moz-any(:hover, [active]) {
+  background-color: #4A90E2;
   border: 0;
   color: white;
 }
 
+.newtab-site > .newtab-sponsored[active] {
+  background-color: #000000;
+}
+
 .newtab-sponsored:-moz-locale-dir(rtl) {
-  left: 0;
-  right: auto;
+  right: 0;
+  left: auto;
 }
 
 .newtab-site:-moz-any([type=enhanced], [type=sponsored], [suggested]) .newtab-sponsored {
@@ -501,7 +514,8 @@ input[type=button] {
 .newtab-search-panel-engine,
 #newtab-search-manage {
   line-height: 25px;
-  padding: 15px 15px 15px 40px;
+  padding: 15px;
+  -moz-padding-start: 40px;
   font-size: 14px;
   cursor: pointer;
 }
@@ -532,9 +546,18 @@ input[type=button] {
 .newtab-customize-complex-option {
   width: 100%;
   display: block;
-  text-align: left;
+  text-align: start;
   max-width: 300px;
   background-color: #F9F9F9;
+}
+
+.newtab-customize-panel-item[selected]:-moz-locale-dir(rtl) {
+  background-position: right 15px center;
+}
+
+.newtab-customize-complex-option:hover > .selectable:not([selected]):-moz-locale-dir(rtl),
+.selectable:not([selected]):hover:-moz-locale-dir(rtl) {
+  background-position: right 15px center;
 }
 
 .newtab-intro-image-customize .newtab-customize-panel-item,
@@ -589,12 +612,13 @@ input[type=button] {
 
 .newtab-customize-panel-subitem {
   font-size: 12px;
-  padding: 0px 15px 15px 40px;
+  padding: 0px 15px 15px 15px;
+  -moz-padding-start: 40px;
   display: block;
 }
 
 .newtab-customize-panel-subitem > label {
-  padding-left: 10px;
+  padding: 0px 10px;
   line-height: 20px;
   vertical-align: middle;
   max-width: 225px;
@@ -603,7 +627,8 @@ input[type=button] {
 .newtab-customize-panel-superitem {
   line-height: 20px;
   border-bottom: medium none !important;
-  padding: 15px 15px 10px 40px;
+  padding: 15px 15px 10px 15px;
+  -moz-padding-start: 40px;
   border-top: 1px solid threedshadow;
 }
 
@@ -633,7 +658,7 @@ input[type=button] {
 
 #newtab-intro-modal {
   font-family: "Helvetica";
-  height: 500px;
+  height: 512px;
   position: fixed;
   left: 0;
   right: 0;
@@ -709,7 +734,7 @@ input[type=button] {
 }
 
 #newtab-intro-body {
-  height: 310px;
+  height: 330px;
   position: relative;
   display: block;
   top: 50px;
@@ -751,7 +776,6 @@ input[type=button] {
   right: 0px;
   font-size: 14px;
   line-height: 20px;
-  margin-top: -12px;
   min-width: 270px;
 }
 
