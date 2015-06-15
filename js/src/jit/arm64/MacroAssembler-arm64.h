@@ -810,6 +810,15 @@ class MacroAssemblerCompat : public vixl::MacroAssembler
     void mov(ImmWord imm, Register dest) {
         movePtr(imm, dest);
     }
+    void mov(ImmPtr imm, Register dest) {
+        movePtr(imm, dest);
+    }
+    void mov(AsmJSImmPtr imm, Register dest) {
+        movePtr(imm, dest);
+    }
+    void mov(Register src, Register dest) {
+        movePtr(src, dest);
+    }
 
     void move32(Imm32 imm, Register dest) {
         Mov(ARMRegister(dest, 32), (int64_t)imm.value);

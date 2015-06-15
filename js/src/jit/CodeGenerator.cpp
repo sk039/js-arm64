@@ -2718,7 +2718,7 @@ CodeGenerator::visitOutOfLineCallPostWriteBarrier(OutOfLineCallPostWriteBarrier*
     }
 
     Register runtimereg = regs.takeAny();
-    masm.movePtr(ImmPtr(GetJitContext()->runtime), runtimereg);
+    masm.mov(ImmPtr(GetJitContext()->runtime), runtimereg);
 
     void (*fun)(JSRuntime*, JSObject*) = isGlobal ? PostGlobalWriteBarrier : PostWriteBarrier;
     masm.setupUnalignedABICall(2, regs.takeAny());
@@ -6160,11 +6160,11 @@ JitCompartment::generateStringConcatStub(JSContext* cx)
     masm.ret();
 
     masm.bind(&leftEmpty);
-    masm.movePtr(rhs, output);
+    masm.mov(rhs, output);
     masm.ret();
 
     masm.bind(&rightEmpty);
-    masm.movePtr(lhs, output);
+    masm.mov(lhs, output);
     masm.ret();
 
     masm.bind(&isFatInlineTwoByte);

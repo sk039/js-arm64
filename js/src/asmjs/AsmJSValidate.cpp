@@ -8410,7 +8410,7 @@ GenerateFFIInterpExit(ModuleCompiler& m, const ModuleCompiler::ExitDescriptor& e
 
     // argument 0: exitIndex
     if (i->kind() == ABIArg::GPR)
-        masm.movePtr(ImmWord(exitIndex), i->gpr());
+        masm.mov(ImmWord(exitIndex), i->gpr());
     else
         masm.store32(Imm32(exitIndex), Address(masm.getStackPointer(), i->offsetFromArgBase()));
     i++;
@@ -8418,7 +8418,7 @@ GenerateFFIInterpExit(ModuleCompiler& m, const ModuleCompiler::ExitDescriptor& e
     // argument 1: argc
     unsigned argc = exit.sig().args().length();
     if (i->kind() == ABIArg::GPR)
-        masm.movePtr(ImmWord(argc), i->gpr());
+        masm.mov(ImmWord(argc), i->gpr());
     else
         masm.store32(Imm32(argc), Address(masm.getStackPointer(), i->offsetFromArgBase()));
     i++;
@@ -8497,7 +8497,6 @@ GenerateFFIIonExit(ModuleCompiler& m, const ModuleCompiler::ExitDescriptor& exit
     GenerateAsmJSExitPrologue(masm, ionFramePushed, AsmJSExit::JitFFI, &begin);
 
     // 1. Descriptor
-
     size_t argOffset = 0;
     uint32_t descriptor = MakeFrameDescriptor(ionFramePushed, JitFrame_Entry);
     masm.storePtr(ImmWord(uintptr_t(descriptor)), Address(masm.getStackPointer(), argOffset));
@@ -8910,7 +8909,6 @@ GenerateOnDetachedLabelExit(ModuleCompiler& m, Label* throwLabel)
     return m.finishGeneratingInlineStub(&m.onDetachedLabel()) && !masm.oom();
 }
 
-
 static bool
 GenerateExceptionLabelExit(ModuleCompiler& m, Label* throwLabel, Label* exit, AsmJSImmKind func)
 {
@@ -9042,7 +9040,7 @@ GenerateAsyncInterruptExit(ModuleCompiler& m, Label* throwLabel)
     masm.as_mrs(r4);
     masm.as_vmrs(r5);
     // Save the stack pointer in a non-volatile register.
-    masm.movePtr(sp,r6);
+    masm.moveStackPtrTo(r6);
     // Align the stack.
     masm.ma_and(Imm32(~7), sp, sp);
 
@@ -9065,10 +9063,11 @@ GenerateAsyncInterruptExit(ModuleCompiler& m, Label* throwLabel)
     masm.branchIfFalseBool(ReturnReg, throwLabel);
 
     // Restore the machine state to before the interrupt. this will set the pc!
-    // restore all FP registers
+
+    // Restore all FP registers
     masm.PopRegsInMask(LiveRegisterSet(GeneralRegisterSet(0),
                                        FloatRegisterSet(FloatRegisters::AllDoubleMask)));
-    masm.movePtr(r6,sp);
+    masm.moveToStackPtr(r6);
     masm.as_vmsr(r5);
     masm.as_msr(r4);
     // Restore all GP registers
@@ -9243,7 +9242,7 @@ GenerateThrowStub(ModuleCompiler& m, Label* throwLabel)
     masm.PopRegsInMask(NonVolatileRegs);
     MOZ_ASSERT(masm.framePushed() == 0);
 
-    masm.movePtr(ImmWord(0), ReturnReg);
+    masm.mov(ImmWord(0), ReturnReg);
     masm.ret();
 
     return m.finishGeneratingInlineStub(throwLabel) && !masm.oom();
