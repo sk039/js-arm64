@@ -6561,9 +6561,9 @@ CodeGenerator::visitBoundsCheckRange(LBoundsCheckRange* lir)
                          lir->snapshot());
             return;
         }
-        masm.movePtr(ImmWord(index), temp);
+        masm.mov(ImmWord(index), temp);
     } else {
-        masm.movePtr(ToRegister(lir->index()), temp);
+        masm.mov(ToRegister(lir->index()), temp);
     }
 
     // If the minimum and maximum differ then do an underflow check first.
@@ -9496,7 +9496,7 @@ CodeGenerator::emitInstanceOf(LInstruction* ins, JSObject* prototypeObject)
         Label isObject;
         ValueOperand lhsValue = ToValue(ins, LInstanceOfV::LHS);
         masm.branchTestObject(Assembler::Equal, lhsValue, &isObject);
-        masm.movePtr(ImmWord(0), output);
+        masm.mov(ImmWord(0), output);
         masm.jump(&done);
         masm.bind(&isObject);
         objReg = masm.extractObject(lhsValue, output);
@@ -9519,7 +9519,7 @@ CodeGenerator::emitInstanceOf(LInstruction* ins, JSObject* prototypeObject)
         // Test for the target prototype object.
         Label notPrototypeObject;
         masm.branchPtr(Assembler::NotEqual, output, ImmGCPtr(prototypeObject), &notPrototypeObject);
-        masm.movePtr(ImmWord(1), output);
+        masm.mov(ImmWord(1), output);
         masm.jump(&done);
         masm.bind(&notPrototypeObject);
 

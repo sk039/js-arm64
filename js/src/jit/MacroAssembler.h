@@ -772,7 +772,7 @@ class MacroAssembler : public MacroAssemblerSpecific
     Register extractTag(const TypedOrValueRegister& reg, Register scratch) {
         if (reg.hasValue())
             return extractTag(reg.valueReg(), scratch);
-        movePtr(ImmWord(MIRTypeToTag(reg.type())), scratch);
+        mov(ImmWord(MIRTypeToTag(reg.type())), scratch);
         return scratch;
     }
 
