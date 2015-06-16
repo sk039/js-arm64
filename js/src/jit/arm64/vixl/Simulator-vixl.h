@@ -348,11 +348,16 @@ class Simulator : public DecoderVisitor {
 
   // Simulation helpers.
   const Instruction* pc() const { return pc_; }
+  const Instruction* get_pc() const { return pc_; }
+
+  template <typename T>
+  T get_pc_as() const { return reinterpret_cast<T>(const_cast<Instruction*>(pc())); }
+
   void set_pc(const Instruction* new_pc) {
     pc_ = AddressUntag(new_pc);
     pc_modified_ = true;
   }
-  void set_resume_pc(const Instruction* new_resume_pc);
+  void set_resume_pc(void* new_resume_pc);
 
   void increment_pc() {
     if (!pc_modified_) {
