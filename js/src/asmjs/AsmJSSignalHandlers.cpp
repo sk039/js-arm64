@@ -1166,11 +1166,11 @@ RedirectJitCodeToInterruptCheck(JSRuntime* rt, CONTEXT* context)
     if (AsmJSActivation* activation = rt->asmJSActivationStack()) {
         const AsmJSModule& module = activation->module();
 
-#if defined(JS_ARM_SIMULATOR) || defined(JS_MIPS_SIMULATOR)
-        if (module.containsFunctionPC((void*)rt->mainThread.simulator()->get_pc()))
+#if defined(JS_SIMULATOR_ARM) || defined(JS_SIMULATOR_MIPS)
+        if (module.containsFunctionPC((void*)rt->simulator()->get_pc()))
             rt->simulator()->set_resume_pc(int32_t(module.interruptExit()));
-#elif defined(JS_ARM64_SIMULATOR)
-        if (rt->mainThread.simulator() && module.containsFunctionPC((void*)rt->mainThread.simulator()->pc()))
+#elif defined(JS_SIMULATOR_ARM64)
+        if (rt->mainThread.simulator() && module.containsFunctionPC((void*)rt->simulator()->pc()))
             rt->simulator()->set_resume_pc(reinterpret_cast<vixl::Instruction*>((module.interruptExit())));
 #endif
 

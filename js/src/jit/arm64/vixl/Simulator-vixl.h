@@ -338,6 +338,10 @@ class Simulator : public DecoderVisitor {
 
   void ResetState();
 
+  static inline uintptr_t StackLimit() {
+    return Simulator::Current()->stackLimit();
+  }
+
   // Run the simulator.
   virtual void Run();
   void RunFrom(const Instruction* first);
