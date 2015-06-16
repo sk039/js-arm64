@@ -159,7 +159,7 @@ UnboxedLayout::makeConstructorCode(JSContext* cx, HandleObjectGroup group)
         liveVolatileRegisters.add(object);
     masm.PushRegsInMask(liveVolatileRegisters);
 
-    masm.movePtr(ImmPtr(cx->runtime()), scratch1);
+    masm.mov(ImmPtr(cx->runtime()), scratch1);
     masm.setupUnalignedABICall(2, scratch2);
     masm.passABIArg(scratch1);
     masm.passABIArg(object);

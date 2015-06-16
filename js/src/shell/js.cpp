@@ -6405,15 +6405,7 @@ main(int argc, char** argv, char** envp)
         PropagateFlagToNestedShells("--enable-avx");
     }
 #endif
-    if (op.getBoolOption("no-asmjs")) {
-        PropagateFlagToNestedShells("--no-asmjs");
-    }
-    if (op.getBoolOption("no-native-regexp")) {
-        PropagateFlagToNestedShells("--no-native-regexp");
-    }
-    if (op.getBoolOption("no-ion")) {
-        PropagateFlagToNestedShells("--no-ion");
-    }
+
     if (op.getBoolOption("no-threads"))
         js::DisableExtraThreads();
 
