@@ -145,9 +145,6 @@ class AutoSetHandlingSignal
 # else
 #  define R15_sig(p) ((p)->uc_mcontext.gregs[REG_R15])
 # endif
-# if defined(__linux__) && defined(__aarch64__)
-#  define PC_sig(p) ((p)->uc_mcontext.pc)
-# endif
 # if defined(__linux__) && defined(__mips__)
 #  define EPC_sig(p) ((p)->uc_mcontext.pc)
 #  define RSP_sig(p) ((p)->uc_mcontext.gregs[29])
@@ -1166,12 +1163,9 @@ RedirectJitCodeToInterruptCheck(JSRuntime* rt, CONTEXT* context)
     if (AsmJSActivation* activation = rt->asmJSActivationStack()) {
         const AsmJSModule& module = activation->module();
 
-#if defined(JS_SIMULATOR_ARM) || defined(JS_SIMULATOR_MIPS)
+#ifdef JS_SIMULATOR
         if (module.containsFunctionPC((void*)rt->simulator()->get_pc()))
             rt->simulator()->set_resume_pc(int32_t(module.interruptExit()));
-#elif defined(JS_SIMULATOR_ARM64)
-        if (rt->mainThread.simulator() && module.containsFunctionPC((void*)rt->simulator()->pc()))
-            rt->simulator()->set_resume_pc(reinterpret_cast<vixl::Instruction*>((module.interruptExit())));
 #endif
 
         uint8_t** ppc = ContextToPC(context);

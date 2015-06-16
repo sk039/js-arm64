@@ -131,11 +131,6 @@ static const unsigned PushedRetAddr = 4;
 static const unsigned PushedFP = 16;
 static const unsigned StoredFP = 20;
 static const unsigned PostStorePrePopFP = 4;
-#elif defined(JS_CODEGEN_ARM64)
-static const unsigned PushedRetAddr = 8; // Maybe FIXME: read from assertion
-static const unsigned PushedFP = 28;
-static const unsigned StoredFP = 32;
-static const unsigned PostStorePrePopFP = 4;
 #elif defined(JS_CODEGEN_MIPS)
 static const unsigned PushedRetAddr = 8;
 static const unsigned PushedFP = 24;
@@ -155,7 +150,7 @@ static const unsigned StoredFP = 1;
 static void
 PushRetAddr(MacroAssembler& masm)
 {
-#if defined(JS_CODEGEN_ARM) || defined(JS_CODEGEN_ARM64)
+#if defined(JS_CODEGEN_ARM)
     masm.push(lr);
 #elif defined(JS_CODEGEN_MIPS)
     masm.push(ra);
@@ -171,7 +166,7 @@ static void
 GenerateProfilingPrologue(MacroAssembler& masm, unsigned framePushed, AsmJSExit::Reason reason,
                           Label* begin)
 {
-#if !defined(JS_CODEGEN_ARM)
+#if !defined (JS_CODEGEN_ARM)
     Register scratch = ABIArgGenerator::NonArg_VolatileReg;
 #else
     // Unfortunately, there are no unused non-arg volatile registers on ARM --
@@ -189,8 +184,6 @@ GenerateProfilingPrologue(MacroAssembler& masm, unsigned framePushed, AsmJSExit:
     {
 #if defined(JS_CODEGEN_ARM)
         AutoForbidPools afp(&masm, /* number of instructions in scope = */ 5);
-#elif defined(JS_CODEGEN_ARM64)
-        AutoForbidPools afp(&masm, /* number of instructions in scope = */ 8);
 #endif
         DebugOnly<uint32_t> offsetAtBegin = masm.currentOffset();
         masm.bind(begin);
@@ -223,7 +216,7 @@ GenerateProfilingEpilogue(MacroAssembler& masm, unsigned framePushed, AsmJSExit:
                           Label* profilingReturn)
 {
     Register scratch = ABIArgGenerator::NonReturn_VolatileReg0;
-#if defined(JS_CODEGEN_ARM) || defined(JS_CODEGEN_ARM64) || defined(JS_CODEGEN_MIPS)
+#if defined(JS_CODEGEN_ARM) || defined(JS_CODEGEN_MIPS)
     Register scratch2 = ABIArgGenerator::NonReturn_VolatileReg1;
 #endif
 
@@ -241,19 +234,17 @@ GenerateProfilingEpilogue(MacroAssembler& masm, unsigned framePushed, AsmJSExit:
     {
 #if defined(JS_CODEGEN_ARM)
         AutoForbidPools afp(&masm, /* number of instructions in scope = */ 4);
-#elif defined(JS_CODEGEN_ARM64)
-        AutoForbidPools afp(&masm, /* number of instructions in scope = */ 8);
 #endif
 
         // sp protects the stack from clobber via asynchronous signal handlers
         // and the async interrupt exit. Since activation.fp can be read at any
         // time and still points to the current frame, be careful to only update
         // sp after activation.fp has been repointed to the caller's frame.
-#if defined(JS_CODEGEN_ARM) || defined(JS_CODEGEN_ARM64) || defined(JS_CODEGEN_MIPS)
+#if defined(JS_CODEGEN_ARM) || defined(JS_CODEGEN_MIPS)
         masm.loadPtr(Address(masm.getStackPointer(), 0), scratch2);
         masm.storePtr(scratch2, Address(scratch, AsmJSActivation::offsetOfFP()));
         DebugOnly<uint32_t> prePop = masm.currentOffset();
-        masm.addToStackPtr(Imm32(4));
+        masm.add32(Imm32(4), masm.getStackPointer());
         MOZ_ASSERT(PostStorePrePopFP == masm.currentOffset() - prePop);
 #else
         masm.pop(Address(scratch, AsmJSActivation::offsetOfFP()));
@@ -276,7 +267,7 @@ void
 js::GenerateAsmJSFunctionPrologue(MacroAssembler& masm, unsigned framePushed,
                                   AsmJSFunctionLabels* labels)
 {
-#if defined(JS_CODEGEN_ARM) || defined(JS_CODEGEN_ARM64)
+#if defined(JS_CODEGEN_ARM)
     // Flush pending pools so they do not get dumped between the 'begin' and
     // 'entry' labels since the difference must be less than UINT8_MAX.
     masm.flushBuffer();
@@ -322,7 +313,7 @@ js::GenerateAsmJSFunctionEpilogue(MacroAssembler& masm, unsigned framePushed,
 {
     MOZ_ASSERT(masm.framePushed() == framePushed);
 
-#if defined(JS_CODEGEN_ARM) || defined(JS_CODEGEN_ARM64)
+#if defined(JS_CODEGEN_ARM)
     // Flush pending pools so they do not get dumped between the profilingReturn
     // and profilingJump/profilingEpilogue labels since the difference must be
     // less than UINT8_MAX.
@@ -330,7 +321,7 @@ js::GenerateAsmJSFunctionEpilogue(MacroAssembler& masm, unsigned framePushed,
 #endif
 
     {
-#if defined(JS_CODEGEN_ARM) || defined(JS_CODEGEN_ARM64)
+#if defined(JS_CODEGEN_ARM)
         // Forbid pools from being inserted between the profilingJump label and
         // the nop since we need the location of the actual nop to patch it.
         AutoForbidPools afp(&masm, 1);
@@ -341,7 +332,7 @@ js::GenerateAsmJSFunctionEpilogue(MacroAssembler& masm, unsigned framePushed,
         masm.bind(&labels->profilingJump);
 #if defined(JS_CODEGEN_X86) || defined(JS_CODEGEN_X64)
         masm.twoByteNop();
-#elif defined(JS_CODEGEN_ARM) || defined(JS_CODEGEN_ARM64)
+#elif defined(JS_CODEGEN_ARM)
         masm.nop();
 #elif defined(JS_CODEGEN_MIPS)
         masm.nop();
@@ -570,8 +561,7 @@ AsmJSProfilingFrameIterator::AsmJSProfilingFrameIterator(const AsmJSActivation& 
         MOZ_ASSERT(offsetInModule < codeRange->end());
         uint32_t offsetInCodeRange = offsetInModule - codeRange->begin();
         void** sp = (void**)state.sp;
-
-#if defined(JS_CODEGEN_ARM) || defined(JS_CODEGEN_ARM64) || defined(JS_CODEGEN_MIPS)
+#if defined(JS_CODEGEN_ARM) || defined(JS_CODEGEN_MIPS)
         if (offsetInCodeRange < PushedRetAddr) {
             // First instruction of the ARM/MIPS function; the return address is
             // still in lr and fp still holds the caller's fp.

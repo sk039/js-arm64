@@ -330,7 +330,7 @@ AsmJSModule::finish(ExclusiveContext* cx, TokenStream& tokenStream, MacroAssembl
     // Call-site metadata used for stack unwinding.
     callSites_ = masm.extractCallSites();
 
-#if defined(JS_CODEGEN_ARM) || defined(JS_CODEGEN_ARM64)
+#if defined(JS_CODEGEN_ARM)
     // ARM requires the offsets to be updated.
     pod.functionBytes_ = masm.actualOffset(pod.functionBytes_);
     for (size_t i = 0; i < heapAccesses_.length(); i++) {
@@ -835,7 +835,7 @@ AsmJSModule::initHeap(Handle<ArrayBufferObjectMaybeShared*> heap, JSContext* cx)
 
     maybeHeap_ = heap;
     heapDatum() = heap->dataPointer();
-    heapLenDatum() = heap->byteLength();
+
 #if defined(JS_CODEGEN_X86)
     uint8_t* heapOffset = heap->dataPointer();
     uint32_t heapLength = heap->byteLength();
@@ -868,7 +868,7 @@ AsmJSModule::initHeap(Handle<ArrayBufferObjectMaybeShared*> heap, JSContext* cx)
         if (access.hasLengthCheck())
             X86Encoding::AddInt32(access.patchLengthAt(code_), heapLength);
     }
-#elif defined(JS_CODEGEN_ARM) || defined(JS_CODEGEN_MIPS) || defined(JS_CODEGEN_ARM64)
+#elif defined(JS_CODEGEN_ARM) || defined(JS_CODEGEN_MIPS)
     uint32_t heapLength = heap->byteLength();
     for (unsigned i = 0; i < heapAccesses_.length(); i++) {
         jit::Assembler::UpdateBoundsCheck(heapLength,
@@ -1786,13 +1786,7 @@ AsmJSModule::setProfilingEnabled(bool enabled, JSContext* cx)
         Instruction* callerInsn = reinterpret_cast<Instruction*>(caller);
         BOffImm calleeOffset;
         callerInsn->as<InstBLImm>()->extractImm(&calleeOffset);
-        void *callee = calleeOffset.getDest(callerInsn);
-#elif defined(JS_CODEGEN_ARM64)
-
-        uint8_t *caller = callerRetAddr - 4;
-        Instruction *callerInsn = reinterpret_cast<Instruction*>(caller);
-        void *callee = (void*)callerInsn->ImmPCOffsetTarget();
-
+        void* callee = calleeOffset.getDest(callerInsn);
 #elif defined(JS_CODEGEN_MIPS)
         Instruction* instr = (Instruction*)(callerRetAddr - 4 * sizeof(uint32_t));
         void* callee = (void*)Assembler::ExtractLuiOriValue(instr, instr->next());
@@ -1817,8 +1811,6 @@ AsmJSModule::setProfilingEnabled(bool enabled, JSContext* cx)
         X86Encoding::SetRel32(callerRetAddr, newCallee);
 #elif defined(JS_CODEGEN_ARM)
         new (caller) InstBLImm(BOffImm(newCallee - caller), Assembler::Always);
-#elif defined(JS_CODEGEN_ARM64)
-        reinterpret_cast<Instruction*>(caller)->SetImmPCOffsetTarget(reinterpret_cast<Instruction*>(newCallee));
 #elif defined(JS_CODEGEN_MIPS)
         Assembler::WriteLuiOriInstructions(instr, instr->next(),
                                            ScratchRegister, (uint32_t)newCallee);
@@ -1882,14 +1874,6 @@ AsmJSModule::setProfilingEnabled(bool enabled, JSContext* cx)
             MOZ_ASSERT(reinterpret_cast<Instruction*>(jump)->is<InstBImm>());
             new (jump) InstNOP();
         }
-#elif defined(JS_CODEGEN_ARM64)
-        Instruction *jmp = reinterpret_cast<Instruction*>(jump);
-        if (enabled) {
-            Assembler::b(jmp, 0);
-            jmp->SetImmPCOffsetTarget(reinterpret_cast<Instruction*>(profilingEpilogue));
-        } else {
-            Assembler::nop(jmp);
-        }
 #elif defined(JS_CODEGEN_MIPS)
         Instruction* instr = (Instruction*)jump;
         if (enabled) {
@@ -1941,7 +1925,6 @@ GetCPUID(uint32_t* cpuId)
         X64 = 0x2,
         ARM = 0x3,
         MIPS = 0x4,
-        ARM64 = 0x5,
         ARCH_BITS = 3
     };
 
@@ -1960,10 +1943,6 @@ GetCPUID(uint32_t* cpuId)
 #elif defined(JS_CODEGEN_MIPS)
     MOZ_ASSERT(GetMIPSFlags() <= (UINT32_MAX >> ARCH_BITS));
     *cpuId = MIPS | (GetMIPSFlags() << ARCH_BITS);
-    return true;
-#elif defined(JS_CODEGEN_ARM64)
-    // for now, arm64 doesn't really have any arch-specific bits.
-    *cpuId = ARM64;
     return true;
 #else
     return false;

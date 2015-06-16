@@ -2622,9 +2622,6 @@ case "$target_cpu" in
 arm)
     android_version=5
     ;;
-aarch64)
-    android_version=L
-    ;;
 i?86|mipsel)
     android_version=9
     ;;
@@ -2647,9 +2644,6 @@ fi
 case "$target" in
 arm-linux*-android*|*-linuxandroid*)
     android_tool_prefix="arm-linux-androideabi"
-    ;;
-aarch64-linux*-android*)
-    android_tool_prefix="aarch64-linux-android"
     ;;
 i?86-*android*)
     android_tool_prefix="i686-linux-android"
@@ -2716,9 +2710,6 @@ $as_echo_n "checking for android platform directory... " >&6; }
         arm)
             target_name=arm
             ;;
-        aarch64)
-            target_name=arm64
-            ;;
         i?86)
             target_name=x86
             ;;
@@ -2728,7 +2719,6 @@ $as_echo_n "checking for android platform directory... " >&6; }
         esac
 
         android_platform="$android_ndk"/platforms/android-"$android_version"/arch-"$target_name"
-        echo "android_platform: ($android_platform)"
 
         if test -d "$android_platform" ; then
             { $as_echo "$as_me:${as_lineno-$LINENO}: result: $android_platform" >&5

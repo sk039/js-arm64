@@ -2111,10 +2111,6 @@ arm*-*)
     ENABLE_ION=1
     AC_DEFINE(JS_CPU_ARM)
     ;;
-aarch64*-*)
-    ENABLE_ION=1
-    AC_DEFINE(JS_CPU_ARM64)
-    ;;
 sparc-*)
 dnl ENABLE_ION=0
     AC_DEFINE(JS_CPU_SPARC)
@@ -3173,9 +3169,6 @@ elif test "$CPU_ARCH" = "x86_64"; then
 elif test "$CPU_ARCH" = "arm"; then
     AC_DEFINE(JS_CODEGEN_ARM)
     JS_CODEGEN_ARM=1
-elif test "$CPU_ARCH" = "aarch64"; then
-    AC_DEFINE(JS_CODEGEN_ARM64)
-    JS_CODEGEN_ARM64=1
 elif test "$CPU_ARCH" = "mips"; then
     AC_DEFINE(JS_CODEGEN_MIPS)
     JS_CODEGEN_MIPS=1

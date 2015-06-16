@@ -37,7 +37,6 @@
 #include "frontend/Parser.h"
 #include "jit/CodeGenerator.h"
 #include "jit/CompileWrappers.h"
-#include "jit/JitSpewer.h"
 #include "jit/MIR.h"
 #include "jit/MIRGraph.h"
 #ifdef JS_ION_PERF
@@ -7055,10 +7054,9 @@ CheckSwitchRange(FunctionCompiler& f, ParseNode* stmt, int32_t* low, int32_t* hi
     }
 
     int64_t i64 = (int64_t(*high) - int64_t(*low)) + 1;
-    if (i64 >  1 << 17) {
-        fprintf(stderr, "%ld was out of range :-(\n", i64);
+    if (i64 > 4*1024*1024)
         return f.fail(initialStmt, "all switch statements generate tables; this table would be too big");
-    }
+
     *tableLength = int32_t(i64);
     return true;
 }
@@ -8152,10 +8150,7 @@ GenerateEntry(ModuleCompiler& m, unsigned exportIndex)
 
     // Save the return address if it wasn't already saved by the call insn.
 #if defined(JS_CODEGEN_ARM)
-    masm.pushReturnAddress();
-#elif defined(JS_CODEGEN_ARM64)
-    masm.initStackPtr();
-    masm.pushReturnAddress();
+    masm.push(lr);
 #elif defined(JS_CODEGEN_MIPS)
     masm.push(ra);
 #elif defined(JS_CODEGEN_X86)
@@ -8171,7 +8166,7 @@ GenerateEntry(ModuleCompiler& m, unsigned exportIndex)
     // ARM and MIPS have a globally-pinned GlobalReg (x64 uses RIP-relative
     // addressing, x86 uses immediates in effective addresses). For the
     // AsmJSGlobalRegBias addition, see Assembler-(mips,arm).h.
-#if defined(JS_CODEGEN_ARM) || defined(JS_CODEGEN_MIPS) || defined(JS_CODEGEN_ARM64)
+#if defined(JS_CODEGEN_ARM) || defined(JS_CODEGEN_MIPS)
     masm.movePtr(IntArgReg1, GlobalReg);
     masm.addPtr(Imm32(AsmJSGlobalRegBias), GlobalReg);
 #endif
@@ -8211,9 +8206,6 @@ GenerateEntry(ModuleCompiler& m, unsigned exportIndex)
     PropertyName* funcName = m.module().exportedFunction(exportIndex).name();
     const ModuleCompiler::Func& func = *m.lookupFunction(funcName);
     masm.reserveStack(AlignBytes(StackArgBytes(func.sig().args()), AsmJSStackAlignment));
-#ifdef JS_CODEGEN_ARM64
-    masm.syncStackPtr();
-#endif
 
     // Copy parameters out of argv and into the registers/stack-slots specified by
     // the system ABI.
@@ -8522,8 +8514,6 @@ GenerateFFIIonExit(ModuleCompiler& m, const ModuleCompiler::ExitDescriptor& exit
     m.masm().append(AsmJSGlobalAccess(masm.leaRipRelative(callee), globalDataOffset));
 #elif defined(JS_CODEGEN_X86)
     m.masm().append(AsmJSGlobalAccess(masm.movlWithPatch(Imm32(0), callee), globalDataOffset));
-#elif defined(JS_CODEGEN_ARM64)
-    masm.computeEffectiveAddress(Address(GlobalReg, globalDataOffset - AsmJSGlobalRegBias), callee);
 #elif defined(JS_CODEGEN_ARM) || defined(JS_CODEGEN_MIPS)
     masm.computeEffectiveAddress(Address(GlobalReg, globalDataOffset - AsmJSGlobalRegBias), callee);
 #endif
@@ -8560,7 +8550,6 @@ GenerateFFIIonExit(ModuleCompiler& m, const ModuleCompiler::ExitDescriptor& exit
     //    so they must be explicitly preserved. Only save GlobalReg since
     //    HeapReg must be reloaded (from global data) after the call since the
     //    heap may change during the FFI call.
-// TODO: ARM64?
 #if defined(JS_CODEGEN_ARM) || defined(JS_CODEGEN_MIPS)
     static_assert(MaybeSavedGlobalReg == sizeof(void*), "stack frame accounting");
     masm.storePtr(GlobalReg, Address(masm.getStackPointer(), ionFrameBytes));
@@ -8677,7 +8666,6 @@ GenerateFFIIonExit(ModuleCompiler& m, const ModuleCompiler::ExitDescriptor& exit
     }
 
     // Reload the global register since Ion code can clobber any register.
-// TODO: ARM64?
 #if defined(JS_CODEGEN_ARM) || defined(JS_CODEGEN_MIPS)
     static_assert(MaybeSavedGlobalReg == sizeof(void*), "stack frame accounting");
     masm.loadPtr(Address(masm.getStackPointer(), ionFrameBytes), GlobalReg);
@@ -8937,16 +8925,10 @@ GenerateExceptionLabelExit(ModuleCompiler& m, Label* throwLabel, Label* exit, As
     return m.finishGeneratingInlineStub(exit) && !masm.oom();
 }
 
-// TODO: the stack pointer is kind of determined at runtime on arm64,
-#ifdef JS_CODEGEN_ARM64
 static const LiveRegisterSet AllRegsExceptSP(
-    GeneralRegisterSet(Registers::AllMask & ~(uint32_t(1) << Registers::StackPointer | uint32_t(1) << 28)),
+    GeneralRegisterSet(Registers::AllMask&
+                       ~(uint32_t(1) << Registers::StackPointer)),
     FloatRegisterSet(FloatRegisters::AllMask));
-#else
-static const LiveRegisterSet AllRegsExceptSP(
-    GeneralRegisterSet(Registers::AllMask & ~(uint32_t(1) << Registers::StackPointer)),
-    FloatRegisterSet(FloatRegisters::AllMask));
-#endif
 
 // The async interrupt-callback exit is called from arbitrarily-interrupted asm.js
 // code. That means we must first save *all* registers and restore *all*
@@ -9012,7 +8994,7 @@ GenerateAsyncInterruptExit(ModuleCompiler& m, Label* throwLabel)
     // Save the stack pointer in a non-volatile register.
     masm.moveStackPtrTo(s0);
     // Align the stack.
-    masm.ma_and(masm.getStackPointer(), masm.getStackPointer(), Imm32(~(ABIStackAlignment - 1)));
+    masm.ma_and(StackPointer, StackPointer, Imm32(~(ABIStackAlignment - 1)));
 
     // Store resumePC into the reserved space.
     masm.loadAsmJSActivation(IntArgReg0);
@@ -9050,7 +9032,7 @@ GenerateAsyncInterruptExit(ModuleCompiler& m, Label* throwLabel)
     masm.as_mrs(r4);
     masm.as_vmrs(r5);
     // Save the stack pointer in a non-volatile register.
-    masm.moveStackPtrTo(r6);
+    masm.mov(sp,r6);
     // Align the stack.
     masm.ma_and(Imm32(~7), sp, sp);
 
@@ -9077,7 +9059,7 @@ GenerateAsyncInterruptExit(ModuleCompiler& m, Label* throwLabel)
     // Restore all FP registers
     masm.PopRegsInMask(LiveRegisterSet(GeneralRegisterSet(0),
                                        FloatRegisterSet(FloatRegisters::AllDoubleMask)));
-    masm.moveToStackPtr(r6);
+    masm.mov(r6,sp);
     masm.as_vmsr(r5);
     masm.as_msr(r4);
     // Restore all GP registers
@@ -9098,108 +9080,8 @@ GenerateAsyncInterruptExit(ModuleCompiler& m, Label* throwLabel)
     masm.transferReg(lr);
     masm.finishDataTransfer();
     masm.ret();
-#elif defined(JS_CODEGEN_ARM64)
-    // Zero to use masm.framePushed() below.
-    masm.setFramePushed(0);
 
-    // rsp can't be used as a stack pointer, because it may not be aligned
-    // r28 can't be used as a stack pointer, because it will go below rsp
-    // we can't sacrifice a register to align sp, because *all* registers need to be saved.
-
-    // reserve enough space to save everything.
-    masm.Sub(sp, sp, 32 * sizeof(void*));
-    // Push and PushRegsInMask will attempt to sync the stack pointer
-    masm.Stp(x0,  x1,  MemOperand(x28, -16, vixl::PreIndex));
-    masm.Stp(x2,  x3,  MemOperand(x28, -16, vixl::PreIndex));
-    masm.Stp(x4,  x5,  MemOperand(x28, -16, vixl::PreIndex));
-    masm.Stp(x6,  x7,  MemOperand(x28, -16, vixl::PreIndex));
-    masm.Stp(x8,  x9,  MemOperand(x28, -16, vixl::PreIndex));
-    masm.Stp(x10, x11, MemOperand(x28, -16, vixl::PreIndex));
-    masm.Stp(x12, x13, MemOperand(x28, -16, vixl::PreIndex));
-    masm.Stp(x14, x15, MemOperand(x28, -16, vixl::PreIndex));
-    masm.Stp(x16, x17, MemOperand(x28, -16, vixl::PreIndex));
-    masm.Stp(x18, x19, MemOperand(x28, -16, vixl::PreIndex));
-    masm.Stp(x20, x21, MemOperand(x28, -16, vixl::PreIndex));
-    masm.Stp(x22, x23, MemOperand(x28, -16, vixl::PreIndex));
-    masm.Stp(x24, x25, MemOperand(x28, -16, vixl::PreIndex));
-    masm.Stp(x26, x27, MemOperand(x28, -16, vixl::PreIndex));
-    masm.Stp(x29, x30, MemOperand(x28, -16, vixl::PreIndex));
-
-    // now save sp as well
-    masm.Mov(x25, sp);
-    masm.Mrs(x26, vixl::NZCV);
-    // don't need to store those two, since the registers should be preserved.
-    //masm.Stp(x9, x10, MemOperand(x28, -16, PreIndex));
-
-    // Align the stack, sp was previously copied to r19.
-    MOZ_ASSERT(!masm.GetStackPointer64().Is(sp));
-    masm.And(sp, x25, Operand(~0xF));
-    masm.SetStackPointer64(sp);
-
-    // When this platform supports SIMD extensions, we'll need to push and pop
-    // high lanes of SIMD registers as well.
-    JS_STATIC_ASSERT(!SupportsSimd);
-
-    // Save all FP registers.
-    masm.PushRegsInMask(LiveRegisterSet(GeneralRegisterSet(0),
-                                        FloatRegisterSet(FloatRegisters::AllDoubleMask)));
-
-    masm.assertStackAlignment(ABIStackAlignment);
-    masm.call(AsmJSImm_HandleExecutionInterrupt);
-
-    masm.branchIfFalseBool(ReturnReg, throwLabel);
-
-    Label retInst;
-
-    // Grab the resumepc from the activation
-    masm.loadAsmJSActivation(IntArgReg0);
-    masm.loadPtr(Address(IntArgReg0, AsmJSActivation::offsetOfResumePC()), IntArgReg0);
-    // get the address of the return instruction
-    masm.Adr(ARMRegister(IntArgReg1, 64), &retInst);
-    // get the offset between the return instruction and the resumepc
-    masm.Sub(ARMRegister(IntArgReg2, 64), ARMRegister(IntArgReg0, 64), ARMRegister(IntArgReg1, 64));
-    // start making an instruction, the top six bits are 0b000101, or 0x18000000
-    masm.Mov(ARMRegister(IntArgReg0, 32), vixl::UnconditionalBranchFixed);
-    // chop off the lowest two bits, since that is how B is encoded.
-    masm.Asr(ARMRegister(IntArgReg2, 64), ARMRegister(IntArgReg2, 64), 2);
-    // stick the lower 25 bits of the offset onto the instruction
-    masm.Bfi(ARMRegister(IntArgReg0, 32), ARMRegister(IntArgReg2, 32), 0, 26);
-    // write this into the address of the instruction.
-    masm.Str(ARMRegister(IntArgReg0, 32), MemOperand(ARMRegister(IntArgReg1, 64), 0));
-    // TODO: flush the icache, simulator only currently, so it doesn't matter much.
-    masm.Msr(vixl::NZCV, x26);
-
-    // Restore the machine state to before the interrupt. this will set the pc!
-
-    // Restore all FP registers.
-    masm.PopRegsInMask(LiveRegisterSet(GeneralRegisterSet(0),
-                                       FloatRegisterSet(FloatRegisters::AllDoubleMask)));
-
-    masm.Mov(sp, x25);
-    masm.SetStackPointer64(x28);
-
-    // Restore all GP registers
-    masm.Ldp(x29, x30, MemOperand(x28, 16, vixl::PostIndex));
-    masm.Ldp(x26, x27, MemOperand(x28, 16, vixl::PostIndex));
-    masm.Ldp(x24, x25, MemOperand(x28, 16, vixl::PostIndex));
-    masm.Ldp(x22, x23, MemOperand(x28, 16, vixl::PostIndex));
-    masm.Ldp(x20, x21, MemOperand(x28, 16, vixl::PostIndex));
-    masm.Ldp(x18, x19, MemOperand(x28, 16, vixl::PostIndex));
-    masm.Ldp(x16, x17, MemOperand(x28, 16, vixl::PostIndex));
-    masm.Ldp(x14, x15, MemOperand(x28, 16, vixl::PostIndex));
-    masm.Ldp(x12, x13, MemOperand(x28, 16, vixl::PostIndex));
-    masm.Ldp(x10, x11, MemOperand(x28, 16, vixl::PostIndex));
-    masm.Ldp(x8,  x9,  MemOperand(x28, 16, vixl::PostIndex));
-    masm.Ldp(x6,  x7,  MemOperand(x28, 16, vixl::PostIndex));
-    masm.Ldp(x4,  x5,  MemOperand(x28, 16, vixl::PostIndex));
-    masm.Ldp(x2,  x3,  MemOperand(x28, 16, vixl::PostIndex));
-    masm.Ldp(x0,  x1,  MemOperand(x28, 16, vixl::PostIndex));
-
-    masm.Mov(sp, x28);
-    masm.bind(&retInst);
-    // this 'breakpoint' should get overwritten with a branch to the return address
-    masm.breakpoint();
-#elif defined(JS_CODEGEN_NONE)
+#elif defined (JS_CODEGEN_NONE)
     MOZ_CRASH();
 #else
 # error "Unknown architecture!"
