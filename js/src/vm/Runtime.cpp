@@ -32,9 +32,7 @@
 
 #include "asmjs/AsmJSSignalHandlers.h"
 #include "jit/arm/Simulator-arm.h"
-#ifdef JS_CODEGEN_ARM64
 #include "jit/arm64/vixl/Simulator-vixl.h"
-#endif
 #include "jit/JitCompartment.h"
 #include "jit/mips/Simulator-mips.h"
 #include "jit/PcScriptCache.h"

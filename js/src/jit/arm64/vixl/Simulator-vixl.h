@@ -29,6 +29,7 @@
 
 #include "mozilla/Vector.h"
 
+#include "js-config.h"
 #include "jsalloc.h"
 
 #include "jit/arm64/vixl/Assembler-vixl.h"
@@ -39,6 +40,8 @@
 #include "jit/arm64/vixl/Utils-vixl.h"
 #include "jit/IonTypes.h"
 #include "vm/PosixNSPR.h"
+
+#ifdef JS_SIMULATOR_ARM64
 
 #define JS_CHECK_SIMULATOR_RECURSION_WITH_EXTRA(cx, extra, onerror)             \
     JS_BEGIN_MACRO                                                              \
@@ -982,4 +985,5 @@ class Simulator : public DecoderVisitor {
 };
 }  // namespace vixl
 
+#endif  // JS_SIMULATOR_ARM64
 #endif  // VIXL_A64_SIMULATOR_A64_H_
