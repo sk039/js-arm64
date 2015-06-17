@@ -97,7 +97,7 @@ class CompileRuntime;
 
 #ifdef JS_SIMULATOR_ARM64
 typedef vixl::Simulator Simulator;
-#elif defined(JS_SIMULATOR_ARM) || defined(JS_SIMULATOR_MIPS)
+#elif defined(JS_SIMULATOR)
 class Simulator;
 #endif
 }
@@ -516,10 +516,6 @@ class PerThreadData : public PerThreadDataFriendFields
     /* Pointer to the current AutoFlushICache. */
     js::jit::AutoFlushICache* autoFlushICache_;
 
-#ifdef JS_SIMULATOR
-    js::jit::Simulator* simulator_;
-    uintptr_t simulatorStackLimit_;
-#endif
   public:
     /* State used by jsdtoa.cpp. */
     DtoaState*          dtoaState;
