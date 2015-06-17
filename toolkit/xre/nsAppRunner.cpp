@@ -3428,6 +3428,12 @@ XREMain::XRE_mainInit(bool* aExitFlag)
     gSafeMode = true;
 #endif
 
+#ifdef MOZ_CRASHREPORTER
+    CrashReporter::AnnotateCrashReport(NS_LITERAL_CSTRING("SafeMode"),
+                                       gSafeMode ? NS_LITERAL_CSTRING("1") :
+                                                   NS_LITERAL_CSTRING("0"));
+#endif
+
   // Handle --no-remote and --new-instance command line arguments. Setup
   // the environment to better accommodate other components and various
   // restart scenarios.
@@ -4527,6 +4533,12 @@ bool
 XRE_IsParentProcess()
 {
   return XRE_GetProcessType() == GeckoProcessType_Default;
+}
+
+void
+mozilla::startup::SetSafeMode()
+{
+  gSafeMode = true;
 }
 
 #ifdef E10S_TESTING_ONLY
