@@ -54,13 +54,13 @@ struct Register {
     const char* name() const {
         return Registers::GetName(code());
     }
-    MOZ_CONSTEXPR bool operator ==(Register other) const {
+    bool operator ==(Register other) const {
         return reg_ == other.reg_;
     }
-    MOZ_CONSTEXPR bool operator !=(Register other) const {
+    bool operator !=(Register other) const {
         return reg_ != other.reg_;
     }
-    MOZ_CONSTEXPR bool volatile_() const {
+    bool volatile_() const {
         return !!((SetType(1) << code()) & Registers::VolatileMask);
     }
     bool aliases(const Register& other) const {

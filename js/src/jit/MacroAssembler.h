@@ -103,7 +103,7 @@ class MacroAssembler : public MacroAssemblerSpecific
       public:
         Branch()
           : init_(false),
-            cond_(Condition::Equal),
+            cond_(Equal),
             jump_(nullptr),
             reg_(Register::FromCode(0))      // Quell compiler warnings.
         { }
@@ -542,7 +542,7 @@ class MacroAssembler : public MacroAssemblerSpecific
 
     void storeCallResult(Register reg) {
         if (reg != ReturnReg)
-            movePtr(ReturnReg, reg);
+            mov(ReturnReg, reg);
     }
 
     void storeCallFloatResult(FloatRegister reg) {
@@ -570,22 +570,22 @@ class MacroAssembler : public MacroAssemblerSpecific
         if (dest.typeReg() == JSReturnReg_Data) {
             if (dest.payloadReg() == JSReturnReg_Type) {
                 // swap the two registers.
-                move32(JSReturnReg_Type, ReturnReg);
-                move32(JSReturnReg_Data, JSReturnReg_Type);
-                move32(ReturnReg, JSReturnReg_Data);
+                mov(JSReturnReg_Type, ReturnReg);
+                mov(JSReturnReg_Data, JSReturnReg_Type);
+                mov(ReturnReg, JSReturnReg_Data);
             } else {
-                move32(JSReturnReg_Data, dest.payloadReg());
-                move32(JSReturnReg_Type, dest.typeReg());
+                mov(JSReturnReg_Data, dest.payloadReg());
+                mov(JSReturnReg_Type, dest.typeReg());
             }
         } else {
-            move32(JSReturnReg_Type, dest.typeReg());
-            move32(JSReturnReg_Data, dest.payloadReg());
+            mov(JSReturnReg_Type, dest.typeReg());
+            mov(JSReturnReg_Data, dest.payloadReg());
         }
 #elif defined(JS_PUNBOX64)
         if (dest.valueReg() != JSReturnReg)
-            movePtr(JSReturnReg, dest.valueReg());
+            mov(JSReturnReg, dest.valueReg());
 #else
-# error "Bad architecture"
+#error "Bad architecture"
 #endif
     }
 
